@@ -598,3 +598,199 @@ function navigate(view){currentView=view;render();}
 function render(){document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();setTimeout(hydrateImageElements,0);}
 render();
 Object.assign(window,{navigate,switchPlan,switchPlanAndOpen,openPlanModal,savePlan,togglePlanStatus,openOperationModal,closeModal,saveOperationFromForm,filterOperations,editOperation,viewOperation,showBlock,openBlockInOperations,setBlockUnit,setBlockBasis,setBlockCommissionUnit,setOpsUnit,setOpsBasis,toggleOpsDay,toggleOpsModule,resetOpsFilters,setOpsQuickPeriod,setOpsDimension,applyDimensionFilter,applyHeatCell,addConfig,removeConfig,addHypothesis,resetPlanConfig,editHyp,openInstrumentModal,refreshInstrumentCommissionTicks,saveInstrument,openRiskModal,addRiskLotRow,removeRiskLotRow,refreshRiskLotVisibility,refreshRiskEditorSummary,saveRiskStrategy,applyRiskToOperation,recalcOperation,openImportModal,startImportSelection,viewImportBatch,deleteImportBatch,openImportPreviewModal,updatePreviewField,togglePreviewRaw,cancelImportPreview,confirmImportPreview,openImportBatchInspector,viewImportBatchTrades,toggleSavedRaw,openImportedRowEditor,saveImportedRowEdit,addEmotionConfig,removeEmotionConfig,openRiskManagementModal,saveRiskManagement,readJournalFilters,openEmotionalEditor,saveEmotionalEditor,setConfigTab,openVisualReferenceModal,refreshReferenceKey,saveVisualReference,deleteVisualReference,openImageLightbox,readGalleryFilters,toggleGallerySelect,openGalleryCompare});
+
+
+/* ===== V8 PATCH · taxonomy assets + integrated setup/context visuals ===== */
+let editingTaxonomyAsset = null;
+
+const V8_DEFAULT_CONTEXT_DEFS = [
+  {key:'EB Norm', description:'Estructura bajista normal.', specs:'Ejemplo: continuidad bajista con secuencia ordenada.', timeframes:['4H'], images:[]},
+  {key:'EA Norm', description:'Estructura alcista normal.', specs:'Ejemplo: continuidad alcista con secuencia ordenada.', timeframes:['4H'], images:[]},
+  {key:'Impulso', description:'Contexto de impulso dominante.', specs:'Velocidad, intención y desplazamiento claros.', timeframes:['1H','4H'], images:[]},
+  {key:'Retroceso', description:'Contexto de retroceso / pausa.', specs:'Pérdida temporal de desplazamiento, búsqueda de reenganche.', timeframes:['1H','4H'], images:[]}
+];
+
+function uniq(arr){return [...new Set((arr||[]).filter(Boolean))];}
+function splitTimeframes(v){return uniq(String(v||'').split(/[;,/|]+/).map(x=>x.trim()).filter(Boolean));}
+function tfText(list){return (list||[]).length?(list||[]).join(' · '):'Sin TF';}
+function badgeList(list){return (list||[]).length?(list||[]).map(x=>`<span class="mini-badge">${esc(x)}</span>`).join(' '):'<span class="mini-badge muted">Sin TF</span>';}
+function ensurePlanV8Structure(p){
+  if(!p) return p;
+  p.setups = uniq((p.setups||[]).map(x=>String(x).trim()));
+  p.vd = uniq((p.vd||[]).map(x=>String(x).trim()));
+  p.nr = uniq((p.nr||[]).map(x=>String(x).trim()));
+  p.setupDefinitions = Array.isArray(p.setupDefinitions) ? p.setupDefinitions : [];
+  p.vdDefinitions = Array.isArray(p.vdDefinitions) ? p.vdDefinitions : [];
+  p.contextDefinitions = Array.isArray(p.contextDefinitions) ? p.contextDefinitions : [];
+  p.setupDefinitions = p.setupDefinitions.map(d => ({
+    id:d.id||uid('SETDEF'), key:String(d.key||d.name||'').trim(), title:d.title||d.key||d.name||'', description:d.description||'',
+    specs:d.specs||'', timeframes:Array.isArray(d.timeframes)?uniq(d.timeframes):splitTimeframes(d.timeframes),
+    imagesLong:Array.isArray(d.imagesLong)?d.imagesLong:[], imagesShort:Array.isArray(d.imagesShort)?d.imagesShort:[], updatedAt:d.updatedAt||new Date().toISOString()
+  })).filter(d=>d.key);
+  p.vdDefinitions = p.vdDefinitions.map(d => ({
+    id:d.id||uid('VDDEF'), key:String(d.key||d.name||'').trim(), title:d.title||d.key||d.name||'', description:d.description||'', specs:d.specs||'',
+    timeframes:Array.isArray(d.timeframes)?uniq(d.timeframes):splitTimeframes(d.timeframes), images:Array.isArray(d.images)?d.images:[], updatedAt:d.updatedAt||new Date().toISOString()
+  })).filter(d=>d.key);
+  p.contextDefinitions = p.contextDefinitions.map(d => ({
+    id:d.id||uid('CTXDEF'), key:String(d.key||d.name||'').trim(), title:d.title||d.key||d.name||'', description:d.description||'', specs:d.specs||'',
+    timeframes:Array.isArray(d.timeframes)?uniq(d.timeframes):splitTimeframes(d.timeframes), images:Array.isArray(d.images)?d.images:[], updatedAt:d.updatedAt||new Date().toISOString()
+  })).filter(d=>d.key);
+  p.setups.forEach(name=>{ if(!p.setupDefinitions.some(d=>d.key===name)) p.setupDefinitions.push({id:uid('SETDEF'), key:name, title:name, description:'', specs:'', timeframes:['5M'], imagesLong:[], imagesShort:[], updatedAt:new Date().toISOString()}); });
+  p.vd.forEach(name=>{ if(!p.vdDefinitions.some(d=>d.key===name)) p.vdDefinitions.push({id:uid('VDDEF'), key:name, title:name, description:'', specs:'', timeframes:['5M'], images:[], updatedAt:new Date().toISOString()}); });
+  if(!(p.contextDefinitions||[]).length && (p.visualReferences||[]).some(r=>r.kind==='context')){
+    p.visualReferences.filter(r=>r.kind==='context').forEach(r=>{ if(!p.contextDefinitions.some(d=>d.key===r.key)) p.contextDefinitions.push({id:uid('CTXDEF'), key:r.key, title:r.title||r.key, description:r.note||'', specs:'', timeframes:['4H'], images:Array.isArray(r.images)?clone(r.images):[], updatedAt:r.updatedAt||new Date().toISOString()}); });
+  }
+  if(!(p.contextDefinitions||[]).length){
+    p.contextDefinitions = V8_DEFAULT_CONTEXT_DEFS.map(x=>({...clone(x), id:uid('CTXDEF'), title:x.key, updatedAt:new Date().toISOString()}));
+  }
+  return p;
+}
+function ensureAllPlansV8(){ state.tradingPlans.forEach(ensurePlanV8Structure); }
+ensureAllPlansV8();
+persist();
+
+function defCollectionName(type){ return type==='setup'?'setupDefinitions':type==='vd'?'vdDefinitions':'contextDefinitions'; }
+function defArrayFor(type,p=getCurrentPlan()){ ensurePlanV8Structure(p); return p?.[defCollectionName(type)]||[]; }
+function getTaxonomyDef(type,key,p=getCurrentPlan()){ return defArrayFor(type,p).find(d=>d.key===key); }
+function taxonomyLabel(type){ return type==='setup'?'Setup':type==='vd'?'VD':'Contexto'; }
+function taxonomyHelp(type){ return type==='setup'?'Patrón operativo con imágenes LONG y SHORT.':type==='vd'?'Vela direccional / disparador con ejemplo visual.':'Contexto superior con especificaciones y ejemplo visual.'; }
+
+function richImageStrip(list,label){
+  if(!(list||[]).length) return `<div class="mini-strip empty-strip">Sin imagen ${esc(label||'')}</div>`;
+  return `<div class="mini-strip">${(list||[]).map(x=>imageThumb(x,'mini')).join('')}</div>`;
+}
+
+function taxonomyCard(type, def){
+  const time = badgeList(def.timeframes);
+  const desc = esc(def.description||def.specs||'Sin descripción aún.');
+  const media = type==='setup'
+    ? `<div class="taxonomy-media-grid"><div><small>Largo</small>${richImageStrip(def.imagesLong,'long')}</div><div><small>Corto</small>${richImageStrip(def.imagesShort,'short')}</div></div>`
+    : `<div class="taxonomy-media-grid single"><div><small>Referencia visual</small>${richImageStrip(def.images,'ejemplo')}</div></div>`;
+  return `<article class="taxonomy-card">
+    <div class="taxonomy-head"><div><strong>${esc(def.key)}</strong><div class="taxonomy-sub">${time}</div></div><div class="taxonomy-actions"><button class="btn small" onclick="openTaxonomyAssetModal('${type}','${encodeURIComponent(def.key)}')">Editar</button><button class="btn small danger" onclick="deleteTaxonomyAsset('${type}','${encodeURIComponent(def.key)}')">Eliminar</button></div></div>
+    <p>${desc}</p>
+    ${def.specs?`<div class="taxonomy-specs">${esc(def.specs)}</div>`:''}
+    ${media}
+  </article>`;
+}
+function taxonomySection(type,title,subtitle){
+  const p=getCurrentPlan();ensurePlanV8Structure(p);const defs=defArrayFor(type,p);
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>${title}</h3><div class="help">${subtitle}</div></div><button class="btn primary small" onclick="openTaxonomyAssetModal('${type}')">+ Añadir ${title.slice(0,-1)||title}</button></div>${defs.length?`<div class="taxonomy-grid">${defs.map(d=>taxonomyCard(type,d)).join('')}</div>`:'<div class="empty">Sin elementos todavía.</div>'}</section>`;
+}
+function nrSection(){ return configCard('NR','Referencia de nivel / liquidez','nr'); }
+function hypothesisSection(p){
+  return `<section class="card panel"><div class="panel-title"><h3>Hipótesis</h3><span>Definiciones propias del plan</span></div><div class="config-list">${(p?.hypotheses||[]).map(h=>`<div class="config-row"><div class="config-main"><div class="config-name">${esc(h.name)} <span class="badge">${esc(h.id)}</span></div><div class="config-meta">${esc(h.description||'Sin descripción')}</div></div><button class="btn small" onclick="editHyp('${h.id}')">Editar</button></div>`).join('')||'<div class="empty">Sin hipótesis configuradas.</div>'}</div><div class="inline-add"><input id="new-hypothesis" class="input" placeholder="Nombre de nueva hipótesis"><button class="btn small" onclick="addHypothesis()">Añadir</button></div></section>`;
+}
+
+function configTaxonomyPanel(p){ ensurePlanV8Structure(p); return `<div class="taxonomy-layout">${taxonomySection('setup','Setups','Añade el setup y desde el mismo lugar define timeframe, descripción e imágenes de largo y corto.')}${taxonomySection('vd','VD','Cada vela direccional puede tener su propio ejemplo visual y timeframe de lectura.')}${taxonomySection('context','Contextos','Añade contextos como EB Norm, EA Norm o Impulso con especificaciones y ejemplo visual.')}<div class="grid two">${nrSection()}${hypothesisSection(p)}</div></div>`; }
+
+function referenceGalleryCard(type, def){
+  const label = taxonomyLabel(type);
+  const media = type==='setup' ? `<div class="reference-showcase split"><div><small>LONG</small>${richImageStrip(def.imagesLong,'long')}</div><div><small>SHORT</small>${richImageStrip(def.imagesShort,'short')}</div></div>` : `<div class="reference-showcase">${richImageStrip(def.images,'ref')}</div>`;
+  return `<article class="reference-gallery-card"><div class="reference-gallery-head"><div><span class="badge">${label}</span><strong>${esc(def.key)}</strong></div><span class="tf-pack">${badgeList(def.timeframes)}</span></div><p>${esc(def.description||def.specs||'Sin notas')}</p>${def.specs?`<div class="taxonomy-specs">${esc(def.specs)}</div>`:''}${media}<div class="gallery-edit-row"><button class="btn small" onclick="openTaxonomyAssetModal('${type}','${encodeURIComponent(def.key)}')">Editar ficha</button></div></article>`;
+}
+function legacyReferenceCards(p){
+  const refs=(p.visualReferences||[]).filter(r=>!['setup','vd','context'].includes(r.kind));
+  if(!refs.length) return '';
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Referencias legacy</h3><div class="help">Material heredado del modelo anterior.</div></div><button class="btn small" onclick="openVisualReferenceModal()">+ Añadir legacy</button></div><div class="reference-config-grid">${refs.map(r=>`<article class="reference-config-card"><div class="reference-config-head"><div><span class="badge">${esc(referenceKindLabel(r.kind))}</span><strong>${esc(r.title||r.key)}</strong><small>${esc(r.key)}</small></div><div><button class="btn small" onclick="openVisualReferenceModal('${r.id}')">Editar</button></div></div><p>${esc(r.note||'Sin notas')}</p><div class="thumb-strip">${(r.images||[]).map(x=>imageThumb(x,'mini')).join('')}</div></article>`).join('')}</div></section>`;
+}
+function visualReferencePanel(p){
+  ensurePlanV8Structure(p);
+  return `<div class="reference-library-v8">${taxonomySection('setup','Setups','Biblioteca de ejemplos de entrada / ejecución por patrón.')}${taxonomySection('vd','VD','Biblioteca de velas direccionales y disparadores.')}${taxonomySection('context','Contextos','Biblioteca de contextos superiores que quieres buscar.')}<section class="card panel config-wide"><div class="panel-title"><div><h3>Biblioteca visual consolidada</h3><div class="help">Vista de conjunto para revisar todas las referencias del plan.</div></div></div><div class="reference-gallery-grid">${defArrayFor('setup',p).map(d=>referenceGalleryCard('setup',d)).join('')}${defArrayFor('vd',p).map(d=>referenceGalleryCard('vd',d)).join('')}${defArrayFor('context',p).map(d=>referenceGalleryCard('context',d)).join('')}</div></section>${legacyReferenceCards(p)}`;
+}
+
+function openTaxonomyAssetModal(type,key=''){
+  const p=getCurrentPlan(); if(!p) return; ensurePlanV8Structure(p);
+  const cleanKey = decodeURIComponent(key||'');
+  editingTaxonomyAsset = {type, key:cleanKey||''};
+  const old = cleanKey ? getTaxonomyDef(type, cleanKey, p) : null;
+  const def = old || (type==='setup'
+    ? {key:'', description:'', specs:'', timeframes:type==='context'?['4H']:['5M'], imagesLong:[], imagesShort:[]}
+    : {key:'', description:'', specs:'', timeframes:type==='context'?['4H']:['5M'], images:[]});
+  const title = `${old?'Editar':'Nueva'} ficha de ${taxonomyLabel(type)}`;
+  const timeframes = tfText(def.timeframes||[]);
+  const body = `<form onsubmit="return false"><div class="form-section"><h4>${esc(taxonomyLabel(type))}</h4><div class="form-grid">${field('Nombre','asset-key','text',esc(def.key||''))}${field('Marcos temporales','asset-timeframes','text',esc(timeframes),'span2',`placeholder="Ej. 5M, 15M, 1H, 4H"`)}${field(type==='context'?'Descripción del contexto':'Descripción','asset-description','textarea',esc(def.description||''),'full')}${field(type==='context'?'Especificaciones / checklist':'Checklist / qué buscar','asset-specs','textarea',esc(def.specs||''),'full')}</div></div>${type==='setup'?`<div class="form-section"><div class="section-title-row"><div><h4>Ejemplos visuales</h4><div class="help">Puedes diferenciar largo y corto dentro del mismo setup.</div></div></div><div class="form-grid"><div class="field span2"><label>Imagen ejemplo LONG</label><input id="f-asset-files-long" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="help">Añade una o varias imágenes de ejemplo de entrada LONG.</div>${(def.imagesLong||[]).length?`<div class="thumb-strip">${def.imagesLong.map(x=>imageThumb(x,'mini')).join('')}</div>`:''}</div><div class="field span2"><label>Imagen ejemplo SHORT</label><input id="f-asset-files-short" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="help">Añade una o varias imágenes de ejemplo de entrada SHORT.</div>${(def.imagesShort||[]).length?`<div class="thumb-strip">${def.imagesShort.map(x=>imageThumb(x,'mini')).join('')}</div>`:''}</div></div></div>`:`<div class="form-section"><div class="section-title-row"><div><h4>Imagen de referencia</h4><div class="help">Añade un ejemplo visual de ${taxonomyLabel(type).toLowerCase()}.</div></div></div><div class="field full"><label>Imágenes ejemplo</label><input id="f-asset-files" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="help">Puedes subir varias imágenes del mismo concepto.</div>${(def.images||[]).length?`<div class="thumb-strip">${def.images.map(x=>imageThumb(x,'mini')).join('')}</div>`:''}</div></div>`}</form>`;
+  document.body.insertAdjacentHTML('beforeend', modalShell(title, body, `<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveTaxonomyAsset()">Guardar ficha</button>`));
+  setTimeout(hydrateImageElements,0);
+}
+async function saveTaxonomyAsset(){
+  const p=getCurrentPlan(); if(!p||!editingTaxonomyAsset) return; ensurePlanV8Structure(p);
+  const type=editingTaxonomyAsset.type, get=n=>document.getElementById(`f-${n}`)?.value||'';
+  const newKey=get('asset-key').trim(); if(!newKey) return alert('El nombre es obligatorio.');
+  const oldKey=editingTaxonomyAsset.key||'';
+  const collName=defCollectionName(type), coll=p[collName];
+  let old=oldKey?coll.find(d=>d.key===oldKey):null;
+  const base={ id:old?.id||uid('CFG'), key:newKey, title:newKey, description:get('asset-description').trim(), specs:get('asset-specs').trim(), timeframes:splitTimeframes(get('asset-timeframes')), updatedAt:new Date().toISOString() };
+  if(type==='setup'){
+    const imagesLong=clone(old?.imagesLong||[]), imagesShort=clone(old?.imagesShort||[]);
+    for(const file of [...(document.getElementById('f-asset-files-long')?.files||[])]){ const id=uid('IMG'); await storeImageFile(file,id); imagesLong.push({id,label:'LONG',caption:file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()}); }
+    for(const file of [...(document.getElementById('f-asset-files-short')?.files||[])]){ const id=uid('IMG'); await storeImageFile(file,id); imagesShort.push({id,label:'SHORT',caption:file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()}); }
+    base.imagesLong=imagesLong; base.imagesShort=imagesShort;
+  } else {
+    const images=clone(old?.images||[]);
+    for(const file of [...(document.getElementById('f-asset-files')?.files||[])]){ const id=uid('IMG'); await storeImageFile(file,id); images.push({id,label:'Referencia',caption:file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()}); }
+    base.images=images;
+  }
+  const duplicate = coll.find(d=>d.key===newKey && d.id!==base.id);
+  if(duplicate) return alert('Ya existe una ficha con ese nombre en esta categoría.');
+  const idx = coll.findIndex(d=>d.id===base.id || (oldKey && d.key===oldKey));
+  if(idx>=0) coll[idx] = {...(coll[idx]||{}), ...base}; else coll.push(base);
+  if(type==='setup'){
+    if(oldKey && oldKey!==newKey) p.setups = p.setups.map(x=>x===oldKey?newKey:x);
+    if(!p.setups.includes(newKey)) p.setups.push(newKey);
+    if(oldKey && oldKey!==newKey){ state.operations.filter(o=>o.tradingPlanId===p.id && o.setup===oldKey).forEach(o=>o.setup=newKey); (p.visualReferences||[]).forEach(r=>{ if(r.kind==='setup' && r.key===oldKey) r.key=newKey;}); }
+  } else if(type==='vd'){
+    if(oldKey && oldKey!==newKey) p.vd = p.vd.map(x=>x===oldKey?newKey:x);
+    if(!p.vd.includes(newKey)) p.vd.push(newKey);
+    if(oldKey && oldKey!==newKey){ state.operations.filter(o=>o.tradingPlanId===p.id && o.vd===oldKey).forEach(o=>o.vd=newKey); (p.visualReferences||[]).forEach(r=>{ if(r.kind==='vd' && r.key===oldKey) r.key=newKey;}); }
+  } else {
+    if(oldKey && oldKey!==newKey){ state.operations.filter(o=>o.tradingPlanId===p.id && String(o.h4Context||'').trim()===oldKey).forEach(o=>o.h4Context=newKey); (p.visualReferences||[]).forEach(r=>{ if(r.kind==='context' && r.key===oldKey) r.key=newKey;}); }
+  }
+  p.updatedAt=new Date().toISOString(); persist(); closeModal(); editingTaxonomyAsset=null; render();
+}
+async function deleteTaxonomyAsset(type,key){
+  const p=getCurrentPlan(); if(!p) return; ensurePlanV8Structure(p);
+  const clean = decodeURIComponent(key||'');
+  if(!confirm(`¿Eliminar ${taxonomyLabel(type).toLowerCase()} "${clean}"? Las operaciones históricas no se borrarán.`)) return;
+  const collName=defCollectionName(type), coll=p[collName], item=coll.find(d=>d.key===clean);
+  if(item){
+    const imgs=[...(item.images||[]), ...(item.imagesLong||[]), ...(item.imagesShort||[])];
+    for(const img of imgs) await deleteImageBlob(img.id);
+  }
+  p[collName]=coll.filter(d=>d.key!==clean);
+  if(type==='setup') p.setups=(p.setups||[]).filter(x=>x!==clean);
+  if(type==='vd') p.vd=(p.vd||[]).filter(x=>x!==clean);
+  p.updatedAt=new Date().toISOString(); persist(); render();
+}
+
+function definitionToVisualRef(type, def, operation){
+  if(!def) return null;
+  let images=[];
+  if(type==='setup') images = operation?.direction==='SHORT' ? ((def.imagesShort||[]).length ? def.imagesShort : def.imagesLong||[]) : ((def.imagesLong||[]).length ? def.imagesLong : def.imagesShort||[]);
+  else images = def.images||[];
+  if(!images.length && !(def.description||def.specs)) return null;
+  return {kind:type,key:def.key,title:def.title||def.key,note:[def.description, def.specs].filter(Boolean).join(' · '), images};
+}
+function referencesForOperation(o){
+  const p=getPlan(o.tradingPlanId); ensurePlanV8Structure(p); const refs=[];
+  const sref=definitionToVisualRef('setup', getTaxonomyDef('setup', o.setup, p), o); if(sref) refs.push(sref);
+  const vref=definitionToVisualRef('vd', getTaxonomyDef('vd', o.vd, p), o); if(vref) refs.push(vref);
+  const cref=definitionToVisualRef('context', getTaxonomyDef('context', String(o.h4Context||'').trim(), p), o); if(cref) refs.push(cref);
+  (p.visualReferences||[]).forEach(r=>{ if((r.kind==='nr'&&r.key===o.nr)||(r.kind==='setup'&&r.key===o.setup)||(r.kind==='vd'&&r.key===o.vd)||(r.kind==='context'&&String(r.key).trim()===String(o.h4Context||'').trim())) refs.push(r); });
+  return refs;
+}
+function relatedReferenceHtml(o){
+  const refs=referencesForOperation(o);
+  if(!refs.length) return '<div class="empty compact-empty">Sin referencias visuales asociadas exactamente a este trade.</div>';
+  return `<div class="reference-related-grid">${refs.map(r=>`<div class="reference-mini-card"><div><span class="badge">${esc(referenceKindLabel(r.kind)||taxonomyLabel(r.kind)||r.kind)}</span><strong>${esc(r.title||r.key)}</strong><small>${esc(r.note||r.key)}</small></div>${(r.images||[]).length?`<div class="thumb-strip">${(r.images||[]).slice(0,4).map(x=>imageThumb(x,'mini')).join('')}</div>`:'<div class="empty compact-empty">Sin imagen aún.</div>'}</div>`).join('')}</div>`;
+}
+
+function configTabs(p){ const tabs=[['instruments','Contratos','Biblioteca global'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales']]; return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`; }
+function configContent(p){ ensurePlanV8Structure(p); if(configTab==='management')return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Regímenes / estrategias de gestión · ${esc(planLabel(p))}</h3><div class="help">Las estrategias consumen los contratos globales y construyen lotes, stops y objetivos.</div></div><button class="btn primary small" onclick="openRiskModal()">+ Nueva estrategia</button></div><div class="config-list">${(p?.riskStrategies||[]).length?p.riskStrategies.map(r=>riskCard(r)).join(''):'<div class="empty">Este plan todavía no tiene estrategias de gestión.</div>'}</div></section><div style="margin-top:16px">${configCard('Salidas discrecionales','Módulos disponibles para TP variable','discretionaryTargets')}</div>`; if(configTab==='taxonomy')return configTaxonomyPanel(p); if(configTab==='visual')return visualReferencePanel(p); if(configTab==='emotional')return emotionConfigPanel(p); if(configTab==='riskrules')return riskManagementPanel(p); return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Biblioteca global de contratos / instrumentos</h3><div class="help">Fuente única para tick size, valor del tick, comisión y moneda. Todos los Trading Plans pueden reutilizar estos contratos.</div></div><button class="btn primary small" onclick="openInstrumentModal()">+ Añadir contrato</button></div>${instrumentTable()}</section>`; }
+function resetPlanConfig(){ const p=getCurrentPlan(); if(!p) return; if(confirm(`¿Restaurar la estructura base dentro de ${planLabel(p)}? Las operaciones e importaciones del plan se conservarán.`)){ const base=clone(basePlanConfig); p.setups=base.setups; p.vd=base.vd; p.nr=base.nr; p.hypotheses=base.hypotheses; p.discretionaryTargets=base.discretionaryTargets; p.emotionConfig=base.emotionConfig; p.riskManagement=base.riskManagement; p.visualReferences=[]; p.setupDefinitions=[]; p.vdDefinitions=[]; p.contextDefinitions=clone(V8_DEFAULT_CONTEXT_DEFS).map(x=>({...x,id:uid('CTXDEF'),title:x.key,updatedAt:new Date().toISOString()})); ensurePlanV8Structure(p); p.riskStrategies=base.riskStrategies.map(r=>normalizeRiskStrategy({...r,id:uid('R')},state.settings.instruments)); p.updatedAt=new Date().toISOString(); saveState(); } }
+
+function operationForm(o,r,p){ ensurePlanV8Structure(p); const v=(k,d='')=>esc(o?.[k]??d),riskOptions=p.riskStrategies.filter(x=>x.active||x.id===o?.riskStrategyId).map(x=>({value:x.id,label:x.name})),hypOpts=(p.hypotheses||[]).map(x=>({value:x.id,label:x.name})),contextOpts=(p.contextDefinitions||[]).map(x=>x.key); return `<form id="operationForm" onsubmit="return false"><div class="form-section"><h4>0 · Trading Plan</h4><div class="plan-readonly"><strong>${esc(planLabel(p))}</strong><span>${esc(p.description||'Sin descripción')}</span></div></div><div class="form-section"><h4>1 · Sesión y régimen</h4><div class="form-grid">${field('Fecha/hora de entrada','entryDate','datetime-local',v('entryDate',new Date().toISOString().slice(0,16)))}${field('Fecha/hora de salida','exitDate','datetime-local',v('exitDate',''))}${selectField('Muestra','sample',['A','B'],v('sample','B'))}${selectObjField('Régimen de gestión','riskStrategyId',riskOptions,o?.riskStrategyId||r?.id,`onchange="applyRiskToOperation(true)"`)}${field('ATR observado (opcional)','atr','number',v('atr',''),'','step="any"')}${hypOpts.length?selectObjField('Hipótesis','hypothesis',hypOpts,v('hypothesis',hypOpts[0]?.value||'')):field('Hipótesis','hypothesis','text',v('hypothesis',''))}${contextOpts.length?selectField('Contexto H4','h4Context',contextOpts,v('h4Context',contextOpts[0]||'')):field('Contexto H4','h4Context','text',v('h4Context',''))}${selectField('Fase H4','h4Phase',['Impulso','Retroceso','No definida'],v('h4Phase','Impulso'))}</div><div id="opRiskPreview" class="strategy-preview"></div></div><div class="form-section"><h4>2 · Oportunidad</h4><div class="form-grid">${p.setups.length?selectField('Setup','setup',p.setups,v('setup',p.setups[0])):field('Setup','setup','text',v('setup',''))}${p.vd.length?selectField('VD','vd',p.vd,v('vd',p.vd[0])):field('VD','vd','text',v('vd',''))}${p.nr.length?selectField('NR','nr',p.nr,v('nr',p.nr[0])):field('NR','nr','text',v('nr',''))}${selectField('Tipo de operación','tradeType',['Rápida','Liquidez','Otra'],v('tradeType','Rápida'))}${selectField('Dirección','direction',['LONG','SHORT'],v('direction','LONG'))}${field('Timeframe','timeframe','text',v('timeframe','5M'))}${field('Precio dinámico / objetivo','dtPrice','number',v('dtPrice',''),'','step="any"')}${field('Notas','notes','textarea',v('notes',''),'full')}</div></div><div class="form-section"><h4>3 · Ejecución y resultado</h4><div class="form-grid">${field('Contrato / vencimiento','contract','text',v('contract',getInstrument(r?.instrumentId)?.symbol||''))}${field('Contratos totales','contracts','number',v('contracts',riskCalc(r).contracts),'','readonly')}${selectField('Tipo de entrada','entryType',['LMT','STP'],v('entryType','LMT'))}${field('Precio de entrada','entryPrice','number',v('entryPrice',''),'','step="any"')}${field('Ticks resultado agregados','resultTicks','number',v('resultTicks',''),'','step="any" oninput="recalcOperation()"')}${field('Comisiones','commission','number',v('commission',''),'','readonly step="any"')}${field('P&L bruto','pnlGross','number',v('pnlGross',''),'','readonly step="any"')}${field('P&L neto','pnlNet','number',v('pnlNet',''),'','readonly step="any"')}${field('R múltiple bruta','rMultiple','number',v('rMultiple',''),'','readonly step="any"')}${field('MFE (R)','mfe','number',v('mfe',''),'','step="any"')}${field('MAE (R)','mae','number',v('mae',''),'','step="any"')}${selectField('Disciplina','discipline',['Sí','No'],v('discipline','Sí'))}${field('Motivo de indisciplina','disciplineReason','text',v('disciplineReason',''),'span2')}<div class="field span2"><label>Nuevas capturas</label><input id="screens" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="image-upload-meta"><select id="screenCategory" class="select">${imageLabelOptions('Contexto')}</select><input id="screenCaption" class="input" placeholder="Nota común para estas imágenes (opcional)"></div><div class="help">Puedes añadir varias imágenes. Se guardan localmente en IndexedDB hasta conectar Supabase.</div>${o?.images?.length?`<div class="existing-images"><span>${o.images.length} imagen(es) ya asociadas</span><div class="thumb-strip">${o.images.map(x=>imageThumb(x,'mini')).join('')}</div></div>`:''}</div></div><div class="notice" style="margin-top:12px">La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial. Las comisiones se conservan separadas para las métricas netas.</div></div></form>`; }
+
+Object.assign(window,{openTaxonomyAssetModal,saveTaxonomyAsset,deleteTaxonomyAsset});
+render();
+/* ===== END V8 PATCH ===== */

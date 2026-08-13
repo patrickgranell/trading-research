@@ -1,19 +1,14 @@
-# Trading Research V5.1 — Visual Lab
+# Trading Research V6 · Journal & Risk
 
-Mejoras sobre V5:
+V6 incorpora una capa de diario emocional por operación y un simulador secuencial de normas de gestión de riesgo diarias/semanales.
 
-- Corrige el estado visual de los selectores R / Ticks / US$ y Bruto / Neto en Operaciones.
-- Añade **Visual Lab**:
-  - Histograma + curva normal de referencia (sin asumir normalidad de los datos).
-  - Gráfico de dispersión con selección libre de métricas X/Y.
-  - Métricas disponibles: resultados, R, ticks, P&L, MFE, MAE, hora, stop, contratos y comisiones.
-- Bloques de 20:
-  - Panel de comisión añadido a cada bloque.
-  - Selector independiente para ver comisiones en US$ o ticks equivalentes.
-  - La unidad seleccionada se aplica también a la tabla comparativa y al detalle del bloque.
+## Novedades
+- Nuevo apartado **Diario emocional** con todas las operaciones del Trading Plan.
+- Estados antes/durante/después, intensidad, estrés, foco, confianza, impulsividad, fatiga, comportamientos y notas.
+- Taxonomía emocional configurable por Trading Plan.
+- Filtros emocionales también disponibles en Operaciones.
+- Reglas de riesgo configurables por Trading Plan: pérdidas consecutivas, pérdida máxima diaria/semanal, días perdedores semanales y cierre tras primera pérdida después de beneficios.
+- En Operaciones se puede alternar entre universo sin recorte y **Reglas TP**, simulando cronológicamente qué trades permanecerían.
+- Se retira Visual Lab (curva normal/dispersión) de la interfaz.
 
-## Despliegue
-
-Build command: `npm run build`
-
-Deploy command: `npx wrangler deploy`
+Los datos siguen en localStorage; Supabase llegará después de estabilizar el modelo.

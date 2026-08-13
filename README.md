@@ -1,4 +1,4 @@
-# Trading Research V3
+# Trading Research V4
 
 V3 introduce **Trading Plans como entidad principal de investigación**.
 
@@ -26,3 +26,12 @@ npx wrangler deploy
 ```
 
 Los datos siguen guardándose en `localStorage` mientras validamos la arquitectura. La persistencia multi-dispositivo, usuarios e imágenes se conectarán a Supabase después.
+
+
+## V4 · Import Inspector
+- Previsualización del TXT antes de confirmar.
+- Mapa de columnas RAW → campos analíticos.
+- Edición de Setup, VD, NR, hipótesis, contrato y estrategia antes de importar.
+- Detección visual de posibles actualizaciones/duplicados por misma entrada.
+- Auditoría posterior por lote de importación.
+- Edición de la capa normalizada sin modificar el RAW original.

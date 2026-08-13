@@ -1,4 +1,5 @@
-const STORAGE_KEY = 'tradingResearchState_v3';
+const STORAGE_KEY = 'tradingResearchState_v4';
+const LEGACY_V3_KEY = 'tradingResearchState_v3';
 const LEGACY_V2_KEY = 'tradingResearchState_v2';
 const LEGACY_V1_KEY = 'tradingResearchState_v1';
 
@@ -54,6 +55,7 @@ let editingRiskId = null;
 let editingPlanId = null;
 let cloningPlanId = null;
 let pendingImportPlanId = null;
+let pendingImportPreview = null;
 
 function clone(v){ return JSON.parse(JSON.stringify(v)); }
 function uid(p){ return `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`; }
@@ -121,8 +123,8 @@ function normalizeState(raw){
 }
 function loadState(){
   try{
-    const v3=localStorage.getItem(STORAGE_KEY); if(v3)return normalizeState(JSON.parse(v3));
-    const legacy=localStorage.getItem(LEGACY_V2_KEY)||localStorage.getItem(LEGACY_V1_KEY); return legacy?normalizeState(JSON.parse(legacy)):clone(defaultState);
+    const v4=localStorage.getItem(STORAGE_KEY); if(v4)return normalizeState(JSON.parse(v4));
+    const legacy=localStorage.getItem(LEGACY_V3_KEY)||localStorage.getItem(LEGACY_V2_KEY)||localStorage.getItem(LEGACY_V1_KEY); return legacy?normalizeState(JSON.parse(legacy)):clone(defaultState);
   }catch(e){return clone(defaultState);}
 }
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
@@ -158,7 +160,7 @@ function resultClass(o){return o.result==='win'?'win':o.result==='loss'?'loss':'
 
 function shell(){
   const p=getCurrentPlan();
-  return `<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-dot"></div><div><h1>Trading Research</h1><small>Backtest & Trade Lab</small></div></div><div class="plan-switch"><label>Trading plan activo</label><select class="select" onchange="switchPlan(this.value)">${state.tradingPlans.filter(x=>x.status!=='archived'||x.id===p?.id).map(x=>`<option value="${esc(x.id)}" ${x.id===p?.id?'selected':''}>${esc(planLabel(x))}</option>`).join('')}</select></div><nav class="nav">${navBtn('dashboard','◈','Dashboard')}${navBtn('operations','▤','Operaciones')}${navBtn('blocks','▦','Bloques')}${navBtn('plans','◫','Trading Plans')}${navBtn('config','⚙','Configuración')}</nav><div class="side-bottom"><div class="mini-card"><div class="mini-label">Modo actual</div><div class="mini-value">V3 · Trading Plans</div><div class="help">Contratos globales; estrategia y datos aislados por plan.</div></div></div></aside><main class="main"><div id="view"></div></main></div>`;
+  return `<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-dot"></div><div><h1>Trading Research</h1><small>Backtest & Trade Lab</small></div></div><div class="plan-switch"><label>Trading plan activo</label><select class="select" onchange="switchPlan(this.value)">${state.tradingPlans.filter(x=>x.status!=='archived'||x.id===p?.id).map(x=>`<option value="${esc(x.id)}" ${x.id===p?.id?'selected':''}>${esc(planLabel(x))}</option>`).join('')}</select></div><nav class="nav">${navBtn('dashboard','◈','Dashboard')}${navBtn('operations','▤','Operaciones')}${navBtn('blocks','▦','Bloques')}${navBtn('plans','◫','Trading Plans')}${navBtn('config','⚙','Configuración')}</nav><div class="side-bottom"><div class="mini-card"><div class="mini-label">Modo actual</div><div class="mini-value">V4 · Import Inspector</div><div class="help">Contratos globales; datasets importados auditables antes y después de guardar.</div></div></div></aside><main class="main"><div id="view"></div></main></div>`;
 }
 function navBtn(id,icon,label){return `<button class="${currentView===id?'active':''}" onclick="navigate('${id}')"><span class="icon">${icon}</span><span>${label}</span></button>`;}
 function pageHead(title,desc,actions=''){return `<div class="topbar"><div class="page-title"><h2>${title}</h2><p>${desc}</p></div><div class="actions">${actions}</div></div>`;}
@@ -250,8 +252,107 @@ function viewImportBatch(id){const b=state.importBatches.find(x=>x.id===id);if(!
 function deleteImportBatch(id){const b=state.importBatches.find(x=>x.id===id);if(!b)return;if(!confirm(`¿Eliminar la importación ${b.fileName} y sus ${b.operationCount} operaciones? Esta acción solo afecta a ese lote importado.`))return;state.operations=state.operations.filter(o=>o.importBatchId!==id);state.importBatches=state.importBatches.filter(x=>x.id!==id);saveState();}
 function parseDateTime(v){if(!v)return '';const [date,time='00:00:00']=String(v).split(' '),[dd,mm,yyyy]=date.split('/');return `${yyyy}-${mm}-${dd}T${time.slice(0,5)}`;}
 
+
+
+/* V4 · Import Inspector: staging, auditoría RAW/normalizada y edición post-importación */
+const ANKORA_COLUMN_MAP = {
+  EntryDateTime:'Fecha/hora de entrada', BuySell:'Dirección', TotQuantity:'Contratos totales', Setup:'Setup / patrón',
+  Lot1Ticks:'Lote 1 · ticks realizados', Lot2Ticks:'Lote 2 · ticks realizados', ExitDateTime:'Fecha/hora de salida',
+  LmtStp:'Tipo de entrada', EntryPrice:'Precio de entrada', StopLossTicks:'Stop común (ticks)', BETrigger:'BE trigger', BEPlus:'BE plus',
+  Lot1Quantity:'Lote 1 · cantidad', Lot1Type:'Lote 1 · gestión', Lot1TargetTicks:'Lote 1 · TP previsto', Lot1ExitPrice:'Lote 1 · precio salida', Lot1ExitDateTime:'Lote 1 · hora salida',
+  Lot2Quantity:'Lote 2 · cantidad', Lot2Type:'Lote 2 · gestión', Lot2TargetTicks:'Lote 2 · TP previsto', Lot2ExitPrice:'Lote 2 · precio salida', Lot2ExitDateTime:'Lote 2 · hora salida',
+  NR:'NR / referencia', VD:'VD / vela disparadora', FV:'Falta de volumen', TPCompliance:'Cumplimiento TP', Hypothesis:'Hipótesis', DTPrice:'Dynamic Target Price',
+  Custom1:'Contexto / Custom 1', Custom2:'Tipo de operación / Custom 2', Notes:'Notas', Contract:'Contrato', TimeFrame:'Timeframe'
+};
+function nnum(v){const x=Number(String(v??'').trim().replace(',','.'));return Number.isFinite(x)?x:0;}
+function nullableImportDate(v){const x=String(v||'').trim();return (!x||x.startsWith('01/01/0001'))?'':parseDateTime(x);}
+function importKey(src){return [src.EntryDateTime,src.BuySell,src.Contract,src.EntryPrice,src.Setup,src.TotQuantity].map(x=>String(x||'').trim()).join('|');}
+function collectPreviewCategories(plan,drafts){
+  const d={setups:[],vd:[],nr:[],hypotheses:[]};
+  for(const x of drafts.filter(r=>r.include)){
+    if(x.setup&&!plan.setups.includes(x.setup)&&!d.setups.includes(x.setup))d.setups.push(x.setup);
+    if(x.vd&&!plan.vd.includes(x.vd)&&!d.vd.includes(x.vd))d.vd.push(x.vd);
+    if(x.nr&&!plan.nr.includes(x.nr)&&!d.nr.includes(x.nr))d.nr.push(x.nr);
+    if(x.hypothesis&&!plan.hypotheses.some(h=>h.id===x.hypothesis)&&!d.hypotheses.includes(x.hypothesis))d.hypotheses.push(x.hypothesis);
+  }
+  return d;
+}
+function makeImportDraft(src,plan,line,rowIndex){
+  const symbol=String(src.Contract||'').trim().split(/\s+/)[0].toUpperCase();
+  const inst=state.settings.instruments.find(i=>i.symbol.toUpperCase()===symbol);
+  const matchedRisk=matchImportedStrategy(plan,src,symbol);
+  const q1=nnum(src.Lot1Quantity),q2=nnum(src.Lot2Quantity),t1=nnum(src.Lot1Ticks),t2=nnum(src.Lot2Ticks);
+  const totalQty=nnum(src.TotQuantity)||(q1+q2), stop=nnum(src.StopLossTicks), resultTickExposure=t1*q1+t2*q2;
+  const hyp=src.Hypothesis?(String(src.Hypothesis).startsWith('H')?String(src.Hypothesis):`H${src.Hypothesis}`):'';
+  const lots=[];
+  if(q1||String(src.Lot1Type||'').trim()) lots.push({number:1,quantity:q1,type:String(src.Lot1Type||'').trim(),targetTicks:String(src.Lot1Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot1TargetTicks),realizedTicks:t1,exitPrice:nnum(src.Lot1ExitPrice)||null,exitDate:nullableImportDate(src.Lot1ExitDateTime),stopTicks:stop});
+  if(q2||String(src.Lot2Type||'').trim()) lots.push({number:2,quantity:q2,type:String(src.Lot2Type||'').trim(),targetTicks:String(src.Lot2Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot2TargetTicks),realizedTicks:t2,exitPrice:nnum(src.Lot2ExitPrice)||null,exitDate:nullableImportDate(src.Lot2ExitDateTime),stopTicks:stop});
+  return {rowIndex,include:true,src,line,key:importKey(src),entryDate:parseDateTime(src.EntryDateTime),exitDate:parseDateTime(src.ExitDateTime),direction:src.BuySell==='BUY'?'LONG':src.BuySell==='SELL'?'SHORT':src.BuySell,contract:src.Contract||'',symbol,timeframe:src.TimeFrame||'',contracts:totalQty,setup:src.Setup||'',vd:src.VD||'',nr:src.NR||'',hypothesis:hyp,h4Context:src.Custom1||'',tradeType:src.Custom2||'',notes:src.Notes||'',entryType:src.LmtStp||'',entryPrice:nnum(src.EntryPrice)||null,stopTicks:stop,resultTicks:resultTickExposure,lots,instrumentId:inst?.id||'',riskStrategyId:matchedRisk?.id||'',riskStrategyName:matchedRisk?.name||'No clasificada',unknownInstrument:!inst&&!!symbol,possibleUpdate:false};
+}
+function buildPreviewFromText(text,file,plan){
+  const lines=String(text).replace(/^\uFEFF/,'').trim().split(/\r?\n/).filter(Boolean);if(lines.length<2)throw new Error('No hay filas de datos');
+  const headers=lines[0].split('|').map(x=>x.trim());
+  const drafts=lines.slice(1).map((line,i)=>{const vals=line.split('|'),src={};headers.forEach((h,j)=>src[h]=vals[j]??'');return makeImportDraft(src,plan,line,i+1);});
+  const groups={};drafts.forEach(d=>(groups[d.key]??=[]).push(d));Object.values(groups).filter(g=>g.length>1).forEach(g=>g.forEach((d,i)=>{d.possibleUpdate=true;d.updateOrder=i+1;d.updateCount=g.length;}));
+  return {fileName:file.name,planId:plan.id,headers,drafts,createdAt:new Date().toISOString()};
+}
+function importColumnMapTable(headers){return `<div class="table-wrap compact-map"><table class="table"><thead><tr><th>Columna TXT</th><th>Interpretación en la app</th><th>Estado</th></tr></thead><tbody>${headers.map(h=>`<tr><td><code>${esc(h)}</code></td><td>${esc(ANKORA_COLUMN_MAP[h]||'Se conserva en RAW; aún sin mapeo analítico')}</td><td><span class="badge ${ANKORA_COLUMN_MAP[h]?'win':''}">${ANKORA_COLUMN_MAP[h]?'Mapeada':'RAW'}</span></td></tr>`).join('')}</tbody></table></div>`;}
+function importPreviewRow(d,i,plan){
+  const risks=(plan.riskStrategies||[]).map(r=>`<option value="${esc(r.id)}" ${r.id===d.riskStrategyId?'selected':''}>${esc(r.name)}</option>`).join('');
+  const l1=d.lots.find(l=>l.number===1),l2=d.lots.find(l=>l.number===2);
+  return `<tr class="${d.possibleUpdate?'import-warning-row':''}"><td><input type="checkbox" ${d.include?'checked':''} onchange="updatePreviewField(${i},'include',this.checked)"></td><td>${d.rowIndex}${d.possibleUpdate?` <span class="badge warn">${d.updateOrder}/${d.updateCount} misma entrada</span>`:''}</td><td>${fmtDate(d.entryDate)}</td><td>${esc(d.direction)}</td><td><input class="input compact-input" value="${esc(d.contract)}" onchange="updatePreviewField(${i},'contract',this.value)"></td><td><input class="input compact-input" value="${esc(d.setup)}" onchange="updatePreviewField(${i},'setup',this.value)"></td><td><input class="input compact-input" value="${esc(d.vd)}" onchange="updatePreviewField(${i},'vd',this.value)"></td><td><input class="input compact-input" value="${esc(d.nr)}" onchange="updatePreviewField(${i},'nr',this.value)"></td><td><input class="input compact-input tiny" value="${esc(d.hypothesis)}" onchange="updatePreviewField(${i},'hypothesis',this.value)"></td><td><select class="select compact-input" onchange="updatePreviewField(${i},'riskStrategyId',this.value)"><option value="">No clasificada</option>${risks}</select></td><td>${l1?`${l1.realizedTicks}t · ${esc(l1.type||'—')} · TP ${l1.targetTicks==null?'disc.':l1.targetTicks+'t'}`:'—'}</td><td>${l2?`${l2.realizedTicks}t · ${esc(l2.type||'—')} · TP ${l2.targetTicks==null?'disc.':l2.targetTicks+'t'}`:'—'}</td><td>${d.resultTicks>=0?'+':''}${d.resultTicks}t</td><td><button class="btn small" onclick="togglePreviewRaw(${i})">RAW</button></td></tr><tr id="preview-raw-${i}" class="raw-expand hidden"><td colspan="14">${rawGrid(d.src)}</td></tr>`;
+}
+function rawGrid(cols){return `<div class="raw-grid">${Object.entries(cols||{}).map(([k,v])=>`<div><span>${esc(k)}</span><strong>${esc(v||'—')}</strong></div>`).join('')}</div>`;}
+function openImportPreviewModal(){
+  const pv=pendingImportPreview,plan=getPlan(pv?.planId);if(!pv||!plan)return;
+  const cats=collectPreviewCategories(plan,pv.drafts),updates=pv.drafts.filter(d=>d.possibleUpdate).length,unknown=pv.drafts.filter(d=>d.unknownInstrument).length,unmatched=pv.drafts.filter(d=>!d.riskStrategyId).length;
+  const body=`<div class="import-summary"><div><span>Archivo</span><strong>${esc(pv.fileName)}</strong></div><div><span>Plan</span><strong>${esc(planLabel(plan))}</strong></div><div><span>Filas TXT</span><strong>${pv.drafts.length}</strong></div><div><span>Posibles actualizaciones</span><strong>${updates}</strong></div><div><span>Instrumentos desconocidos</span><strong>${unknown}</strong></div><div><span>Sin estrategia</span><strong>${unmatched}</strong></div></div><div class="form-section"><div class="section-title-row"><div><h4>1. Mapa de columnas</h4><div class="help">Comprueba exactamente qué columna del Bloc de notas llega a cada concepto de la aplicación. Nada RAW se destruye.</div></div></div>${importColumnMapTable(pv.headers)}</div><div class="form-section"><div class="section-title-row"><div><h4>2. Revisar y corregir filas antes de importar</h4><div class="help">Puedes corregir Setup, VD, NR, hipótesis, contrato o estrategia. Las celdas RAW originales siguen guardadas sin cambios.</div></div></div><div class="notice">Categorías nuevas si confirmas: Setups ${cats.setups.length}, VD ${cats.vd.length}, NR ${cats.nr.length}, Hipótesis ${cats.hypotheses.length}. Las filas con la misma entrada se marcan para que decidas cuál importar.</div><div class="table-wrap import-preview-table"><table class="table"><thead><tr><th>✓</th><th>Fila</th><th>Entrada</th><th>Dir.</th><th>Contrato</th><th>Setup</th><th>VD</th><th>NR</th><th>H</th><th>Estrategia</th><th>Lote 1</th><th>Lote 2</th><th>Ticks</th><th>RAW</th></tr></thead><tbody>${pv.drafts.map((d,i)=>importPreviewRow(d,i,plan)).join('')}</tbody></table></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Inspector de importación Ankora',body,`<button class="btn" onclick="cancelImportPreview()">Cancelar</button><button class="btn primary" onclick="confirmImportPreview()">Confirmar importación revisada</button>`));
+}
+function updatePreviewField(i,key,value){const d=pendingImportPreview?.drafts?.[i];if(!d)return;d[key]=value;if(key==='contract'){const symbol=String(value||'').trim().split(/\s+/)[0].toUpperCase(),inst=state.settings.instruments.find(x=>x.symbol.toUpperCase()===symbol);d.symbol=symbol;d.instrumentId=inst?.id||'';d.unknownInstrument=!inst&&!!symbol;}if(key==='riskStrategyId'){const p=getPlan(pendingImportPreview.planId),r=p?.riskStrategies.find(x=>x.id===value);d.riskStrategyName=r?.name||'No clasificada';}}
+function togglePreviewRaw(i){document.getElementById(`preview-raw-${i}`)?.classList.toggle('hidden');}
+function cancelImportPreview(){pendingImportPreview=null;closeModal();}
+function applyDraftCategories(plan,d,detected){
+  for(const [key,val] of [['setups',d.setup],['vd',d.vd],['nr',d.nr]]){const v=String(val||'').trim();if(v&&!plan[key].includes(v)){plan[key].push(v);detected[key].push(v);}}
+  const id=String(d.hypothesis||'').trim();if(id&&!plan.hypotheses.some(h=>h.id===id)){plan.hypotheses.push({id,name:`Hipótesis ${id.replace(/^H/,'')}`,description:'Detectada y confirmada durante una importación de Ankora.'});detected.hypotheses.push(id);}
+}
+function operationFromDraft(d,plan,batchId){
+  const inst=state.settings.instruments.find(i=>i.id===d.instrumentId)||state.settings.instruments.find(i=>i.symbol.toUpperCase()===d.symbol),risk=(plan.riskStrategies||[]).find(r=>r.id===d.riskStrategyId),totalQty=d.contracts,resultTickExposure=d.resultTicks,stop=d.stopTicks,c=risk?riskCalc(risk):null,riskTickExposure=risk?c.riskTickExposure:stop*totalQty,commission=nnum(inst?.commission)*totalQty,pnlGross=resultTickExposure*nnum(inst?.tickValue),pnlNet=pnlGross-commission,rMultiple=riskTickExposure?resultTickExposure/riskTickExposure:0;
+  return {id:uid('imp'),tradingPlanId:plan.id,tradingPlanName:plan.name,tradingPlanVersion:plan.version,tradingPlanSnapshot:planSnapshot(plan),importBatchId:batchId,raw:{source:'ankora',line:d.line,columns:clone(d.src),rowIndex:d.rowIndex},entryDate:d.entryDate,exitDate:d.exitDate,direction:d.direction,contract:d.contract,timeframe:d.timeframe,contracts:totalQty,setup:d.setup,vd:d.vd,nr:d.nr,hypothesis:d.hypothesis,resultTicks:resultTickExposure,riskTickExposure,riskUsd:riskTickExposure*nnum(inst?.tickValue),instrumentId:inst?.id||'',instrumentSnapshot:instrumentSnapshot(inst),commission,pnlGross,pnlNet,rMultiple,result:resultTickExposure>0?'win':resultTickExposure<0?'loss':'pending',riskStrategyId:risk?.id||'',riskStrategyName:risk?.name||'No clasificada',strategyPlanSnapshot:risk?strategySnapshot(risk):null,h4Context:d.h4Context,tradeType:d.tradeType,notes:d.notes,mfe:0,mae:0,sample:'',discipline:String(d.src.TPCompliance)==='True',entryType:d.entryType,entryPrice:d.entryPrice,stopLossTicks:d.stopTicks,lots:clone(d.lots),possibleImportUpdate:d.possibleUpdate};
+}
+function confirmImportPreview(){
+  const pv=pendingImportPreview,plan=getPlan(pv?.planId);if(!pv||!plan)return;const selected=pv.drafts.filter(d=>d.include);if(!selected.length)return alert('No hay filas seleccionadas para importar.');
+  const batchId=uid('BATCH'),detected={setups:[],vd:[],nr:[],hypotheses:[]};selected.forEach(d=>applyDraftCategories(plan,d,detected));const rows=selected.map(d=>operationFromDraft(d,plan,batchId));
+  const unknown=[...new Set(selected.filter(d=>d.unknownInstrument).map(d=>d.symbol))],unmatched=selected.filter(d=>!d.riskStrategyId).length,possibleUpdates=selected.filter(d=>d.possibleUpdate).length;
+  const batch={id:batchId,tradingPlanId:plan.id,fileName:pv.fileName,importedAt:new Date().toISOString(),operationCount:rows.length,rawRowCount:pv.drafts.length,headers:clone(pv.headers),detected,unknownInstruments:unknown,unmatchedStrategies:unmatched,possibleUpdates,schemaVersion:4};
+  state.operations.push(...rows);state.importBatches.push(batch);plan.updatedAt=new Date().toISOString();state.currentPlanId=plan.id;pendingImportPreview=null;persist();closeModal();currentView='plans';render();setTimeout(()=>openImportBatchInspector(batchId),50);
+}
+function handleImport(file){const plan=getPlan(pendingImportPlanId||state.currentPlanId);pendingImportPlanId=null;if(!plan)return alert('No se encontró el Trading Plan seleccionado.');const reader=new FileReader();reader.onload=()=>{try{pendingImportPreview=buildPreviewFromText(reader.result,file,plan);openImportPreviewModal();}catch(e){alert('No se pudo leer el fichero: '+e.message);}};reader.readAsText(file,'utf-8');}
+function importBatchTable(batches){if(!batches.length)return '<div class="empty">Todavía no hay importaciones registradas.</div>';return `<div class="table-wrap"><table class="table"><thead><tr><th>Fecha</th><th>Archivo</th><th>Trading Plan</th><th>Filas RAW</th><th>Importadas</th><th>Nuevos datos</th><th>Advertencias</th><th>Acciones</th></tr></thead><tbody>${batches.map(b=>{const p=getPlan(b.tradingPlanId),newCount=(b.detected?.setups?.length||0)+(b.detected?.vd?.length||0)+(b.detected?.nr?.length||0)+(b.detected?.hypotheses?.length||0),warn=(b.unknownInstruments?.length||0)+(b.unmatchedStrategies||0)+(b.possibleUpdates||0);return `<tr><td>${fmtDate(b.importedAt)}</td><td>${esc(b.fileName)}</td><td>${esc(planLabel(p))}</td><td>${b.rawRowCount||b.operationCount||0}</td><td>${b.operationCount||0}</td><td>${newCount}</td><td>${warn}</td><td><button class="btn small primary" onclick="openImportBatchInspector('${b.id}')">Revisar dataset</button> <button class="btn small" onclick="viewImportBatchTrades('${b.id}')">Ver trades</button> <button class="btn small danger" onclick="deleteImportBatch('${b.id}')">Eliminar</button></td></tr>`}).join('')}</tbody></table></div>`;}
+function viewImportBatchTrades(id){const b=state.importBatches.find(x=>x.id===id);if(!b)return;state.currentPlanId=b.tradingPlanId;currentView='operations';persist();render();setTimeout(()=>document.getElementById('opsTable').innerHTML=opsTable(state.operations.filter(o=>o.importBatchId===id).sort((a,b)=>new Date(b.entryDate)-new Date(a.entryDate))),0);}
+function openImportBatchInspector(id){
+  const b=state.importBatches.find(x=>x.id===id);if(!b)return;const p=getPlan(b.tradingPlanId),ops=state.operations.filter(o=>o.importBatchId===id).sort((a,b)=>nnum(a.raw?.rowIndex)-nnum(b.raw?.rowIndex));const headers=b.headers?.length?b.headers:Object.keys(ops[0]?.raw?.columns||{});
+  const body=`<div class="import-summary"><div><span>Archivo</span><strong>${esc(b.fileName)}</strong></div><div><span>Plan</span><strong>${esc(planLabel(p))}</strong></div><div><span>Filas RAW</span><strong>${b.rawRowCount||b.operationCount||ops.length}</strong></div><div><span>Trades guardados</span><strong>${ops.length}</strong></div><div><span>Actualizaciones posibles</span><strong>${b.possibleUpdates||ops.filter(o=>o.possibleImportUpdate).length}</strong></div><div><span>Esquema</span><strong>v${b.schemaVersion||3}</strong></div></div><div class="form-section"><h4>Columnas recibidas</h4><div class="help" style="margin-bottom:10px">Este mapa te permite comprobar si Setup, VD, NR, lotes, hipótesis y campos Custom llegaron a la columna correcta.</div>${headers.length?importColumnMapTable(headers):'<div class="notice">Esta importación es anterior a V4 y no guardó la cabecera por separado. El RAW de cada fila se conserva cuando está disponible.</div>'}</div><div class="form-section"><div class="section-title-row"><div><h4>Dataset normalizado</h4><div class="help">Puedes corregir la clasificación sin modificar el texto RAW original.</div></div></div>${importInspectorOpsTable(ops,p)}</div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(`Dataset · ${esc(b.fileName)}`,body,`<button class="btn" onclick="closeModal()">Cerrar</button><button class="btn" onclick="viewImportBatchTrades('${b.id}');closeModal()">Abrir en Operaciones</button>`));
+}
+function importInspectorOpsTable(ops,p){if(!ops.length)return '<div class="empty">Este lote no contiene operaciones.</div>';return `<div class="table-wrap import-inspector-table"><table class="table"><thead><tr><th>RAW</th><th>Entrada</th><th>Dir.</th><th>Contrato</th><th>Setup</th><th>VD</th><th>NR</th><th>H</th><th>Contexto</th><th>Tipo</th><th>Lotes</th><th>Resultado</th><th>Estrategia</th><th>Acción</th></tr></thead><tbody>${ops.map((o,i)=>`<tr><td>${o.raw?.rowIndex||i+1}</td><td>${fmtDate(o.entryDate)}</td><td>${esc(o.direction)}</td><td>${esc(o.contract||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.nr||'—')}</td><td>${esc(o.hypothesis||'—')}</td><td>${esc(o.h4Context||'—')}</td><td>${esc(o.tradeType||'—')}</td><td>${(o.lots||[]).map(l=>`L${l.number}: ${l.realizedTicks}t/${esc(l.type||'—')}`).join(' · ')||'—'}</td><td>${o.resultTicks>=0?'+':''}${o.resultTicks}t</td><td>${esc(o.riskStrategyName||'—')}</td><td><button class="btn small" onclick="openImportedRowEditor('${o.id}')">Editar</button> <button class="btn small" onclick="toggleSavedRaw('${o.id}')">RAW</button></td></tr><tr id="saved-raw-${o.id}" class="raw-expand hidden"><td colspan="14">${rawGrid(o.raw?.columns||recoverRawColumns(o.raw?.line,[]))}</td></tr>`).join('')}</tbody></table></div>`;}
+function recoverRawColumns(line,headers){const out={};if(!line)return out;const vals=String(line).split('|');(headers||[]).forEach((h,i)=>out[h]=vals[i]??'');if(!headers?.length)out['Línea RAW']=line;return out;}
+function toggleSavedRaw(id){document.getElementById(`saved-raw-${id}`)?.classList.toggle('hidden');}
+function openImportedRowEditor(id){
+  const o=state.operations.find(x=>x.id===id);if(!o)return;closeModal();const p=getPlan(o.tradingPlanId),riskOpts=[{value:'',label:'No clasificada'},...(p?.riskStrategies||[]).map(r=>({value:r.id,label:r.name}))];
+  const body=`<div class="notice">Estás editando la capa normalizada. El RAW original del Bloc de notas no se modifica y siempre podrá auditarse.</div><div class="form-section"><h4>Clasificación</h4><div class="form-grid">${field('Contrato','imp-contract','text',esc(o.contract||''))}${field('Setup','imp-setup','text',esc(o.setup||''))}${field('VD','imp-vd','text',esc(o.vd||''))}${field('NR','imp-nr','text',esc(o.nr||''))}${field('Hipótesis','imp-hyp','text',esc(o.hypothesis||''))}${selectObjField('Estrategia','imp-risk',riskOpts,o.riskStrategyId||'')}${field('Contexto / Custom1','imp-context','text',esc(o.h4Context||''),'span2')}${field('Tipo operación / Custom2','imp-type','text',esc(o.tradeType||''),'span2')}${field('Notas','imp-notes','textarea',esc(o.notes||''),'full')}</div></div><div class="form-section"><h4>RAW original</h4>${rawGrid(o.raw?.columns||recoverRawColumns(o.raw?.line,[]))}</div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Editar fila importada',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveImportedRowEdit('${id}')">Guardar corrección</button>`));
+}
+function saveImportedRowEdit(id){
+  const o=state.operations.find(x=>x.id===id);if(!o)return;const p=getPlan(o.tradingPlanId),get=n=>document.getElementById(`f-${n}`)?.value||'';o.contract=get('imp-contract').trim();o.setup=get('imp-setup').trim();o.vd=get('imp-vd').trim();o.nr=get('imp-nr').trim();o.hypothesis=get('imp-hyp').trim();o.h4Context=get('imp-context').trim();o.tradeType=get('imp-type').trim();o.notes=get('imp-notes');o.riskStrategyId=get('imp-risk');
+  for(const [key,val] of [['setups',o.setup],['vd',o.vd],['nr',o.nr]])if(val&&!p[key].includes(val))p[key].push(val);if(o.hypothesis&&!p.hypotheses.some(h=>h.id===o.hypothesis))p.hypotheses.push({id:o.hypothesis,name:`Hipótesis ${o.hypothesis.replace(/^H/,'')}`,description:'Añadida al corregir una importación.'});
+  recalcImportedOperation(o);p.updatedAt=new Date().toISOString();persist();closeModal();render();setTimeout(()=>openImportBatchInspector(o.importBatchId),30);
+}
+function recalcImportedOperation(o){
+  const p=getPlan(o.tradingPlanId),symbol=String(o.contract||'').trim().split(/\s+/)[0].toUpperCase(),inst=state.settings.instruments.find(i=>i.symbol.toUpperCase()===symbol),risk=(p?.riskStrategies||[]).find(r=>r.id===o.riskStrategyId),c=risk?riskCalc(risk):null,totalQty=nnum(o.contracts),riskTickExposure=risk?c.riskTickExposure:nnum(o.stopLossTicks)*totalQty,commission=nnum(inst?.commission)*totalQty,pnlGross=nnum(o.resultTicks)*nnum(inst?.tickValue);o.instrumentId=inst?.id||'';o.instrumentSnapshot=instrumentSnapshot(inst);o.riskStrategyName=risk?.name||'No clasificada';o.strategyPlanSnapshot=risk?strategySnapshot(risk):null;o.riskTickExposure=riskTickExposure;o.riskUsd=riskTickExposure*nnum(inst?.tickValue);o.commission=commission;o.pnlGross=pnlGross;o.pnlNet=pnlGross-commission;o.rMultiple=riskTickExposure?nnum(o.resultTicks)/riskTickExposure:0;
+}
 document.getElementById('importFile').addEventListener('change',e=>{if(e.target.files[0])handleImport(e.target.files[0]);e.target.value='';});
 function navigate(view){currentView=view;render();}
 function render(){document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();}
 render();
-Object.assign(window,{navigate,switchPlan,switchPlanAndOpen,openPlanModal,savePlan,togglePlanStatus,openOperationModal,closeModal,saveOperationFromForm,filterOperations,editOperation,viewOperation,showBlock,addConfig,removeConfig,addHypothesis,resetPlanConfig,editHyp,openInstrumentModal,refreshInstrumentCommissionTicks,saveInstrument,openRiskModal,addRiskLotRow,removeRiskLotRow,refreshRiskLotVisibility,refreshRiskEditorSummary,saveRiskStrategy,applyRiskToOperation,recalcOperation,openImportModal,startImportSelection,viewImportBatch,deleteImportBatch});
+Object.assign(window,{navigate,switchPlan,switchPlanAndOpen,openPlanModal,savePlan,togglePlanStatus,openOperationModal,closeModal,saveOperationFromForm,filterOperations,editOperation,viewOperation,showBlock,addConfig,removeConfig,addHypothesis,resetPlanConfig,editHyp,openInstrumentModal,refreshInstrumentCommissionTicks,saveInstrument,openRiskModal,addRiskLotRow,removeRiskLotRow,refreshRiskLotVisibility,refreshRiskEditorSummary,saveRiskStrategy,applyRiskToOperation,recalcOperation,openImportModal,startImportSelection,viewImportBatch,deleteImportBatch,openImportPreviewModal,updatePreviewField,togglePreviewRaw,cancelImportPreview,confirmImportPreview,openImportBatchInspector,viewImportBatchTrades,toggleSavedRaw,openImportedRowEditor,saveImportedRowEdit});

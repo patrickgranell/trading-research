@@ -1,14 +1,14 @@
-# Trading Research V6 · Journal & Risk
+# Trading Research V7 — Biblioteca visual
 
-V6 incorpora una capa de diario emocional por operación y un simulador secuencial de normas de gestión de riesgo diarias/semanales.
+- Biblioteca visual por operación con filtros de Setup, VD, NR, contexto, dirección, resultado y tipo de captura.
+- Comparación de 2–4 operaciones visuales.
+- Ficha completa del trade con métricas, imágenes y referencias teóricas relacionadas.
+- Múltiples capturas por operación: Contexto, Entrada, Salida, Gestión, Error y Review.
+- Referencias visuales del Trading Plan para Setup, VD, NR y Contexto.
+- Configuración reorganizada en pestañas: Contratos, Gestión, Taxonomías, Referencias visuales, Emocional y Riesgo.
+- Visual Lab (Gauss/dispersión) retirado.
+- Los blobs de imágenes se guardan en IndexedDB; la metadata permanece con el estado local.
 
-## Novedades
-- Nuevo apartado **Diario emocional** con todas las operaciones del Trading Plan.
-- Estados antes/durante/después, intensidad, estrés, foco, confianza, impulsividad, fatiga, comportamientos y notas.
-- Taxonomía emocional configurable por Trading Plan.
-- Filtros emocionales también disponibles en Operaciones.
-- Reglas de riesgo configurables por Trading Plan: pérdidas consecutivas, pérdida máxima diaria/semanal, días perdedores semanales y cierre tras primera pérdida después de beneficios.
-- En Operaciones se puede alternar entre universo sin recorte y **Reglas TP**, simulando cronológicamente qué trades permanecerían.
-- Se retira Visual Lab (curva normal/dispersión) de la interfaz.
-
-Los datos siguen en localStorage; Supabase llegará después de estabilizar el modelo.
+## Despliegue
+Build: `npm run build`
+Deploy: `npx wrangler deploy`

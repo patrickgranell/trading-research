@@ -1,34 +1,35 @@
-# Trading Research V8.1 — Stable Data Safety
+# Trading Research V9 — Supabase Cloud Sync
 
-V8.1 congela la arquitectura funcional de V8 y añade una primera capa de seguridad del dato.
+V9 conserva toda la funcionalidad estable de V8.1 y añade persistencia segura con Supabase.
 
 ## Novedades
-- **Datos y seguridad** en Configuración.
-- **Exportar copia completa** a un único fichero `.trbackup`.
-- La copia incluye:
-  - Trading Plans y versiones,
-  - operaciones,
-  - importaciones Ankora,
+
+- Nueva pestaña **Configuración → Nube**.
+- Project URL + **Publishable key** (nunca Secret/service_role en el navegador).
+- Supabase Auth con email/contraseña.
+- Sincronización de:
+  - workspace,
+  - Trading Plans,
   - contratos,
-  - estrategias/lotes,
-  - reglas de riesgo,
-  - diario emocional,
-  - taxonomías y referencias,
-  - imágenes almacenadas en IndexedDB.
-- **Restaurar copia** con validación y confirmación explícita.
-- **Auditoría de integridad** para detectar:
-  - IDs duplicados,
-  - planes inexistentes,
-  - contratos huérfanos,
-  - estrategias huérfanas o sin clasificar,
-  - Setup/VD fuera de la configuración actual,
-  - contextos sin ficha,
-  - referencias de imagen sin blob,
-  - blobs de imagen sin referencia.
+  - operaciones,
+  - importaciones,
+  - oportunidades.
+- Imágenes en bucket privado `trading-images`.
+- RLS por `auth.uid()` para aislar los datos de cada usuario.
+- Subida manual, descarga manual y auto-sync opcional.
+- Las imágenes pueden cargarse desde IndexedDB local o desde Supabase mediante URL firmada.
+- El backup `.trbackup` sigue funcionando y puede incluir imágenes cloud aunque no estén descargadas localmente.
 
-## V8 conservado
-Se mantienen todas las funciones de V8: Setups/VD/Contextos enriquecidos, imágenes LONG/SHORT, biblioteca visual, diario emocional, reglas de riesgo, bloques, importador Ankora y laboratorio de operaciones.
+## Antes de usar la nube
 
-## Despliegue
+1. Ejecuta `supabase-schema-v9.sql` en Supabase SQL Editor.
+2. Copia la **Publishable key** desde Supabase → Settings → API Keys.
+3. En Trading Research abre **Configuración → Nube**.
+4. Guarda URL/key, crea o inicia sesión.
+5. En el dispositivo principal pulsa **Subir local → Supabase**.
+
+## Despliegue Cloudflare
+
 Build: `npm run build`
+
 Deploy: `npx wrangler deploy`

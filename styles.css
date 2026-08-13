@@ -97,3 +97,21 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .integrity-badge{display:inline-flex;padding:3px 7px;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase}.integrity-badge.error{background:rgba(248,96,112,.12);color:#ff9aa6;border:1px solid rgba(248,96,112,.25)}.integrity-badge.warning{background:rgba(255,188,82,.1);color:#ffd083;border:1px solid rgba(255,188,82,.24)}.integrity-badge.info{background:rgba(103,160,255,.1);color:#a8c9ff;border:1px solid rgba(103,160,255,.24)}
 .integrity-list{display:flex;flex-direction:column;gap:8px;max-height:460px;overflow:auto;padding-right:4px}.integrity-row{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.055);background:rgba(255,255,255,.018)}.integrity-row>div{display:flex;flex-direction:column;gap:3px}.integrity-row strong{font-size:12px}.integrity-row span{font-size:12px;color:#9eb1d0}.integrity-ok{padding:18px;border-radius:14px;background:rgba(84,222,164,.06);border:1px solid rgba(84,222,164,.18);color:#8cf0c2;font-weight:700}
 /* ===== END V8.1 styles ===== */
+
+
+/* ===== V9 Cloud styles ===== */
+.cloud-layout{display:flex;flex-direction:column;gap:16px}
+.cloud-pill{display:inline-flex;max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:6px 10px;border:1px solid rgba(140,170,220,.18);border-radius:999px;font-size:12px;color:#a9bddf;background:rgba(255,255,255,.03)}
+.cloud-pill.ok{color:#82e7c5;border-color:rgba(88,224,181,.25);background:rgba(50,185,143,.08)}
+.cloud-pill.error{color:#ff929f;border-color:rgba(255,100,120,.28);background:rgba(255,72,95,.08)}
+.cloud-pill.busy{color:#d4e3ff;border-color:rgba(110,164,255,.3);background:rgba(76,132,255,.09)}
+.cloud-config-grid{margin-top:8px}
+.cloud-user-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid rgba(120,162,255,.14);border-radius:14px;background:rgba(255,255,255,.02)}
+.cloud-user-row div{display:flex;flex-direction:column;gap:4px}.cloud-user-row span,.cloud-sync-grid span{font-size:11px;color:#7890b6;text-transform:uppercase;letter-spacing:.04em}
+.cloud-sync-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}.cloud-sync-grid>div{padding:13px;border-radius:13px;border:1px solid rgba(120,162,255,.12);background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:5px}
+.cloud-auto{display:inline-flex;align-items:center;gap:8px;color:#b9c9e4;font-size:13px;padding:0 4px}.cloud-auto input{accent-color:#73a8ff}
+.cloud-entities{display:flex;flex-wrap:wrap;gap:8px}.cloud-entities span{padding:7px 10px;border-radius:999px;border:1px solid rgba(120,162,255,.16);background:rgba(120,162,255,.06);color:#bed0ef;font-size:12px}
+.warning-note{border-color:rgba(255,190,88,.15)!important;background:rgba(255,190,88,.04)!important}
+.cloud-image{outline:1px solid rgba(95,221,180,.18)}
+@media(max-width:850px){.cloud-sync-grid{grid-template-columns:1fr}.cloud-user-row{align-items:flex-start;flex-direction:column}}
+/* ===== END V9 styles ===== */

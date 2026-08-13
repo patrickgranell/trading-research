@@ -887,3 +887,195 @@ if(!document.getElementById('backupImportFile')){const inp=document.createElemen
 Object.assign(window,{exportFullBackup,openBackupImportPicker,importFullBackup,runIntegrityAudit});
 render();
 /* ===== END V8.1 PATCH ===== */
+
+
+/* ===== V9 PATCH · Supabase secure cloud sync ===== */
+const CLOUD_CONFIG_KEY='tradingResearchCloudConfig_v1';
+const CLOUD_BUCKET='trading-images';
+const CLOUD_APP_VERSION='9.0.0';
+const CLOUD_SCHEMA_VERSION=1;
+let cloudClient=null;
+let cloudAuthUser=null;
+let cloudBusy=false;
+let cloudSuppressAutoSync=false;
+let cloudSyncTimer=null;
+let cloudStatus={message:'Sin conectar',kind:'idle',remote:null};
+let cloudConfig=loadCloudConfig();
+
+function loadCloudConfig(){
+  const base={url:'https://ddzppjakpcyepuiekioj.supabase.co',publishableKey:'',autoSync:false,lastPush:'',lastPull:'',syncedImageIds:[]};
+  try{return {...base,...JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)||'{}')};}catch{return base;}
+}
+function saveCloudConfigLocal(){localStorage.setItem(CLOUD_CONFIG_KEY,JSON.stringify(cloudConfig));}
+function cloudConfigured(){return !!(cloudConfig.url&&cloudConfig.publishableKey);}
+function cloudUserLabel(){return cloudAuthUser?.email||cloudAuthUser?.id||'Sin sesión';}
+function cloudStatusText(){return cloudStatus?.message||'Sin estado';}
+function cloudSetStatus(message,kind='idle',remote=null){cloudStatus={message,kind,remote:remote??cloudStatus.remote};}
+function cloudEnsureSdk(){if(!window.supabase?.createClient)throw new Error('No se pudo cargar la librería oficial de Supabase. Comprueba la conexión a Internet.');}
+async function initCloudClient(){
+  cloudAuthUser=null;cloudClient=null;
+  if(!cloudConfigured()){cloudSetStatus('Falta configurar la Publishable key','idle');return;}
+  try{
+    cloudEnsureSdk();
+    cloudClient=window.supabase.createClient(cloudConfig.url.trim(),cloudConfig.publishableKey.trim(),{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+    const {data}=await cloudClient.auth.getSession();cloudAuthUser=data?.session?.user||null;
+    cloudClient.auth.onAuthStateChange((_event,session)=>{cloudAuthUser=session?.user||null;cloudSetStatus(cloudAuthUser?`Sesión activa: ${cloudUserLabel()}`:'Sin sesión','ok');setTimeout(()=>{if(currentView==='config'&&configTab==='cloud')render();},0);});
+    cloudSetStatus(cloudAuthUser?`Sesión activa: ${cloudUserLabel()}`:'Conexión preparada · inicia sesión',cloudAuthUser?'ok':'idle');
+  }catch(e){cloudSetStatus('Error de configuración: '+e.message,'error');}
+}
+
+function cloudConfigPanel(){
+  const logged=!!cloudAuthUser, remote=cloudStatus.remote;
+  return `<div class="cloud-layout">
+  <section class="card panel config-wide"><div class="panel-title"><div><h3>Supabase · conexión segura</h3><div class="help">El navegador usa únicamente Project URL + Publishable key. La Secret key / service_role nunca debe introducirse aquí.</div></div><span class="cloud-pill ${cloudStatus.kind}">${esc(cloudStatusText())}</span></div>
+    <div class="form-grid cloud-config-grid">
+      ${field('Project URL','cloud-url','text',esc(cloudConfig.url||''),'span2')}
+      ${field('Publishable key','cloud-key','password',esc(cloudConfig.publishableKey||''),'span2',`autocomplete="off" placeholder="sb_publishable_… (o anon legacy)"`)}
+    </div>
+    <div class="security-actions"><button class="btn primary" onclick="saveCloudConnection()">Guardar conexión</button><button class="btn" onclick="testCloudConnection()">Probar conexión</button></div>
+    <div class="notice">Proyecto preconfigurado: <strong>ddzppjakpcyepuiekioj</strong>. Antes de sincronizar hay que ejecutar el SQL de estructura/RLS que te he preparado.</div>
+  </section>
+  <section class="card panel config-wide"><div class="panel-title"><div><h3>Cuenta</h3><div class="help">Supabase Auth identifica al propietario de los datos; las políticas RLS solo permiten acceder a tus propias filas.</div></div><span class="badge ${logged?'win':''}">${logged?esc(cloudUserLabel()):'No autenticado'}</span></div>
+    ${logged?`<div class="cloud-user-row"><div><span>Usuario</span><strong>${esc(cloudUserLabel())}</strong></div><button class="btn" onclick="cloudSignOut()">Cerrar sesión</button></div>`:`<div class="form-grid">${field('Email','cloud-email','email','')}${field('Contraseña','cloud-password','password','','autocomplete="current-password"')}</div><div class="security-actions"><button class="btn primary" onclick="cloudSignIn()">Entrar</button><button class="btn" onclick="cloudSignUp()">Crear cuenta</button></div>`}
+  </section>
+  <section class="card panel config-wide"><div class="panel-title"><div><h3>Sincronización</h3><div class="help">Local sigue siendo una copia funcional. Supabase se convierte en la persistencia entre dispositivos.</div></div><span class="stable-pill">V9 Cloud Sync</span></div>
+    <div class="cloud-sync-grid"><div><span>Última subida</span><strong>${cloudConfig.lastPush?fmtDate(cloudConfig.lastPush):'Nunca'}</strong></div><div><span>Última descarga</span><strong>${cloudConfig.lastPull?fmtDate(cloudConfig.lastPull):'Nunca'}</strong></div><div><span>Estado remoto</span><strong>${remote?`${remote.plans||0} planes · ${remote.operations||0} operaciones`:'Sin consultar'}</strong></div></div>
+    <div class="security-actions"><button class="btn primary" ${logged?'':'disabled'} onclick="cloudPushState()">Subir local → Supabase</button><button class="btn" ${logged?'':'disabled'} onclick="cloudPullState()">Cargar Supabase → este dispositivo</button><label class="cloud-auto"><input type="checkbox" ${cloudConfig.autoSync?'checked':''} ${logged?'':'disabled'} onchange="setCloudAutoSync(this.checked)"> Sincronización automática tras guardar cambios</label></div>
+    <div class="notice warning-note">La primera vez usa <strong>Subir local → Supabase</strong>. En otro ordenador, inicia sesión y usa <strong>Cargar Supabase → este dispositivo</strong>. La descarga sustituye el estado local después de pedir confirmación.</div>
+  </section>
+  <section class="card panel config-wide"><div class="panel-title"><div><h3>Qué se guarda</h3><div class="help">La estructura está preparada para crecer sin encerrar toda la aplicación en una única fila JSON.</div></div></div><div class="cloud-entities"><span>Workspace</span><span>Trading Plans</span><span>Contratos</span><span>Operaciones</span><span>Importaciones</span><span>Oportunidades</span><span>Imágenes privadas</span></div></section>
+  </div>`;
+}
+
+async function saveCloudConnection(){
+  cloudConfig.url=(document.getElementById('f-cloud-url')?.value||'').trim().replace(/\/$/,'');
+  cloudConfig.publishableKey=(document.getElementById('f-cloud-key')?.value||'').trim();saveCloudConfigLocal();await initCloudClient();render();
+}
+async function testCloudConnection(){
+  if(!cloudClient)await initCloudClient();if(!cloudClient)return alert('Configura primero Project URL y Publishable key.');
+  if(!cloudAuthUser)return alert('La conexión está preparada. Inicia sesión para probar también el acceso protegido por RLS.');
+  cloudSetStatus('Probando conexión…','busy');render();
+  try{const {data,error}=await cloudClient.from('trading_workspace').select('user_id,updated_at').eq('user_id',cloudAuthUser.id).maybeSingle();if(error)throw error;cloudSetStatus(data?'Supabase conectado · workspace encontrado':'Supabase conectado · workspace todavía vacío','ok');}
+  catch(e){cloudSetStatus('Error: '+e.message,'error');}
+  render();
+}
+function cloudCredentials(){return {email:(document.getElementById('f-cloud-email')?.value||'').trim(),password:document.getElementById('f-cloud-password')?.value||''};}
+async function cloudSignIn(){
+  if(!cloudClient)await saveCloudConnection();if(!cloudClient)return;
+  const {email,password}=cloudCredentials();if(!email||!password)return alert('Introduce email y contraseña.');
+  cloudSetStatus('Iniciando sesión…','busy');render();
+  const {data,error}=await cloudClient.auth.signInWithPassword({email,password});if(error){cloudSetStatus('Login fallido: '+error.message,'error');render();return;}
+  cloudAuthUser=data.user;cloudSetStatus(`Sesión activa: ${cloudUserLabel()}`,'ok');render();
+}
+async function cloudSignUp(){
+  if(!cloudClient)await saveCloudConnection();if(!cloudClient)return;
+  const {email,password}=cloudCredentials();if(!email||!password)return alert('Introduce email y contraseña.');
+  cloudSetStatus('Creando cuenta…','busy');render();
+  const {data,error}=await cloudClient.auth.signUp({email,password});if(error){cloudSetStatus('No se pudo crear la cuenta: '+error.message,'error');render();return;}
+  cloudAuthUser=data.session?.user||null;cloudSetStatus(cloudAuthUser?'Cuenta creada y sesión activa':'Cuenta creada · revisa el email si Supabase exige confirmación','ok');render();
+}
+async function cloudSignOut(){if(!cloudClient)return;await cloudClient.auth.signOut();cloudAuthUser=null;cloudSetStatus('Sesión cerrada','idle');render();}
+function setCloudAutoSync(v){cloudConfig.autoSync=!!v;saveCloudConfigLocal();if(v)cloudScheduleAutoSync();render();}
+
+function validIso(v){if(!v)return null;const d=new Date(v);return isNaN(d)?null:d.toISOString();}
+function chunk(arr,n=200){const out=[];for(let i=0;i<arr.length;i+=n)out.push(arr.slice(i,i+n));return out;}
+async function cloudRequireUser(){if(!cloudClient)await initCloudClient();if(!cloudClient)throw new Error('Supabase no está configurado.');const {data,error}=await cloudClient.auth.getUser();if(error||!data?.user)throw new Error('Debes iniciar sesión en Supabase.');cloudAuthUser=data.user;return data.user;}
+async function cloudUpsertChunks(table,rows,onConflict='user_id,id'){
+  for(const part of chunk(rows,150)){const {error}=await cloudClient.from(table).upsert(part,{onConflict});if(error)throw new Error(`${table}: ${error.message}`);}
+}
+async function cloudDeleteStale(table,localIds,userId){
+  const {data,error}=await cloudClient.from(table).select('id').eq('user_id',userId);if(error)throw new Error(`${table}: ${error.message}`);
+  const keep=new Set(localIds),stale=(data||[]).map(x=>x.id).filter(id=>!keep.has(id));for(const part of chunk(stale,100)){if(!part.length)continue;const {error:e}=await cloudClient.from(table).delete().eq('user_id',userId).in('id',part);if(e)throw new Error(`${table}: ${e.message}`);}
+}
+function planCloudRow(p,userId){return {user_id:userId,id:p.id,family_name:p.familyName||'',name:p.name||'',version:p.version||'',status:p.status||'active',updated_at:validIso(p.updatedAt)||new Date().toISOString(),payload:clone(p)};}
+function instrumentCloudRow(i,userId){return {user_id:userId,id:i.id,symbol:i.symbol||'',name:i.name||'',active:i.active!==false,updated_at:new Date().toISOString(),payload:clone(i)};}
+function operationCloudRow(o,userId){return {user_id:userId,id:o.id,trading_plan_id:o.tradingPlanId||'',entry_date:validIso(o.entryDate),direction:o.direction||'',setup:o.setup||'',vd:o.vd||'',nr:o.nr||'',result:o.result||'',r_multiple:Number(o.rMultiple)||0,pnl_net:Number(o.pnlNet)||0,result_ticks:Number(o.resultTicks)||0,updated_at:validIso(o.updatedAt)||new Date().toISOString(),payload:clone(o)};}
+function batchCloudRow(b,userId){return {user_id:userId,id:b.id,trading_plan_id:b.tradingPlanId||'',imported_at:validIso(b.importedAt)||new Date().toISOString(),updated_at:new Date().toISOString(),payload:clone(b)};}
+function opportunityCloudRow(o,userId){return {user_id:userId,id:o.id||uid('opp'),trading_plan_id:o.tradingPlanId||'',updated_at:new Date().toISOString(),payload:clone(o)};}
+async function cloudSyncImages(user){
+  const refs=new Set(collectReferencedImageIds()),records=await getAllImageRecords(),synced=new Set(cloudConfig.syncedImageIds||[]);let uploaded=0;
+  for(const rec of records){if(!rec?.id||!refs.has(rec.id)||synced.has(rec.id))continue;const path=`${user.id}/${rec.id}`;const {error}=await cloudClient.storage.from(CLOUD_BUCKET).upload(path,rec.blob,{upsert:true,contentType:rec.type||rec.blob?.type||'application/octet-stream',cacheControl:'3600'});if(error)throw new Error(`Imagen ${rec.id}: ${error.message}`);synced.add(rec.id);uploaded++;}
+  cloudConfig.syncedImageIds=[...synced];saveCloudConfigLocal();return uploaded;
+}
+async function cloudPushState(options={}){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Sincronizando hacia Supabase…','busy');if(!options.silent)render();
+  try{
+    const user=await cloudRequireUser();ensureAllPlansV8();
+    const plans=state.tradingPlans.map(p=>planCloudRow(p,user.id)),inst=state.settings.instruments.map(i=>instrumentCloudRow(i,user.id)),ops=state.operations.map(o=>operationCloudRow(o,user.id)),batches=state.importBatches.map(b=>batchCloudRow(b,user.id)),opps=(state.opportunities||[]).map(o=>opportunityCloudRow(o,user.id));
+    const {error:werr}=await cloudClient.from('trading_workspace').upsert({user_id:user.id,current_plan_id:state.currentPlanId||'',app_version:CLOUD_APP_VERSION,schema_version:CLOUD_SCHEMA_VERSION,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(werr)throw werr;
+    await cloudUpsertChunks('trading_plans',plans);await cloudDeleteStale('trading_plans',plans.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_instruments',inst);await cloudDeleteStale('trading_instruments',inst.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_operations',ops);await cloudDeleteStale('trading_operations',ops.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_import_batches',batches);await cloudDeleteStale('trading_import_batches',batches.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_opportunities',opps);await cloudDeleteStale('trading_opportunities',opps.map(x=>x.id),user.id);
+    const uploaded=await cloudSyncImages(user);cloudConfig.lastPush=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Sincronizado · ${ops.length} operaciones · ${uploaded} imagen(es) nuevas`,'ok',{plans:plans.length,operations:ops.length,batches:batches.length,instruments:inst.length});
+  }catch(e){cloudSetStatus('Error de sincronización: '+e.message,'error');if(!options.silent)alert('No se pudo sincronizar con Supabase:\n'+e.message);}
+  finally{cloudBusy=false;if(!options.silent&&currentView==='config'&&configTab==='cloud')render();}
+}
+async function cloudFetchRows(table,userId){const {data,error}=await cloudClient.from(table).select('*').eq('user_id',userId);if(error)throw new Error(`${table}: ${error.message}`);return data||[];}
+async function cloudPullState(){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Leyendo Supabase…','busy');render();
+  try{
+    const user=await cloudRequireUser();const {data:ws,error:werr}=await cloudClient.from('trading_workspace').select('*').eq('user_id',user.id).maybeSingle();if(werr)throw werr;if(!ws)throw new Error('Todavía no hay un workspace guardado en Supabase. Primero sube tus datos desde el dispositivo principal.');
+    const [plans,inst,ops,batches,opps]=await Promise.all(['trading_plans','trading_instruments','trading_operations','trading_import_batches','trading_opportunities'].map(t=>cloudFetchRows(t,user.id)));
+    if(!confirm(`Supabase contiene ${plans.length} plan(es) y ${ops.length} operación(es).\n\nEsto sustituirá el estado local de este navegador. ¿Continuar?`)){cloudSetStatus('Descarga cancelada','idle');return;}
+    const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
+  }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
+  finally{cloudBusy=false;}
+}
+function cloudScheduleAutoSync(){if(cloudSuppressAutoSync||!cloudConfig.autoSync||!cloudAuthUser||cloudBusy)return;clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>cloudPushState({silent:true}),2200);}
+const persistV9Local=persist;
+persist=function(){persistV9Local();cloudScheduleAutoSync();};
+
+async function cloudSignedImageUrl(id){if(!cloudClient||!cloudAuthUser||!id)return null;const {data,error}=await cloudClient.storage.from(CLOUD_BUCKET).createSignedUrl(`${cloudAuthUser.id}/${id}`,3600);if(error)return null;return data?.signedUrl||null;}
+async function hydrateImageElements(root=document){
+  const els=[...root.querySelectorAll('img[data-img-id]:not([data-hydrated])')];for(const el of els){el.dataset.hydrated='1';const blob=await getImageBlob(el.dataset.imgId);if(blob){const u=URL.createObjectURL(blob);el.src=u;el.onload=()=>setTimeout(()=>URL.revokeObjectURL(u),2000);continue;}const url=await cloudSignedImageUrl(el.dataset.imgId);if(url){el.src=url;el.classList.add('cloud-image');}else{el.alt='Imagen no disponible localmente ni en Supabase';el.classList.add('missing-image');}}
+}
+async function cloudDownloadImageBlob(id){if(!cloudClient||!cloudAuthUser)return null;const {data,error}=await cloudClient.storage.from(CLOUD_BUCKET).download(`${cloudAuthUser.id}/${id}`);return error?null:data;}
+async function exportFullBackup(){
+  try{
+    const local=await getAllImageRecords(),map=new Map(local.map(x=>[x.id,x])),refs=[...new Set(collectReferencedImageIds())],images=[];
+    for(const id of refs){let rec=map.get(id),blob=rec?.blob;if(!blob)blob=await cloudDownloadImageBlob(id);if(!blob)continue;const meta=findImageMetaByIdV9(id)||rec||{};images.push({id,name:meta.name||rec?.name||'imagen',type:meta.type||rec?.type||blob.type||'application/octet-stream',updatedAt:rec?.updatedAt||'',data:await blobToBase64(blob)});}
+    const payload={format:BACKUP_FORMAT,schema:BACKUP_SCHEMA,appVersion:CLOUD_APP_VERSION,exportedAt:new Date().toISOString(),state:clone(state),images};const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a'),d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}-${String(d.getMinutes()).padStart(2,'0')}`;a.href=url;a.download=`Trading-Research-backup-${stamp}.trbackup`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);alert(`Copia completa creada.\nPlanes: ${state.tradingPlans.length}\nOperaciones: ${state.operations.length}\nImágenes: ${images.length}`);
+  }catch(e){alert('No se pudo crear la copia de seguridad: '+e.message);}
+}
+function findImageMetaByIdV9(id){let found=null;state.operations.some(o=>{found=(o.images||[]).find(x=>x.id===id)||null;return !!found;});if(found)return found;for(const p of state.tradingPlans){ensurePlanV8Structure(p);for(const r of p.visualReferences||[]){found=(r.images||[]).find(x=>x.id===id);if(found)return found;}for(const d of p.setupDefinitions||[]){found=[...(d.imagesLong||[]),...(d.imagesShort||[])].find(x=>x.id===id);if(found)return found;}for(const d of p.vdDefinitions||[]){found=(d.images||[]).find(x=>x.id===id);if(found)return found;}for(const d of p.contextDefinitions||[]){found=(d.images||[]).find(x=>x.id===id);if(found)return found;}}return null;}
+
+function configTabs(p){const tabs=[['instruments','Contratos','Biblioteca global'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales'],['data','Datos y seguridad','Backup e integridad'],['cloud','Nube','Supabase y sincronización']];return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`;}
+function configContent(p){ensurePlanV8Structure(p);if(configTab==='management')return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Regímenes / estrategias de gestión · ${esc(planLabel(p))}</h3><div class="help">Las estrategias consumen los contratos globales y construyen lotes, stops y objetivos.</div></div><button class="btn primary small" onclick="openRiskModal()">+ Nueva estrategia</button></div><div class="config-list">${(p?.riskStrategies||[]).length?p.riskStrategies.map(r=>riskCard(r)).join(''):'<div class="empty">Este plan todavía no tiene estrategias de gestión.</div>'}</div></section><div style="margin-top:16px">${configCard('Salidas discrecionales','Módulos disponibles para TP variable','discretionaryTargets')}</div>`;if(configTab==='taxonomy')return configTaxonomyPanel(p);if(configTab==='visual')return visualReferencePanel(p);if(configTab==='emotional')return emotionConfigPanel(p);if(configTab==='riskrules')return riskManagementPanel(p);if(configTab==='data')return dataSecurityPanel();if(configTab==='cloud')return cloudConfigPanel();return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Biblioteca global de contratos / instrumentos</h3><div class="help">Fuente única para tick size, valor del tick, comisión y moneda. Todos los Trading Plans pueden reutilizar estos contratos.</div></div><button class="btn primary small" onclick="openInstrumentModal()">+ Añadir contrato</button></div>${instrumentTable()}</section>`;}
+Object.assign(window,{saveCloudConnection,testCloudConnection,cloudSignIn,cloudSignUp,cloudSignOut,setCloudAutoSync,cloudPushState,cloudPullState});
+initCloudClient().then(()=>{if(currentView==='config'&&configTab==='cloud')render();});
+render();
+/* ===== END V9 PATCH ===== */
+
+
+/* V9.0.1 · fix auth form preservation when initializing client */
+async function cloudSignIn(){
+  const creds=cloudCredentials();
+  if(!cloudClient){
+    cloudConfig.url=(document.getElementById('f-cloud-url')?.value||cloudConfig.url||'').trim().replace(/\/$/,'');
+    cloudConfig.publishableKey=(document.getElementById('f-cloud-key')?.value||cloudConfig.publishableKey||'').trim();
+    saveCloudConfigLocal();await initCloudClient();
+  }
+  if(!cloudClient)return alert('Configura primero Project URL y Publishable key.');
+  const {email,password}=creds;if(!email||!password)return alert('Introduce email y contraseña.');
+  cloudSetStatus('Iniciando sesión…','busy');
+  const {data,error}=await cloudClient.auth.signInWithPassword({email,password});if(error){cloudSetStatus('Login fallido: '+error.message,'error');render();return;}
+  cloudAuthUser=data.user;cloudSetStatus(`Sesión activa: ${cloudUserLabel()}`,'ok');render();
+}
+async function cloudSignUp(){
+  const creds=cloudCredentials();
+  if(!cloudClient){
+    cloudConfig.url=(document.getElementById('f-cloud-url')?.value||cloudConfig.url||'').trim().replace(/\/$/,'');
+    cloudConfig.publishableKey=(document.getElementById('f-cloud-key')?.value||cloudConfig.publishableKey||'').trim();
+    saveCloudConfigLocal();await initCloudClient();
+  }
+  if(!cloudClient)return alert('Configura primero Project URL y Publishable key.');
+  const {email,password}=creds;if(!email||!password)return alert('Introduce email y contraseña.');
+  cloudSetStatus('Creando cuenta…','busy');
+  const {data,error}=await cloudClient.auth.signUp({email,password});if(error){cloudSetStatus('No se pudo crear la cuenta: '+error.message,'error');render();return;}
+  cloudAuthUser=data.session?.user||null;cloudSetStatus(cloudAuthUser?'Cuenta creada y sesión activa':'Cuenta creada · revisa el email si Supabase exige confirmación','ok');render();
+}
+function opportunityCloudRow(o,userId){if(!o.id)o.id=uid('opp');return {user_id:userId,id:o.id,trading_plan_id:o.tradingPlanId||'',updated_at:new Date().toISOString(),payload:clone(o)};}
+Object.assign(window,{cloudSignIn,cloudSignUp});

@@ -1,4 +1,4 @@
-# Trading Research V4
+# Trading Research V4.1
 
 V3 introduce **Trading Plans como entidad principal de investigación**.
 
@@ -35,3 +35,11 @@ Los datos siguen guardándose en `localStorage` mientras validamos la arquitectu
 - Detección visual de posibles actualizaciones/duplicados por misma entrada.
 - Auditoría posterior por lote de importación.
 - Edición de la capa normalizada sin modificar el RAW original.
+
+
+## V4.1 · Modales protegidos
+
+- Pulsar sobre el fondo oscuro ya no cierra ninguna ventana modal.
+- Se elimina el cierre accidental mediante la X del encabezado.
+- Una ventana de edición solo se cierra mediante los botones explícitos del pie: Guardar, Cancelar, Cerrar, Confirmar, etc.
+- Mantiene la misma clave de almacenamiento de V4 para no perder datos locales.

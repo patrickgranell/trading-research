@@ -1,16 +1,19 @@
-# Trading Research V5 · Analytics Lab
+# Trading Research V5.1 — Visual Lab
 
-V5 añade un explorador visual multidimensional para Operaciones y una revisión avanzada por bloques de 20.
+Mejoras sobre V5:
 
-## Operaciones
-- Filtros por fechas, horas, días de semana, mes, año, contrato, dirección, Setup, VD, NR, hipótesis, estrategia, origen, resultado y bloque.
-- Selector global R / Ticks / US$ y Bruto / Neto.
-- Módulos activables: equity, distribución, mapa de calor día × hora, desglose interactivo y tabla.
-- Los gráficos responden al mismo subconjunto filtrado.
+- Corrige el estado visual de los selectores R / Ticks / US$ y Bruto / Neto en Operaciones.
+- Añade **Visual Lab**:
+  - Histograma + curva normal de referencia (sin asumir normalidad de los datos).
+  - Gráfico de dispersión con selección libre de métricas X/Y.
+  - Métricas disponibles: resultados, R, ticks, P&L, MFE, MAE, hora, stop, contratos y comisiones.
+- Bloques de 20:
+  - Panel de comisión añadido a cada bloque.
+  - Selector independiente para ver comisiones en US$ o ticks equivalentes.
+  - La unidad seleccionada se aplica también a la tabla comparativa y al detalle del bloque.
 
-## Bloques
-- Sparkline de equity por bloque.
-- Comparativa de bloques con métricas del Excel: máximos, medias, MDU/MDD, RRR neto, beneficio neto, comisiones, alineación y periodo, además de WR, expectancy y PF.
-- Modal de detalle con las operaciones del bloque.
+## Despliegue
 
-El estado de V4 se conserva usando la misma clave de almacenamiento local.
+Build command: `npm run build`
+
+Deploy command: `npx wrangler deploy`

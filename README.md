@@ -1,60 +1,34 @@
-# Trading Research V8 — Setups, VD y Contexto visual integrado
+# Trading Research V8.1 — Stable Data Safety
 
-## Novedades principales
+V8.1 congela la arquitectura funcional de V8 y añade una primera capa de seguridad del dato.
 
-- **Setups enriquecidos desde Configuración**
-  - cada setup puede tener:
-    - nombre,
-    - timeframes,
-    - descripción/checklist,
-    - **imagen LONG**, 
-    - **imagen SHORT**.
+## Novedades
+- **Datos y seguridad** en Configuración.
+- **Exportar copia completa** a un único fichero `.trbackup`.
+- La copia incluye:
+  - Trading Plans y versiones,
+  - operaciones,
+  - importaciones Ankora,
+  - contratos,
+  - estrategias/lotes,
+  - reglas de riesgo,
+  - diario emocional,
+  - taxonomías y referencias,
+  - imágenes almacenadas en IndexedDB.
+- **Restaurar copia** con validación y confirmación explícita.
+- **Auditoría de integridad** para detectar:
+  - IDs duplicados,
+  - planes inexistentes,
+  - contratos huérfanos,
+  - estrategias huérfanas o sin clasificar,
+  - Setup/VD fuera de la configuración actual,
+  - contextos sin ficha,
+  - referencias de imagen sin blob,
+  - blobs de imagen sin referencia.
 
-- **VD enriquecidas**
-  - cada VD puede tener:
-    - nombre,
-    - timeframes,
-    - descripción,
-    - imagen de referencia.
-
-- **Nuevo apartado de Contexto**
-  - permite definir contextos como:
-    - EB Norm,
-    - EA Norm,
-    - Impulso,
-    - Retroceso,
-  - con:
-    - descripción,
-    - especificaciones,
-    - timeframes,
-    - imagen de ejemplo.
-
-- **Referencias visuales mejor expuestas**
-  - la pestaña visual ahora muestra una galería más clara de:
-    - Setups,
-    - VD,
-    - Contextos,
-  - y conserva referencias legacy de la versión anterior.
-
-- **Formulario de operación mejorado**
-  - el campo **Contexto H4** ya puede apoyarse en los contextos configurados.
-
-- **Compatibilidad con datos anteriores**
-  - los planes existentes se migran en cliente a la nueva estructura visual sin perder operaciones.
-
-## Persistencia
-
-- Las imágenes siguen guardándose localmente en **IndexedDB**.
-- La metadata sigue viviendo en el estado local del proyecto.
+## V8 conservado
+Se mantienen todas las funciones de V8: Setups/VD/Contextos enriquecidos, imágenes LONG/SHORT, biblioteca visual, diario emocional, reglas de riesgo, bloques, importador Ankora y laboratorio de operaciones.
 
 ## Despliegue
-
-Build:
-```bash
-npm run build
-```
-
-Deploy:
-```bash
-npx wrangler deploy
-```
+Build: `npm run build`
+Deploy: `npx wrangler deploy`

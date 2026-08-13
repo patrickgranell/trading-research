@@ -794,3 +794,96 @@ function operationForm(o,r,p){ ensurePlanV8Structure(p); const v=(k,d='')=>esc(o
 Object.assign(window,{openTaxonomyAssetModal,saveTaxonomyAsset,deleteTaxonomyAsset});
 render();
 /* ===== END V8 PATCH ===== */
+
+
+/* ===== V8.1 PATCH · stable backup + integrity audit ===== */
+const BACKUP_FORMAT = 'TradingResearchBackup';
+const BACKUP_SCHEMA = 1;
+let integrityAuditCache = null;
+
+function blobToBase64(blob){
+  return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||'').split(',')[1]||'');r.onerror=()=>reject(r.error);r.readAsDataURL(blob);});
+}
+function base64ToBlob(base64,type='application/octet-stream'){
+  const bin=atob(base64||''), bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new Blob([bytes],{type});
+}
+async function getAllImageRecords(){
+  try{const db=await imageDb();return await new Promise((resolve,reject)=>{const tx=db.transaction(IMAGE_STORE,'readonly'),req=tx.objectStore(IMAGE_STORE).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});}catch{return [];}
+}
+async function clearImageStore(){
+  const db=await imageDb();return new Promise((resolve,reject)=>{const tx=db.transaction(IMAGE_STORE,'readwrite');tx.objectStore(IMAGE_STORE).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});
+}
+async function exportFullBackup(){
+  try{
+    const records=await getAllImageRecords(), images=[];
+    for(const rec of records){images.push({id:rec.id,name:rec.name||'',type:rec.type||rec.blob?.type||'application/octet-stream',updatedAt:rec.updatedAt||'',data:await blobToBase64(rec.blob)});}
+    const payload={format:BACKUP_FORMAT,schema:BACKUP_SCHEMA,appVersion:'8.1.0',exportedAt:new Date().toISOString(),state:clone(state),images};
+    const blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a'),d=new Date(),stamp=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}_${String(d.getHours()).padStart(2,'0')}-${String(d.getMinutes()).padStart(2,'0')}`;
+    a.href=url;a.download=`Trading-Research-backup-${stamp}.trbackup`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+    alert(`Copia completa creada.\nPlanes: ${state.tradingPlans.length}\nOperaciones: ${state.operations.length}\nImágenes: ${images.length}`);
+  }catch(e){alert('No se pudo crear la copia de seguridad: '+e.message);}
+}
+function openBackupImportPicker(){document.getElementById('backupImportFile')?.click();}
+async function importFullBackup(file){
+  if(!file)return;
+  try{
+    const raw=JSON.parse(await file.text());
+    if(raw?.format!==BACKUP_FORMAT||!raw?.state||!Array.isArray(raw?.images))throw new Error('El archivo no es una copia válida de Trading Research.');
+    const info=`${raw.state?.tradingPlans?.length||0} plan(es), ${raw.state?.operations?.length||0} operación(es), ${raw.images.length} imagen(es)`;
+    if(!confirm(`Esta restauración sustituirá los datos locales actuales de este navegador.\n\nCopia seleccionada: ${info}\nFecha: ${raw.exportedAt?fmtDate(raw.exportedAt):'—'}\n\n¿Continuar?`))return;
+    const restored=normalizeState(raw.state);state=restored;ensureAllPlansV8();
+    await clearImageStore();
+    for(const im of raw.images){if(!im?.id||!im?.data)continue;const blob=base64ToBlob(im.data,im.type);await storeImageFile(new File([blob],im.name||'imagen',{type:im.type||blob.type}),im.id);}
+    persist();integrityAuditCache=null;currentView='config';configTab='data';render();alert(`Restauración completada.\n${info}`);
+  }catch(e){alert('No se pudo restaurar la copia: '+e.message);}
+  finally{const input=document.getElementById('backupImportFile');if(input)input.value='';}
+}
+
+function collectReferencedImageIds(){
+  const ids=[];
+  state.operations.forEach(o=>(o.images||[]).forEach(x=>x?.id&&ids.push(x.id)));
+  state.tradingPlans.forEach(p=>{
+    ensurePlanV8Structure(p);
+    (p.visualReferences||[]).forEach(r=>(r.images||[]).forEach(x=>x?.id&&ids.push(x.id)));
+    (p.setupDefinitions||[]).forEach(d=>[...(d.imagesLong||[]),...(d.imagesShort||[])].forEach(x=>x?.id&&ids.push(x.id)));
+    (p.vdDefinitions||[]).forEach(d=>(d.images||[]).forEach(x=>x?.id&&ids.push(x.id)));
+    (p.contextDefinitions||[]).forEach(d=>(d.images||[]).forEach(x=>x?.id&&ids.push(x.id)));
+  });
+  return ids;
+}
+async function runIntegrityAudit(){
+  const issues=[],planIds=new Set(state.tradingPlans.map(p=>p.id)),instIds=new Set(state.settings.instruments.map(i=>i.id)),seenIds=new Set();
+  for(const o of state.operations){
+    if(seenIds.has(o.id))issues.push({level:'error',kind:'ID duplicado',detail:`Operación ${o.id} aparece más de una vez.`});seenIds.add(o.id);
+    const p=getPlan(o.tradingPlanId);
+    if(!planIds.has(o.tradingPlanId))issues.push({level:'error',kind:'Plan inexistente',detail:`${fmtDate(o.entryDate)} · ${o.contract||'—'} referencia un Trading Plan que ya no existe.`});
+    if(o.instrumentId&&!instIds.has(o.instrumentId))issues.push({level:'error',kind:'Contrato huérfano',detail:`${fmtDate(o.entryDate)} · ${o.contract||'—'} usa un instrumento inexistente.`});
+    if(p){
+      ensurePlanV8Structure(p);
+      if(o.riskStrategyId&&!p.riskStrategies.some(r=>r.id===o.riskStrategyId))issues.push({level:'warning',kind:'Estrategia huérfana',detail:`${fmtDate(o.entryDate)} · ${o.contract||'—'} tiene una estrategia que ya no existe en ${planLabel(p)}.`});
+      if(!o.riskStrategyId)issues.push({level:'info',kind:'Sin estrategia',detail:`${fmtDate(o.entryDate)} · ${o.contract||'—'} está sin clasificar por régimen.`});
+      if(o.setup&&!p.setups.includes(o.setup))issues.push({level:'warning',kind:'Setup fuera del plan',detail:`${fmtDate(o.entryDate)} · ${o.setup} no está en las taxonomías actuales de ${planLabel(p)}.`});
+      if(o.vd&&!p.vd.includes(o.vd))issues.push({level:'warning',kind:'VD fuera del plan',detail:`${fmtDate(o.entryDate)} · ${o.vd} no está en las taxonomías actuales de ${planLabel(p)}.`});
+      if(o.h4Context&&!p.contextDefinitions.some(c=>c.key===String(o.h4Context).trim()))issues.push({level:'info',kind:'Contexto libre',detail:`${fmtDate(o.entryDate)} · ${o.h4Context} todavía no tiene ficha de Contexto.`});
+    }
+  }
+  const records=await getAllImageRecords(),storedIds=new Set(records.map(r=>r.id)),refIds=collectReferencedImageIds(),refSet=new Set(refIds);
+  for(const id of refSet)if(!storedIds.has(id))issues.push({level:'warning',kind:'Imagen ausente',detail:`La metadata referencia la imagen ${id}, pero el blob no está en IndexedDB.`});
+  const orphan=records.filter(r=>!refSet.has(r.id));if(orphan.length)issues.push({level:'info',kind:'Imágenes sin referencia',detail:`Hay ${orphan.length} blob(s) de imagen no vinculados a operaciones o fichas actuales.`});
+  integrityAuditCache={ranAt:new Date().toISOString(),issues,counts:{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length,imageRefs:refSet.size,imageBlobs:records.length}};
+  render();
+}
+function issueBadge(level){return `<span class="integrity-badge ${level}">${level==='error'?'Error':level==='warning'?'Aviso':'Info'}</span>`;}
+function dataSecurityPanel(){
+  const a=integrityAuditCache,c=a?.counts||{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length,imageRefs:collectReferencedImageIds().length,imageBlobs:'—'};
+  const errs=a?.issues?.filter(x=>x.level==='error').length||0,warns=a?.issues?.filter(x=>x.level==='warning').length||0,infos=a?.issues?.filter(x=>x.level==='info').length||0;
+  return `<div class="data-security-layout"><section class="card panel config-wide"><div class="panel-title"><div><h3>Copias de seguridad</h3><div class="help">Exporta estado + imágenes en un único archivo. La restauración sustituye los datos locales de este navegador.</div></div><span class="stable-pill">V8.1 estable</span></div><div class="security-actions"><button class="btn primary" onclick="exportFullBackup()">Exportar copia completa</button><button class="btn" onclick="openBackupImportPicker()">Restaurar copia</button></div><div class="notice">La copia incluye Trading Plans, operaciones, importaciones, contratos, reglas, diario emocional, taxonomías y blobs de imágenes de IndexedDB.</div></section><section class="card panel config-wide"><div class="panel-title"><div><h3>Integridad del dataset</h3><div class="help">Busca referencias rotas, operaciones huérfanas y diferencias entre el histórico y la configuración actual.</div></div><button class="btn primary small" onclick="runIntegrityAudit()">Ejecutar auditoría</button></div><div class="integrity-kpis"><div><span>Planes</span><strong>${c.plans}</strong></div><div><span>Operaciones</span><strong>${c.operations}</strong></div><div><span>Importaciones</span><strong>${c.batches}</strong></div><div><span>Contratos</span><strong>${c.instruments}</strong></div><div><span>Imágenes referenciadas</span><strong>${c.imageRefs}</strong></div><div><span>Blobs presentes</span><strong>${c.imageBlobs}</strong></div></div>${a?`<div class="audit-summary"><span>${issueBadge('error')} ${errs}</span><span>${issueBadge('warning')} ${warns}</span><span>${issueBadge('info')} ${infos}</span><small>Auditoría: ${fmtDate(a.ranAt)}</small></div>${a.issues.length?`<div class="integrity-list">${a.issues.slice(0,120).map(x=>`<div class="integrity-row">${issueBadge(x.level)}<div><strong>${esc(x.kind)}</strong><span>${esc(x.detail)}</span></div></div>`).join('')}</div>`:'<div class="integrity-ok">✓ No se han detectado incidencias.</div>'}`:'<div class="empty">Ejecuta la auditoría para comprobar el estado actual.</div>'}</section></div>`;
+}
+
+function configTabs(p){ const tabs=[['instruments','Contratos','Biblioteca global'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales'],['data','Datos y seguridad','Backup e integridad']]; return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`; }
+function configContent(p){ ensurePlanV8Structure(p); if(configTab==='management')return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Regímenes / estrategias de gestión · ${esc(planLabel(p))}</h3><div class="help">Las estrategias consumen los contratos globales y construyen lotes, stops y objetivos.</div></div><button class="btn primary small" onclick="openRiskModal()">+ Nueva estrategia</button></div><div class="config-list">${(p?.riskStrategies||[]).length?p.riskStrategies.map(r=>riskCard(r)).join(''):'<div class="empty">Este plan todavía no tiene estrategias de gestión.</div>'}</div></section><div style="margin-top:16px">${configCard('Salidas discrecionales','Módulos disponibles para TP variable','discretionaryTargets')}</div>`; if(configTab==='taxonomy')return configTaxonomyPanel(p); if(configTab==='visual')return visualReferencePanel(p); if(configTab==='emotional')return emotionConfigPanel(p); if(configTab==='riskrules')return riskManagementPanel(p); if(configTab==='data')return dataSecurityPanel(); return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Biblioteca global de contratos / instrumentos</h3><div class="help">Fuente única para tick size, valor del tick, comisión y moneda. Todos los Trading Plans pueden reutilizar estos contratos.</div></div><button class="btn primary small" onclick="openInstrumentModal()">+ Añadir contrato</button></div>${instrumentTable()}</section>`; }
+
+if(!document.getElementById('backupImportFile')){const inp=document.createElement('input');inp.id='backupImportFile';inp.type='file';inp.accept='.trbackup,.json,application/json';inp.hidden=true;inp.addEventListener('change',e=>{if(e.target.files?.[0])importFullBackup(e.target.files[0]);});document.body.appendChild(inp);}
+Object.assign(window,{exportFullBackup,openBackupImportPicker,importFullBackup,runIntegrityAudit});
+render();
+/* ===== END V8.1 PATCH ===== */

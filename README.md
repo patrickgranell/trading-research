@@ -1,21 +1,19 @@
-# Trading Research V1
+# Trading Research V2
 
-Primera versión funcional para validar el flujo de registro y análisis de operaciones.
+V2 centra la arquitectura en dos piezas:
 
-## Archivos
+1. **Catálogo de contratos**: símbolo, tick size, valor del tick, comisión por contrato y moneda.
+2. **Estrategias de gestión por lotes**: contrato seleccionado del catálogo, rango ATR y uno o más lotes con stop independiente y TP fijo en ticks o módulo discrecional.
 
-Todos los archivos están en la raíz para facilitar la subida manual a GitHub:
+La aplicación calcula automáticamente riesgo teórico, comisión, P&L y R a partir de esas especificaciones.
 
-- `index.html`
-- `app.js`
-- `styles.css`
-- `package.json`
-- `wrangler.jsonc`
-- `README.md`
+## Despliegue Cloudflare
 
-## Despliegue en Cloudflare Workers
+Build command:
 
-El proyecto usa Static Assets. No necesita comando de build.
+```text
+npm run build
+```
 
 Deploy command:
 
@@ -23,4 +21,4 @@ Deploy command:
 npx wrangler deploy
 ```
 
-En esta V1 los datos se guardan en el navegador (localStorage). Supabase se conectará después de validar el flujo funcional.
+Los datos siguen guardándose en `localStorage` durante la fase de validación. El siguiente paso será persistencia con Supabase.

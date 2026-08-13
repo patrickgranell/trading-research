@@ -1,11 +1,15 @@
-# Trading Research V2
+# Trading Research V3
 
-V2 centra la arquitectura en dos piezas:
+V3 introduce **Trading Plans como entidad principal de investigación**.
 
-1. **Catálogo de contratos**: símbolo, tick size, valor del tick, comisión por contrato y moneda.
-2. **Estrategias de gestión por lotes**: contrato seleccionado del catálogo, rango ATR y uno o más lotes con stop independiente y TP fijo en ticks o módulo discrecional.
+## Arquitectura
 
-La aplicación calcula automáticamente riesgo teórico, comisión, P&L y R a partir de esas especificaciones.
+- **Biblioteca global de contratos**: símbolo, tick size, valor del tick, comisión y moneda.
+- **Trading Plans versionados**: cada plan mantiene sus propios setups, VD, NR, hipótesis, salidas discrecionales y estrategias de gestión.
+- **Datasets aislados por plan**: operaciones, bloques e importaciones quedan vinculados a una versión concreta.
+- **Clonado de versiones**: permite copiar la configuración de un plan sin copiar sus operaciones.
+- **Importaciones Ankora trazables**: cada fichero crea un lote de importación y queda asociado al Trading Plan seleccionado.
+- **Comparación rápida entre planes**: operaciones, win rate, expectancy, profit factor y drawdown.
 
 ## Despliegue Cloudflare
 
@@ -21,4 +25,4 @@ Deploy command:
 npx wrangler deploy
 ```
 
-Los datos siguen guardándose en `localStorage` durante la fase de validación. El siguiente paso será persistencia con Supabase.
+Los datos siguen guardándose en `localStorage` mientras validamos la arquitectura. La persistencia multi-dispositivo, usuarios e imágenes se conectarán a Supabase después.

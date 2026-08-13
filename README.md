@@ -1,35 +1,16 @@
-# Trading Research V9 — Supabase Cloud Sync
+# Trading Research V9.1 — Safe Cloud Sync
 
-V9 conserva toda la funcionalidad estable de V8.1 y añade persistencia segura con Supabase.
+## Seguridad añadida
 
-## Novedades
+- Antes de cada subida se compara el inventario local con Supabase.
+- Si la subida borraría registros remotos, la sincronización automática se bloquea.
+- Una sobrescritura manual destructiva exige escribir `SOBRESCRIBIR NUBE`.
+- Antes de descargar se compara el inventario remoto con el local.
+- Si la descarga eliminaría datos locales, exige escribir `REEMPLAZAR LOCAL`.
+- Se guarda un snapshot local de seguridad antes de una sustitución cloud.
+- Botón para actualizar el estado remoto real.
+- Se mantiene Auth + RLS + bucket privado de imágenes de V9.
 
-- Nueva pestaña **Configuración → Nube**.
-- Project URL + **Publishable key** (nunca Secret/service_role en el navegador).
-- Supabase Auth con email/contraseña.
-- Sincronización de:
-  - workspace,
-  - Trading Plans,
-  - contratos,
-  - operaciones,
-  - importaciones,
-  - oportunidades.
-- Imágenes en bucket privado `trading-images`.
-- RLS por `auth.uid()` para aislar los datos de cada usuario.
-- Subida manual, descarga manual y auto-sync opcional.
-- Las imágenes pueden cargarse desde IndexedDB local o desde Supabase mediante URL firmada.
-- El backup `.trbackup` sigue funcionando y puede incluir imágenes cloud aunque no estén descargadas localmente.
+## Archivos de despliegue
 
-## Antes de usar la nube
-
-1. Ejecuta `supabase-schema-v9.sql` en Supabase SQL Editor.
-2. Copia la **Publishable key** desde Supabase → Settings → API Keys.
-3. En Trading Research abre **Configuración → Nube**.
-4. Guarda URL/key, crea o inicia sesión.
-5. En el dispositivo principal pulsa **Subir local → Supabase**.
-
-## Despliegue Cloudflare
-
-Build: `npm run build`
-
-Deploy: `npx wrangler deploy`
+Sube a GitHub los seis archivos de la raíz. No hace falta volver a ejecutar el SQL de Supabase.

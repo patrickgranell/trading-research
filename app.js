@@ -1079,3 +1079,119 @@ async function cloudSignUp(){
 }
 function opportunityCloudRow(o,userId){if(!o.id)o.id=uid('opp');return {user_id:userId,id:o.id,trading_plan_id:o.tradingPlanId||'',updated_at:new Date().toISOString(),payload:clone(o)};}
 Object.assign(window,{cloudSignIn,cloudSignUp});
+
+/* ===== V9.1 PATCH · destructive sync protection ===== */
+const CLOUD_SAFETY_SNAPSHOT_KEY='tradingResearchCloudSafetySnapshot_v1';
+const CLOUD_APP_VERSION_V91='9.1.0';
+
+function cloudLocalInventory(){
+  return {
+    plans:(state.tradingPlans||[]).map(x=>x.id),
+    instruments:(state.settings?.instruments||[]).map(x=>x.id),
+    operations:(state.operations||[]).map(x=>x.id),
+    batches:(state.importBatches||[]).map(x=>x.id),
+    opportunities:(state.opportunities||[]).map(x=>x.id)
+  };
+}
+async function cloudRemoteInventory(userId){
+  const tables={plans:'trading_plans',instruments:'trading_instruments',operations:'trading_operations',batches:'trading_import_batches',opportunities:'trading_opportunities'};
+  const out={};
+  for(const [key,table] of Object.entries(tables)){
+    const {data,error}=await cloudClient.from(table).select('id').eq('user_id',userId);
+    if(error)throw new Error(`${table}: ${error.message}`);
+    out[key]=(data||[]).map(x=>x.id);
+  }
+  return out;
+}
+function cloudDiffInventory(local,remote){
+  const deleted={},missingLocal={};let deleteCount=0,localLossCount=0;
+  for(const key of ['plans','instruments','operations','batches','opportunities']){
+    const l=new Set(local[key]||[]),r=new Set(remote[key]||[]);
+    deleted[key]=[...r].filter(id=>!l.has(id));
+    missingLocal[key]=[...l].filter(id=>!r.has(id));
+    deleteCount+=deleted[key].length;
+    localLossCount+=missingLocal[key].length;
+  }
+  return {deleted,missingLocal,deleteCount,localLossCount};
+}
+function saveCloudSafetySnapshot(reason){
+  try{
+    localStorage.setItem(CLOUD_SAFETY_SNAPSHOT_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,state:clone(state)}));
+  }catch{}
+}
+function cloudCounts(inv){return {plans:(inv.plans||[]).length,operations:(inv.operations||[]).length,instruments:(inv.instruments||[]).length,batches:(inv.batches||[]).length,opportunities:(inv.opportunities||[]).length};}
+async function refreshCloudRemoteStatus(){
+  try{
+    const user=await cloudRequireUser(),inv=await cloudRemoteInventory(user.id),c=cloudCounts(inv);
+    cloudSetStatus(`Remoto consultado · ${c.operations} operaciones`,'ok',{plans:c.plans,operations:c.operations,batches:c.batches,instruments:c.instruments});
+    if(currentView==='config'&&configTab==='cloud')render();
+    return inv;
+  }catch(e){cloudSetStatus('No se pudo consultar remoto: '+e.message,'error');if(currentView==='config'&&configTab==='cloud')render();return null;}
+}
+
+cloudPushState = async function(options={}){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Verificando seguridad antes de subir…','busy');if(!options.silent)render();
+  try{
+    const user=await cloudRequireUser();ensureAllPlansV8();
+    const localInv=cloudLocalInventory(),remoteInv=await cloudRemoteInventory(user.id),diff=cloudDiffInventory(localInv,remoteInv),lc=cloudCounts(localInv),rc=cloudCounts(remoteInv);
+    if(diff.deleteCount>0){
+      if(options.silent){
+        cloudConfig.autoSync=false;saveCloudConfigLocal();
+        cloudSetStatus(`Auto-sync bloqueado: la subida borraría ${diff.deleteCount} registro(s) remotos`,'error',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments});
+        return;
+      }
+      const msg=`PROTECCIÓN DE DATOS\n\nLocal: ${lc.plans} planes · ${lc.operations} operaciones\nNube: ${rc.plans} planes · ${rc.operations} operaciones\n\nEsta subida eliminaría ${diff.deleteCount} registro(s) que existen en Supabase y no existen en este dispositivo.\n\nPara continuar deliberadamente escribe exactamente:\nSOBRESCRIBIR NUBE`;
+      const typed=prompt(msg,'');
+      if(typed!=='SOBRESCRIBIR NUBE'){cloudSetStatus('Subida cancelada por protección de datos','idle',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments});return;}
+    }
+    saveCloudSafetySnapshot('before-cloud-push');
+    const plans=state.tradingPlans.map(p=>planCloudRow(p,user.id)),inst=state.settings.instruments.map(i=>instrumentCloudRow(i,user.id)),ops=state.operations.map(o=>operationCloudRow(o,user.id)),batches=state.importBatches.map(b=>batchCloudRow(b,user.id)),opps=(state.opportunities||[]).map(o=>opportunityCloudRow(o,user.id));
+    const {error:werr}=await cloudClient.from('trading_workspace').upsert({user_id:user.id,current_plan_id:state.currentPlanId||'',app_version:CLOUD_APP_VERSION_V91,schema_version:CLOUD_SCHEMA_VERSION,updated_at:new Date().toISOString()},{onConflict:'user_id'});if(werr)throw werr;
+    await cloudUpsertChunks('trading_plans',plans);await cloudDeleteStale('trading_plans',plans.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_instruments',inst);await cloudDeleteStale('trading_instruments',inst.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_operations',ops);await cloudDeleteStale('trading_operations',ops.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_import_batches',batches);await cloudDeleteStale('trading_import_batches',batches.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_opportunities',opps);await cloudDeleteStale('trading_opportunities',opps.map(x=>x.id),user.id);
+    const uploaded=await cloudSyncImages(user);cloudConfig.lastPush=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Sincronizado · ${ops.length} operaciones · ${uploaded} imagen(es) nuevas`,'ok',{plans:plans.length,operations:ops.length,batches:batches.length,instruments:inst.length});
+  }catch(e){cloudSetStatus('Error de sincronización: '+e.message,'error');if(!options.silent)alert('No se pudo sincronizar con Supabase:\n'+e.message);}
+  finally{cloudBusy=false;if(!options.silent&&currentView==='config'&&configTab==='cloud')render();}
+};
+
+cloudPullState = async function(){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Verificando nube antes de descargar…','busy');render();
+  try{
+    const user=await cloudRequireUser();const {data:ws,error:werr}=await cloudClient.from('trading_workspace').select('*').eq('user_id',user.id).maybeSingle();if(werr)throw werr;if(!ws)throw new Error('Todavía no hay un workspace guardado en Supabase. Primero sube tus datos desde el dispositivo principal.');
+    const [plans,inst,ops,batches,opps]=await Promise.all(['trading_plans','trading_instruments','trading_operations','trading_import_batches','trading_opportunities'].map(t=>cloudFetchRows(t,user.id)));
+    const remoteInv={plans:plans.map(x=>x.id),instruments:inst.map(x=>x.id),operations:ops.map(x=>x.id),batches:batches.map(x=>x.id),opportunities:opps.map(x=>x.id)},localInv=cloudLocalInventory(),diff=cloudDiffInventory(remoteInv,localInv),lc=cloudCounts(localInv),rc=cloudCounts(remoteInv);
+    const localWouldBeLost=diff.deleteCount; // IDs que están localmente y no vienen de la nube
+    if(localWouldBeLost>0){
+      const msg=`PROTECCIÓN DE DATOS\n\nLocal: ${lc.plans} planes · ${lc.operations} operaciones\nNube: ${rc.plans} planes · ${rc.operations} operaciones\n\nLa descarga sustituirá este dispositivo y eliminaría ${localWouldBeLost} registro(s) locales que no existen en Supabase.\n\nPara continuar deliberadamente escribe exactamente:\nREEMPLAZAR LOCAL`;
+      const typed=prompt(msg,'');
+      if(typed!=='REEMPLAZAR LOCAL'){cloudSetStatus('Descarga cancelada por protección de datos','idle',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments});return;}
+    }else{
+      if(!confirm(`Supabase contiene ${plans.length} plan(es) y ${ops.length} operación(es).\n\nEste navegador tiene ${lc.plans} plan(es) y ${lc.operations} operación(es).\n\nSe cargará la nube en este dispositivo. ¿Continuar?`)){cloudSetStatus('Descarga cancelada','idle',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments});return;}
+    }
+    saveCloudSafetySnapshot('before-cloud-pull');
+    const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
+  }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
+  finally{cloudBusy=false;}
+};
+
+setCloudAutoSync = function(v){
+  if(v && !confirm('La sincronización automática solo se activará si el dispositivo y la nube son compatibles. Si una subida implicase borrar registros remotos, V9.1 la bloqueará automáticamente. ¿Activar?')){render();return;}
+  cloudConfig.autoSync=!!v;saveCloudConfigLocal();if(v)cloudScheduleAutoSync();render();
+};
+
+const cloudConfigPanelV91Base=cloudConfigPanel;
+cloudConfigPanel=function(){
+  const html=cloudConfigPanelV91Base();
+  return html.replace('<span class="stable-pill">V9 Cloud Sync</span>','<span class="stable-pill">V9.1 Safe Sync</span>')
+    .replace('<div class="security-actions"><button class="btn primary"','<div class="security-actions"><button class="btn small" onclick="refreshCloudRemoteStatus()">Actualizar estado remoto</button><button class="btn primary"')
+    .replace('La primera vez usa <strong>Subir local → Supabase</strong>. En otro ordenador, inicia sesión y usa <strong>Cargar Supabase → este dispositivo</strong>. La descarga sustituye el estado local después de pedir confirmación.','<strong>Protección V9.1:</strong> una subida que vaya a borrar registros remotos queda bloqueada en auto-sync y exige escribir <strong>SOBRESCRIBIR NUBE</strong> en modo manual. Una descarga que vaya a borrar datos locales exige <strong>REEMPLAZAR LOCAL</strong>.');
+};
+
+Object.assign(window,{cloudPushState,cloudPullState,setCloudAutoSync,refreshCloudRemoteStatus});
+if(cloudAuthUser)setTimeout(refreshCloudRemoteStatus,300);
+render();
+/* ===== END V9.1 PATCH ===== */

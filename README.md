@@ -192,3 +192,15 @@ No requiere SQL nuevo y mantiene Supabase, Conflict Guard, snapshots, Forward OO
 - Lente de calidad del Laboratorio resume preparación para Research, Exit, Compliance y Emocional.
 - Los avisos enlazan directamente con la cola de Data Quality correspondiente.
 - No bloquea ningún análisis y no requiere SQL nuevo.
+
+
+## V30 · Research Alerts & Change Tracking
+
+- Nueva sección **Cambios** con timeline por Trading Plan y contador de eventos sin revisar.
+- Registra transiciones relevantes: progreso Forward OOS, objetivos cumplidos/dejados de cumplir, hitos de calidad, cambios de evidencia en estudios, cruces del IC95, deterioro/mejora de expectancy reciente y drawdown frente a Stress p95/p99.
+- El Centro Research incorpora un panel de cambios recientes.
+- Historial con filtros por área/severidad, marcar como revisado, limpiar historial y actualizar el punto de referencia.
+- La detección conserva un snapshot compacto por Trading Plan; no duplica operaciones ni crea señales de trading.
+- El cuadro **Modo actual** de la barra lateral ahora es desplegable/plegable. La barra lateral usa scroll interno para evitar que el cuadro tape pestañas.
+- La preferencia de plegado es local al navegador y se conserva tras F5.
+- No requiere SQL nuevo y mantiene Supabase / Conflict Guard intactos.

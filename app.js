@@ -1516,7 +1516,7 @@ shell=function(){
   const p=getCurrentPlan();
   return `<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-dot"></div><div><h1>Trading Research</h1><small>Backtest & Trade Lab</small></div></div><div class="plan-switch"><label>Trading plan activo</label><select class="select" onchange="switchPlan(this.value)">${state.tradingPlans.filter(x=>x.status!=='archived'||x.id===p?.id).map(x=>`<option value="${esc(x.id)}" ${x.id===p?.id?'selected':''}>${esc(planLabel(x))}</option>`).join('')}</select></div><nav class="nav">${navBtn('dashboard','◈','Dashboard')}${navBtn('operations','▤','Operaciones')}${navBtn('lab','⌁','Laboratorio')}${navBtn('gallery','▧','Biblioteca visual')}${navBtn('journal','♡','Diario emocional')}${navBtn('blocks','▦','Bloques')}${navBtn('plans','◫','Trading Plans')}${navBtn('config','⚙','Configuración')}</nav><div class="side-bottom"><div class="mini-card"><div class="mini-label">Modo actual</div><div class="mini-value">${V10_APP_LABEL}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. El Laboratorio es una capa analítica no destructiva.</div></div></div></aside><main class="main"><div id="view"></div></main></div>`;
 };
-render=function(){document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='lab'?analyticsLab():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();setTimeout(hydrateImageElements,0);};
+render=function(){v30EnsureBaselineLocal();document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='lab'?analyticsLab():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();setTimeout(hydrateImageElements,0);};
 Object.assign(window,{labReadFilters,labReset,setLabUnit,setLabBasis,setLabHeatMetric,setLabScatterX,setLabHistBin,setLabEdgeAxis,setLabRollingWindow,setLabRollingMetric,labApplyFocusStress,labApplyBehavior,labApplyRBin,labApplyEdge});
 render();
 /* ===== END V10 PATCH ===== */
@@ -5055,3 +5055,155 @@ render=function(){
 Object.assign(window,{researchDecisionCenter,decisionOpenStudy,decisionOpenForward,decisionOpenGoals,decisionOpenReviews,decisionOpenStress,decisionOpenCompliance});
 render();
 /* ===== END V29 PATCH ===== */
+
+/* ===== V30 PATCH · Research Alerts & Change Tracking + sidebar mode card ===== */
+const V30_APP_LABEL='V30 · Research Alerts & Change Tracking';
+const V30_UI_KEY='tradingResearchUi_v30';
+let v30Ui=(()=>{try{return {...{modeExpanded:false},...JSON.parse(localStorage.getItem(V30_UI_KEY)||'{}')}}catch{return {modeExpanded:false}}})();
+let researchChangesViewState={kind:'all',severity:'all',unread:false};
+
+function saveV30Ui(){try{localStorage.setItem(V30_UI_KEY,JSON.stringify(v30Ui));}catch{}}
+function toggleModeCard(){v30Ui.modeExpanded=!v30Ui.modeExpanded;saveV30Ui();const c=document.querySelector('.mode-card');if(c)c.classList.toggle('expanded',v30Ui.modeExpanded);const a=document.querySelector('.mode-card-arrow');if(a)a.textContent=v30Ui.modeExpanded?'▾':'▴';}
+
+function ensurePlanResearchChanges(p){
+  if(!p)return p;
+  const raw=p.researchChanges&&typeof p.researchChanges==='object'?p.researchChanges:{};
+  p.researchChanges={
+    events:Array.isArray(raw.events)?raw.events.slice(0,300):[],
+    lastSnapshot:raw.lastSnapshot&&typeof raw.lastSnapshot==='object'?raw.lastSnapshot:null,
+    initializedAt:raw.initializedAt||'',
+    lastReviewedAt:raw.lastReviewedAt||''
+  };
+  p.researchChanges.events=p.researchChanges.events.map(e=>({
+    id:e.id||uid('EVT'),at:e.at||new Date().toISOString(),kind:e.kind||'research',severity:['positive','warning','critical','info'].includes(e.severity)?e.severity:'info',
+    title:String(e.title||'Cambio registrado'),detail:String(e.detail||''),metric:String(e.metric||''),route:String(e.route||'decision'),read:e.read===true
+  }));
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanResearchChanges);
+const makeBlankPlanV30Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV30Base(meta);ensurePlanResearchChanges(p);return p;};
+const normalizePlanV30Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV30Base(p,instruments);ensurePlanResearchChanges(out);return out;};
+const normalizeStateV30Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV30Base(raw);(out.tradingPlans||[]).forEach(ensurePlanResearchChanges);return out;};
+
+function v30MetricR(v){return Number.isFinite(Number(v))?`${Number(v)>=0?'+':''}${Number(v).toFixed(2)}R`:'—';}
+function v30CoverageMap(a){const out={};(a?.coverage||[]).forEach(c=>out[c.id]=Number(c.pct)||0);return out;}
+function v30RecentStats(ops){const rows=[...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));if(!rows.length)return {n:0,expectancy:0,ciLow95:null};const r=rows.slice(-20),s=calcMetricStats(r,'r','net');return {n:r.length,expectancy:s.expectancy,ciLow95:Number.isFinite(s.ciLow95)?s.ciLow95:null};}
+function v30StressSnapshot(ops){
+  if(!ops.length)return null;
+  const oldUnit=labState.unit,oldBasis=labState.basis;
+  try{
+    labState.unit='r';labState.basis='net';
+    const observed=calcMetricStats(ops,'r','net'),sim=riskStressSimulation(ops,'r');
+    return sim?{observedDD:observed.maxDD,p95:sim.ddP95,p99:sim.ddP99,signature:[riskStressState.method,riskStressState.blockSize,riskStressState.horizon,riskStressState.iterations,riskStressState.edgeShock,riskStressState.extraCost].join('|')}:null;
+  }finally{labState.unit=oldUnit;labState.basis=oldBasis;}
+}
+function v30BuildSnapshot(p){
+  ensurePlanResearchChanges(p);ensurePlanForwardTests(p);ensurePlanGoals(p);ensurePlanStudies(p);ensurePlanDataQualityV27(p);
+  const ops=currentOps(),stats=calcMetricStats(ops,'r','net'),quality=analyzeDataQuality(p,ops),cov=v30CoverageMap(quality),recent=v30RecentStats(ops);
+  const forward={};(p.forwardTests||[]).forEach(t=>{const o=forwardFrozenOps(t),s=calcMetricStats(o,t.lab?.unit||'r',t.lab?.basis||'net');forward[t.id]={name:t.name,count:o.length,target:t.targetN||50,status:t.status||'active',expectancy:s.expectancy,ciLow95:Number.isFinite(s.ciLow95)?s.ciLow95:null};});
+  const goals={};(p.goals||[]).filter(g=>g.active).forEach(g=>{const e=goalEval(g);goals[g.id]={name:g.name,met:!!e.met,progress:Number(e.progress)||0,display:e.display||'',target:e.targetDisplay||''};});
+  const studies={};(p.savedStudies||[]).forEach(s=>{const o=labFilteredOpsForState(s.lab||{}),st=calcMetricStats(o,'r','net'),ev=confidenceEvidence(st);studies[s.id]={name:s.name,n:o.length,expectancy:st.expectancy,ciLow95:Number.isFinite(st.ciLow95)?st.ciLow95:null,evidence:ev.key};});
+  return {at:new Date().toISOString(),n:ops.length,expectancy:stats.expectancy,ciLow95:Number.isFinite(stats.ciLow95)?stats.ciLow95:null,maxDD:stats.maxDD,recent,quality:{score:quality.score,errors:quality.errors||0,warnings:quality.warnings||0,core:dqV28Coverage(ops,'core').pct,mfe:cov.mfe||0,mae:cov.mae||0,checklist:cov.checklist||0,journal:cov.journal||0},forward,goals,studies,risk:v30StressSnapshot(ops)};
+}
+function v30AddEvent(track,e){
+  track.events.unshift({id:uid('EVT'),at:new Date().toISOString(),kind:e.kind||'research',severity:e.severity||'info',title:e.title||'Cambio registrado',detail:e.detail||'',metric:e.metric||'',route:e.route||'decision',read:false});
+  track.events=track.events.slice(0,300);
+}
+function v30CrossMilestone(a,b){const ms=[25,50,75,90,95,100];if(!(b>a))return null;return ms.filter(x=>a<x&&b>=x).pop()||null;}
+function v30TrackQuality(prev,next,track){
+  if(Number(prev.errors||0)===0&&Number(next.errors||0)>0)v30AddEvent(track,{kind:'quality',severity:'critical',title:'Nuevos errores de integridad',detail:`La auditoría detecta ${next.errors} operación(es) con errores de integridad.`,metric:`${next.errors} error(es)`,route:'quality:critical'});
+  if(Number(prev.errors||0)>0&&Number(next.errors||0)===0)v30AddEvent(track,{kind:'quality',severity:'positive',title:'Integridad restaurada',detail:'Los errores críticos de integridad del dataset han vuelto a cero.',metric:'0 errores',route:'quality'});
+  const ds=Number(next.score||0)-Number(prev.score||0);if(Math.abs(ds)>=5)v30AddEvent(track,{kind:'quality',severity:ds>0?'positive':'warning',title:ds>0?'Mejora de calidad del dataset':'Caída de calidad del dataset',detail:`El score global pasó de ${Number(prev.score||0).toFixed(0)} a ${Number(next.score||0).toFixed(0)}.`,metric:`${ds>0?'+':''}${ds.toFixed(0)} puntos`,route:'quality'});
+  for(const [key,label] of [['mfe','MFE'],['mae','MAE'],['checklist','Checklist'],['journal','Diario emocional'],['core','Clasificación técnica']]){
+    const a=Number(prev[key]||0),b=Number(next[key]||0),m=v30CrossMilestone(a,b);if(m)v30AddEvent(track,{kind:'quality',severity:m>=90?'positive':'info',title:`${label}: cobertura ${m}%`,detail:`La cobertura de ${label} pasó de ${a.toFixed(0)}% a ${b.toFixed(0)}%.`,metric:`${b.toFixed(0)}%`,route:key==='core'?'quality':`quality:${key}`});
+    if(a-b>=15)v30AddEvent(track,{kind:'quality',severity:'warning',title:`${label}: cobertura descendente`,detail:`La cobertura bajó de ${a.toFixed(0)}% a ${b.toFixed(0)}%. Revisa si cambió el subconjunto o se incorporaron operaciones incompletas.`,metric:`${b.toFixed(0)}%`,route:key==='core'?'quality':`quality:${key}`});
+  }
+}
+function v30TrackForward(prev={},next={},track){
+  Object.entries(next).forEach(([id,n])=>{const o=prev[id];if(!o){v30AddEvent(track,{kind:'oos',severity:'info',title:`Nueva validación OOS: ${n.name}`,detail:`Hipótesis congelada con objetivo de ${n.target} operaciones nuevas.`,metric:`0/${n.target} OOS`,route:'lab:forward'});return;}
+    if(n.count>o.count){const reached=o.count<o.target&&n.count>=n.target;v30AddEvent(track,{kind:'oos',severity:reached?'positive':'info',title:reached?`${n.name}: objetivo OOS alcanzado`:`${n.name}: nueva evidencia OOS`,detail:`La muestra forward pasó de ${o.count} a ${n.count} operaciones.`,metric:`${n.count}/${n.target} OOS`,route:'lab:forward'});}
+    if(o.status!=='closed'&&n.status==='closed')v30AddEvent(track,{kind:'oos',severity:'info',title:`${n.name}: validación cerrada`,detail:`La muestra OOS final quedó congelada con ${n.count} operaciones.`,metric:`n=${n.count}`,route:'lab:forward'});
+  });
+}
+function v30TrackGoals(prev={},next={},track){
+  Object.entries(next).forEach(([id,n])=>{const o=prev[id];if(!o){v30AddEvent(track,{kind:'goal',severity:'info',title:`Nuevo objetivo: ${n.name}`,detail:`Seguimiento iniciado. Objetivo: ${n.target}.`,metric:n.display||'',route:'goals'});return;}
+    if(!o.met&&n.met)v30AddEvent(track,{kind:'goal',severity:'positive',title:`Objetivo cumplido: ${n.name}`,detail:`El objetivo ha pasado a estado cumplido.`,metric:n.display||'',route:'goals'});
+    if(o.met&&!n.met)v30AddEvent(track,{kind:'goal',severity:'warning',title:`Objetivo dejó de cumplirse: ${n.name}`,detail:'El valor actual ya no satisface el criterio configurado.',metric:n.display||'',route:'goals'});
+  });
+}
+function v30TrackStudies(prev={},next={},track){
+  const rank={unknown:0,exploratory:1,inconclusive:2,negative:3,positive:4};
+  Object.entries(next).forEach(([id,n])=>{const o=prev[id];if(!o){v30AddEvent(track,{kind:'study',severity:'info',title:`Estudio guardado: ${n.name}`,detail:`El estudio comienza con n=${n.n} y expectancy ${v30MetricR(n.expectancy)}.`,metric:`n=${n.n}`,route:`lab:study:${id}`});return;}
+    if(o.evidence!==n.evidence){const improved=(rank[n.evidence]||0)>(rank[o.evidence]||0),sev=n.evidence==='positive'?'positive':n.evidence==='negative'?'warning':improved?'info':'warning';v30AddEvent(track,{kind:'study',severity:sev,title:`${n.name}: cambió la evidencia`,detail:`La clasificación pasó de ${o.evidence} a ${n.evidence}.`,metric:`${v30MetricR(n.expectancy)} · n=${n.n}`,route:`lab:study:${id}`});}
+    const m=[20,50,100,200].filter(x=>o.n<x&&n.n>=x).pop();if(m)v30AddEvent(track,{kind:'study',severity:'info',title:`${n.name}: n=${m}`,detail:'El estudio alcanzó un nuevo escalón de tamaño de muestra.',metric:`n=${n.n}`,route:`lab:study:${id}`});
+  });
+}
+function v30TrackStats(prev,next,track){
+  if(Number.isFinite(prev.ciLow95)&&Number.isFinite(next.ciLow95)){
+    if(prev.ciLow95<=0&&next.ciLow95>0)v30AddEvent(track,{kind:'confidence',severity:'positive',title:'Confianza estadística fortalecida',detail:'El límite inferior del IC95 de la expectancy del plan cruzó por encima de cero.',metric:v30MetricR(next.ciLow95),route:'lab:confidence'});
+    if(prev.ciLow95>0&&next.ciLow95<=0)v30AddEvent(track,{kind:'confidence',severity:'warning',title:'Confianza estadística debilitada',detail:'El límite inferior del IC95 de la expectancy del plan dejó de estar por encima de cero.',metric:v30MetricR(next.ciLow95),route:'lab:confidence'});
+  }
+  const a=Number(prev.recent?.expectancy),b=Number(next.recent?.expectancy);if(next.n!==prev.n&&Number.isFinite(a)&&Number.isFinite(b)){
+    const crossed=(a>=0&&b<0)||(a<=0&&b>0),drop=a>0&&b<a*.65,rise=b>a+Math.max(.25,Math.abs(a)*.35);
+    if(crossed||drop||rise)v30AddEvent(track,{kind:'edge',severity:b<0?'warning':rise?'positive':'info',title:crossed?'La expectancy reciente cambió de signo':drop?'Deterioro de expectancy reciente':'Mejora de expectancy reciente',detail:`Las últimas 20 operaciones pasaron de ${v30MetricR(a)} a ${v30MetricR(b)}.`,metric:v30MetricR(b),route:'lab:stability'});
+  }
+  const pr=prev.risk,nr=next.risk;if(pr&&nr&&pr.signature===nr.signature){const p95=Math.abs(nr.p95||0),p99=Math.abs(nr.p99||0),old=Math.abs(pr.observedDD||0),now=Math.abs(nr.observedDD||0);if(p95&&old<p95&&now>=p95)v30AddEvent(track,{kind:'risk',severity:'warning',title:'Drawdown superó el Stress p95',detail:'El drawdown observado ha alcanzado o superado el nivel p95 del escenario de estrés vigente.',metric:`DD ${v30MetricR(nr.observedDD)} · p95 ${v30MetricR(nr.p95)}`,route:'lab:stress'});if(p99&&old<p99&&now>=p99)v30AddEvent(track,{kind:'risk',severity:'critical',title:'Drawdown superó el Stress p99',detail:'El drawdown observado ha alcanzado o superado la cola p99 del escenario de estrés vigente.',metric:`DD ${v30MetricR(nr.observedDD)} · p99 ${v30MetricR(nr.p99)}`,route:'lab:stress'});}
+}
+function v30TrackChangesForPlan(p){
+  if(!p||p.id!==state.currentPlanId)return;
+  ensurePlanResearchChanges(p);const track=p.researchChanges,next=v30BuildSnapshot(p),prev=track.lastSnapshot;
+  if(!prev){track.lastSnapshot=next;track.initializedAt=track.initializedAt||next.at;return;}
+  v30TrackQuality(prev.quality||{},next.quality||{},track);v30TrackForward(prev.forward||{},next.forward||{},track);v30TrackGoals(prev.goals||{},next.goals||{},track);v30TrackStudies(prev.studies||{},next.studies||{},track);v30TrackStats(prev,next,track);track.lastSnapshot=next;
+}
+
+const persistV30Base=persist;
+persist=function(){try{v30TrackChangesForPlan(getCurrentPlan());}catch(e){console.warn('V30 change tracking:',e);}persistV30Base();};
+
+function researchUnreadCount(p=getCurrentPlan()){ensurePlanResearchChanges(p);return (p?.researchChanges?.events||[]).filter(e=>!e.read).length;}
+function researchEventKindLabel(k){return ({quality:'Calidad',oos:'Forward OOS',goal:'Objetivos',study:'Estudios',confidence:'Confianza',edge:'Edge',risk:'Riesgo',research:'Research'})[k]||'Research';}
+function researchEventSeverityLabel(s){return s==='critical'?'Crítico':s==='warning'?'Atención':s==='positive'?'Positivo':'Info';}
+function researchSetFilter(key,val){researchChangesViewState[key]=val;render();}
+function researchMarkAllRead(){const p=getCurrentPlan();ensurePlanResearchChanges(p);p.researchChanges.events.forEach(e=>e.read=true);p.researchChanges.lastReviewedAt=new Date().toISOString();persistV30Base();render();}
+function researchClearHistory(){const p=getCurrentPlan();ensurePlanResearchChanges(p);if(!confirm('¿Limpiar el historial de cambios de este Trading Plan?\n\nSe conserva el punto de referencia actual para que los cambios futuros sigan detectándose.'))return;p.researchChanges.events=[];p.researchChanges.lastReviewedAt=new Date().toISOString();persistV30Base();render();}
+function researchResetBaseline(){const p=getCurrentPlan();ensurePlanResearchChanges(p);if(!confirm('¿Actualizar el punto de referencia al estado actual?\n\nNo borra eventos anteriores; los próximos cambios se compararán desde este momento.'))return;p.researchChanges.lastSnapshot=v30BuildSnapshot(p);p.researchChanges.initializedAt=p.researchChanges.initializedAt||new Date().toISOString();persistV30Base();render();}
+function researchAlertOpen(id){const p=getCurrentPlan();ensurePlanResearchChanges(p);const e=p.researchChanges.events.find(x=>x.id===id);if(!e)return;e.read=true;persistV30Base();const r=e.route||'decision';if(r==='quality')return navigate('quality');if(r==='quality:critical')return dqV28OpenQuality('group:critical');if(r.startsWith('quality:'))return dqV28OpenQuality(r.slice(8));if(r==='goals')return navigate('goals');if(r==='decision')return navigate('decision');if(r.startsWith('lab:study:'))return decisionOpenStudy(r.slice(10));currentView='lab';render();const cls=r==='lab:forward'?'.forward-panel':r==='lab:stress'?'.stress-module':r==='lab:confidence'?'.confidence-module':'.saved-studies-panel';setTimeout(()=>document.querySelector(cls)?.scrollIntoView({behavior:'smooth',block:'start'}),80);}
+function researchEventCard(e){return `<article class="research-event ${e.severity} ${e.read?'read':'unread'}"><div class="research-event-rail"></div><div class="research-event-main"><div class="research-event-meta"><span class="research-event-severity">${researchEventSeverityLabel(e.severity)}</span><span>${esc(researchEventKindLabel(e.kind))}</span><time>${esc(fmtDate(e.at))}</time>${!e.read?'<b>Nuevo</b>':''}</div><h3>${esc(e.title)}</h3><p>${esc(e.detail)}</p><div class="research-event-foot"><strong>${esc(e.metric||'')}</strong><button class="btn tiny" onclick="researchAlertOpen('${e.id}')">Abrir contexto</button></div></div></article>`;}
+function researchChangesView(){
+  const p=getCurrentPlan();ensurePlanResearchChanges(p);const t=p.researchChanges,all=t.events||[],unread=all.filter(e=>!e.read).length,kinds=[...new Set(all.map(e=>e.kind))];
+  const rows=all.filter(e=>(researchChangesViewState.kind==='all'||e.kind===researchChangesViewState.kind)&&(researchChangesViewState.severity==='all'||e.severity===researchChangesViewState.severity)&&(!researchChangesViewState.unread||!e.read));
+  const last30=all.filter(e=>Date.now()-new Date(e.at).getTime()<=30*86400000).length,positive=all.filter(e=>e.severity==='positive').length,attention=all.filter(e=>['warning','critical'].includes(e.severity)).length;
+  const controls=`<button class="btn" onclick="researchResetBaseline()">Actualizar referencia</button>${unread?'<button class="btn primary" onclick="researchMarkAllRead()">Marcar todo revisado</button>':''}<button class="btn danger" onclick="researchClearHistory()">Limpiar historial</button>`;
+  return `${pageHead('Research Alerts & Change Tracking','Historial interno de cambios relevantes del Trading Plan. Registra transiciones de evidencia, calidad, OOS, objetivos, estudios, edge y riesgo; no genera señales de trading.',controls)}${activePlanBanner()}<div class="review-kpis">${kpi('Sin revisar',unread,'cambios pendientes')}${kpi('Últimos 30 días',last30,'eventos registrados')}${kpi('Cambios positivos',positive,'mejoras / hitos')}${kpi('Atención',attention,'avisos / críticos')}</div><section class="card filter-hub research-change-filters"><div class="filter-grid"><label class="filter-field"><span>Área</span><select class="select" onchange="researchSetFilter('kind',this.value)"><option value="all">Todas</option>${kinds.map(k=>`<option value="${esc(k)}" ${researchChangesViewState.kind===k?'selected':''}>${esc(researchEventKindLabel(k))}</option>`).join('')}</select></label><label class="filter-field"><span>Severidad</span><select class="select" onchange="researchSetFilter('severity',this.value)"><option value="all">Todas</option>${[['positive','Positivo'],['info','Info'],['warning','Atención'],['critical','Crítico']].map(([v,l])=>`<option value="${v}" ${researchChangesViewState.severity===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="research-unread-toggle"><input type="checkbox" ${researchChangesViewState.unread?'checked':''} onchange="researchSetFilter('unread',this.checked)"><span>Solo sin revisar</span></label></div></section><section class="research-timeline">${rows.length?rows.map(researchEventCard).join(''):`<div class="card empty">${all.length?'No hay eventos con estos filtros.':'Todavía no hay cambios registrados. V30 acaba de fijar el estado actual como referencia; los próximos cambios relevantes aparecerán aquí.'}</div>`}</section><div class="notice"><strong>Lectura correcta:</strong> un evento indica que una métrica o estado cambió respecto al punto anterior. No demuestra causalidad ni constituye una señal operativa. “Actualizar referencia” solo reinicia la comparación futura; no borra el historial.</div>`;
+}
+
+function researchDecisionChangesPanel(){const p=getCurrentPlan();ensurePlanResearchChanges(p);const ev=(p.researchChanges.events||[]).slice(0,5),unread=researchUnreadCount(p);return `<section class="card panel decision-changes"><div class="panel-title"><div><h3>Cambios recientes</h3><small>${unread?`${unread} sin revisar · `:''}qué ha cambiado desde el último estado registrado.</small></div><button class="btn tiny ghost" onclick="navigate('changes')">Ver historial</button></div>${ev.length?`<div class="decision-change-list">${ev.map(e=>`<button onclick="researchAlertOpen('${e.id}')" class="${e.severity}"><span><strong>${esc(e.title)}</strong><small>${esc(e.metric||researchEventKindLabel(e.kind))}</small></span><time>${esc(fmtDate(e.at))}</time>${!e.read?'<i></i>':''}</button>`).join('')}</div>`:'<div class="empty compact-empty">Sin cambios registrados todavía. El estado actual es el punto de referencia inicial de V30.</div>'}</section>`;}
+const researchDecisionCenterV30Base=researchDecisionCenter;
+researchDecisionCenter=function(){let html=researchDecisionCenterV30Base(),panel=researchDecisionChangesPanel();return html.replace('<div class="notice decision-method">',panel+'<div class="notice decision-method">');};
+
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push(
+  {id:'changeTracking',terms:['research alerts','change tracking','cambios','alertas research','historial de cambios'],title:'Research Alerts & Change Tracking',summary:'Registra transiciones relevantes del Trading Plan y conserva un timeline histórico.',body:'Compara el estado actual con el último punto registrado y crea eventos cuando cambian hitos de calidad, progreso Forward OOS, objetivos, evidencia de estudios, confianza, expectancy reciente o niveles de riesgo.',use:'Sirve para responder “¿qué cambió?” sin recorrer todas las pantallas. Los eventos son descriptivos: no son señales de trading ni prueban causalidad.'}
+);
+
+function v30SidebarChangesButton(){const n=researchUnreadCount();return `<button class="${currentView==='changes'?'active':''}" onclick="navigate('changes')"><span class="icon">◉</span><span>Cambios</span>${n?`<b class="nav-alert-count">${n>99?'99+':n}</b>`:''}</button>`;}
+function v30ModeCard(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V30</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V30_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Change Tracking + Research Decision Center + Quality-Aware Analytics + Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Monte Carlo + ayuda contextual + Objetivos + Reviews + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab.</div></div></div></div>`;}
+
+const shellV30Base=shell;
+shell=function(){
+  let html=shellV30Base();
+  const decisionButton=navBtn('decision','⌾','Centro Research');html=html.replace(decisionButton,decisionButton+v30SidebarChangesButton());
+  html=html.replace(V29_APP_LABEL,V30_APP_LABEL);
+  html=html.replace(/<div class="side-bottom"><div class="mini-card">[\s\S]*?<\/div><\/div><\/aside>/,v30ModeCard()+'</aside>');
+  return html;
+};
+const renderV30Base=render;
+render=function(){v30EnsureBaselineLocal();document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='changes'?researchChangesView():currentView==='dashboard'?dashboard():currentView==='decision'?researchDecisionCenter():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='goals'?goalsView():currentView==='quality'?dataQualityView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();setTimeout(hydrateImageElements,0);};
+Object.assign(window,{toggleModeCard,researchChangesView,researchSetFilter,researchMarkAllRead,researchClearHistory,researchResetBaseline,researchAlertOpen});
+
+function v30EnsureBaselineLocal(){try{const p=getCurrentPlan();ensurePlanResearchChanges(p);if(!p?.researchChanges?.lastSnapshot){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);p.researchChanges.initializedAt=new Date().toISOString();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}}catch(e){console.warn('V30 baseline:',e);}}
+/* Fija una referencia inicial sin fabricar eventos ni marcar el workspace como modificado al instalar V30. */
+v30EnsureBaselineLocal();
+render();
+/* ===== END V30 PATCH ===== */

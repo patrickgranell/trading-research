@@ -653,3 +653,8 @@ html[data-theme="light"] .mode-card-toggle{color:var(--text)}html[data-theme="li
 @media(max-height:760px){.mode-card-detail .help{max-height:72px}.sidebar{padding-top:12px;padding-bottom:10px}.brand{padding-bottom:14px}.nav button{padding-top:9px;padding-bottom:9px}}
 @media(max-width:760px){.research-change-filters .filter-grid{grid-template-columns:1fr}.research-unread-toggle{padding-top:0}}
 /* ===== END V30 styles ===== */
+
+/* ===== V30.1 · MFE/MAE ticks ===== */
+.excursion-ticks-field,.dq-wb-excursions .field{position:relative}.excursion-equivalent{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.25}.excursion-ticks-field input[type="number"]{font-variant-numeric:tabular-nums}.dq-wb-excursions .excursion-equivalent{grid-column:1/-1}
+html[data-theme="light"] .excursion-equivalent{color:#64748b}
+/* ===== END V30.1 ===== */

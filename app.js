@@ -5207,3 +5207,161 @@ function v30EnsureBaselineLocal(){try{const p=getCurrentPlan();ensurePlanResearc
 v30EnsureBaselineLocal();
 render();
 /* ===== END V30 PATCH ===== */
+
+/* ===== V30.1 PATCH · MAE/MFE en ticks + reconciliación Change Tracking ===== */
+const V301_APP_LABEL='V30.1 · Excursiones en ticks + Alerts Fix';
+
+/*
+  Modelo V30.1:
+  - mfeTicks / maeTicks = observación primaria del precio, siempre magnitud positiva en ticks.
+  - mfe / mae = equivalencia derivada en R, mantenida por compatibilidad con Exit Lab y análisis previos.
+  - Para posiciones multi-lote, R usa exposición de riesgo económica agregada:
+      R_excursión = ticks_precio × contratos_totales / exposición_riesgo_en_ticks_agregados.
+*/
+function v301OpContracts(o){
+  const direct=Number(o?.contracts);if(Number.isFinite(direct)&&direct>0)return direct;
+  const lots=o?.strategyPlanSnapshot?.lots||[];const n=lots.reduce((s,l)=>s+(Number(l.quantity)||0),0);return n>0?n:1;
+}
+function v301RiskTickExposure(o){
+  const direct=Number(o?.riskTickExposure);if(Number.isFinite(direct)&&direct>0)return direct;
+  const lots=o?.strategyPlanSnapshot?.lots||[];const n=lots.reduce((s,l)=>s+(Number(l.quantity)||0)*(Number(l.stopTicks)||0),0);return n>0?n:0;
+}
+function v301ExcursionRFromTicks(ticks,ctx){
+  const t=Math.max(0,Number(ticks)||0),contracts=v301OpContracts(ctx),risk=v301RiskTickExposure(ctx);return risk>0?t*contracts/risk:0;
+}
+function v301ExcursionTicksFromR(r,ctx){
+  const rv=Math.abs(Number(r)||0),contracts=v301OpContracts(ctx),risk=v301RiskTickExposure(ctx);return risk>0&&contracts>0?rv*risk/contracts:0;
+}
+function v301NormalizeOperationExcursions(o){
+  if(!o)return o;
+  const mfeS=typeof dqMetricStatus==='function'?dqMetricStatus(o,'mfe'):(Number(o.mfe)>0?'measured':'missing');
+  const maeS=typeof dqMetricStatus==='function'?dqMetricStatus(o,'mae'):(Number(o.mae)>0?'measured':'missing');
+  if(mfeS==='measured'){
+    let t=Number(o.mfeTicks);if(!Number.isFinite(t)||t<0)t=v301ExcursionTicksFromR(o.mfe,o);t=Math.max(0,Number(t)||0);o.mfeTicks=t;o.mfe=v301ExcursionRFromTicks(t,o);
+  }else{o.mfeTicks=null;o.mfe=0;}
+  if(maeS==='measured'){
+    let t=Number(o.maeTicks);if(!Number.isFinite(t)||t<0)t=v301ExcursionTicksFromR(o.mae,o);t=Math.max(0,Number(t)||0);o.maeTicks=t;o.mae=v301ExcursionRFromTicks(t,o);
+  }else{o.maeTicks=null;o.mae=0;}
+  return o;
+}
+function v301NormalizeAllExcursions(targetState=state){(targetState?.operations||[]).forEach(v301NormalizeOperationExcursions);return targetState;}
+v301NormalizeAllExcursions(state);
+
+const normalizeStateV301Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV301Base(raw);v301NormalizeAllExcursions(out);return out;};
+
+function v301CurrentFormRiskCtx(){
+  const p=getCurrentPlan(),risk=getRisk(document.getElementById('f-riskStrategyId')?.value||'',p),c=riskCalc(risk);
+  return {contracts:c.contracts||1,riskTickExposure:c.riskTickExposure||0};
+}
+function v301ExcursionEqHtml(ticks,r){
+  if(ticks===''||ticks===null||ticks===undefined)return 'Introduce los ticks observados; R se calcula automáticamente.';
+  return `${Number(ticks||0).toFixed(1)} ticks · ${Number(r||0).toFixed(2)}R`;
+}
+function v301ExcursionInput(key){
+  const el=document.getElementById(`f-${key}Ticks`),hidden=document.getElementById(`f-${key}`),eq=document.getElementById(`f-${key}-equivalent`),status=document.getElementById(`dq-form-${key}-status`);
+  if(!el||!hidden)return;const raw=el.value;
+  if(raw!==''&&Number(raw)>=0&&status)status.value='measured';
+  const r=raw===''?0:v301ExcursionRFromTicks(Number(raw),v301CurrentFormRiskCtx());hidden.value=String(r);
+  if(eq)eq.textContent=v301ExcursionEqHtml(raw,r);
+}
+function v301RefreshExcursionEquivalents(){v301ExcursionInput('mfe');v301ExcursionInput('mae');}
+
+const operationFormV301Base=operationForm;
+operationForm=function(o,r,p){
+  v301NormalizeOperationExcursions(o);let html=operationFormV301Base(o,r,p);
+  const make=(key,label)=>{
+    const s=o?dqMetricStatus(o,key):'missing',ticks=s==='measured'?Number(o?.[`${key}Ticks`]??0):'',rv=s==='measured'?Number(o?.[key]||0):0;
+    return `<div class="field excursion-ticks-field"><label>${label} (ticks)</label><input id="f-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" oninput="v301ExcursionInput('${key}')"><input id="f-${key}" type="hidden" value="${esc(rv)}"><small id="f-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></div>`;
+  };
+  html=html.replace(/<div class="field [^"]*"><label>MFE \(R\)<\/label><input id="f-mfe"[^>]*><\/div>/,make('mfe','MFE'));
+  html=html.replace(/<div class="field [^"]*"><label>MAE \(R\)<\/label><input id="f-mae"[^>]*><\/div>/,make('mae','MAE'));
+  html=html.replace('La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial.','La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial. MFE y MAE se introducen como ticks observados y su equivalencia en R se deriva automáticamente.');
+  html=html.replace('Si el valor real fue exactamente 0, selecciona “Medido / dato real”. Así deja de confundirse con un campo no informado.','MFE/MAE se registran en ticks. Si el valor real fue exactamente 0 ticks, selecciona “Medido / dato real”; la equivalencia en R se calcula automáticamente.');
+  return html;
+};
+
+const applyRiskToOperationV301Base=applyRiskToOperation;
+applyRiskToOperation=function(force){const out=applyRiskToOperationV301Base(force);setTimeout(v301RefreshExcursionEquivalents,0);return out;};
+const openOperationModalV301Base=openOperationModal;
+openOperationModal=function(id=null){openOperationModalV301Base(id);setTimeout(v301RefreshExcursionEquivalents,0);};
+
+/* Workbench: ticks visibles, R derivada oculta para conservar toda la lógica anterior. */
+function v301WorkbenchExcursionInput(key,id){
+  const el=document.getElementById(`dq-wb-${key}Ticks`),hidden=document.getElementById(`dq-wb-${key}`),eq=document.getElementById(`dq-wb-${key}-equivalent`),status=document.getElementById(`dq-wb-${key}-status`),o=state.operations.find(x=>x.id===id);
+  if(!el||!hidden||!o)return;const raw=el.value;if(raw!==''&&Number(raw)>=0&&status)status.value='measured';const r=raw===''?0:v301ExcursionRFromTicks(Number(raw),o);hidden.value=String(r);if(eq)eq.textContent=v301ExcursionEqHtml(raw,r);
+}
+const dqWorkbenchBodyV301Base=dqWorkbenchBody;
+dqWorkbenchBody=function(o,index,total){
+  v301NormalizeOperationExcursions(o);let html=dqWorkbenchBodyV301Base(o,index,total);
+  const make=(key,label)=>{const s=dqMetricStatus(o,key),ticks=s==='measured'?Number(o?.[`${key}Ticks`]??0):'',rv=s==='measured'?Number(o?.[key]||0):0;return `<label class="field"><span>${label} (ticks)</span><input id="dq-wb-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" data-op-id="${esc(o.id)}" oninput="v301WorkbenchExcursionInput('${key}','${esc(o.id)}')"><input id="dq-wb-${key}" type="hidden" value="${esc(rv)}"><small id="dq-wb-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></label>`;};
+  html=html.replace(/<label class="field"><span>MFE \(R\)<\/span><input id="dq-wb-mfe"[^>]*><\/label>/,make('mfe','MFE'));
+  html=html.replace(/<label class="field"><span>MAE \(R\)<\/span><input id="dq-wb-mae"[^>]*><\/label>/,make('mae','MAE'));
+  html=html.replace('“Medido” permite guardar 0.00R como cero real.','“Medido” permite guardar 0 ticks como cero real. La R se deriva del riesgo inicial de la operación.');
+  return html;
+};
+const dqSaveWorkbenchV301Base=dqSaveWorkbench;
+dqSaveWorkbench=async function(next=false){
+  const tickMfeEl=document.getElementById('dq-wb-mfeTicks'),tickMaeEl=document.getElementById('dq-wb-maeTicks'),opId=tickMfeEl?.dataset.opId||tickMaeEl?.dataset.opId||'',mfeTicksRaw=tickMfeEl?.value??'',maeTicksRaw=tickMaeEl?.value??'',mfeS=document.getElementById('dq-wb-mfe-status')?.value||'missing',maeS=document.getElementById('dq-wb-mae-status')?.value||'missing';
+  if(mfeS==='measured'&&mfeTicksRaw==='')return alert('Introduce MFE en ticks o cambia su estado a No informado / N/A.');
+  if(maeS==='measured'&&maeTicksRaw==='')return alert('Introduce MAE en ticks o cambia su estado a No informado / N/A.');
+  const mfeTicks=Math.max(0,Number(mfeTicksRaw)||0),maeTicks=Math.max(0,Number(maeTicksRaw)||0);
+  await dqSaveWorkbenchV301Base(next);
+  const o=state.operations.find(x=>x.id===opId);if(o){o.mfeTicks=mfeS==='measured'?mfeTicks:null;o.maeTicks=maeS==='measured'?maeTicks:null;o.mfe=mfeS==='measured'?v301ExcursionRFromTicks(mfeTicks,o):0;o.mae=maeS==='measured'?v301ExcursionRFromTicks(maeTicks,o):0;o.updatedAt=new Date().toISOString();persistV30Base();}
+};
+
+/* Presentación: ticks primarios + R derivada. */
+const dqMetricDisplayV301Base=dqMetricDisplay;
+dqMetricDisplay=function(o,key){const s=dqMetricStatus(o,key);if(s==='na')return 'N/A';if(s!=='measured')return '—';v301NormalizeOperationExcursions(o);const t=Number(o?.[`${key}Ticks`]||0),r=Number(o?.[key]||0);return `${t.toFixed(1)}t · ${r.toFixed(2)}R${t===0?' · real':''}`;};
+
+/* Exit Lab conserva R como lenguaje analítico; la captura se registra en ticks. */
+const exitLabPanelV301Base=exitLabPanel;
+exitLabPanel=function(ops){let html=exitLabPanelV301Base(ops);return html.replace(/rellenando <strong>MFE \(R\)<\/strong> y <strong>MAE \(R\)<\/strong>/g,'rellenando <strong>MFE (ticks)</strong> y <strong>MAE (ticks)</strong>').replace('MFE/MAE como 0 cuando ese dato no viene informado','MFE/MAE sin estado explícito cuando ese dato no viene informado');};
+
+/* Change Tracking: reconciliación explícita tras alta de operación.
+   V30 seguía dependiendo de persist(); V30.1 conserva esa vía y añade una comprobación de seguridad
+   con los conteos Forward antes/después del guardado para que una observación OOS no pueda quedar silenciosa. */
+function v301ForwardCounts(p){ensurePlanForwardTests(p);const out={};(p?.forwardTests||[]).forEach(t=>out[t.id]={name:t.name,count:forwardFrozenOps(t).length,target:t.targetN||50,status:t.status||'active'});return out;}
+function v301EnsureForwardEvents(p,before,eventsBefore){
+  ensurePlanResearchChanges(p);const after=v301ForwardCounts(p),newIds=new Set((p.researchChanges.events||[]).filter(e=>!eventsBefore.has(e.id)).map(e=>e.id));let added=0;
+  Object.entries(after).forEach(([id,n])=>{const o=before[id];if(!o||n.count<=o.count)return;const already=(p.researchChanges.events||[]).some(e=>newIds.has(e.id)&&e.kind==='oos'&&String(e.title||'').includes(n.name));if(already)return;const reached=o.count<o.target&&n.count>=n.target;v30AddEvent(p.researchChanges,{kind:'oos',severity:reached?'positive':'info',title:reached?`${n.name}: objetivo OOS alcanzado`:`${n.name}: nueva evidencia OOS`,detail:`La muestra forward pasó de ${o.count} a ${n.count} operaciones.`,metric:`${n.count}/${n.target} OOS`,route:'lab:forward'});added++;});
+  return added;
+}
+const saveOperationFromFormV301Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const planId=state.currentPlanId,targetId=editingId||null,beforeIds=new Set(state.operations.filter(o=>o.tradingPlanId===planId).map(o=>o.id)),pBefore=getCurrentPlan(),beforeForward=v301ForwardCounts(pBefore),eventsBefore=new Set((pBefore?.researchChanges?.events||[]).map(e=>e.id));
+  const mfeEl=document.getElementById('f-mfeTicks'),maeEl=document.getElementById('f-maeTicks'),mfeRaw=mfeEl?.value??'',maeRaw=maeEl?.value??'',mfeS=document.getElementById('dq-form-mfe-status')?.value||'missing',maeS=document.getElementById('dq-form-mae-status')?.value||'missing';
+  if(mfeS==='measured'&&mfeRaw==='')return alert('Introduce MFE en ticks o cambia su estado a No informado / N/A.');
+  if(maeS==='measured'&&maeRaw==='')return alert('Introduce MAE en ticks o cambia su estado a No informado / N/A.');
+  const mfeTicks=Math.max(0,Number(mfeRaw)||0),maeTicks=Math.max(0,Number(maeRaw)||0);
+  await saveOperationFromFormV301Base();
+  const p=getPlan(planId),op=targetId?state.operations.find(o=>o.id===targetId):state.operations.find(o=>o.tradingPlanId===planId&&!beforeIds.has(o.id));if(!p||!op)return;
+  op.mfeTicks=mfeS==='measured'?mfeTicks:null;op.maeTicks=maeS==='measured'?maeTicks:null;op.mfe=mfeS==='measured'?v301ExcursionRFromTicks(mfeTicks,op):0;op.mae=maeS==='measured'?v301ExcursionRFromTicks(maeTicks,op):0;op.updatedAt=new Date().toISOString();
+  if(!targetId)v301EnsureForwardEvents(p,beforeForward,eventsBefore);
+  ensurePlanResearchChanges(p);p.researchChanges.lastSnapshot=v30BuildSnapshot(p);persistV30Base();render();
+};
+
+/* Si V30 ya dejó progreso OOS sin evento, V30.1 lo reconcilia una sola vez. */
+function v301ReconcileCurrentOos(){
+  const p=getCurrentPlan();if(!p)return 0;ensurePlanResearchChanges(p);ensurePlanForwardTests(p);let added=0;
+  (p.forwardTests||[]).forEach(t=>{const n=forwardFrozenOps(t).length;if(n<=0)return;const has=(p.researchChanges.events||[]).some(e=>e.kind==='oos'&&String(e.title||'').includes(t.name));if(has)return;v30AddEvent(p.researchChanges,{kind:'oos',severity:'info',title:`${t.name}: progreso OOS reconciliado`,detail:'V30.1 detectó progreso Forward existente sin un evento histórico asociado y lo ha incorporado al timeline.',metric:`${n}/${t.targetN||50} OOS`,route:'lab:forward'});added++;});
+  if(added){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}return added;
+}
+function v301CheckChangesNow(){const p=getCurrentPlan();if(!p)return;const before=researchUnreadCount(p);v30TrackChangesForPlan(p);persistV30Base();render();setTimeout(()=>{const after=researchUnreadCount(p);if(after===before)alert('Comprobación completada: no se detectaron transiciones nuevas respecto a la referencia actual.');},20);}
+
+const researchChangesViewV301Base=researchChangesView;
+researchChangesView=function(){let html=researchChangesViewV301Base();html=html.replace('<button class="btn" onclick="researchResetBaseline()">Actualizar referencia</button>','<button class="btn" onclick="v301CheckChangesNow()">Comprobar ahora</button><button class="btn" onclick="researchResetBaseline()">Actualizar referencia</button>');html=html.replace(/V30 acaba de fijar/g,'V30.1 usa');return html;};
+
+/* Glosario actualizado: ticks = observación; R = normalización. */
+if(typeof CONTEXT_HELP!=='undefined'){
+  const hm=CONTEXT_HELP.find(x=>x.id==='mfe');if(hm)Object.assign(hm,{body:'Mide cuánto llegó a avanzar el precio a favor antes del cierre. En Trading Research se introduce en ticks observados y la aplicación deriva su equivalencia en R usando el riesgo inicial.',use:'Los ticks facilitan el registro desde el gráfico; R permite comparar después operaciones con stops y gestiones diferentes.'});
+  const ha=CONTEXT_HELP.find(x=>x.id==='mae');if(ha)Object.assign(ha,{body:'Mide la peor excursión en contra antes del cierre. Se introduce como magnitud positiva en ticks y Trading Research deriva su equivalencia en R.',use:'Sirve para estudiar stops y calidad de entrada sin obligarte a calcular R manualmente al registrar la operación.'});
+}
+
+/* Versión / tarjeta lateral. */
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V30.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V301_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. MFE/MAE en ticks con R derivada + reconciliación de Change Tracking + Research Decision Center + Quality-Aware Analytics + Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Monte Carlo + resto de módulos sobre la misma base estable.</div></div></div></div>`;};
+
+v301ReconcileCurrentOos();
+Object.assign(window,{v301ExcursionInput,v301RefreshExcursionEquivalents,v301WorkbenchExcursionInput,v301CheckChangesNow,saveOperationFromForm,dqSaveWorkbench});
+render();
+/* ===== END V30.1 PATCH ===== */

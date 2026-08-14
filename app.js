@@ -2922,3 +2922,179 @@ shell=function(){
 Object.assign(window,{openDashboardCustomizer,dashboardToggleDraft,dashboardMoveDraft,dashboardResetDraft,saveDashboardCustomization});
 render();
 /* ===== END V15 PATCH ===== */
+
+/* ===== V16 PATCH · Checklist + Cumplimiento del Trading Plan ===== */
+const V16_APP_LABEL='V16 · Plan Compliance';
+const COMPLIANCE_CATEGORIES=['Contexto','Entrada','Confirmación','Riesgo','Ejecución','Gestión','Psicológico','Otro'];
+let complianceViewState={unit:'r',basis:'net',setup:'',context:'',ruleId:''};
+let editingComplianceRuleId=null;
+
+function ensurePlanCompliance(p){
+  if(!p)return p;
+  p.complianceChecklist=Array.isArray(p.complianceChecklist)?p.complianceChecklist:[];
+  p.complianceChecklist=p.complianceChecklist.map((r,i)=>({
+    id:r?.id||uid('CHK'),name:String(r?.name||r?.label||`Regla ${i+1}`),category:COMPLIANCE_CATEGORIES.includes(r?.category)?r.category:'Otro',
+    description:String(r?.description||''),required:r?.required!==false,active:r?.active!==false,createdAt:r?.createdAt||new Date().toISOString(),updatedAt:r?.updatedAt||new Date().toISOString()
+  }));
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanCompliance);
+
+const makeBlankPlanV16Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV16Base(meta);ensurePlanCompliance(p);return p;};
+const normalizePlanV16Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV16Base(p,instruments);ensurePlanCompliance(out);return out;};
+const normalizeStateV16Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV16Base(raw);(out.tradingPlans||[]).forEach(ensurePlanCompliance);return out;};
+
+function complianceRuleById(id,p=getCurrentPlan()){ensurePlanCompliance(p);return p?.complianceChecklist?.find(r=>r.id===id)||null;}
+function complianceRuleForm(rule={}){
+  const cats=COMPLIANCE_CATEGORIES.map(x=>({value:x,label:x}));
+  return `<div class="form-section"><h4>Regla del checklist</h4><div class="form-grid">${field('Nombre / condición','check-name','text',esc(rule.name||''),'span2')}${selectObjField('Categoría','check-category',cats,rule.category||'Entrada')}${selectObjField('Importancia','check-required',[{value:'true',label:'Obligatoria'},{value:'false',label:'Opcional'}],String(rule.required!==false))}${selectObjField('Estado','check-active',[{value:'true',label:'Activa'},{value:'false',label:'Inactiva'}],String(rule.active!==false))}${field('Descripción / criterio de validación','check-description','textarea',esc(rule.description||''),'full')}</div><div class="notice" style="margin-top:12px">La operación guarda una copia de estas reglas en el momento de evaluarla. Si después cambias el checklist del plan, el histórico no se reescribe.</div></div>`;
+}
+function openComplianceRuleModal(id=null){
+  const p=getCurrentPlan();if(!p)return;ensurePlanCompliance(p);editingComplianceRuleId=id;const r=id?complianceRuleById(id,p):{name:'',category:'Entrada',required:true,active:true,description:''};
+  document.body.insertAdjacentHTML('beforeend',modalShell(id?'Editar regla de checklist':'Nueva regla de checklist',complianceRuleForm(r),`<button class="btn" onclick="closeModal();editingComplianceRuleId=null">Cancelar</button><button class="btn primary" onclick="saveComplianceRule()">Guardar regla</button>`));
+}
+function saveComplianceRule(){
+  const p=getCurrentPlan(),g=n=>document.getElementById(`f-${n}`)?.value||'';if(!p)return;ensurePlanCompliance(p);const name=g('check-name').trim();if(!name)return alert('Escribe el nombre o condición de la regla.');
+  const duplicate=p.complianceChecklist.find(r=>r.name.toLowerCase()===name.toLowerCase()&&r.id!==editingComplianceRuleId);if(duplicate)return alert('Ya existe una regla con ese nombre en este Trading Plan.');
+  const old=editingComplianceRuleId?complianceRuleById(editingComplianceRuleId,p):null,now=new Date().toISOString();const item={id:old?.id||uid('CHK'),name,category:COMPLIANCE_CATEGORIES.includes(g('check-category'))?g('check-category'):'Otro',required:g('check-required')!=='false',active:g('check-active')!=='false',description:g('check-description').trim(),createdAt:old?.createdAt||now,updatedAt:now};
+  const idx=p.complianceChecklist.findIndex(r=>r.id===item.id);if(idx>=0)p.complianceChecklist[idx]=item;else p.complianceChecklist.push(item);p.updatedAt=now;editingComplianceRuleId=null;persist();closeModal();render();
+}
+function deleteComplianceRule(id){const p=getCurrentPlan(),r=complianceRuleById(id,p);if(!p||!r)return;if(!confirm(`¿Eliminar "${r.name}" del checklist actual?\n\nLas operaciones ya evaluadas conservarán su copia histórica de esta regla.`))return;p.complianceChecklist=p.complianceChecklist.filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();persist();render();}
+function moveComplianceRule(id,delta){const p=getCurrentPlan();if(!p)return;ensurePlanCompliance(p);const i=p.complianceChecklist.findIndex(r=>r.id===id),j=i+Number(delta||0);if(i<0||j<0||j>=p.complianceChecklist.length)return;[p.complianceChecklist[i],p.complianceChecklist[j]]=[p.complianceChecklist[j],p.complianceChecklist[i]];p.updatedAt=new Date().toISOString();persist();render();}
+function complianceChecklistPanel(p){
+  ensurePlanCompliance(p);const rows=p.complianceChecklist||[],active=rows.filter(r=>r.active).length,required=rows.filter(r=>r.active&&r.required).length;
+  return `<section class="card panel config-wide compliance-config-hero"><div class="panel-title"><div><h3>Checklist operativo · ${esc(planLabel(p))}</h3><div class="help">Define las condiciones que quieres verificar trade a trade. El análisis posterior separa cumplimiento de resultado sin modificar la disciplina emocional.</div></div><button class="btn primary small" onclick="openComplianceRuleModal()">+ Nueva regla</button></div><div class="compliance-config-kpis"><div><span>Reglas</span><strong>${rows.length}</strong></div><div><span>Activas</span><strong>${active}</strong></div><div><span>Obligatorias</span><strong>${required}</strong></div></div><div class="notice">Checklist y <strong>Disciplina</strong> son capas distintas: el checklist mide condiciones objetivas del plan; Disciplina puede seguir reflejando tu valoración global de la ejecución.</div></section><section class="card panel config-wide compliance-config-list"><div class="panel-title"><div><h3>Reglas del plan</h3><div class="help">El orden que ves aquí será el orden mostrado al registrar una operación.</div></div></div>${rows.length?rows.map((r,i)=>`<article class="compliance-rule-card ${r.active?'':'inactive'}"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${esc(r.category)}</span><span class="badge ${r.required?'win':''}">${r.required?'Obligatoria':'Opcional'}</span>${r.active?'':'<span class="badge">Inactiva</span>'}</div><strong>${esc(r.name)}</strong><p>${esc(r.description||'Sin descripción adicional.')}</p></div><div class="compliance-rule-actions"><button class="btn tiny ghost" onclick="moveComplianceRule('${r.id}',-1)" ${i===0?'disabled':''}>↑</button><button class="btn tiny ghost" onclick="moveComplianceRule('${r.id}',1)" ${i===rows.length-1?'disabled':''}>↓</button><button class="btn small" onclick="openComplianceRuleModal('${r.id}')">Editar</button>${simpleSaveButton('checklistRule',r.id)}<button class="btn small danger" onclick="deleteComplianceRule('${r.id}')">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay reglas. Añade únicamente condiciones que realmente quieras medir de forma consistente.</div>'}</section>`;
+}
+
+/* Biblioteca Simple: las reglas del checklist también se pueden reutilizar entre Trading Plans. */
+const libraryTypeLabelV16Base=libraryTypeLabel;
+libraryTypeLabel=function(type){return type==='checklistRule'?'Regla de checklist':libraryTypeLabelV16Base(type);};
+const libraryTypeOrderV16Base=libraryTypeOrder;
+libraryTypeOrder=function(type){return type==='checklistRule'?8:libraryTypeOrderV16Base(type);};
+const libraryPayloadComparableV16Base=libraryPayloadComparable;
+libraryPayloadComparable=function(type,payload){const p=libraryPayloadComparableV16Base(type,payload);if(type==='checklistRule'&&p&&typeof p==='object'){delete p.id;delete p.createdAt;delete p.updatedAt;}return p;};
+const simpleTemplateDescriptorV16Base=simpleTemplateDescriptor;
+simpleTemplateDescriptor=function(type,ref,p=getCurrentPlan()){
+  if(type!=='checklistRule')return simpleTemplateDescriptorV16Base(type,ref,p);ensurePlanCompliance(p);const clean=decodeURIComponent(String(ref||'')),r=(p?.complianceChecklist||[]).find(x=>x.id===clean||x.name===clean);return r?{type,name:r.name,payload:clone(r)}:null;
+};
+const planHasLibraryEquivalentV16Base=planHasLibraryEquivalent;
+planHasLibraryEquivalent=function(p,item){if(item?.type==='checklistRule'){ensurePlanCompliance(p);return (p?.complianceChecklist||[]).some(r=>r.name===item.name);}return planHasLibraryEquivalentV16Base(p,item);};
+const applyLibraryItemToPlanV16Base=applyLibraryItemToPlan;
+applyLibraryItemToPlan=function(item,p){
+  if(item?.type!=='checklistRule')return applyLibraryItemToPlanV16Base(item,p);ensurePlanCompliance(p);if(planHasLibraryEquivalent(p,item))return {status:'exists'};const r=clone(item.payload||{});r.id=uid('CHK');r.name=item.name;r.createdAt=new Date().toISOString();r.updatedAt=r.createdAt;p.complianceChecklist.push(r);addLibraryLink(p,item,item.name);p.updatedAt=new Date().toISOString();return {status:'added'};
+};
+const simpleLibrarySummaryV16Base=simpleLibrarySummary;
+simpleLibrarySummary=function(i){if(i?.type==='checklistRule'){const p=i.payload||{};return `${p.category||'Otro'} · ${p.required===false?'Opcional':'Obligatoria'}${p.description?` · ${p.description}`:''}`;}return simpleLibrarySummaryV16Base(i);};
+const simpleLibraryPanelV16Base=simpleLibraryPanel;
+simpleLibraryPanel=function(){
+  const base=simpleLibraryPanelV16Base(),p=getCurrentPlan(),rows=simpleLibraryItems().filter(i=>i.type==='checklistRule');if(!rows.length)return base;
+  const section=`<section class="card panel config-wide master-lib-section"><div class="panel-title"><div><h3>Reglas de checklist</h3><div class="help">${rows.length} guardada(s)</div></div></div><div class="master-lib-grid">${rows.map(i=>{const exists=planHasLibraryEquivalent(p,i);return `<article class="master-lib-card"><div class="master-lib-head"><div><strong>${esc(i.name)}</strong></div></div><div class="master-lib-meta">${esc(simpleLibrarySummary(i))}${i.sourcePlanLabel?`<br>Guardado desde: ${esc(i.sourcePlanLabel)}`:''}</div><div class="master-lib-actions"><button class="btn small primary" onclick="addSimpleLibraryItem('${i.id}')" ${exists?'disabled':''}>${exists?'Ya está en este plan':'Añadir al plan'}</button><button class="btn small danger" onclick="deleteSavedLibraryItem('${i.id}')">Eliminar</button></div></article>`;}).join('')}</div></section>`;
+  return base+section;
+};
+
+const configTabsV16Base=configTabs;
+configTabs=function(p){
+  const tabs=[['instruments','Contratos','Biblioteca global'],['library','Biblioteca','Plantillas guardadas'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['checklist','Checklist','Reglas verificables por trade'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales'],['data','Datos y seguridad','Backup e integridad'],['cloud','Nube','Supabase y sincronización']];
+  return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`;
+};
+const configContentV16Base=configContent;
+configContent=function(p){if(configTab==='checklist')return complianceChecklistPanel(p);return configContentV16Base(p);};
+
+function operationChecklistRules(o,p){
+  ensurePlanCompliance(p);
+  if(o?.compliance?.evaluated&&Array.isArray(o.compliance.responses)&&o.compliance.responses.length)return o.compliance.responses.map(x=>({id:x.id||uid('CHKOLD'),name:x.name||x.label||'Regla histórica',category:x.category||'Otro',description:x.description||'',required:x.required!==false,active:true,checked:!!x.checked,historical:true}));
+  return (p?.complianceChecklist||[]).filter(r=>r.active).map(r=>({...clone(r),checked:false}));
+}
+function operationChecklistSection(o,p){
+  const rules=operationChecklistRules(o,p);if(!rules.length)return '';
+  const evaluated=o?!!o?.compliance?.evaluated:true;
+  return `<div class="form-section operation-checklist-section"><div class="section-title-row"><div><h4>3 · Checklist del Trading Plan</h4><div class="help">Marca las condiciones realmente cumplidas. Se guarda una copia histórica de las reglas evaluadas.</div></div><button class="btn small ghost" type="button" onclick="markAllOperationChecklist(true)">Marcar todas</button></div><div class="form-grid"><label class="field"><span>Evaluación</span><select id="plan-check-evaluated" class="select" onchange="toggleOperationChecklistEvaluation()"><option value="yes" ${evaluated?'selected':''}>Evaluado</option><option value="no" ${!evaluated?'selected':''}>No evaluado</option></select></label><div class="field span2"><label>Resumen</label><div id="plan-check-summary" class="readonly-box">—</div></div></div><div id="plan-check-rules" class="operation-checklist-grid ${evaluated?'':'hidden'}">${rules.map(r=>`<label class="operation-check-item ${r.required?'required':''}"><input type="checkbox" data-plan-check-rule="1" data-check-id="${esc(r.id)}" data-check-name="${esc(r.name)}" data-check-category="${esc(r.category)}" data-check-description="${esc(r.description||'')}" data-check-required="${r.required?'true':'false'}" ${r.checked?'checked':''} onchange="updateOperationChecklistPreview()"><span><strong>${esc(r.name)}</strong><small>${esc(r.category)} · ${r.required?'Obligatoria':'Opcional'}${r.historical?' · snapshot histórico':''}</small>${r.description?`<em>${esc(r.description)}</em>`:''}</span></label>`).join('')}</div></div>`;
+}
+function toggleOperationChecklistEvaluation(){const yes=document.getElementById('plan-check-evaluated')?.value==='yes';document.getElementById('plan-check-rules')?.classList.toggle('hidden',!yes);updateOperationChecklistPreview();}
+function markAllOperationChecklist(checked=true){document.querySelectorAll('[data-plan-check-rule="1"]').forEach(x=>x.checked=!!checked);updateOperationChecklistPreview();}
+function updateOperationChecklistPreview(){
+  const el=document.getElementById('plan-check-summary');if(!el)return;const evaluated=document.getElementById('plan-check-evaluated')?.value==='yes';if(!evaluated){el.textContent='No evaluado · no entra en estadísticas de cumplimiento';return;}
+  const boxes=[...document.querySelectorAll('[data-plan-check-rule="1"]')],checked=boxes.filter(x=>x.checked).length,req=boxes.filter(x=>x.dataset.checkRequired==='true'),reqOk=req.filter(x=>x.checked).length,score=boxes.length?checked/boxes.length*100:0;el.innerHTML=`<strong>${score.toFixed(0)}%</strong> · ${checked}/${boxes.length} reglas · obligatorias ${reqOk}/${req.length}`;
+}
+function readOperationComplianceDraft(){
+  const select=document.getElementById('plan-check-evaluated');if(!select)return null;const evaluated=select.value==='yes',boxes=[...document.querySelectorAll('[data-plan-check-rule="1"]')];if(!evaluated)return {evaluated:false,responses:[],score:null,strict:null,evaluatedAt:new Date().toISOString()};
+  const responses=boxes.map(x=>({id:x.dataset.checkId||uid('CHK'),name:x.dataset.checkName||'Regla',category:x.dataset.checkCategory||'Otro',description:x.dataset.checkDescription||'',required:x.dataset.checkRequired==='true',checked:!!x.checked})),required=responses.filter(r=>r.required),basis=required.length?required:responses,strict=basis.every(r=>r.checked),score=responses.length?responses.filter(r=>r.checked).length/responses.length*100:0;
+  return {evaluated:true,responses,score,strict,evaluatedAt:new Date().toISOString()};
+}
+const operationFormV16Base=operationForm;
+operationForm=function(o,r,p){let html=operationFormV16Base(o,r,p),section=operationChecklistSection(o,p);if(!section)return html;html=html.replace('<div class="form-section"><h4>3 · Ejecución y resultado</h4>',`${section}<div class="form-section"><h4>4 · Ejecución y resultado</h4>`);setTimeout(updateOperationChecklistPreview,0);return html;};
+
+const saveOperationFromFormV16Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const draft=readOperationComplianceDraft(),targetId=editingId||null,beforeIds=new Set(state.operations.map(o=>o.id)),planId=state.currentPlanId;
+  if(draft?.evaluated){const failed=draft.responses.filter(r=>r.required&&!r.checked);if(failed.length&&!confirm(`Hay ${failed.length} regla(s) obligatoria(s) sin cumplir:\n\n${failed.map(r=>'• '+r.name).join('\n')}\n\n¿Guardar igualmente la operación como incumplimiento del checklist?`))return;}
+  await saveOperationFromFormV16Base();
+  let op=targetId?state.operations.find(x=>x.id===targetId):state.operations.find(x=>x.tradingPlanId===planId&&!beforeIds.has(x.id));if(op&&draft){op.compliance=clone(draft);op.updatedAt=new Date().toISOString();persist();render();}
+};
+const openOperationModalV16Base=openOperationModal;
+openOperationModal=function(id=null){openOperationModalV16Base(id);setTimeout(updateOperationChecklistPreview,0);};
+
+function complianceOperationDetail(o){
+  const c=o?.compliance;if(!c?.evaluated)return `<section class="form-section"><div class="panel-title"><div><h3>Checklist del plan</h3><small>No evaluado en esta operación</small></div></div><div class="empty">Esta operación no contiene evaluación detallada del checklist.</div></section>`;
+  const responses=c.responses||[],fails=responses.filter(r=>!r.checked);return `<section class="form-section"><div class="panel-title"><div><h3>Checklist del plan</h3><small>Snapshot guardado con la operación</small></div><strong class="${c.strict?'positive':fails.length?'negative':''}">${Number(c.score||0).toFixed(0)}%</strong></div><div class="trade-checklist-detail">${responses.map(r=>`<div class="${r.checked?'ok':'fail'}"><span>${r.checked?'✓':'×'}</span><div><strong>${esc(r.name)}</strong><small>${esc(r.category||'Otro')} · ${r.required===false?'Opcional':'Obligatoria'}</small></div></div>`).join('')}</div></section>`;
+}
+const viewOperationV16Base=viewOperation;
+viewOperation=function(id){viewOperationV16Base(id);const o=state.operations.find(x=>x.id===id),body=document.querySelector('.modal-backdrop .modal-body');if(o&&body)body.insertAdjacentHTML('beforeend',complianceOperationDetail(o));};
+
+function complianceSetUnit(v){complianceViewState.unit=['r','ticks','usd'].includes(v)?v:'r';render();}
+function complianceSetBasis(v){complianceViewState.basis=v==='gross'?'gross':'net';render();}
+function complianceSetFilter(key,v){if(['setup','context','ruleId'].includes(key))complianceViewState[key]=v||'';render();}
+function complianceResetFilters(){complianceViewState.setup='';complianceViewState.context='';complianceViewState.ruleId='';render();}
+function complianceBaseOps(){return currentOps().filter(o=>(!complianceViewState.setup||o.setup===complianceViewState.setup)&&(!complianceViewState.context||String(o.h4Context||'')===complianceViewState.context));}
+function complianceIsStrict(o){const c=o?.compliance;if(!c?.evaluated)return null;if(typeof c.strict==='boolean')return c.strict;const rs=c.responses||[],req=rs.filter(r=>r.required!==false),basis=req.length?req:rs;return basis.length?basis.every(r=>r.checked):true;}
+function complianceScore(o){const c=o?.compliance;if(!c?.evaluated)return null;if(Number.isFinite(Number(c.score)))return Number(c.score);const rs=c.responses||[];return rs.length?rs.filter(r=>r.checked).length/rs.length*100:100;}
+function complianceRuleStats(ops){
+  const map=new Map();ops.filter(o=>o?.compliance?.evaluated).forEach(o=>(o.compliance.responses||[]).forEach(r=>{const key=String(r.id||r.name),x=map.get(key)||{id:key,name:r.name||'Regla',category:r.category||'Otro',required:r.required!==false,pass:[],fail:[]};(r.checked?x.pass:x.fail).push(o);map.set(key,x);}));
+  return [...map.values()].map(x=>{const all=[...x.pass,...x.fail],passS=calcMetricStats(x.pass,complianceViewState.unit,complianceViewState.basis),failS=calcMetricStats(x.fail,complianceViewState.unit,complianceViewState.basis),failedLoss=x.fail.reduce((a,o)=>{const v=opMetricValue(o,complianceViewState.unit,complianceViewState.basis);return a+(v<0?v:0);},0);return {...x,n:all.length,rate:all.length?x.pass.length/all.length*100:0,passS,failS,delta:passS.expectancy-failS.expectancy,failedLoss};}).sort((a,b)=>b.fail.length-a.fail.length||b.delta-a.delta);
+}
+function complianceMetricSwitch(){return `<div class="metric-switch compliance-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${complianceViewState.unit===v?'active':''}" onclick="complianceSetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${complianceViewState.basis===v?'active':''}" onclick="complianceSetBasis('${v}')">${l}</button>`).join('')}</div>`;}
+function complianceRuleImpactPanel(rows){
+  const damaging=rows.filter(r=>r.fail.length).sort((a,b)=>a.failS.expectancy-b.failS.expectancy).slice(0,8),max=Math.max(...damaging.map(r=>Math.abs(r.failS.expectancy)),1);
+  return `<section class="card panel compliance-impact"><div class="panel-title"><div><h3>Incumplimientos observados</h3><small>Ordenados por expectancy de las operaciones donde la regla falló</small></div><span>asociación, no causalidad</span></div>${damaging.length?`<div class="compliance-impact-list">${damaging.map(r=>`<button onclick="complianceSetFilter('ruleId','${encodeURIComponent(r.id)}')"><div><strong>${esc(r.name)}</strong><small>${r.fail.length} incumplimiento(s) · n=${r.n}</small></div><i><span class="${r.failS.expectancy<0?'neg':'pos'}" style="width:${Math.max(4,Math.abs(r.failS.expectancy)/max*100)}%"></span></i><b class="${r.failS.expectancy<0?'negative':r.failS.expectancy>0?'positive':''}">${metricStatText(r.failS.expectancy,complianceViewState.unit)}</b></button>`).join('')}</div>`:'<div class="empty">Todavía no hay incumplimientos evaluados.</div>'}<div class="lab-note">No atribuimos causalidad: mostramos el resultado asociado a las operaciones en las que esa regla quedó sin cumplir.</div></section>`;
+}
+function complianceRulesTable(rows){
+  return `<section class="card panel compliance-rules-panel"><div class="panel-title"><div><h3>Análisis por regla</h3><small>Cumplida vs incumplida dentro de las operaciones evaluadas</small></div><span>${rows.length} reglas históricas</span></div><div class="table-wrap"><table class="table compliance-table"><thead><tr><th>Regla</th><th>Eval.</th><th>Cumpl.</th><th>Exp. cumplida</th><th>Exp. incumplida</th><th>Δ expectancy</th><th>Resultado negativo asociado</th><th></th></tr></thead><tbody>${rows.length?rows.map(r=>`<tr><td><strong>${esc(r.name)}</strong><small>${esc(r.category)} · ${r.required?'Obligatoria':'Opcional'}</small></td><td>${r.n}</td><td>${r.rate.toFixed(0)}%</td><td class="${r.passS.expectancy>0?'positive':r.passS.expectancy<0?'negative':''}">${r.pass.length?metricStatText(r.passS.expectancy,complianceViewState.unit):'—'}</td><td class="${r.failS.expectancy>0?'positive':r.failS.expectancy<0?'negative':''}">${r.fail.length?metricStatText(r.failS.expectancy,complianceViewState.unit):'—'}</td><td class="${r.delta>0?'positive':r.delta<0?'negative':''}">${r.pass.length&&r.fail.length?metricStatText(r.delta,complianceViewState.unit):'—'}</td><td class="${r.failedLoss<0?'negative':''}">${r.fail.length?metricStatText(r.failedLoss,complianceViewState.unit):'—'}</td><td>${r.fail.length?`<button class="btn tiny" onclick="complianceSetFilter('ruleId','${encodeURIComponent(r.id)}')">Ver fallos</button>`:''}</td></tr>`).join(''):'<tr><td colspan="8"><div class="empty">Sin evaluaciones detalladas.</div></td></tr>'}</tbody></table></div></section>`;
+}
+function complianceOpsTable(ops,ruleRows){
+  let rows=ops.filter(o=>o?.compliance?.evaluated),title='Operaciones evaluadas';
+  if(complianceViewState.ruleId){const id=decodeURIComponent(complianceViewState.ruleId),rule=ruleRows.find(r=>String(r.id)===String(id));rows=rows.filter(o=>(o.compliance.responses||[]).some(r=>String(r.id||r.name)===String(id)&&!r.checked));title=rule?`Incumplimientos · ${rule.name}`:'Incumplimientos seleccionados';}
+  rows=[...rows].sort((a,b)=>new Date(b.entryDate)-new Date(a.entryDate));
+  return `<section class="card panel compliance-ops-panel"><div class="panel-title"><div><h3>${esc(title)}</h3><small>${complianceViewState.ruleId?'Pulsa Limpiar selección para volver a todas':'Snapshot objetivo + resultado de cada trade'}</small></div>${complianceViewState.ruleId?'<button class="btn small ghost" onclick="complianceSetFilter(\'ruleId\',\'\')">Limpiar selección</button>':`<span>${rows.length} operaciones</span>`}</div><div class="table-wrap"><table class="table"><thead><tr><th>Fecha</th><th>Setup</th><th>Contexto</th><th>Checklist</th><th>Obligatorias</th><th>Resultado</th><th>Disciplina</th><th></th></tr></thead><tbody>${rows.length?rows.map(o=>{const score=complianceScore(o),strict=complianceIsStrict(o),v=opMetricValue(o,complianceViewState.unit,complianceViewState.basis);return `<tr><td>${fmtDateOnly(o.entryDate)}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.h4Context||'—')}</td><td><strong>${score===null?'—':score.toFixed(0)+'%'}</strong></td><td><span class="badge ${strict?'win':'loss'}">${strict?'Cumplidas':'Incumplimiento'}</span></td><td class="${v>0?'positive':v<0?'negative':''}">${metricStatText(v,complianceViewState.unit)}</td><td>${typeof o.discipline==='boolean'?(o.discipline?'Sí':'No'):'—'}</td><td><button class="btn tiny" onclick="viewOperation('${o.id}')">Ver</button></td></tr>`;}).join(''):'<tr><td colspan="8"><div class="empty">No hay operaciones para esta selección.</div></td></tr>'}</tbody></table></div></section>`;
+}
+function complianceView(){
+  const p=getCurrentPlan();ensurePlanCompliance(p);const ops=complianceBaseOps(),evaluated=ops.filter(o=>o?.compliance?.evaluated),strict=evaluated.filter(o=>complianceIsStrict(o)===true),violated=evaluated.filter(o=>complianceIsStrict(o)===false),scores=evaluated.map(complianceScore).filter(v=>v!==null),avgScore=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0,strictS=calcMetricStats(strict,complianceViewState.unit,complianceViewState.basis),violS=calcMetricStats(violated,complianceViewState.unit,complianceViewState.basis),ruleRows=complianceRuleStats(ops),coverage=ops.length?evaluated.length/ops.length*100:0,strictRate=evaluated.length?strict.length/evaluated.length*100:0,diff=strictS.expectancy-violS.expectancy;
+  const setups=[...new Set(currentOps().map(o=>o.setup).filter(Boolean))].sort(),contexts=[...new Set(currentOps().map(o=>o.h4Context).filter(Boolean))].sort();
+  const controls=`${complianceMetricSwitch()}<button class="btn" onclick="setConfigTab('checklist');navigate('config')">⚙ Configurar checklist</button>`;
+  const filters=`<section class="card filter-hub compliance-filter"><div class="filter-hub-top"><div><h3>Ámbito de análisis</h3><p>Solo las operaciones con checklist evaluado entran en las métricas de cumplimiento.</p></div><button class="btn small" onclick="complianceResetFilters()">Limpiar</button></div><div class="filter-grid"><label class="filter-field"><span>Setup</span><select class="select" onchange="complianceSetFilter('setup',this.value)"><option value="">Todos</option>${setups.map(x=>`<option value="${esc(x)}" ${complianceViewState.setup===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="filter-field"><span>Contexto</span><select class="select" onchange="complianceSetFilter('context',this.value)"><option value="">Todos</option>${contexts.map(x=>`<option value="${esc(x)}" ${complianceViewState.context===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label><div class="filter-field wide"><span>Cobertura</span><div class="readonly-box">${evaluated.length}/${ops.length} operaciones evaluadas · ${coverage.toFixed(1)}%</div></div></div></section>`;
+  const kpis=`<div class="compliance-kpis">${kpi('Cobertura checklist',`${coverage.toFixed(1)}%`,`${evaluated.length}/${ops.length} operaciones`)}${kpi('Cumplimiento medio',evaluated.length?`${avgScore.toFixed(1)}%`:'—','todas las reglas evaluadas')}${kpi('Obligatorias 100%',evaluated.length?`${strictRate.toFixed(1)}%`:'—',`${strict.length}/${evaluated.length} evaluadas`)}${kpi('Expectancy · 100%',strict.length?metricStatText(strictS.expectancy,complianceViewState.unit):'—',`${strict.length} operaciones`)}${kpi('Expectancy · con fallos',violated.length?metricStatText(violS.expectancy,complianceViewState.unit):'—',`${violated.length} operaciones`)}${kpi('Δ expectancy',strict.length&&violated.length?metricStatText(diff,complianceViewState.unit):'—','100% − incumplimiento')}</div>`;
+  const noRules=!(p.complianceChecklist||[]).length?`<div class="notice compliance-empty-warning"><strong>Este Trading Plan todavía no tiene checklist.</strong> Configura reglas objetivas y empezarán a aparecer en las nuevas operaciones.</div>`:'';
+  return `${pageHead('Cumplimiento del Plan','Mide qué reglas se cumplen realmente y contrasta su asociación con el rendimiento. Checklist objetivo separado de la disciplina emocional.',controls)}${activePlanBanner()}${noRules}${filters}${kpis}<div class="compliance-grid">${complianceRuleImpactPanel(ruleRows)}${complianceRulesTable(ruleRows)}</div>${complianceOpsTable(ops,ruleRows)}<div class="notice compliance-method-note"><strong>Criterio estadístico:</strong> una operación antigua o importada sin checklist detallado queda como <em>no evaluada</em>, nunca como incumplimiento. El TPCompliance de Ankora puede seguir alimentando Disciplina, pero no inventamos qué regla concreta se cumplió o falló.</div>${complianceViewState.unit==='ticks'?mixedInstrumentWarning(ops):''}`;
+}
+
+/* Dashboard V16: widgets opcionales de cumplimiento. */
+if(!DASHBOARD_KPI_DEFS.some(x=>x[0]==='compliance'))DASHBOARD_KPI_DEFS.push(['compliance','Cumplimiento checklist']);
+if(!DASHBOARD_PANEL_DEFS.some(x=>x[0]==='complianceRules'))DASHBOARD_PANEL_DEFS.push(['complianceRules','Cumplimiento por regla']);
+const dashboardKpiHtmlV16Base=dashboardKpiHtml;
+dashboardKpiHtml=function(id,ctx){if(id!=='compliance')return dashboardKpiHtmlV16Base(id,ctx);const evals=ctx.ops.filter(o=>o?.compliance?.evaluated),scores=evals.map(complianceScore).filter(v=>v!==null),avg=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0;return kpi('Cumplimiento checklist',evals.length?`${avg.toFixed(1)}%`:'—',`${evals.length}/${ctx.ops.length} evaluadas`);};
+function dashboardComplianceRulesPanel(ops){const prevUnit=complianceViewState.unit,prevBasis=complianceViewState.basis;complianceViewState.unit='r';complianceViewState.basis='net';const rows=complianceRuleStats(ops).sort((a,b)=>a.rate-b.rate).slice(0,7);complianceViewState.unit=prevUnit;complianceViewState.basis=prevBasis;return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><div><h3>Cumplimiento por regla</h3><small>Reglas con menor tasa de cumplimiento</small></div><button class="btn tiny ghost" onclick="navigate('compliance')">Abrir</button></div><div class="dashboard-compliance-list">${rows.length?rows.map(r=>`<div><span><strong>${esc(r.name)}</strong><small>n=${r.n} · ${r.fail.length} fallos</small></span><i><b style="width:${r.rate}%"></b></i><em>${r.rate.toFixed(0)}%</em></div>`).join(''):'<div class="empty">Sin checklist evaluado.</div>'}</div></section>`;}
+const dashboardPanelHtmlV16Base=dashboardPanelHtml;
+dashboardPanelHtml=function(id,ctx){if(id==='complianceRules')return dashboardComplianceRulesPanel(ctx.ops);return dashboardPanelHtmlV16Base(id,ctx);};
+
+const shellV16Base=shell;
+shell=function(){let html=shellV16Base(),labButton=navBtn('lab','⌁','Laboratorio');html=html.replace(labButton,navBtn('compliance','✓','Cumplimiento')+labButton);return html.replace(V15_APP_LABEL,V16_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Dashboard personalizable + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');};
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{openComplianceRuleModal,saveComplianceRule,deleteComplianceRule,moveComplianceRule,toggleOperationChecklistEvaluation,markAllOperationChecklist,updateOperationChecklistPreview,complianceSetUnit,complianceSetBasis,complianceSetFilter,complianceResetFilters});
+render();
+/* ===== END V16 PATCH ===== */

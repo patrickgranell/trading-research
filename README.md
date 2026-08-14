@@ -1,16 +1,20 @@
-# Trading Research V9.1 — Safe Cloud Sync
+# Trading Research V9.2 — Conflict Guard
 
-## Seguridad añadida
+## Novedades
 
-- Antes de cada subida se compara el inventario local con Supabase.
-- Si la subida borraría registros remotos, la sincronización automática se bloquea.
-- Una sobrescritura manual destructiva exige escribir `SOBRESCRIBIR NUBE`.
-- Antes de descargar se compara el inventario remoto con el local.
-- Si la descarga eliminaría datos locales, exige escribir `REEMPLAZAR LOCAL`.
-- Se guarda un snapshot local de seguridad antes de una sustitución cloud.
-- Botón para actualizar el estado remoto real.
-- Se mantiene Auth + RLS + bucket privado de imágenes de V9.
+- Conflict Guard por revisión remota usando `trading_workspace.updated_at`.
+- Bloqueo del auto-sync cuando otro dispositivo ha cambiado Supabase desde la última revisión conocida.
+- Reserva condicional de revisión antes de escribir para reducir carreras entre dispositivos.
+- Resolución manual explícita con `RESOLVER CON LOCAL`.
+- Descargas con cambios locales pendientes protegidas mediante `REEMPLAZAR LOCAL`.
+- Historial de hasta 3 snapshots locales automáticos antes de subidas/descargas importantes.
+- Restauración manual de snapshots con auto-sync desactivado por seguridad.
+- Indicadores de revisión base, cambios locales y estado del Conflict Guard.
 
-## Archivos de despliegue
+## SQL
 
-Sube a GitHub los seis archivos de la raíz. No hace falta volver a ejecutar el SQL de Supabase.
+No requiere cambios de esquema respecto a V9/V9.1. Reutiliza el campo `updated_at` existente en `trading_workspace`.
+
+## Despliegue
+
+Sustituir los 6 archivos del repositorio y desplegar como las versiones anteriores.

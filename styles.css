@@ -115,3 +115,14 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .cloud-image{outline:1px solid rgba(95,221,180,.18)}
 @media(max-width:850px){.cloud-sync-grid{grid-template-columns:1fr}.cloud-user-row{align-items:flex-start;flex-direction:column}}
 /* ===== END V9 styles ===== */
+
+
+/* ===== V9.2 Conflict Guard ===== */
+.v92-revision-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}
+.v92-revision-strip>div{border:1px solid rgba(120,162,255,.16);background:rgba(9,20,40,.72);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:5px}
+.v92-revision-strip span{font-size:11px;color:#8399bd;text-transform:uppercase;letter-spacing:.04em}.v92-revision-strip strong{font-size:13px;color:#e7efff}
+.ok-text{color:#7fe0ba!important}.warn-text{color:#ffd17c!important}.danger-text{color:#ff8f9b!important}
+.snapshot-list{display:flex;flex-direction:column;gap:9px}.snapshot-row{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid rgba(120,162,255,.14);border-radius:12px;padding:11px 12px;background:rgba(8,18,36,.65)}
+.snapshot-row>div:first-child{display:flex;flex-direction:column;gap:4px}.snapshot-row span{font-size:12px;color:#8fa6ca}.snapshot-actions{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:850px){.v92-revision-strip{grid-template-columns:1fr}.snapshot-row{align-items:flex-start;flex-direction:column}}
+/* ===== END V9.2 styles ===== */

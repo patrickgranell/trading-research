@@ -1195,3 +1195,210 @@ Object.assign(window,{cloudPushState,cloudPullState,setCloudAutoSync,refreshClou
 if(cloudAuthUser)setTimeout(refreshCloudRemoteStatus,300);
 render();
 /* ===== END V9.1 PATCH ===== */
+
+
+/* ===== V9.2 PATCH · revision conflict guard + snapshot history ===== */
+const CLOUD_APP_VERSION_V92='9.2.0';
+const CLOUD_SNAPSHOT_HISTORY_KEY='tradingResearchCloudSnapshotHistory_v2';
+const CLOUD_SNAPSHOT_LIMIT=3;
+
+cloudConfig.baseRemoteRevision=cloudConfig.baseRemoteRevision||'';
+cloudConfig.localDirty=!!cloudConfig.localDirty;
+cloudConfig.localDirtyAt=cloudConfig.localDirtyAt||'';
+cloudConfig.deviceId=cloudConfig.deviceId||uid('DEV');
+cloudConfig.conflict=cloudConfig.conflict||null;
+saveCloudConfigLocal();
+
+function cloudShortRevision(v){if(!v)return 'No vinculada';try{return fmtDate(v);}catch{return String(v).slice(0,19);}}
+function cloudSetConflict(remoteRevision,reason='remote-changed'){
+  cloudConfig.conflict={remoteRevision:remoteRevision||'',baseRevision:cloudConfig.baseRemoteRevision||'',reason,detectedAt:new Date().toISOString()};
+  cloudConfig.autoSync=false;saveCloudConfigLocal();
+}
+function cloudClearConflict(){cloudConfig.conflict=null;saveCloudConfigLocal();}
+
+function cloudStableValue(value){
+  if(Array.isArray(value))return value.map(cloudStableValue);
+  if(value&&typeof value==='object')return Object.keys(value).sort().reduce((o,k)=>{o[k]=cloudStableValue(value[k]);return o;},{});
+  return value;
+}
+async function cloudSha256(value){
+  const text=JSON.stringify(cloudStableValue(value));
+  if(!globalThis.crypto?.subtle){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16);}
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function cloudLocalFingerprintPayload(){
+  ensureAllPlansV8();
+  const byId=a=>clone(a||[]).sort((x,y)=>String(x?.id||'').localeCompare(String(y?.id||'')));
+  return {currentPlanId:state.currentPlanId||'',plans:byId(state.tradingPlans),instruments:byId(state.settings?.instruments),operations:byId(state.operations),batches:byId(state.importBatches),opportunities:byId(state.opportunities)};
+}
+async function cloudWorkspaceMeta(userId){
+  const {data,error}=await cloudClient.from('trading_workspace').select('user_id,current_plan_id,app_version,schema_version,updated_at').eq('user_id',userId).maybeSingle();
+  if(error)throw new Error('trading_workspace: '+error.message);return data||null;
+}
+async function cloudRemoteBundle(userId){
+  const ws=await cloudWorkspaceMeta(userId);
+  if(!ws)return {ws:null,plans:[],inst:[],ops:[],batches:[],opps:[]};
+  const [plans,inst,ops,batches,opps]=await Promise.all(['trading_plans','trading_instruments','trading_operations','trading_import_batches','trading_opportunities'].map(t=>cloudFetchRows(t,userId)));
+  return {ws,plans,inst,ops,batches,opps};
+}
+function cloudRemoteFingerprintPayload(bundle){
+  const byId=a=>(a||[]).slice().sort((x,y)=>String(x?.id||'').localeCompare(String(y?.id||''))).map(x=>clone(x.payload));
+  return {currentPlanId:bundle.ws?.current_plan_id||'',plans:byId(bundle.plans),instruments:byId(bundle.inst),operations:byId(bundle.ops),batches:byId(bundle.batches),opportunities:byId(bundle.opps)};
+}
+async function cloudTryBootstrapRevision(user){
+  if(cloudConfig.baseRemoteRevision)return {ok:true,revision:cloudConfig.baseRemoteRevision,bootstrapped:false};
+  const bundle=await cloudRemoteBundle(user.id);
+  if(!bundle.ws)return {ok:true,revision:'',bootstrapped:false,newWorkspace:true};
+  const [localHash,remoteHash]=await Promise.all([cloudSha256(cloudLocalFingerprintPayload()),cloudSha256(cloudRemoteFingerprintPayload(bundle))]);
+  if(localHash!==remoteHash)return {ok:false,revision:bundle.ws.updated_at,bundle,reason:'baseline-mismatch'};
+  cloudConfig.baseRemoteRevision=bundle.ws.updated_at||'';cloudConfig.localDirty=false;cloudConfig.localDirtyAt='';cloudClearConflict();saveCloudConfigLocal();
+  return {ok:true,revision:cloudConfig.baseRemoteRevision,bootstrapped:true,bundle};
+}
+async function cloudAcquireRevisionLock(user,expectedRevision,forceExpected=''){
+  const nextRevision=new Date().toISOString();
+  const expected=forceExpected||expectedRevision||'';
+  if(!expected){
+    const {data,error}=await cloudClient.from('trading_workspace').insert({user_id:user.id,current_plan_id:state.currentPlanId||'',app_version:CLOUD_APP_VERSION_V92,schema_version:CLOUD_SCHEMA_VERSION,updated_at:nextRevision}).select('updated_at').single();
+    if(error)throw new Error('No se pudo crear la revisión de nube: '+error.message);
+    const rev=data?.updated_at||nextRevision;cloudConfig.baseRemoteRevision=rev;saveCloudConfigLocal();return rev;
+  }
+  const {data,error}=await cloudClient.from('trading_workspace').update({current_plan_id:state.currentPlanId||'',app_version:CLOUD_APP_VERSION_V92,schema_version:CLOUD_SCHEMA_VERSION,updated_at:nextRevision}).eq('user_id',user.id).eq('updated_at',expected).select('updated_at');
+  if(error)throw new Error('No se pudo reservar la revisión de nube: '+error.message);
+  if(!data?.length){const latest=await cloudWorkspaceMeta(user.id);const err=new Error('CONFLICT_REVISION');err.remoteRevision=latest?.updated_at||'';throw err;}
+  const rev=data[0]?.updated_at||nextRevision;cloudConfig.baseRemoteRevision=rev;saveCloudConfigLocal();return rev;
+}
+
+function loadCloudSnapshotHistory(){try{return JSON.parse(localStorage.getItem(CLOUD_SNAPSHOT_HISTORY_KEY)||'[]')||[];}catch{return [];}}
+function saveCloudSnapshotHistory(items){try{localStorage.setItem(CLOUD_SNAPSHOT_HISTORY_KEY,JSON.stringify(items));return true;}catch{return false;}}
+function cloudSnapshotReasonLabel(r){return ({'before-cloud-push':'Antes de subida','before-cloud-pull':'Antes de descarga','before-conflict-force-push':'Antes de resolver conflicto con local','manual':'Snapshot manual'}[r]||r||'Snapshot');}
+function saveCloudSafetySnapshot(reason){
+  const snap={id:uid('SNAP'),savedAt:new Date().toISOString(),reason,counts:{plans:state.tradingPlans?.length||0,operations:state.operations?.length||0,instruments:state.settings?.instruments?.length||0},state:clone(state)};
+  let hist=loadCloudSnapshotHistory();hist.unshift(snap);hist=hist.slice(0,CLOUD_SNAPSHOT_LIMIT);
+  if(!saveCloudSnapshotHistory(hist)){hist=hist.slice(0,1);saveCloudSnapshotHistory(hist);}
+  try{localStorage.setItem(CLOUD_SAFETY_SNAPSHOT_KEY,JSON.stringify(snap));}catch{}
+  return snap;
+}
+function createManualCloudSnapshot(){saveCloudSafetySnapshot('manual');cloudSetStatus('Snapshot local creado','ok');render();}
+function restoreCloudSnapshot(id){
+  const snap=loadCloudSnapshotHistory().find(x=>x.id===id);if(!snap)return alert('Snapshot no encontrado.');
+  if(!confirm(`Restaurar snapshot de ${fmtDate(snap.savedAt)} con ${snap.counts?.operations||0} operaciones?\n\nLa sincronización automática quedará desactivada hasta que revises el estado.`))return;
+  cloudConfig.autoSync=false;cloudConfig.localDirty=true;cloudConfig.localDirtyAt=new Date().toISOString();cloudClearConflict();saveCloudConfigLocal();
+  cloudSuppressAutoSync=true;state=normalizeState(clone(snap.state));ensureAllPlansV8();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;currentView='dashboard';render();
+}
+function deleteCloudSnapshot(id){const hist=loadCloudSnapshotHistory().filter(x=>x.id!==id);saveCloudSnapshotHistory(hist);render();}
+function cloudSnapshotPanelV92(){
+  const hist=loadCloudSnapshotHistory();
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Snapshots locales de seguridad</h3><div class="help">V9.2 guarda hasta ${CLOUD_SNAPSHOT_LIMIT} estados locales antes de subidas/descargas importantes. No incluyen blobs de imagen, pero las referencias pueden recuperarlas desde Supabase Storage.</div></div><button class="btn small" onclick="createManualCloudSnapshot()">Crear snapshot</button></div>${hist.length?`<div class="snapshot-list">${hist.map(s=>`<div class="snapshot-row"><div><strong>${esc(cloudSnapshotReasonLabel(s.reason))}</strong><span>${fmtDate(s.savedAt)} · ${s.counts?.plans||0} planes · ${s.counts?.operations||0} operaciones</span></div><div class="snapshot-actions"><button class="btn small" onclick="restoreCloudSnapshot('${s.id}')">Restaurar</button><button class="btn small danger" onclick="deleteCloudSnapshot('${s.id}')">Eliminar</button></div></div>`).join('')}</div>`:'<div class="empty compact-empty">Todavía no hay snapshots.</div>'}</section>`;
+}
+
+const persistV92Base=persist;
+persist=function(){
+  if(!cloudSuppressAutoSync){cloudConfig.localDirty=true;cloudConfig.localDirtyAt=new Date().toISOString();saveCloudConfigLocal();}
+  persistV92Base();
+};
+
+async function refreshCloudRemoteStatus(){
+  try{
+    const user=await cloudRequireUser(),meta=await cloudWorkspaceMeta(user.id),inv=await cloudRemoteInventory(user.id),c=cloudCounts(inv);
+    let extra='';
+    if(meta){
+      if(!cloudConfig.baseRemoteRevision){
+        const boot=await cloudTryBootstrapRevision(user);
+        if(boot.ok&&boot.bootstrapped)extra=' · revisión vinculada';
+        else if(!boot.ok){cloudSetConflict(meta.updated_at,'baseline-mismatch');extra=' · revisión NO vinculada';}
+      }else if(meta.updated_at!==cloudConfig.baseRemoteRevision){cloudSetConflict(meta.updated_at,'remote-changed');extra=' · CAMBIO REMOTO';}
+      else cloudClearConflict();
+    }
+    const conflict=cloudConfig.conflict;
+    cloudSetStatus(conflict?`Cambio remoto detectado · descarga/revisa antes de subir`:`Remoto consultado · ${c.operations} operaciones${extra}`,conflict?'error':'ok',{plans:c.plans,operations:c.operations,batches:c.batches,instruments:c.instruments,revision:meta?.updated_at||''});
+    if(currentView==='config'&&configTab==='cloud')render();return inv;
+  }catch(e){cloudSetStatus('No se pudo consultar remoto: '+e.message,'error');if(currentView==='config'&&configTab==='cloud')render();return null;}
+}
+
+cloudPushState=async function(options={}){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Comprobando revisión y seguridad…','busy');if(!options.silent)render();
+  try{
+    const user=await cloudRequireUser();ensureAllPlansV8();
+    let meta=await cloudWorkspaceMeta(user.id),forceExpected='';
+    if(meta&&!cloudConfig.baseRemoteRevision){
+      const boot=await cloudTryBootstrapRevision(user);
+      if(!boot.ok){
+        cloudSetConflict(meta.updated_at,'baseline-mismatch');
+        if(options.silent){cloudSetStatus('Auto-sync bloqueado: este dispositivo no comparte la misma revisión que la nube','error');return;}
+        const typed=prompt(`CONFLICT GUARD V9.2\n\nEste dispositivo no tiene una revisión base compatible con Supabase. La nube y el estado local contienen diferencias de contenido.\n\nRecomendado: cancelar y usar Cargar Supabase → este dispositivo.\n\nSi deliberadamente quieres que ESTE dispositivo prevalezca, escribe exactamente:\nRESOLVER CON LOCAL`,'');
+        if(typed!=='RESOLVER CON LOCAL'){cloudSetStatus('Subida cancelada por Conflict Guard','idle');return;}
+        saveCloudSafetySnapshot('before-conflict-force-push');forceExpected=meta.updated_at;
+      }
+    }
+    meta=await cloudWorkspaceMeta(user.id);
+    if(meta&&cloudConfig.baseRemoteRevision&&meta.updated_at!==cloudConfig.baseRemoteRevision&&!forceExpected){
+      cloudSetConflict(meta.updated_at,'remote-changed');
+      if(options.silent){cloudSetStatus('Auto-sync bloqueado: Supabase cambió desde la última sincronización','error');return;}
+      const typed=prompt(`CONFLICT GUARD V9.2\n\nLa nube cambió desde la última sincronización de este dispositivo.\n\nBase del dispositivo: ${cloudShortRevision(cloudConfig.baseRemoteRevision)}\nNube actual: ${cloudShortRevision(meta.updated_at)}\nCambios locales pendientes: ${cloudConfig.localDirty?'SÍ':'No'}\n\nRecomendado: cancelar y descargar/revisar la nube.\n\nPara hacer prevalecer deliberadamente ESTE dispositivo escribe:\nRESOLVER CON LOCAL`,'');
+      if(typed!=='RESOLVER CON LOCAL'){cloudSetStatus('Subida cancelada: conflicto remoto pendiente','error');return;}
+      saveCloudSafetySnapshot('before-conflict-force-push');forceExpected=meta.updated_at;
+    }
+    const localInv=cloudLocalInventory(),remoteInv=await cloudRemoteInventory(user.id),diff=cloudDiffInventory(localInv,remoteInv),lc=cloudCounts(localInv),rc=cloudCounts(remoteInv);
+    if(diff.deleteCount>0){
+      if(options.silent){cloudConfig.autoSync=false;saveCloudConfigLocal();cloudSetStatus(`Auto-sync bloqueado: la subida borraría ${diff.deleteCount} registro(s) remotos`,'error',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments,revision:meta?.updated_at||''});return;}
+      const typed=prompt(`PROTECCIÓN DE DATOS\n\nLocal: ${lc.plans} planes · ${lc.operations} operaciones\nNube: ${rc.plans} planes · ${rc.operations} operaciones\n\nEsta subida eliminaría ${diff.deleteCount} registro(s) remotos.\n\nPara continuar deliberadamente escribe exactamente:\nSOBRESCRIBIR NUBE`,'');
+      if(typed!=='SOBRESCRIBIR NUBE'){cloudSetStatus('Subida cancelada por protección de datos','idle');return;}
+    }
+    saveCloudSafetySnapshot('before-cloud-push');
+    try{await cloudAcquireRevisionLock(user,cloudConfig.baseRemoteRevision,forceExpected);}catch(lockErr){
+      if(lockErr.message==='CONFLICT_REVISION'){cloudSetConflict(lockErr.remoteRevision,'race-conflict');cloudSetStatus('Conflicto detectado: otro dispositivo ganó la revisión mientras sincronizabas','error');return;}throw lockErr;
+    }
+    const plans=state.tradingPlans.map(p=>planCloudRow(p,user.id)),inst=state.settings.instruments.map(i=>instrumentCloudRow(i,user.id)),ops=state.operations.map(o=>operationCloudRow(o,user.id)),batches=state.importBatches.map(b=>batchCloudRow(b,user.id)),opps=(state.opportunities||[]).map(o=>opportunityCloudRow(o,user.id));
+    await cloudUpsertChunks('trading_plans',plans);await cloudDeleteStale('trading_plans',plans.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_instruments',inst);await cloudDeleteStale('trading_instruments',inst.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_operations',ops);await cloudDeleteStale('trading_operations',ops.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_import_batches',batches);await cloudDeleteStale('trading_import_batches',batches.map(x=>x.id),user.id);
+    await cloudUpsertChunks('trading_opportunities',opps);await cloudDeleteStale('trading_opportunities',opps.map(x=>x.id),user.id);
+    const uploaded=await cloudSyncImages(user);cloudConfig.lastPush=new Date().toISOString();cloudConfig.localDirty=false;cloudConfig.localDirtyAt='';cloudClearConflict();saveCloudConfigLocal();
+    cloudSetStatus(`Sincronizado V9.2 · ${ops.length} operaciones · ${uploaded} imagen(es) nuevas`,'ok',{plans:plans.length,operations:ops.length,batches:batches.length,instruments:inst.length,revision:cloudConfig.baseRemoteRevision});
+  }catch(e){cloudSetStatus('Error de sincronización: '+e.message,'error');if(!options.silent)alert('No se pudo sincronizar con Supabase:\n'+e.message);}
+  finally{cloudBusy=false;if(!options.silent&&currentView==='config'&&configTab==='cloud')render();}
+};
+
+cloudPullState=async function(){
+  if(cloudBusy)return;cloudBusy=true;cloudSetStatus('Verificando revisión antes de descargar…','busy');render();
+  try{
+    const user=await cloudRequireUser(),bundle=await cloudRemoteBundle(user.id),ws=bundle.ws;if(!ws)throw new Error('Todavía no hay un workspace guardado en Supabase.');
+    const {plans,inst,ops,batches,opps}=bundle;
+    const remoteInv={plans:plans.map(x=>x.id),instruments:inst.map(x=>x.id),operations:ops.map(x=>x.id),batches:batches.map(x=>x.id),opportunities:opps.map(x=>x.id)},localInv=cloudLocalInventory(),diff=cloudDiffInventory(remoteInv,localInv),lc=cloudCounts(localInv),rc=cloudCounts(remoteInv);
+    const localWouldBeLost=diff.deleteCount,remoteChanged=!!cloudConfig.baseRemoteRevision&&ws.updated_at!==cloudConfig.baseRemoteRevision;
+    const destructiveToLocal=localWouldBeLost>0||cloudConfig.localDirty;
+    if(destructiveToLocal){
+      const typed=prompt(`CONFLICT GUARD V9.2\n\nLocal: ${lc.plans} planes · ${lc.operations} operaciones\nNube: ${rc.plans} planes · ${rc.operations} operaciones\nCambio remoto desde tu base: ${remoteChanged?'SÍ':'No'}\nCambios locales pendientes: ${cloudConfig.localDirty?'SÍ':'No'}\n\nLa descarga descartará el estado local actual. Se creará antes un snapshot de seguridad.\n\nPara continuar escribe exactamente:\nREEMPLAZAR LOCAL`,'');
+      if(typed!=='REEMPLAZAR LOCAL'){cloudSetStatus('Descarga cancelada por Conflict Guard','idle',{plans:rc.plans,operations:rc.operations,batches:rc.batches,instruments:rc.instruments,revision:ws.updated_at});return;}
+    }else if(!confirm(`Supabase contiene ${plans.length} plan(es) y ${ops.length} operación(es).\n\nSe cargará la revisión remota ${cloudShortRevision(ws.updated_at)} en este dispositivo. ¿Continuar?`)){cloudSetStatus('Descarga cancelada','idle');return;}
+    saveCloudSafetySnapshot('before-cloud-pull');
+    const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;
+    cloudConfig.lastPull=new Date().toISOString();cloudConfig.baseRemoteRevision=ws.updated_at||'';cloudConfig.localDirty=false;cloudConfig.localDirtyAt='';cloudClearConflict();saveCloudConfigLocal();
+    cloudSetStatus(`Datos cargados V9.2 · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length,revision:ws.updated_at});currentView='dashboard';render();
+  }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
+  finally{cloudBusy=false;}
+};
+
+setCloudAutoSync=function(v){
+  if(v&&cloudConfig.conflict){alert('No puedes activar auto-sync mientras exista un conflicto remoto. Carga Supabase o resuelve el conflicto primero.');render();return;}
+  if(v&&!confirm('V9.2 comprobará una revisión remota antes de cada subida. Si otro dispositivo ha sincronizado desde tu última revisión, el auto-sync se bloqueará en vez de sobrescribirlo. ¿Activar?')){render();return;}
+  cloudConfig.autoSync=!!v;saveCloudConfigLocal();if(v)cloudScheduleAutoSync();render();
+};
+
+const cloudConfigPanelV92Base=cloudConfigPanel;
+cloudConfigPanel=function(){
+  let html=cloudConfigPanelV92Base();
+  html=html.replace('<span class="stable-pill">V9.1 Safe Sync</span>','<span class="stable-pill">V9.2 Conflict Guard</span>');
+  const rev=`<div class="v92-revision-strip"><div><span>Revisión base del dispositivo</span><strong>${esc(cloudShortRevision(cloudConfig.baseRemoteRevision))}</strong></div><div><span>Cambios locales</span><strong class="${cloudConfig.localDirty?'warn-text':'ok-text'}">${cloudConfig.localDirty?'Pendientes':'Sin cambios'}</strong></div><div><span>Conflict Guard</span><strong class="${cloudConfig.conflict?'danger-text':'ok-text'}">${cloudConfig.conflict?'Conflicto detectado':'Compatible'}</strong></div></div>`;
+  html=html.replace('<div class="security-actions"><button class="btn primary"',rev+'<div class="security-actions"><button class="btn primary"');
+  html=html.replace('<strong>Protección V9.1:</strong> una subida que vaya a borrar registros remotos queda bloqueada en auto-sync y exige escribir <strong>SOBRESCRIBIR NUBE</strong> en modo manual. Una descarga que vaya a borrar datos locales exige <strong>REEMPLAZAR LOCAL</strong>.','<strong>V9.2 Conflict Guard:</strong> además de proteger borrados, cada dispositivo conserva una revisión base. Si Supabase cambia desde esa revisión, el auto-sync se bloquea. Para forzar una resolución local exige <strong>RESOLVER CON LOCAL</strong>; para descartar cambios locales exige <strong>REEMPLAZAR LOCAL</strong>.');
+  html=html.replace('<section class="card panel config-wide"><div class="panel-title"><div><h3>Qué se guarda</h3>',cloudSnapshotPanelV92()+'<section class="card panel config-wide"><div class="panel-title"><div><h3>Qué se guarda</h3>');
+  return html;
+};
+
+Object.assign(window,{cloudPushState,cloudPullState,setCloudAutoSync,refreshCloudRemoteStatus,createManualCloudSnapshot,restoreCloudSnapshot,deleteCloudSnapshot});
+if(cloudAuthUser)setTimeout(refreshCloudRemoteStatus,400);
+render();
+/* ===== END V9.2 PATCH ===== */

@@ -27,3 +27,14 @@ No requiere SQL nuevo ni cambios en Supabase/Cloudflare. Continúa usando los mi
 - Research Grid hace explícita la unidad analítica global (R, ticks o US$) y la base Bruto/Neto.
 - Exit Lab mantiene TP/MFE/BE estructurados en R, pero convierte P&L, expectancy, equity, drawdown, cierres y cesión a la unidad global operación por operación.
 - MFE/MAE observados siguen siendo excursiones brutas del precio.
+
+
+## V14 · Calendario avanzado
+- Nueva vista Calendario por Trading Plan, independiente del Laboratorio.
+- Navegación mensual y acceso rápido al último mes con datos.
+- Unidades R / ticks / US$ y base Bruto / Neto.
+- Color diario configurable por Resultado, Expectancy, Win rate o Disciplina.
+- KPIs mensuales: operaciones, resultado, expectancy, win rate, Profit Factor y máximo drawdown.
+- Segundo clic sobre el mismo día restablece la selección.
+- Detalle diario con KPIs, operaciones y resumen de emociones/comportamientos cuando existan.
+- Sin SQL nuevo: reutiliza las operaciones y el diario emocional ya almacenados.

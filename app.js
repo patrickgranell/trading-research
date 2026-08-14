@@ -2680,3 +2680,82 @@ shell=function(){
 
 render();
 /* ===== END V13.1 PATCH ===== */
+
+/* ===== V14 PATCH · Calendario avanzado ===== */
+const V14_APP_LABEL='V14 · Calendario avanzado';
+
+let calendarState={
+  year:null,month:null,unit:'r',basis:'gross',metric:'result',selectedDate:''
+};
+
+function calendarEnsureAnchor(){
+  if(Number.isInteger(calendarState.year)&&Number.isInteger(calendarState.month))return;
+  const dates=currentOps().map(o=>new Date(o.entryDate)).filter(d=>!isNaN(d));
+  const anchor=dates.length?new Date(Math.max(...dates.map(d=>d.getTime()))):new Date();
+  calendarState.year=anchor.getFullYear();calendarState.month=anchor.getMonth();
+}
+function calendarMonthLabel(){calendarEnsureAnchor();return new Date(calendarState.year,calendarState.month,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});}
+function calendarSetUnit(v){calendarState.unit=['r','ticks','usd'].includes(v)?v:'r';render();}
+function calendarSetBasis(v){calendarState.basis=v==='net'?'net':'gross';render();}
+function calendarSetMetric(v){calendarState.metric=['result','expectancy','winrate','discipline'].includes(v)?v:'result';render();}
+function calendarMoveMonth(delta){calendarEnsureAnchor();const d=new Date(calendarState.year,calendarState.month+Number(delta||0),1);calendarState.year=d.getFullYear();calendarState.month=d.getMonth();calendarState.selectedDate='';render();}
+function calendarGoLatest(){calendarState.year=null;calendarState.month=null;calendarState.selectedDate='';calendarEnsureAnchor();render();}
+function calendarSelectDate(dateKey){calendarState.selectedDate=calendarState.selectedDate===dateKey?'':dateKey;render();}
+function calendarMonthOps(){
+  calendarEnsureAnchor();
+  return currentOps().filter(o=>{const d=new Date(o.entryDate);return !isNaN(d)&&d.getFullYear()===calendarState.year&&d.getMonth()===calendarState.month;}).sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));
+}
+function calendarDateKey(d){return inputDateValue(d);}
+function calendarDayOps(ops,key){return ops.filter(o=>calendarDateKey(new Date(o.entryDate))===key);}
+function calendarDisciplinePct(ops){
+  const tagged=ops.filter(o=>String(o.discipline||'').trim());if(!tagged.length)return null;
+  const ok=tagged.filter(o=>String(o.discipline||'').toLowerCase().startsWith('s')).length;
+  return ok/tagged.length*100;
+}
+function calendarDayMetric(ops){
+  if(!ops.length)return {value:0,text:'—'};
+  const s=calcMetricStats(ops,calendarState.unit,calendarState.basis);
+  if(calendarState.metric==='expectancy')return {value:s.expectancy,text:metricStatText(s.expectancy,calendarState.unit)};
+  if(calendarState.metric==='winrate')return {value:s.winRate-50,text:`${s.winRate.toFixed(0)}%`};
+  if(calendarState.metric==='discipline'){
+    const d=calendarDisciplinePct(ops);return {value:d===null?0:d-50,text:d===null?'—':`${d.toFixed(0)}%`};
+  }
+  return {value:s.sum,text:metricStatText(s.sum,calendarState.unit)};
+}
+function calendarTone(value,hasData){if(!hasData)return 'empty-day';if(value>0)return 'positive-day';if(value<0)return 'negative-day';return 'flat-day';}
+function calendarMetricLabel(){return calendarState.metric==='expectancy'?'Expectancy':calendarState.metric==='winrate'?'Win rate':calendarState.metric==='discipline'?'Disciplina':'Resultado';}
+function calendarSelectedDetail(monthOps){
+  if(!calendarState.selectedDate)return '';
+  const ops=calendarDayOps(monthOps,calendarState.selectedDate),s=calcMetricStats(ops,calendarState.unit,calendarState.basis),disc=calendarDisciplinePct(ops);
+  const d=new Date(`${calendarState.selectedDate}T12:00:00`),title=isNaN(d)?calendarState.selectedDate:d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const emo=ops.flatMap(operationEmotionValues).filter(Boolean),beh=ops.flatMap(o=>o.emotional?.behaviors||[]).filter(Boolean);
+  const top=(arr)=>{const m={};arr.forEach(x=>m[x]=(m[x]||0)+1);return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,3);};
+  return `<section class="card panel calendar-detail"><div class="panel-title"><div><h3>${esc(title)}</h3><small>Segundo clic sobre el día para cerrar el detalle</small></div><button class="btn small ghost" onclick="calendarSelectDate('${esc(calendarState.selectedDate)}')">Cerrar día</button></div><div class="calendar-detail-kpis"><div><span>Operaciones</span><strong>${s.n}</strong></div><div><span>Resultado</span><strong class="${s.sum>0?'positive':s.sum<0?'negative':''}">${metricStatText(s.sum,calendarState.unit)}</strong></div><div><span>Expectancy</span><strong class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">${metricStatText(s.expectancy,calendarState.unit)}</strong></div><div><span>Win rate</span><strong>${s.winRate.toFixed(1)}%</strong></div><div><span>Profit Factor</span><strong>${Number.isFinite(s.pf)?s.pf.toFixed(2):'∞'}</strong></div><div><span>Disciplina</span><strong>${disc===null?'—':disc.toFixed(0)+'%'}</strong></div></div>${(emo.length||beh.length)?`<div class="calendar-context-row"><div><span>Emociones dominantes</span>${top(emo).map(([k,n])=>`<b>${esc(k)} · ${n}</b>`).join('')||'<em>Sin datos</em>'}</div><div><span>Comportamientos observados</span>${top(beh).map(([k,n])=>`<b>${esc(k)} · ${n}</b>`).join('')||'<em>Sin datos</em>'}</div></div>`:''}<div class="calendar-day-table">${ops.length?opsTable([...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate)),calendarState.unit,calendarState.basis):'<div class="empty">Sin operaciones este día.</div>'}</div></section>`;
+}
+function calendarView(){
+  calendarEnsureAnchor();const ops=calendarMonthOps(),stats=calcMetricStats(ops,calendarState.unit,calendarState.basis),unitLabel=metricUnitLabel(calendarState.unit),first=new Date(calendarState.year,calendarState.month,1),lastDay=new Date(calendarState.year,calendarState.month+1,0).getDate(),start=(first.getDay()+6)%7;
+  const dayData=[];let maxAbs=0;for(let day=1;day<=lastDay;day++){const d=new Date(calendarState.year,calendarState.month,day),key=calendarDateKey(d),dayOps=calendarDayOps(ops,key),metric=calendarDayMetric(dayOps);maxAbs=Math.max(maxAbs,Math.abs(metric.value));dayData.push({day,key,ops:dayOps,metric});}maxAbs=maxAbs||1;
+  const cells=[];for(let i=0;i<start;i++)cells.push('<div class="calendar-cell calendar-blank"></div>');
+  dayData.forEach(x=>{const s=calcMetricStats(x.ops,calendarState.unit,calendarState.basis),strength=Math.min(1,Math.abs(x.metric.value)/maxAbs),selected=calendarState.selectedDate===x.key;cells.push(`<button class="calendar-cell calendar-day ${calendarTone(x.metric.value,x.ops.length)} ${selected?'selected':''}" style="--calendar-strength:${strength.toFixed(3)}" onclick="calendarSelectDate('${x.key}')"><div class="calendar-day-head"><strong>${x.day}</strong><span>${x.ops.length?`${x.ops.length} trade${x.ops.length===1?'':'s'}`:''}</span></div><div class="calendar-day-result ${x.metric.value>0?'positive':x.metric.value<0?'negative':''}">${x.ops.length?esc(x.metric.text):'—'}</div>${x.ops.length?`<div class="calendar-day-meta"><span>WR ${s.winRate.toFixed(0)}%</span><span>${calendarDisciplinePct(x.ops)===null?'':`Disc ${calendarDisciplinePct(x.ops).toFixed(0)}%`}</span></div>`:''}</button>`);});
+  while(cells.length%7)cells.push('<div class="calendar-cell calendar-blank"></div>');
+  const monthPf=Number.isFinite(stats.pf)?stats.pf.toFixed(2):(stats.pf===Infinity?'∞':'0.00');
+  const controls=`<div class="calendar-actions"><div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${calendarState.unit===v?'active':''}" onclick="calendarSetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${calendarState.basis===v?'active':''}" onclick="calendarSetBasis('${v}')">${l}</button>`).join('')}</div></div>`;
+  return `${pageHead('Calendario de rendimiento','Lectura diaria, semanal y mensual del Trading Plan. Pulsa un día para inspeccionarlo; vuelve a pulsarlo para resetear.',controls)}${activePlanBanner()}<section class="card panel calendar-panel"><div class="calendar-toolbar"><div class="calendar-month-nav"><button class="btn small" onclick="calendarMoveMonth(-1)">←</button><div><h3>${esc(calendarMonthLabel())}</h3><span>${ops.length} operaciones · ${calendarState.basis==='net'?'Neto':'Bruto'} · ${esc(unitLabel)}</span></div><button class="btn small" onclick="calendarMoveMonth(1)">→</button><button class="btn small ghost" onclick="calendarGoLatest()">Último mes con datos</button></div><label class="calendar-metric-select"><span>Color / valor del día</span><select class="select compact-select" onchange="calendarSetMetric(this.value)"><option value="result" ${calendarState.metric==='result'?'selected':''}>Resultado</option><option value="expectancy" ${calendarState.metric==='expectancy'?'selected':''}>Expectancy</option><option value="winrate" ${calendarState.metric==='winrate'?'selected':''}>Win rate</option><option value="discipline" ${calendarState.metric==='discipline'?'selected':''}>Disciplina</option></select></label></div><div class="calendar-month-kpis"><div><span>Operaciones</span><strong>${stats.n}</strong></div><div><span>Resultado</span><strong class="${stats.sum>0?'positive':stats.sum<0?'negative':''}">${metricStatText(stats.sum,calendarState.unit)}</strong></div><div><span>Expectancy</span><strong class="${stats.expectancy>0?'positive':stats.expectancy<0?'negative':''}">${metricStatText(stats.expectancy,calendarState.unit)}</strong></div><div><span>Win rate</span><strong>${stats.winRate.toFixed(1)}%</strong></div><div><span>Profit Factor</span><strong>${monthPf}</strong></div><div><span>Max DD</span><strong class="${stats.maxDD<0?'negative':''}">${metricStatText(stats.maxDD,calendarState.unit)}</strong></div></div><div class="calendar-weekdays">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<div>${x}</div>`).join('')}</div><div class="calendar-grid">${cells.join('')}</div><div class="calendar-legend"><span><i class="calendar-dot pos"></i> positivo</span><span><i class="calendar-dot neg"></i> negativo</span><span><i class="calendar-dot flat"></i> neutro / sin muestra</span><em>El color representa ${esc(calendarMetricLabel())}; la intensidad depende del mes visible.</em></div></section>${calendarSelectedDetail(ops)}${calendarState.unit==='ticks'?mixedInstrumentWarning(ops):''}`;
+}
+
+const shellV14Base=shell;
+shell=function(){
+  let html=shellV14Base();
+  const labButton=navBtn('lab','⌁','Laboratorio');
+  html=html.replace(labButton,navBtn('calendar','▣','Calendario')+labButton);
+  return html.replace(V131_APP_LABEL,V14_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Research Grid y Exit Lab con R / ticks / US$ sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Calendario avanzado + Research Grid + Exit Lab sobre la misma base estable.');
+};
+
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='lab'?analyticsLab():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{calendarSetUnit,calendarSetBasis,calendarSetMetric,calendarMoveMonth,calendarGoLatest,calendarSelectDate});
+render();
+/* ===== END V14 PATCH ===== */

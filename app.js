@@ -2541,3 +2541,142 @@ shell=function(){
 Object.assign(window,{setExitTpR,setExitBeTrigger});
 render();
 /* ===== END V13 PATCH ===== */
+
+/* ===== V13.1 PATCH · Unidades analíticas completas ===== */
+const V131_APP_LABEL='V13.1 · Unidades analíticas';
+
+function exitRiskTicks(o){
+  const direct=Number(o?.riskTickExposure)||0;
+  if(direct>0)return direct;
+  const r=Number(o?.rMultiple)||0,t=Number(o?.resultTicks)||0;
+  return r?Math.abs(t/r):0;
+}
+function exitRiskUsd(o){
+  const direct=Number(o?.riskUsd)||0;
+  if(direct>0)return direct;
+  const rt=exitRiskTicks(o),tv=Number(o?.instrumentSnapshot?.tickValue)||0;
+  return rt*tv;
+}
+function exitRToMetric(o,r,{unit=labState.unit,basis=labState.basis}={}){
+  r=Number(r)||0;
+  const commission=Number(o?.commission)||0;
+  if(unit==='ticks'){
+    const gross=r*exitRiskTicks(o),tv=Number(o?.instrumentSnapshot?.tickValue)||0;
+    return basis==='net'&&tv?gross-(commission/tv):gross;
+  }
+  if(unit==='usd'){
+    const gross=r*exitRiskUsd(o);
+    return basis==='net'?gross-commission:gross;
+  }
+  if(basis==='net'){
+    const riskUsd=exitRiskUsd(o);
+    return riskUsd?r-(commission/riskUsd):r;
+  }
+  return r;
+}
+function exitObservedMfeMetric(o,unit=labState.unit){
+  // MFE/MAE son excursiones observadas del precio: se convierten de R a la unidad elegida,
+  // pero permanecen brutas aunque el P&L del Laboratorio esté en base neta.
+  return exitRToMetric(o,exitMfe(o),{unit,basis:'gross'});
+}
+function exitObservedMaeMetric(o,unit=labState.unit){
+  return exitRToMetric(o,exitMae(o),{unit,basis:'gross'});
+}
+function exitActualMetric(o){return opMetricValue(o,labState.unit,labState.basis);}
+function exitGivebackMetric(o){return exitRToMetric(o,Math.max(0,exitMfe(o)-exitGrossR(o)),{unit:labState.unit,basis:'gross'});}
+function exitScenarioMetric(o,tpR){return exitMfe(o)>=tpR?exitRToMetric(o,tpR):exitActualMetric(o);}
+function exitMetricFormat(v,{signed=true}={}){
+  v=Number(v)||0;
+  const u=labState.unit;
+  if(u==='usd')return `${signed&&v>0?'+':''}${v.toFixed(2)} US$`;
+  if(u==='ticks')return `${signed&&v>0?'+':''}${v.toFixed(1)}t`;
+  return `${signed&&v>0?'+':''}${v.toFixed(2)}R`;
+}
+function exitUnitBasisLabel(){
+  return `${metricUnitLabel(labState.unit)} ${labState.basis==='net'?'neto':'bruto'} · umbrales en R`;
+}
+function exitScenarioRowsMetric(valid){
+  return [.5,1,1.5,2,2.5,3].map(tp=>{
+    const vals=valid.map(o=>exitScenarioMetric(o,tp)),s=exitStats(vals),hits=valid.filter(o=>exitMfe(o)>=tp).length;
+    return {tp,hits,...s};
+  });
+}
+function exitThresholdRowsMetric(valid){
+  return [.5,1,1.5,2,2.5,3].map(t=>{
+    const reached=valid.filter(o=>exitMfe(o)>=t),neg=reached.filter(o=>exitGrossR(o)<0);
+    const avgFinal=exitAverage(reached.map(exitActualMetric));
+    const giveback=exitAverage(reached.map(exitGivebackMetric));
+    return {t,n:reached.length,neg:neg.length,avgFinal,giveback};
+  });
+}
+
+exitLabModule=function(ops){
+  const total=ops.length,valid=ops.filter(exitHasMfe),validMae=ops.filter(exitHasMae),coverage=total?valid.length/total*100:0;
+  const consistentWins=valid.filter(o=>{const r=exitGrossR(o),m=exitMfe(o);return r>0&&m>0&&r<=m+.05;});
+  const inconsistent=valid.filter(o=>exitGrossR(o)>exitMfe(o)+.05);
+  const capture=exitAverage(consistentWins.map(o=>exitGrossR(o)/exitMfe(o)*100));
+  const giveback=exitAverage(valid.map(exitGivebackMetric));
+  const roundTrips=valid.filter(o=>exitMfe(o)>=1&&exitGrossR(o)<0);
+  const unitLabel=metricUnitLabel(labState.unit),basisLabel=labState.basis==='net'?'neto':'bruto';
+  const quality=`<div class="exit-quality-grid"><div><span>Trades filtrados</span><strong>${total}</strong><small>subconjunto actual</small></div><div><span>MFE utilizable</span><strong>${valid.length}</strong><small>${exitFmtPct(coverage)} cobertura</small></div><div><span>MAE registrado</span><strong>${validMae.length}</strong><small>MAE &gt; 0</small></div><div><span>Control de consistencia</span><strong>${inconsistent.length}</strong><small>MFE &lt; resultado final</small></div></div>`;
+  if(!valid.length){
+    return `<section class="card panel lab-module lab-span-2 exit-lab-module"><div class="panel-title"><div><h3>Exit Lab</h3><small>Eficiencia de salida, giveback y escenarios de TP fijo a partir de MFE</small></div><span class="stable-pill">${esc(exitUnitBasisLabel())}</span></div>${quality}<div class="exit-empty"><strong>Aún no hay MFE utilizable en este subconjunto.</strong><p>Las importaciones actuales guardan MFE/MAE como 0 cuando ese dato no viene informado. Para evitar conclusiones falsas, Exit Lab trata <strong>MFE = 0</strong> como “no distinguible de dato ausente” y no lo usa en simulaciones.</p><p>Los niveles de decisión permanecen expresados en <strong>R</strong>; cuando registres MFE/MAE, los resultados se mostrarán en <strong>${esc(unitLabel)}</strong> según el selector global.</p></div></section>`;
+  }
+
+  const tp=exitLabState.tpR,actualVals=valid.map(exitActualMetric),scenarioVals=valid.map(o=>exitScenarioMetric(o,tp)),actual=exitStats(actualVals),scenario=exitStats(scenarioVals),delta=scenario.sum-actual.sum,hits=valid.filter(o=>exitMfe(o)>=tp).length;
+  const actualEq=exitCumulative(actualVals),scenarioEq=exitCumulative(scenarioVals);
+  const metricRow=(label,a,b)=>{const d=Number(b)-Number(a);return `<tr><th>${label}</th><td class="${exitResultClass(a)}">${exitMetricFormat(a)}</td><td class="${exitResultClass(b)}">${exitMetricFormat(b)}</td><td class="${exitResultClass(d)}">${exitMetricFormat(d)}</td></tr>`;};
+  const pfDelta=Number.isFinite(actual.pf)&&Number.isFinite(scenario.pf)?scenario.pf-actual.pf:null;
+  const pfRow=`<tr><th>Profit Factor</th><td>${exitPf(actual.pf)}</td><td>${exitPf(scenario.pf)}</td><td class="${pfDelta===null?'':exitResultClass(pfDelta)}">${pfDelta===null?'—':`${pfDelta>0?'+':''}${pfDelta.toFixed(2)}`}</td></tr>`;
+  const tpRows=exitScenarioRowsMetric(valid),thresholds=exitThresholdRowsMetric(valid);
+  const be=exitLabState.beTrigger,beTriggered=valid.filter(o=>exitMfe(o)>=be),beNeg=beTriggered.filter(o=>exitGrossR(o)<0);
+  const beFinalLoss=Math.abs(beNeg.reduce((s,o)=>s+Math.min(0,exitActualMetric(o)),0));
+  const mfeMean=exitAverage(valid.map(o=>exitObservedMfeMetric(o)));
+
+  return `<section class="card panel lab-module lab-span-2 exit-lab-module">
+    <div class="panel-title"><div><h3>Exit Lab</h3><small>MFE → captura del recorrido, cesión desde máximos y escenarios inferibles de salida</small></div><span class="stable-pill">${esc(exitUnitBasisLabel())}</span></div>
+    ${quality}
+    <div class="exit-observed-grid">
+      <div class="exit-observed-card"><span>Captura media de ganadoras</span><strong>${consistentWins.length?exitFmtPct(capture):'—'}</strong><small>${consistentWins.length} ganadoras con MFE consistente</small></div>
+      <div class="exit-observed-card"><span>Cesión media desde MFE</span><strong>${exitMetricFormat(giveback,{signed:false})}</strong><small>recorrido cedido · excursión bruta</small></div>
+      <div class="exit-observed-card"><span>+1R alcanzado → cierre negativo</span><strong>${roundTrips.length}</strong><small>umbral estructural en R</small></div>
+      <div class="exit-observed-card"><span>MFE medio utilizable</span><strong>${exitMetricFormat(mfeMean,{signed:false})}</strong><small>MFE observado convertido a ${esc(unitLabel)}</small></div>
+    </div>
+
+    <div class="exit-section-head"><div><h4>Escenario · TP fijo</h4><p>El objetivo sigue definido en R. El resultado del escenario se convierte operación por operación a ${esc(unitLabel)} (${basisLabel}).</p></div><label><span>TP hipotético</span><select class="select compact-select" onchange="setExitTpR(this.value)">${[.5,1,1.5,2,2.5,3].map(v=>`<option value="${v}" ${tp===v?'selected':''}>${v}R</option>`).join('')}</select></label></div>
+    <div class="exit-scenario-grid">
+      <div class="exit-equity-card"><div class="exit-legend"><span><i class="raw-dot"></i>Salida real · ${esc(unitLabel)}</span><span><i class="managed-dot"></i>TP fijo ${tp}R</span></div><div class="dual-chart">${dualEquitySvg(actualEq,scenarioEq)}</div><small>${valid.length} operaciones con MFE utilizable · ${hits} alcanzaron ${tp}R · curva en ${esc(unitLabel)} ${basisLabel}</small></div>
+      <div class="exit-compare-table"><table><thead><tr><th>Métrica</th><th>Real</th><th>TP ${tp}R</th><th>Δ</th></tr></thead><tbody>${metricRow('Resultado',actual.sum,scenario.sum)}${metricRow('Expectancy',actual.expectancy,scenario.expectancy)}${pfRow}${metricRow('Max DD',actual.maxDD,scenario.maxDD)}</tbody></table><div class="exit-delta-callout"><span>Impacto acumulado del escenario</span><strong class="${exitResultClass(delta)}">${exitMetricFormat(delta)}</strong></div></div>
+    </div>
+
+    <div class="exit-two-tables">
+      <div><div class="exit-subtitle"><h4>Mapa de objetivos fijos</h4><small>TP en R; resultados en ${esc(unitLabel)} ${basisLabel}.</small></div><div class="exit-table-wrap"><table class="exit-table"><thead><tr><th>TP</th><th>Alcanzado</th><th>Resultado</th><th>Exp.</th><th>PF</th></tr></thead><tbody>${tpRows.map(r=>`<tr class="${tp===r.tp?'active':''}" onclick="setExitTpR(${r.tp})"><th>${r.tp.toFixed(1)}R</th><td>${r.hits}/${valid.length}</td><td class="${exitResultClass(r.sum)}">${exitMetricFormat(r.sum)}</td><td class="${exitResultClass(r.expectancy)}">${exitMetricFormat(r.expectancy)}</td><td>${exitPf(r.pf)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div><div class="exit-subtitle"><h4>Qué ocurre después de alcanzar R</h4><small>Umbrales en R; cierres y cesión en ${esc(unitLabel)}.</small></div><div class="exit-table-wrap"><table class="exit-table"><thead><tr><th>Nivel</th><th>Llegaron</th><th>Acabaron −</th><th>Cierre medio</th><th>Cesión</th></tr></thead><tbody>${thresholds.map(r=>`<tr><th>${r.t.toFixed(1)}R</th><td>${r.n}</td><td>${r.neg}</td><td class="${exitResultClass(r.avgFinal)}">${r.n?exitMetricFormat(r.avgFinal):'—'}</td><td>${r.n?exitMetricFormat(r.giveback,{signed:false}):'—'}</td></tr>`).join('')}</tbody></table></div></div>
+    </div>
+
+    <div class="exit-be-panel"><div class="exit-section-head"><div><h4>Diagnóstico Break Even</h4><p>El trigger permanece en R; el impacto observado se expresa en ${esc(unitLabel)}.</p></div><label><span>Trigger BE</span><select class="select compact-select" onchange="setExitBeTrigger(this.value)">${[.5,.75,1,1.5,2].map(v=>`<option value="${v}" ${be===v?'selected':''}>+${v}R</option>`).join('')}</select></label></div><div class="exit-be-grid"><div><span>Alcanzaron trigger</span><strong>${beTriggered.length}</strong></div><div><span>Después cerraron negativos</span><strong>${beNeg.length}</strong></div><div><span>Pérdida final de esos casos</span><strong class="${beFinalLoss?'negative':''}">${beFinalLoss?`−${exitMetricFormat(beFinalLoss,{signed:false})}`:exitMetricFormat(0,{signed:false})}</strong></div><div><span>Secuencia no resoluble</span><strong>${Math.max(0,beTriggered.length-beNeg.length)}</strong></div></div><div class="lab-note warn">Un trade que alcanzó +${be}R y terminó negativo necesariamente devolvió el recorrido hacia la zona de entrada, salvo gaps/slippage. Aun así, <strong>no calculamos un resultado BE para todos los trades</strong>: con solo MAE/MFE no conocemos el orden exacto de los movimientos.</div></div>
+
+    <div class="exit-method-note"><strong>Lectura de unidades:</strong> R sigue definiendo los umbrales comparables entre operaciones (MFE, TP y trigger BE). P&L, expectancy, drawdown, equity, cierre medio y cesión se convierten operación por operación a <strong>${esc(unitLabel)}</strong> y respetan la base <strong>${basisLabel}</strong>. MFE/MAE observados se mantienen brutos porque describen excursión del precio.</div>
+  </section>`;
+};
+
+// Research Grid ya calculaba con la unidad global; V13.1 lo hace explícito en la cabecera
+// para que sea inequívoco cuándo una matriz está en R, ticks o US$.
+const researchGridModuleV131Base=researchGridModule;
+researchGridModule=function(ops){
+  let html=researchGridModuleV131Base(ops);
+  const unitAware=!['winrate','pf','n'].includes(researchGridState.metric);
+  const badge=unitAware?`${metricUnitLabel(labState.unit)} · ${labState.basis==='net'?'Neto':'Bruto'}`:'Métrica adimensional';
+  html=html.replace(`<span>${ops.length} operaciones</span>`,`<div class="panel-tools"><span class="stable-pill">${esc(badge)}</span><span>${ops.length} operaciones</span></div>`);
+  return html;
+};
+
+const shellV131Base=shell;
+shell=function(){
+  return shellV131Base()
+    .replace(V13_APP_LABEL,V131_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Research Grid y Exit Lab con R / ticks / US$ sobre la misma base estable.');
+};
+
+render();
+/* ===== END V13.1 PATCH ===== */

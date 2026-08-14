@@ -21,3 +21,9 @@ El modelo actual guarda un MFE vacío como `0`. Para no confundir un dato ausent
 ## Infraestructura
 
 No requiere SQL nuevo ni cambios en Supabase/Cloudflare. Continúa usando los mismos seis archivos raíz del proyecto.
+
+
+## V13.1 · Unidades analíticas completas
+- Research Grid hace explícita la unidad analítica global (R, ticks o US$) y la base Bruto/Neto.
+- Exit Lab mantiene TP/MFE/BE estructurados en R, pero convierte P&L, expectancy, equity, drawdown, cierres y cesión a la unidad global operación por operación.
+- MFE/MAE observados siguen siendo excursiones brutas del precio.

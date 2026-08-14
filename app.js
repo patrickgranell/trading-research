@@ -1734,3 +1734,121 @@ shell=function(){return shellV11Base().replace(V10_APP_LABEL,V11_APP_LABEL).repl
 Object.assign(window,{saveCurrentPlanToLibrary,openLibraryPicker,confirmLibraryPicker,addSingleLibraryItem,archiveLibraryFamily,restoreLibraryFamily,openPlanFromLibraryModal,createPlanFromLibrary,deleteTaxonomyAsset});
 render();
 /* ===== END V11 PATCH ===== */
+
+/* ===== V11.1 PATCH · Simple Reusable Library ===== */
+const V111_APP_LABEL='V11.1 · Biblioteca Simple';
+
+function simpleLibraryItems(){
+  const lib=ensureMasterLibrary();
+  const grouped=new Map();
+  lib.items.filter(i=>i.status!=='archived').forEach(i=>{
+    const k=`${i.type}::${i.name}`;
+    const prev=grouped.get(k);
+    if(!prev||new Date(i.updatedAt||i.createdAt||0)>new Date(prev.updatedAt||prev.createdAt||0))grouped.set(k,i);
+  });
+  return [...grouped.values()].sort((a,b)=>libraryTypeOrder(a.type)-libraryTypeOrder(b.type)||a.name.localeCompare(b.name,'es'));
+}
+function simpleLibraryItemByName(type,name){return simpleLibraryItems().find(i=>i.type===type&&i.name===name)||null;}
+function simpleTemplateDescriptor(type,ref,p=getCurrentPlan()){
+  if(!p)return null;ensurePlanV8Structure(p);const clean=decodeURIComponent(String(ref||''));
+  if(['setup','vd','context'].includes(type)){
+    const d=getTaxonomyDef(type,clean,p);return d?{type,name:d.key,payload:clone(d)}:null;
+  }
+  if(type==='nr')return (p.nr||[]).includes(clean)?{type,name:clean,payload:{name:clean}}:null;
+  if(type==='hypothesis'){
+    const h=(p.hypotheses||[]).find(x=>x.id===clean||x.name===clean);return h?{type,name:h.name,payload:clone(h)}:null;
+  }
+  if(type==='riskStrategy'){
+    const r=(p.riskStrategies||[]).find(x=>x.id===clean||x.name===clean);return r?{type,name:r.name,payload:clone(r)}:null;
+  }
+  if(type==='riskRules')return {type,name:'Reglas de gestión del riesgo',payload:clone(p.riskManagement||basePlanConfig.riskManagement)};
+  if(type==='discretionaryTarget')return (p.discretionaryTargets||[]).includes(clean)?{type,name:clean,payload:{name:clean}}:null;
+  return null;
+}
+function simpleTemplateIsSaved(type,ref){
+  const d=simpleTemplateDescriptor(type,ref);if(!d)return false;const i=simpleLibraryItemByName(type,d.name);return !!(i&&libraryPayloadEqual(type,i.payload,d.payload));
+}
+function simpleSaveButton(type,ref){
+  const saved=simpleTemplateIsSaved(type,ref);const token=encodeURIComponent(String(ref||''));
+  return `<button class="btn small ${saved?'':'primary'}" onclick="savePlanItemToLibrary('${type}','${token}')" ${saved?'disabled':''}>${saved?'Guardado':'Guardar'}</button>`;
+}
+function savePlanItemToLibrary(type,ref){
+  const p=getCurrentPlan(),d=simpleTemplateDescriptor(type,ref,p);if(!d)return alert('No se encontró ese elemento en el Trading Plan actual.');
+  const lib=ensureMasterLibrary(),sameName=lib.items.filter(i=>i.type===type&&i.name===d.name);
+  const exact=sameName.find(i=>i.status!=='archived'&&libraryPayloadEqual(type,i.payload,d.payload));
+  if(exact){render();return;}
+  const now=new Date().toISOString();
+  if(sameName.length){
+    if(!confirm(`Ya existe "${d.name}" en la Biblioteca.\n\n¿Reemplazar la copia guardada por la versión actual de este Trading Plan?`))return;
+    const keep=sameName.sort((a,b)=>new Date(b.updatedAt||0)-new Date(a.updatedAt||0))[0];
+    keep.payload=clone(d.payload);keep.name=d.name;keep.status='active';keep.version=1;keep.updatedAt=now;keep.sourcePlanId=p.id;keep.sourcePlanLabel=planLabel(p);
+    lib.items=lib.items.filter(i=>i===keep||!(i.type===type&&i.name===d.name));
+  }else{
+    lib.items.push({id:uid('LIB'),familyId:uid('LIBF'),type,name:d.name,version:1,status:'active',createdAt:now,updatedAt:now,sourcePlanId:p.id,sourcePlanLabel:planLabel(p),payload:clone(d.payload)});
+  }
+  lib.updatedAt=now;persist();render();
+}
+function simplePayloadImageIds(payload){
+  const p=payload||{};return [...(p.images||[]),...(p.imagesLong||[]),...(p.imagesShort||[])].map(x=>x?.id).filter(Boolean);
+}
+async function deleteSavedLibraryItem(id){
+  const lib=ensureMasterLibrary(),item=lib.items.find(i=>i.id===id);if(!item)return;
+  if(!confirm(`¿Eliminar "${item.name}" de la Biblioteca?\n\nNo se borrará de ningún Trading Plan donde ya lo hayas añadido.`))return;
+  const targets=lib.items.filter(i=>i.type===item.type&&i.name===item.name),imageIds=targets.flatMap(i=>simplePayloadImageIds(i.payload));
+  const familyIds=new Set(targets.map(i=>i.familyId)),itemIds=new Set(targets.map(i=>i.id));
+  lib.items=lib.items.filter(i=>!(i.type===item.type&&i.name===item.name));lib.updatedAt=new Date().toISOString();
+  state.tradingPlans.forEach(p=>{p.libraryLinks=(p.libraryLinks||[]).filter(x=>!familyIds.has(x.familyId)&&!itemIds.has(x.itemId));});
+  const refs=new Set(collectReferencedImageIds());for(const imgId of imageIds)if(!refs.has(imgId))await deleteImageBlob(imgId);
+  persist();render();
+}
+function addSimpleLibraryItem(id){
+  const p=getCurrentPlan(),item=simpleLibraryItems().find(i=>i.id===id);if(!p||!item)return;
+  if(item.type==='riskRules'&&!confirm('Esto reemplazará las reglas de gestión de riesgo del Trading Plan actual. ¿Continuar?'))return;
+  const r=applyLibraryItemToPlan(item,p);if(r.status==='exists')return alert('Ese elemento ya existe en el Trading Plan actual.');
+  persist();render();
+}
+function simpleLibrarySummary(i){
+  const p=i.payload||{};
+  if(['setup','vd','context'].includes(i.type))return `${(p.timeframes||[]).join(', ')||'Sin timeframe'}${p.description?` · ${p.description}`:''}`;
+  if(i.type==='hypothesis')return p.description||'Hipótesis guardada';
+  if(i.type==='riskStrategy')return `ATR ${p.atrMin??'—'}–${p.atrMax??'—'} · ${(p.lots||[]).length} lote(s)`;
+  if(i.type==='riskRules')return 'Reglas diarias y semanales guardadas';
+  return 'Plantilla reutilizable';
+}
+function simpleLibraryPanel(){
+  const p=getCurrentPlan(),items=simpleLibraryItems(),types=['setup','vd','context','nr','hypothesis','riskStrategy','riskRules','discretionaryTarget'];
+  const group=type=>{const rows=items.filter(i=>i.type===type);if(!rows.length)return '';return `<section class="card panel config-wide master-lib-section"><div class="panel-title"><div><h3>${libraryTypeLabel(type)}</h3><div class="help">${rows.length} guardado(s)</div></div></div><div class="master-lib-grid">${rows.map(i=>{const exists=type!=='riskRules'&&planHasLibraryEquivalent(p,i);return `<article class="master-lib-card"><div class="master-lib-head"><div><strong>${esc(i.name)}</strong></div></div><div class="master-lib-meta">${esc(simpleLibrarySummary(i))}${i.sourcePlanLabel?`<br>Guardado desde: ${esc(i.sourcePlanLabel)}`:''}</div><div class="master-lib-actions"><button class="btn small primary" onclick="addSimpleLibraryItem('${i.id}')" ${exists?'disabled':''}>${exists?'Ya está en este plan':'Añadir al plan'}</button><button class="btn small danger" onclick="deleteSavedLibraryItem('${i.id}')">Eliminar</button></div></article>`;}).join('')}</div></section>`;};
+  return `<section class="card panel config-wide master-lib-hero"><div class="panel-title"><div><h3>Biblioteca</h3><div class="help">Tu cajón de plantillas reutilizables. Guarda cada elemento desde su propia ficha y recupéralo en cualquier Trading Plan.</div></div></div><div class="master-lib-kpis"><div><span>Elementos guardados</span><strong>${items.length}</strong></div><div><span>Setups</span><strong>${items.filter(i=>i.type==='setup').length}</strong></div><div><span>Contextos</span><strong>${items.filter(i=>i.type==='context').length}</strong></div><div><span>VD</span><strong>${items.filter(i=>i.type==='vd').length}</strong></div><div><span>Estrategias</span><strong>${items.filter(i=>i.type==='riskStrategy').length}</strong></div></div><div class="notice">Uso: entra en Taxonomías, Gestión o Riesgo y pulsa <strong>Guardar</strong> junto al elemento que quieras conservar. Aquí podrás añadirlo al plan activo o eliminarlo de la Biblioteca sin afectar a los planes que ya lo usan.</div></section>${items.length?types.map(group).join(''):'<section class="card panel config-wide"><div class="empty">Todavía no has guardado ninguna plantilla. Empieza pulsando Guardar en un Setup, VD, Contexto, Hipótesis, Estrategia o regla de riesgo.</div></section>'}`;
+}
+
+taxonomyCard=function(type,def){
+  const time=badgeList(def.timeframes),desc=esc(def.description||def.specs||'Sin descripción aún.');
+  const media=type==='setup'?`<div class="taxonomy-media-grid"><div><small>Largo</small>${richImageStrip(def.imagesLong,'long')}</div><div><small>Corto</small>${richImageStrip(def.imagesShort,'short')}</div></div>`:`<div class="taxonomy-media-grid single"><div><small>Referencia visual</small>${richImageStrip(def.images,'ejemplo')}</div></div>`;
+  return `<article class="taxonomy-card"><div class="taxonomy-head"><div><strong>${esc(def.key)}</strong><div class="taxonomy-sub">${time}</div></div><div class="taxonomy-actions"><button class="btn small" onclick="openTaxonomyAssetModal('${type}','${encodeURIComponent(def.key)}')">Editar</button>${simpleSaveButton(type,def.key)}<button class="btn small danger" onclick="deleteTaxonomyAsset('${type}','${encodeURIComponent(def.key)}')">Eliminar</button></div></div><p>${desc}</p>${def.specs?`<div class="taxonomy-specs">${esc(def.specs)}</div>`:''}${media}</article>`;
+};
+referenceGalleryCard=function(type,def){
+  const label=taxonomyLabel(type),media=type==='setup'?`<div class="reference-showcase split"><div><small>LONG</small>${richImageStrip(def.imagesLong,'long')}</div><div><small>SHORT</small>${richImageStrip(def.imagesShort,'short')}</div></div>`:`<div class="reference-showcase">${richImageStrip(def.images,'ref')}</div>`;
+  return `<article class="reference-gallery-card"><div class="reference-gallery-head"><div><span class="badge">${label}</span><strong>${esc(def.key)}</strong></div><span class="tf-pack">${badgeList(def.timeframes)}</span></div><p>${esc(def.description||def.specs||'Sin notas')}</p>${def.specs?`<div class="taxonomy-specs">${esc(def.specs)}</div>`:''}${media}<div class="gallery-edit-row"><button class="btn small" onclick="openTaxonomyAssetModal('${type}','${encodeURIComponent(def.key)}')">Editar ficha</button>${simpleSaveButton(type,def.key)}</div></article>`;
+};
+configCard=function(title,desc,key){
+  const p=getCurrentPlan(),arr=p?.[key]||[],type=key==='nr'?'nr':key==='discretionaryTargets'?'discretionaryTarget':null;
+  return `<section class="card panel"><div class="panel-title"><h3>${title}</h3><span>${desc}</span></div><div class="config-list">${arr.map((x,i)=>`<div class="config-row"><div class="config-main"><div class="config-name">${esc(x)}</div><div class="config-meta">Disponible dentro de ${esc(planLabel(p))}</div></div><div class="taxonomy-actions">${type?simpleSaveButton(type,x):''}<button class="btn small danger" onclick="removeConfig('${key}',${i})">Eliminar</button></div></div>`).join('')||'<div class="empty">Sin categorías.</div>'}</div><div class="inline-add"><input id="new-${key}" class="input" placeholder="Añadir categoría…"><button class="btn small" onclick="addConfig('${key}')">Añadir</button></div></section>`;
+};
+hypothesisSection=function(p){
+  return `<section class="card panel"><div class="panel-title"><h3>Hipótesis</h3><span>Definiciones propias del plan</span></div><div class="config-list">${(p?.hypotheses||[]).map(h=>`<div class="config-row"><div class="config-main"><div class="config-name">${esc(h.name)} <span class="badge">${esc(h.id)}</span></div><div class="config-meta">${esc(h.description||'Sin descripción')}</div></div><div class="taxonomy-actions"><button class="btn small" onclick="editHyp('${h.id}')">Editar</button>${simpleSaveButton('hypothesis',h.id)}</div></div>`).join('')||'<div class="empty">Sin hipótesis configuradas.</div>'}</div><div class="inline-add"><input id="new-hypothesis" class="input" placeholder="Nombre de nueva hipótesis"><button class="btn small" onclick="addHypothesis()">Añadir</button></div></section>`;
+};
+riskCard=function(r){
+  const c=riskCalc(r),inst=c.inst;return `<div class="config-row risk-card"><div class="config-main"><div class="config-name">${esc(r.name)} <span class="badge">${esc(r.id)}</span> ${r.active===false?'<span class="badge">Inactiva</span>':''}</div><div class="config-meta">ATR ${r.atrMin}–${r.atrMax} · ${esc(inst?.symbol||'Sin contrato')} · ${c.contracts} contrato(s) · riesgo teórico ${money(c.riskUsd,inst?.currency)} · comisión estimada ${money(c.commission,inst?.currency)}</div><div class="chips">${(r.lots||[]).map((l,i)=>`<span class="tag">L${i+1}: ${l.quantity} ct · SL ${l.stopTicks}t · ${l.targetType==='ticks'?`TP ${l.targetTicks}t${l.stopTicks?` (${(l.targetTicks/l.stopTicks).toFixed(2)}R bruta)`:''}`:`TP ${esc(l.targetRule||'discrecional')}`}</span>`).join('')}</div></div><div class="taxonomy-actions"><button class="btn small" onclick="openRiskModal('${r.id}')">Editar</button>${simpleSaveButton('riskStrategy',r.id)}</div></div>`;
+};
+riskManagementPanel=function(p){
+  const r=p?.riskManagement||basePlanConfig.riskManagement;return `<section class="card panel config-wide" style="margin-top:16px"><div class="panel-title"><div><h3>Normas de gestión de riesgo · ${esc(planLabel(p))}</h3><div class="help">La estadística puede simular cronológicamente qué operaciones habrías podido tomar después de aplicar estas reglas.</div></div><div class="master-lib-actions"><button class="btn small" onclick="openRiskManagementModal()">Editar reglas</button>${simpleSaveButton('riskRules','riskRules')}</div></div><div class="risk-rule-cards"><div><span>Diario</span><strong>${esc(ruleConfigText(r.daily,'daily'))}</strong></div><div><span>Semanal</span><strong>${esc(ruleConfigText(r.weekly,'weekly'))}</strong></div></div><div class="notice" style="margin-top:12px">El trade que alcanza un límite sí cuenta; se excluyen las operaciones posteriores. El filtro se aplica sobre el subconjunto temporal/contextual que tengas seleccionado en Operaciones.</div></section>`;
+};
+
+configTabs=function(p){const tabs=[['instruments','Contratos','Biblioteca global'],['library','Biblioteca','Plantillas guardadas'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales'],['data','Datos y seguridad','Backup e integridad'],['cloud','Nube','Supabase y sincronización']];return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`;};
+configContent=function(p){if(configTab==='library')return simpleLibraryPanel();return configContentV11Base(p);};
+plansView=function(){return plansViewV11Base();};
+const shellV111Base=shell;
+shell=function(){return shellV111Base().replace(V11_APP_LABEL,V111_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Biblioteca Maestra y Laboratorio trabajan encima de la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Biblioteca reutilizable simple y Laboratorio trabajan encima de la misma base estable.');};
+Object.assign(window,{savePlanItemToLibrary,deleteSavedLibraryItem,addSimpleLibraryItem});
+render();
+/* ===== END V11.1 PATCH ===== */

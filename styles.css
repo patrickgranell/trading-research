@@ -80,7 +80,7 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .empty-strip{color:#7f97bb;font-size:12px}
 .reference-gallery-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
 .reference-showcase.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.gallery-edit-row{display:flex;justify-content:flex-end}
+.gallery-edit-row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .config-wide+.config-wide{margin-top:16px}
 @media (max-width: 900px){.taxonomy-media-grid,.reference-showcase.split{grid-template-columns:1fr}}
 /* ===== END V8 styles ===== */

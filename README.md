@@ -1,21 +1,20 @@
-# Trading Research V11 — Biblioteca Maestra
+# Trading Research V11.1 — Biblioteca Simple
 
-Esta versión parte de V10 y mantiene intacto el motor V9.2 Conflict Guard. Añade una Biblioteca Maestra global para reutilizar material entre Trading Plans sin volver a escribirlo.
+Esta versión parte de V11/V10 y mantiene intacto el motor V9.2 Conflict Guard. Simplifica la reutilización de material entre Trading Plans.
 
-## Biblioteca Maestra
+## Biblioteca simple
 
-- Guarda Setups, VD, Contextos, NR, Hipótesis, Estrategias de gestión, reglas de gestión del riesgo y salidas discrecionales.
-- Importación masiva del material del Trading Plan activo.
-- Si un elemento no cambia, no se duplica; si cambia, se crea una nueva versión.
-- Los Trading Plans reciben snapshots independientes: una versión nueva de la Biblioteca no reescribe planes anteriores.
-- Selector múltiple para añadir material de Biblioteca al plan activo.
-- Creación de un Trading Plan nuevo directamente desde la Biblioteca.
-- Archivado no destructivo de familias de material.
-- Las referencias de imagen de la Biblioteca participan en backup y sincronización de Storage.
+- Cada Setup, VD, Contexto, NR, Hipótesis, Estrategia de gestión, regla de gestión del riesgo y salida discrecional tiene un botón **Guardar** junto a sus acciones.
+- Al pulsar **Guardar**, se crea una copia independiente en **Configuración → Biblioteca**.
+- Si vuelves a guardar un elemento con el mismo nombre después de modificarlo, la aplicación pregunta si quieres reemplazar la copia guardada.
+- La Biblioteca muestra acciones simples: **Añadir al plan** y **Eliminar**.
+- Añadir una plantilla copia el contenido al Trading Plan activo; editarla después dentro del plan no modifica la plantilla guardada.
+- Eliminar una plantilla de Biblioteca no borra el elemento de ningún Trading Plan donde ya se haya usado.
+- Las imágenes de Setups, VD y Contextos se conservan mediante las referencias existentes y siguen participando en Supabase Storage.
 
 ## Nube y seguridad
 
-No requiere SQL nuevo. La Biblioteca Maestra viaja dentro del payload versionado de los Trading Plans, por lo que utiliza las tablas Supabase existentes y sigue protegida por Safe Sync, Conflict Guard y snapshots.
+No requiere SQL nuevo. La Biblioteca sigue viajando dentro del payload sincronizado existente, protegida por Safe Sync, Conflict Guard y snapshots.
 
 ## Laboratorio
 

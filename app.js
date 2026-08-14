@@ -4258,3 +4258,122 @@ shell=function(){
 Object.assign(window,{wfSetMode,wfSetSplit,wfSetInitialTrain,wfSetTestSize});
 render();
 /* ===== END V24 PATCH ===== */
+
+/* ===== V25 PATCH · Hipótesis congeladas / OOS Forward ===== */
+const V25_APP_LABEL='V25 · Forward OOS';
+
+function ensurePlanForwardTests(p){
+  if(!p)return p;
+  if(!Array.isArray(p.forwardTests))p.forwardTests=[];
+  p.forwardTests=p.forwardTests.map(t=>({
+    id:t.id||uid('FWD'),
+    name:String(t.name||'Hipótesis congelada'),
+    description:String(t.description||''),
+    status:t.status==='closed'?'closed':'active',
+    createdAt:t.createdAt||new Date().toISOString(),
+    closedAt:t.closedAt||'',
+    targetN:[20,50,100,200].includes(Number(t.targetN))?Number(t.targetN):50,
+    lab:{...labStudyDefaultState(),...(t.lab||{})},
+    baselineOpIds:Array.isArray(t.baselineOpIds)?t.baselineOpIds:[],
+    finalOpIds:Array.isArray(t.finalOpIds)?t.finalOpIds:[],
+    sourceStudyId:String(t.sourceStudyId||''),
+    sourceStudyName:String(t.sourceStudyName||''),
+    discoveryStats:t.discoveryStats&&typeof t.discoveryStats==='object'?t.discoveryStats:null
+  }));
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanForwardTests);
+const makeBlankPlanV25Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV25Base(meta);ensurePlanForwardTests(p);return p;};
+const normalizePlanV25Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV25Base(p,instruments);ensurePlanForwardTests(out);return out;};
+const normalizeStateV25Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV25Base(raw);(out.tradingPlans||[]).forEach(ensurePlanForwardTests);return out;};
+
+function compactStatsSnapshot(s){
+  if(!s)return null;
+  return {n:Number(s.n)||0,sum:Number(s.sum)||0,expectancy:Number(s.expectancy)||0,winRate:Number(s.winRate)||0,pf:Number.isFinite(s.pf)?Number(s.pf):null,pfInfinite:s.pf===Infinity,maxDD:Number(s.maxDD)||0,ciLow95:Number.isFinite(s.ciLow95)?Number(s.ciLow95):null,ciHigh95:Number.isFinite(s.ciHigh95)?Number(s.ciHigh95):null};
+}
+function forwardFrozenOps(t){
+  const all=labFilteredOpsForState(t?.lab||{}),baseline=new Set(t?.baselineOpIds||[]);
+  if(t?.status==='closed'&&Array.isArray(t.finalOpIds)&&t.finalOpIds.length){const ids=new Set(t.finalOpIds);return all.filter(o=>ids.has(o.id));}
+  return all.filter(o=>!baseline.has(o.id));
+}
+function forwardDiscoveryStats(t){
+  const s=t?.discoveryStats;
+  if(s&&typeof s==='object')return s;
+  const baseline=new Set(t?.baselineOpIds||[]),ops=labFilteredOpsForState(t?.lab||{}).filter(o=>baseline.has(o.id));
+  return compactStatsSnapshot(calcMetricStats(ops,t?.lab?.unit||'r',t?.lab?.basis||'net'));
+}
+function forwardPfText(s){return s?.pfInfinite?'∞':Number.isFinite(s?.pf)?Number(s.pf).toFixed(2):'—';}
+function forwardMetric(v,t){return Number.isFinite(Number(v))?metricStatText(Number(v),t?.lab?.unit||'r'):'—';}
+function forwardEvidence(stats){
+  if(!stats||stats.n<2)return {label:'Sin estimar',cls:''};
+  if(stats.n<20)return {label:'Exploratoria',cls:''};
+  if(Number.isFinite(stats.ciLow95)&&stats.ciLow95>0)return {label:'Evidencia positiva',cls:'positive'};
+  if(Number.isFinite(stats.ciHigh95)&&stats.ciHigh95<0)return {label:'Evidencia negativa',cls:'negative'};
+  return {label:'Inconclusa',cls:''};
+}
+function forwardSourceLabel(t){
+  if(t?.sourceStudyName)return `Estudio: ${t.sourceStudyName}`;
+  const sum=studyFilterSummary({lab:t?.lab||{}});return sum||'Configuración congelada';
+}
+function openFreezeHypothesisModal(){
+  const p=getCurrentPlan();if(!p)return;ensurePlanForwardTests(p);
+  const active=p.savedStudies?.find?.(x=>x.id===labStudiesUi.activeId);
+  const defaultName=active?.name?`${active.name} · OOS`:`Hipótesis OOS ${p.forwardTests.length+1}`;
+  const summary=studyFilterSummary({lab:labState});
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Congelar hipótesis para validación futura</h4><div class="form-grid">${field('Nombre','forward-name','text',esc(defaultName))}${selectObjField('Objetivo de operaciones nuevas','forward-target',[{value:'20',label:'20 operaciones'},{value:'50',label:'50 operaciones'},{value:'100',label:'100 operaciones'},{value:'200',label:'200 operaciones'}],'50')}${field('Hipótesis / criterio de éxito','forward-description','textarea',esc(active?.description||''),'full')}</div><div class="notice" style="margin-top:12px"><strong>Configuración que se congelará:</strong> ${esc(summary)}<br>Unidad/base: ${esc(metricUnitLabel(labState.unit))} · ${labState.basis==='net'?'Neto':'Bruto'}. La definición no podrá editarse después; solo se medirán operaciones añadidas tras este momento que cumplan estos filtros.</div></div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Nueva validación forward / OOS',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="freezeCurrentHypothesis()">Congelar hipótesis</button>`));
+}
+function freezeCurrentHypothesis(){
+  const p=getCurrentPlan();if(!p)return;ensurePlanForwardTests(p);
+  const name=(document.getElementById('f-forward-name')?.value||'').trim();if(!name)return alert('Escribe un nombre para la hipótesis.');
+  const targetN=Number(document.getElementById('f-forward-target')?.value)||50;
+  const active=p.savedStudies?.find?.(x=>x.id===labStudiesUi.activeId);
+  const lab=clone(currentStudySnapshot().lab),baselineOps=currentOps(),historical=labFilteredOpsForState(lab),stats=calcMetricStats(historical,lab.unit||'r',lab.basis||'net'),now=new Date().toISOString();
+  p.forwardTests.unshift({id:uid('FWD'),name,description:(document.getElementById('f-forward-description')?.value||'').trim(),status:'active',createdAt:now,closedAt:'',targetN:[20,50,100,200].includes(targetN)?targetN:50,lab,baselineOpIds:baselineOps.map(o=>o.id),finalOpIds:[],sourceStudyId:active?.id||'',sourceStudyName:active?.name||'',discoveryStats:compactStatsSnapshot(stats)});
+  p.updatedAt=now;persist();closeModal();render();
+}
+function loadForwardFilters(id){
+  const p=getCurrentPlan();ensurePlanForwardTests(p);const t=p.forwardTests.find(x=>x.id===id);if(!t)return;
+  labState={...labStudyDefaultState(),...clone(t.lab||{})};labStudiesUi.activeId='';labStudiesUi.compareId='';render();
+}
+function closeForwardTest(id){
+  const p=getCurrentPlan();ensurePlanForwardTests(p);const t=p.forwardTests.find(x=>x.id===id);if(!t||t.status==='closed')return;
+  const ops=forwardFrozenOps(t);if(!confirm(`Cerrar la validación “${t.name}” con ${ops.length} operación(es) OOS?\n\nDespués quedará congelado también el resultado y nuevas operaciones ya no entrarán.`))return;
+  t.finalOpIds=ops.map(o=>o.id);t.status='closed';t.closedAt=new Date().toISOString();p.updatedAt=t.closedAt;persist();render();
+}
+function deleteForwardTest(id){
+  const p=getCurrentPlan();ensurePlanForwardTests(p);const t=p.forwardTests.find(x=>x.id===id);if(!t)return;if(!confirm(`Eliminar la validación “${t.name}”?\n\nNo se eliminará ninguna operación.`))return;
+  p.forwardTests=p.forwardTests.filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();persist();render();
+}
+function forwardTestCard(t){
+  const ops=forwardFrozenOps(t),u=t.lab?.unit||'r',b=t.lab?.basis||'net',s=calcMetricStats(ops,u,b),disc=forwardDiscoveryStats(t),ev=forwardEvidence(s),target=t.targetN||50,progress=Math.min(100,target?ops.length/target*100:0),ret=disc&&disc.expectancy?100*s.expectancy/disc.expectancy:NaN,status=t.status==='closed'?'Cerrada':ops.length>=target?'Objetivo alcanzado':'En seguimiento';
+  const ci=s.n>1&&Number.isFinite(s.ciLow95)&&Number.isFinite(s.ciHigh95)?`${forwardMetric(s.ciLow95,t)} → ${forwardMetric(s.ciHigh95,t)}`:'—';
+  return `<article class="forward-card ${t.status==='closed'?'closed':''}"><div class="forward-card-head"><div><div class="forward-badges"><span class="badge ${t.status==='closed'?'':'win'}">${esc(status)}</span><span class="badge">${esc(metricUnitLabel(u))} · ${b==='net'?'Neto':'Bruto'}</span></div><h4>${esc(t.name)}</h4><small>Congelada ${fmtDate(t.createdAt)} · ${esc(forwardSourceLabel(t))}</small></div><div class="forward-actions"><button class="btn tiny" onclick="loadForwardFilters('${t.id}')">Abrir filtros</button>${t.status==='active'?`<button class="btn tiny" onclick="closeForwardTest('${t.id}')">Cerrar validación</button>`:''}<button class="btn tiny danger" onclick="deleteForwardTest('${t.id}')">Eliminar</button></div></div>${t.description?`<p class="forward-description">${esc(t.description)}</p>`:''}<div class="forward-progress"><div><span>Operaciones nuevas OOS</span><strong>${ops.length}/${target}</strong></div><i><b style="width:${progress}%"></b></i></div><div class="forward-compare"><div class="forward-side"><span>Descubrimiento congelado</span><strong class="${disc?.expectancy>0?'positive':disc?.expectancy<0?'negative':''}">${forwardMetric(disc?.expectancy,t)}</strong><small>n=${disc?.n||0} · IC95 ${disc?.ciLow95!=null?forwardMetric(disc.ciLow95,t):'—'} → ${disc?.ciHigh95!=null?forwardMetric(disc.ciHigh95,t):'—'}</small></div><div class="forward-arrow">→</div><div class="forward-side oos"><span>Forward / OOS real</span><strong class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">${s.n?forwardMetric(s.expectancy,t):'—'}</strong><small>n=${s.n} · IC95 ${ci}</small></div></div><div class="forward-kpis"><div><span>Evidencia OOS</span><strong class="${ev.cls}">${esc(ev.label)}</strong></div><div><span>Retención expectancy</span><strong>${Number.isFinite(ret)?ret.toFixed(0)+'%':'—'}</strong></div><div><span>Win rate OOS</span><strong>${s.n?s.winRate.toFixed(1)+'%':'—'}</strong></div><div><span>PF OOS</span><strong>${s.n?(Number.isFinite(s.pf)?s.pf.toFixed(2):'∞'):'—'}</strong></div><div><span>Max DD OOS</span><strong class="${s.n&&s.maxDD<0?'negative':''}">${s.n?forwardMetric(s.maxDD,t):'—'}</strong></div><div><span>Límite inferior 95%</span><strong class="${Number.isFinite(s.ciLow95)?(s.ciLow95>0?'positive':s.ciLow95<0?'negative':''):''}">${Number.isFinite(s.ciLow95)?forwardMetric(s.ciLow95,t):'—'}</strong></div></div></article>`;
+}
+function forwardValidationPanel(){
+  const p=getCurrentPlan();ensurePlanForwardTests(p);const tests=p.forwardTests||[],active=tests.filter(t=>t.status==='active').length,closed=tests.length-active;
+  return `<section class="card panel forward-panel"><div class="panel-title"><div><h3>Forward Validation · Hipótesis congeladas</h3><small>Convierte un hallazgo del Laboratorio en una prueba realmente futura: definición bloqueada y solo operaciones nuevas.</small></div><button class="btn primary small" onclick="openFreezeHypothesisModal()">❄ Congelar hipótesis actual</button></div>${tests.length?`<div class="forward-summary"><span>${tests.length} validaciones</span><span>${active} activas</span><span>${closed} cerradas</span></div><div class="forward-list">${tests.map(forwardTestCard).join('')}</div>`:`<div class="forward-empty"><strong>Aún no hay hipótesis congeladas.</strong><span>Cuando encuentres una combinación interesante, fija ahora sus filtros. Las operaciones que ya existen quedan como descubrimiento; solo los IDs añadidos después de congelar pueden entrar en la muestra OOS.</span></div>`}<div class="lab-note warn"><strong>Regla de integridad:</strong> una hipótesis congelada no permite cambiar Setup, Contexto, horario, unidad/base ni el resto de filtros. Si quieres probar otra definición, crea una nueva validación. Así evitamos ajustar la regla después de ver los resultados futuros.</div></section>`;
+}
+
+if(typeof CONTEXT_HELP!=='undefined'){
+  CONTEXT_HELP.push(
+    {id:'forwardoos',terms:['forward validation','hipótesis congelada','congelar hipótesis','oos real'],title:'Forward Validation / Hipótesis congelada',summary:'Fija una definición antes de observar nuevas operaciones y evalúa después únicamente datos añadidos tras ese momento.',body:'Al congelar, Trading Research guarda los filtros y los IDs de todas las operaciones que ya existían. La muestra de validación solo puede incluir operaciones con IDs nuevos que además cumplan la definición congelada. Si cierras la validación, también queda fijado el conjunto OOS final.',use:'Es una de las formas más fuertes de reducir data snooping: descubres una idea con datos históricos, congelas la regla y esperas evidencia nueva sin retocarla.'}
+  );
+}
+
+const analyticsLabV25Base=analyticsLab;
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: descubrimiento, validación futura, walk-forward, confianza, robustez, estrés, salidas y comportamiento.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${savedStudiesPanel()}${forwardValidationPanel()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${confidencePanel(ops)}${walkForwardModule(ops)}${robustnessModule(ops)}${riskStressModule(ops)}${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV25Base=shell;
+shell=function(){
+  return shellV25Base().replace(V24_APP_LABEL,V25_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+Object.assign(window,{openFreezeHypothesisModal,freezeCurrentHypothesis,loadForwardFilters,closeForwardTest,deleteForwardTest});
+render();
+/* ===== END V25 PATCH ===== */

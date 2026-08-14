@@ -130,7 +130,7 @@ El Laboratorio añade una capa de estrés sobre el Monte Carlo existente:
 
 No requiere SQL nuevo ni cambios de infraestructura. Mantiene Supabase, Conflict Guard, snapshots y los seis archivos raíz.
 
-## V24 · Walk-Forward Validation
+## V25 · Walk-Forward Validation
 - Nuevo módulo de validación temporal dentro del Laboratorio.
 - Holdout cronológico 60/40, 70/30 u 80/20.
 - Walk-forward anclado con train inicial 40/60/80/100 y validaciones de 10/20/30 trades.
@@ -140,3 +140,9 @@ No requiere SQL nuevo ni cambios de infraestructura. Mantiene Supabase, Conflict
 - Configuración incluida en Estudios Guardados.
 - Glosario ampliado con Walk-Forward y Out-of-sample.
 - Sin cambios SQL ni cambios en el motor cloud V9.2 Conflict Guard.
+
+
+## V25 · Forward OOS
+- Hipótesis congeladas e inmutables para validación con operaciones añadidas después del freeze.
+- Comparación discovery vs OOS, IC95, retención de expectancy, PF, WR y DD.
+- Cierre de validación congela también el conjunto OOS final.

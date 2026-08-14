@@ -66,3 +66,18 @@ El paquete mantiene exactamente seis archivos en la raíz:
 - `README.md`
 
 No requiere SQL nuevo.
+
+
+## V31 · Market Data Foundation
+
+- Nueva vista **Market Data** con biblioteca local de históricos.
+- Importador de exportaciones NinjaTrader `Tick`, `Tick Replay`, `Minute` y `Day` separadas por `;`.
+- Los timestamps de exportación NinjaTrader se interpretan como **UTC**.
+- Los históricos pesados se almacenan en **IndexedDB local** y no forman parte del payload de Supabase/Conflict Guard.
+- Mapeo del archivo a contrato/vencimiento de Trading Research.
+- Cobertura automática operación × histórico y clasificación de precisión.
+- Reconstrucción entrada → salida para MFE/MAE en ticks; la equivalencia en R se deriva del riesgo.
+- Aplicación automática a la operación únicamente cuando hay datos Tick/Tick Replay y timestamps de entrada/salida con segundos.
+- Datos de 1 minuto disponibles como diagnóstico, explícitamente no exactos por ambigüedad intrabar.
+- Los formularios `datetime-local` admiten segundos para mejorar futuros cálculos tick.
+- No altera Supabase ni el motor V9.2 Conflict Guard.

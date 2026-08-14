@@ -681,3 +681,12 @@ html[data-theme="light"] .excursion-definition-box,html[data-theme="light"] .exc
 .dq-usable-vs-resolved{margin-bottom:12px}
 @media(max-width:760px){.dq-status-meaning-grid{grid-template-columns:1fr}}
 /* ===== END V30.3 ===== */
+
+/* ===== V31 · Market Data Foundation ===== */
+.market-local-notice{margin-bottom:14px}.market-kpis{margin-bottom:14px}.market-import-progress{margin-bottom:14px}.market-import-progress>div{display:flex;align-items:center;justify-content:space-between;gap:12px}.market-import-progress strong{font-size:12px}.market-import-progress span{font-size:11px;color:var(--muted)}
+.market-data-table td,.market-op-table td{vertical-align:middle}.market-data-table small,.market-op-table small{color:var(--muted);font-size:9px;line-height:1.35}.table-actions{display:flex;gap:6px;flex-wrap:wrap}.market-validation-panel{margin-top:14px}.market-op-table .badge.warn{background:rgba(226,164,58,.13);color:#e2a43a;border-color:rgba(226,164,58,.28)}
+.market-analysis{display:grid;gap:12px}.market-analysis-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}.market-analysis-head.exact{background:rgba(57,201,154,.08);border-color:rgba(57,201,154,.28)}.market-analysis-head.approx{background:rgba(226,164,58,.08);border-color:rgba(226,164,58,.28)}.market-analysis-head strong{font-size:12px}.market-analysis-head span{font-size:10px;color:var(--muted)}.market-analysis-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.market-analysis-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.market-analysis-grid>div{border:1px solid var(--border);border-radius:9px;padding:9px 10px;background:var(--soft);display:grid;gap:3px}.market-analysis-grid span,.market-analysis-grid small{font-size:9px;color:var(--muted)}.market-analysis-grid strong{font-size:12px}.good-note{border-color:rgba(57,201,154,.28)!important;background:rgba(57,201,154,.07)!important}
+@media(max-width:1000px){.market-analysis-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.market-data-table{min-width:950px}.market-op-table{min-width:820px}}
+@media(max-width:640px){.market-analysis-grid,.market-analysis-kpis{grid-template-columns:1fr}.market-import-progress>div,.market-analysis-head{align-items:flex-start;flex-direction:column}}
+html[data-theme="light"] .market-analysis-grid>div{background:#f8fafc}
+/* ===== END V31 ===== */

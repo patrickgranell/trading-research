@@ -177,3 +177,18 @@ No requiere SQL nuevo y mantiene Supabase, Conflict Guard, snapshots, Forward OO
 - El editor completo de operaciones también conserva el estado explícito de MFE/MAE.
 - La cobertura objetivo de MFE usa el nuevo estado explícito.
 - No requiere SQL nuevo y mantiene Supabase / Conflict Guard / Forward OOS intactos.
+
+
+## V28 · Quality-Aware Analytics
+
+- Cobertura contextual por módulo calculada sobre el subconjunto actualmente filtrado.
+- Exit Lab muestra cobertura MFE/MAE antes de interpretar salidas y escenarios.
+- Scatter MAE/MFE solo utiliza excursiones marcadas explícitamente como `Medido`, incluido un 0 real.
+- Heatmap Foco × Estrés y Penalizaciones conductuales muestran cobertura emocional real.
+- Research Grid audita la cobertura de las dimensiones elegidas en filas y columnas.
+- Compliance muestra cobertura de checklist específica del Setup/Contexto filtrado.
+- Diario emocional muestra cobertura de diario de su selección actual.
+- Confidence, Monte Carlo, Risk & Stress y Walk-Forward avisan si detectan problemas financieros o temporales en la muestra.
+- Lente de calidad del Laboratorio resume preparación para Research, Exit, Compliance y Emocional.
+- Los avisos enlazan directamente con la cola de Data Quality correspondiente.
+- No bloquea ningún análisis y no requiere SQL nuevo.

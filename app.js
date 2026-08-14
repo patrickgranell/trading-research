@@ -4761,3 +4761,147 @@ exitLabModule=function(ops){
 };
 Object.assign(window,{exitLabModule});
 render();
+
+/* ===== V28 PATCH · Quality-Aware Analytics ===== */
+const V28_APP_LABEL='V28 · Quality-Aware Analytics';
+
+function dqV28Pct(n,d){return d?Math.max(0,Math.min(100,n/d*100)):0;}
+function dqV28Coverage(ops,key){
+  ops=Array.isArray(ops)?ops:[];const total=ops.length;
+  let ok=0,label=key,focus=key;
+  if(key==='mfe'){ok=ops.filter(o=>dqMetricMeasured(o,'mfe')).length;label='MFE';}
+  else if(key==='mae'){ok=ops.filter(o=>dqMetricMeasured(o,'mae')).length;label='MAE';}
+  else if(key==='checklist'){ok=ops.filter(o=>!!o?.compliance?.evaluated).length;label='Checklist';}
+  else if(key==='journal'){ok=ops.filter(hasEmotionalEntry).length;label='Diario';}
+  else if(key==='focus'){ok=ops.filter(o=>Number(o?.emotional?.focus)>=1&&Number(o?.emotional?.focus)<=5).length;label='Foco';focus='journal';}
+  else if(key==='stress'){ok=ops.filter(o=>Number(o?.emotional?.stress)>=1&&Number(o?.emotional?.stress)<=5).length;label='Estrés';focus='journal';}
+  else if(key==='behavior'){ok=ops.filter(o=>hasEmotionalEntry(o)).length;label='Conducta';focus='journal';}
+  else if(key==='emotion'){ok=ops.filter(o=>hasEmotionalEntry(o)).length;label='Emoción';focus='journal';}
+  else if(key==='direction'){ok=ops.filter(o=>['LONG','SHORT'].includes(o?.direction)).length;label='Dirección';focus='group:incomplete';}
+  else if(key==='finance'){ok=ops.filter(dqFinancialConsistency).length;label='Finanzas';focus='issue:finance';}
+  else if(key==='timestamp'){ok=ops.filter(dqValidTimestamp).length;label='Timestamp';focus='issue:invalidTime';}
+  else if(key==='core'){
+    const fields=['setup','vd','nr','context','hypothesis','strategy'];
+    const cov=dqCoverageDefs(ops);const vals=fields.map(id=>cov.find(c=>c.id===id)?.pct||0);
+    const pct=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+    return {key,label:'Clasificación',ok:Math.round(total*pct/100),total,pct,focus:'group:incomplete'};
+  }else{
+    const c=dqCoverageDefs(ops).find(x=>x.id===key);
+    if(c)return {key,label:c.label,ok:c.ok,total:c.total,pct:c.pct,focus:key};
+  }
+  return {key,label,ok,total,pct:dqV28Pct(ok,total),focus};
+}
+function dqV28Target(key){
+  const p=getCurrentPlan();ensurePlanDataQualityV27(p);const s=p?.dataQualitySettings||{};
+  if(key==='mfe')return Number(s.mfe??95);
+  if(key==='mae')return Number(s.mae??95);
+  if(key==='checklist')return Number(s.checklist??90);
+  if(['journal','focus','stress','behavior','emotion'].includes(key))return Number(s.journal??90);
+  if(key==='core')return Number(s.core??95);
+  if(['finance','timestamp','contract'].includes(key))return 100;
+  return Number(s.core??95);
+}
+function dqV28OpenQuality(focus){
+  dataQualityState.workIndex=0;
+  if(String(focus||'').startsWith('issue:')||String(focus||'').startsWith('group:'))dataQualityState.focus=focus;
+  else dataQualityState.focus=`missing:${focus||'setup'}`;
+  currentView='quality';render();
+  setTimeout(()=>document.getElementById('dq-repair')?.scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+function dqV28ModuleQuality(ops,keys,message='',opts={}){
+  ops=Array.isArray(ops)?ops:[];const uniq=[...new Set((keys||[]).filter(Boolean))];if(!ops.length||!uniq.length)return '';
+  const rows=uniq.map(key=>{const c=dqV28Coverage(ops,key),target=dqV28Target(key);return {...c,target,pass:c.pct>=target};});
+  const failed=rows.filter(x=>!x.pass),stateCls=failed.length?'warn':'good';
+  if(!failed.length&&!opts.always)return '';
+  const first=failed[0]||rows[0];
+  return `<div class="dq-module-quality ${stateCls} ${opts.compact?'compact':''}"><div class="dq-module-quality-title"><span>${failed.length?'⚠ Cobertura del módulo':'✓ Cobertura del módulo'}</span>${opts.context?`<small>${esc(opts.context)}</small>`:''}</div><div class="dq-module-quality-metrics">${rows.map(x=>`<span class="${x.pass?'ok':'fail'}"><b>${esc(x.label)}</b><strong>${x.pct.toFixed(0)}%</strong><em>${x.ok}/${x.total}</em></span>`).join('')}</div>${message?`<p>${esc(message)}</p>`:''}<button class="btn tiny ${failed.length?'':'ghost'}" onclick="dqV28OpenQuality('${esc(first.focus)}')">${failed.length?'Completar datos':'Ver calidad'}</button></div>`;
+}
+function dqV28DimKey(dim){
+  return ({setup:'setup',context:'context',vd:'vd',nr:'nr',hypothesis:'hypothesis',strategy:'strategy',direction:'direction',hour:'timestamp',behavior:'behavior',emotion:'emotion',focus:'focus',stress:'stress'})[dim]||'core';
+}
+
+/* Exit Lab: la cobertura MFE/MAE viaja con el subconjunto actual. */
+const exitLabModuleV28Base=exitLabModule;
+exitLabModule=function(ops){
+  let html=exitLabModuleV28Base(ops);
+  const q=dqV28ModuleQuality(ops,['mfe','mae'],'Exit Lab solo puede generalizar sobre las operaciones con excursiones realmente medidas.',{always:true,context:'Salidas'});
+  return html.replace('<div class="exit-quality-grid">',q+'<div class="exit-quality-grid">');
+};
+
+/* Scatter MAE/MFE: solo usa estados explícitamente medidos, incluido un 0 real. */
+labMaeMfeScatter=function(ops){
+  const xMode=labState.scatterX,key=xMode==='mae'?'mae':'mfe';
+  const measured=ops.filter(o=>dqMetricMeasured(o,key));
+  const points=measured.map(o=>({x:Number(o[key]),y:opMetricValue(o,'usd',labState.basis),win:o.result==='win',label:`${o.contract||''} ${fmtDate(o.entryDate)}`})).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+  const q=dqV28ModuleQuality(ops,[key],`El scatter excluye ${Math.max(0,ops.length-measured.length)} operación(es) sin ${key.toUpperCase()} medido.`,{always:true,context:'MAE / MFE'});
+  return `<section class="card panel lab-module lab-span-2"><div class="panel-title"><div><h3>Scatter · ${xMode.toUpperCase()} vs Resultado</h3><small>Verde = ganadora · rojo = perdedora · Y siempre en US$ para lectura económica</small></div><select class="select compact-select" onchange="setLabScatterX(this.value)"><option value="mae" ${xMode==='mae'?'selected':''}>MAE</option><option value="mfe" ${xMode==='mfe'?'selected':''}>MFE</option></select></div>${q}<div class="lab-scatter-wrap">${scatterSvg(points,xMode)}</div><div class="lab-note">Solo entran operaciones cuyo ${xMode.toUpperCase()} está marcado como <strong>Medido</strong>. Un 0.00R explícitamente medido sí es un dato real.</div></section>`;
+};
+
+/* Heatmap y penalizaciones: hacen visible cuánto diario sustenta la lectura conductual. */
+const labFocusStressHeatmapV28Base=labFocusStressHeatmap;
+labFocusStressHeatmap=function(ops){
+  let html=labFocusStressHeatmapV28Base(ops),q=dqV28ModuleQuality(ops,['focus','stress'],'Las celdas sin foco/estrés registrado no participan en este heatmap.',{always:true,context:'Comportamiento'});
+  return html.replace('<div class="behavior-heat-layout">',q+'<div class="behavior-heat-layout">');
+};
+const labBehaviorPenaltiesV28Base=labBehaviorPenalties;
+labBehaviorPenalties=function(ops){
+  let html=labBehaviorPenaltiesV28Base(ops),q=dqV28ModuleQuality(ops,['journal'],'La ausencia de una etiqueta conductual solo es interpretable cuando el diario de esa operación fue realmente completado.',{always:true,context:'Conducta'});
+  if(html.includes('<div class="penalty-bars">'))return html.replace('<div class="penalty-bars">',q+'<div class="penalty-bars">');
+  return html.replace('<div class="empty">No hay operaciones perdedoras con comportamientos etiquetados.</div>',q+'<div class="empty">No hay operaciones perdedoras con comportamientos etiquetados.</div>');
+};
+
+/* Research Grid: cobertura específica de las dimensiones que el usuario ha elegido. */
+const researchGridModuleV28Base=researchGridModule;
+researchGridModule=function(ops){
+  let html=researchGridModuleV28Base(ops),keys=[dqV28DimKey(researchGridState.rowDim),dqV28DimKey(researchGridState.colDim)];
+  const q=dqV28ModuleQuality(ops,keys,'Una dimensión incompleta puede crear categorías “Sin …” o dejar operaciones fuera; la cobertura se recalcula con cada filtro.',{always:true,context:`${researchDimLabel(researchGridState.rowDim)} × ${researchDimLabel(researchGridState.colDim)}`});
+  return html.replace('<div class="research-grid-controls">',q+'<div class="research-grid-controls">');
+};
+
+/* Estadística de resultado: avisar solo si integridad financiera/temporal del subconjunto falla. */
+function dqV28StatsGuard(ops){return dqV28ModuleQuality(ops,['finance','timestamp'],'Las simulaciones y la validación temporal requieren resultados y timestamps coherentes.',{always:false,compact:true,context:'Integridad'});}
+const confidencePanelV28Base=confidencePanel;
+confidencePanel=function(ops){let html=confidencePanelV28Base(ops),q=dqV28StatsGuard(ops);return q?html.replace('<div class="confidence-summary">',q+'<div class="confidence-summary">'):html;};
+const robustnessModuleV28Base=robustnessModule;
+robustnessModule=function(ops){let html=robustnessModuleV28Base(ops),q=dqV28StatsGuard(ops);return q?html.replace('<div class="robust-kpis">',q+'<div class="robust-kpis">'):html;};
+const riskStressModuleV28Base=riskStressModule;
+riskStressModule=function(ops){let html=riskStressModuleV28Base(ops),q=dqV28StatsGuard(ops);return q?html.replace('<div class="stress-kpis">',q+'<div class="stress-kpis">'):html;};
+const walkForwardModuleV28Base=walkForwardModule;
+walkForwardModule=function(ops){let html=walkForwardModuleV28Base(ops),q=dqV28StatsGuard(ops);return q?html.replace('<div class="wf-controls">',q+'<div class="wf-controls">'):html;};
+
+/* Cumplimiento: la advertencia usa exactamente el Setup/Contexto filtrado en esa pantalla. */
+const complianceViewV28Base=complianceView;
+complianceView=function(){
+  let html=complianceViewV28Base(),ops=complianceBaseOps();
+  const q=dqV28ModuleQuality(ops,['checklist'],'Las métricas de cumplimiento solo representan las operaciones evaluadas; las antiguas sin checklist no cuentan como fallos.',{always:true,context:'Cumplimiento'});
+  return html.replace('<section class="card filter-hub compliance-filter">',q+'<section class="card filter-hub compliance-filter">');
+};
+
+/* Diario emocional: cobertura contextual de la selección actual. */
+const journalV28Base=journal;
+journal=function(){
+  let html=journalV28Base(),ops=journalFilteredOps();
+  const q=dqV28ModuleQuality(ops,['journal'],'Promedios de estrés, foco, emoción y conducta solo deben interpretarse sobre las operaciones con diario realmente registrado.',{always:true,context:'Diario emocional'});
+  return html.replace('<section class="card filter-hub">',q+'<section class="card filter-hub">');
+};
+
+/* La banda global del Laboratorio se convierte en una lente rápida por uso analítico. */
+const dqLabReadinessBannerV28Base=dqLabReadinessBanner;
+dqLabReadinessBanner=function(ops){
+  const base=dqLabReadinessBannerV28Base(ops),p=getCurrentPlan();ensurePlanDataQualityV27(p);
+  if(!p?.dataQualitySettings?.warnInLab||!ops?.length)return base;
+  const core=dqV28Coverage(ops,'core'),mfe=dqV28Coverage(ops,'mfe'),check=dqV28Coverage(ops,'checklist'),journalCov=dqV28Coverage(ops,'journal');
+  const chips=`<div class="dq-lens"><span>Lente de calidad</span><b class="${core.pct>=dqV28Target('core')?'ok':'warn'}">Research ${core.pct.toFixed(0)}%</b><b class="${mfe.pct>=dqV28Target('mfe')?'ok':'warn'}">Exit ${mfe.pct.toFixed(0)}%</b><b class="${check.pct>=dqV28Target('checklist')?'ok':'warn'}">Compliance ${check.pct.toFixed(0)}%</b><b class="${journalCov.pct>=dqV28Target('journal')?'ok':'warn'}">Emocional ${journalCov.pct.toFixed(0)}%</b></div>`;
+  return base+chips;
+};
+
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push(
+  {id:'qualityaware',terms:['quality aware','cobertura del módulo','lente de calidad','calidad por módulo'],title:'Calidad contextual por módulo',summary:'Cada análisis muestra la cobertura de los datos que necesita dentro del subconjunto que estás viendo.',body:'Exit Lab consulta MFE/MAE; Compliance consulta checklist; Heatmap y conducta consultan diario/foco/estrés; Research Grid consulta las dimensiones elegidas. Los porcentajes cambian cuando filtras la muestra.',use:'Evita interpretar una estadística como si representase todo el dataset cuando en realidad solo existe información para una fracción de las operaciones.'}
+);
+
+const shellV28Base=shell;
+shell=function(){return shellV28Base().replace(V27_APP_LABEL,V28_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Quality-Aware Analytics + Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');};
+
+Object.assign(window,{dqV28OpenQuality,exitLabModule,labMaeMfeScatter,labFocusStressHeatmap,labBehaviorPenalties,researchGridModule,confidencePanel,robustnessModule,riskStressModule,walkForwardModule,complianceView,journal});
+render();
+/* ===== END V28 PATCH ===== */

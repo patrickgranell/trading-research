@@ -3603,3 +3603,156 @@ render=function(){
 Object.assign(window,{reviewViewState,openReviewNoteModal,reviewRefreshTarget,saveReviewNote,deleteReviewNote,setReviewNoteStatus,duplicateReviewNote,reviewReadFilters,reviewResetFilters,reviewSetUnit,reviewSetBasis,reviewOpenLinked});
 render();
 /* ===== END V19 PATCH ===== */
+
+/* ===== V20 PATCH · Objetivos & Scorecard ===== */
+const V20_APP_LABEL='V20 · Objetivos & Scorecard';
+const GOAL_METRICS=[
+  ['sample','Tamaño de muestra','min'],
+  ['expectancy','Expectancy','min'],
+  ['result','Resultado acumulado','min'],
+  ['winrate','Win rate','min'],
+  ['maxdd','Máximo drawdown','max'],
+  ['compliance','Cumplimiento checklist','min'],
+  ['coverage','Cobertura checklist','min'],
+  ['journal','Diario emocional completado','min'],
+  ['mfe','MFE registrado','min'],
+  ['discipline','Disciplina','min']
+];
+const GOAL_HORIZONS=[['all','Plan completo'],['20','Últimas 20'],['50','Últimas 50'],['100','Últimas 100'],['month','Mes actual']];
+let goalViewState={status:'',horizon:''};
+let editingGoalId=null;
+
+function ensurePlanGoals(p){
+  if(!p)return p;
+  p.goals=Array.isArray(p.goals)?p.goals:[];
+  p.goals=p.goals.map(g=>({
+    id:g?.id||uid('GOAL'),
+    name:String(g?.name||'Objetivo'),
+    metric:GOAL_METRICS.some(x=>x[0]===g?.metric)?g.metric:'sample',
+    target:Number(g?.target)||0,
+    horizon:GOAL_HORIZONS.some(x=>x[0]===String(g?.horizon))?String(g.horizon):'all',
+    unit:['r','ticks','usd'].includes(g?.unit)?g.unit:'r',
+    basis:g?.basis==='gross'?'gross':'net',
+    active:g?.active!==false,
+    note:String(g?.note||''),
+    createdAt:g?.createdAt||new Date().toISOString(),
+    updatedAt:g?.updatedAt||g?.createdAt||new Date().toISOString()
+  }));
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanGoals);
+const makeBlankPlanV20Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV20Base(meta);ensurePlanGoals(p);return p;};
+const normalizePlanV20Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV20Base(p,instruments);ensurePlanGoals(out);return out;};
+const normalizeStateV20Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV20Base(raw);(out.tradingPlans||[]).forEach(ensurePlanGoals);return out;};
+
+function goalMetricDef(metric){return GOAL_METRICS.find(x=>x[0]===metric)||GOAL_METRICS[0];}
+function goalMetricLabel(metric){return goalMetricDef(metric)[1];}
+function goalHorizonLabel(h){return GOAL_HORIZONS.find(x=>x[0]===String(h))?.[1]||'Plan completo';}
+function goalOps(goal){
+  let ops=[...currentOps()].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));
+  if(goal.horizon==='20'||goal.horizon==='50'||goal.horizon==='100')ops=ops.slice(-Number(goal.horizon));
+  if(goal.horizon==='month'){
+    const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+    ops=ops.filter(o=>{const d=new Date(o.entryDate);return !isNaN(d)&&d.getFullYear()===y&&d.getMonth()===m;});
+  }
+  return ops;
+}
+function goalEval(goal){
+  const ops=goalOps(goal),stats=calcMetricStats(ops,goal.unit,goal.basis),target=Number(goal.target)||0;
+  let value=0,hasData=true,display='',targetDisplay='',direction=goalMetricDef(goal.metric)[2];
+  if(goal.metric==='sample'){value=ops.length;display=String(value);targetDisplay=String(target);}
+  else if(goal.metric==='expectancy'){value=stats.expectancy;display=metricStatText(value,goal.unit);targetDisplay=metricStatText(target,goal.unit);}
+  else if(goal.metric==='result'){value=stats.sum;display=metricStatText(value,goal.unit);targetDisplay=metricStatText(target,goal.unit);}
+  else if(goal.metric==='winrate'){value=stats.winRate;display=`${value.toFixed(1)}%`;targetDisplay=`${target.toFixed(1)}%`;}
+  else if(goal.metric==='maxdd'){value=Math.abs(stats.maxDD);display=`${Math.abs(value).toFixed(goal.unit==='ticks'?1:2)}${goal.unit==='r'?'R':goal.unit==='ticks'?'t':' US$'}`;targetDisplay=`${Math.abs(target).toFixed(goal.unit==='ticks'?1:2)}${goal.unit==='r'?'R':goal.unit==='ticks'?'t':' US$'}`;}
+  else if(goal.metric==='compliance'){
+    const evals=ops.filter(o=>o?.compliance?.evaluated),scores=evals.map(complianceScore).filter(v=>v!==null);hasData=!!scores.length;value=scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:0;display=hasData?`${value.toFixed(1)}%`:'—';targetDisplay=`${target.toFixed(1)}%`;
+  } else if(goal.metric==='coverage'){
+    const evals=ops.filter(o=>o?.compliance?.evaluated).length;hasData=!!ops.length;value=ops.length?evals/ops.length*100:0;display=hasData?`${value.toFixed(1)}%`:'—';targetDisplay=`${target.toFixed(1)}%`;
+  } else if(goal.metric==='journal'){
+    const done=ops.filter(hasEmotionalEntry).length;hasData=!!ops.length;value=ops.length?done/ops.length*100:0;display=hasData?`${value.toFixed(1)}%`:'—';targetDisplay=`${target.toFixed(1)}%`;
+  } else if(goal.metric==='mfe'){
+    const done=ops.filter(o=>Number(o.mfe)>0).length;hasData=!!ops.length;value=ops.length?done/ops.length*100:0;display=hasData?`${value.toFixed(1)}%`:'—';targetDisplay=`${target.toFixed(1)}%`;
+  } else if(goal.metric==='discipline'){
+    hasData=!!ops.length;value=ops.length?ops.filter(o=>o.discipline).length/ops.length*100:0;display=hasData?`${value.toFixed(1)}%`:'—';targetDisplay=`${target.toFixed(1)}%`;
+  }
+  const met=hasData&&(direction==='max'?value<=target:value>=target);
+  let progress=0;
+  if(hasData){
+    if(direction==='max')progress=target<=0?(value<=target?100:0):Math.max(0,Math.min(100,(target/Math.max(value,target))*100));
+    else progress=target<=0?(value>=target?100:0):Math.max(0,Math.min(100,value/target*100));
+  }
+  return {ops,value,target,display,targetDisplay,met,hasData,progress,direction,stats};
+}
+function goalMetricNeedsUnit(metric){return ['expectancy','result','maxdd'].includes(metric);}
+function goalRefreshMetricFields(){
+  const metric=document.getElementById('f-goal-metric')?.value||'sample',box=document.getElementById('goal-unit-fields');
+  if(box)box.style.display=goalMetricNeedsUnit(metric)?'grid':'none';
+  const hint=document.getElementById('goal-target-hint'),def=goalMetricDef(metric);
+  if(hint)hint.textContent=def[2]==='max'?'El objetivo se cumple si el valor es igual o menor al límite.':'El objetivo se cumple si el valor alcanza o supera el mínimo.';
+}
+function openGoalModal(id=null){
+  const p=getCurrentPlan();if(!p)return;ensurePlanGoals(p);editingGoalId=id;
+  const g=id?p.goals.find(x=>x.id===id):{name:'',metric:'sample',target:100,horizon:'all',unit:'r',basis:'net',active:true,note:''};
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Definición del objetivo</h4><div class="form-grid">${field('Nombre','goal-name','text',esc(g.name||''),'span2')}${selectObjField('Métrica','goal-metric',GOAL_METRICS.map(([value,label])=>({value,label})),g.metric,`onchange="goalRefreshMetricFields()"`)}${field('Objetivo / límite','goal-target','number',g.target,'',`step="0.01"`)}${selectObjField('Horizonte','goal-horizon',GOAL_HORIZONS.map(([value,label])=>({value,label})),g.horizon)}<div class="field"><label>Estado</label><select id="f-goal-active" class="select"><option value="1" ${g.active?'selected':''}>Activo</option><option value="0" ${!g.active?'selected':''}>Pausado</option></select></div><div id="goal-unit-fields" class="goal-unit-fields span2" style="display:${goalMetricNeedsUnit(g.metric)?'grid':'none'}">${selectObjField('Unidad','goal-unit',[{value:'r',label:'R'},{value:'ticks',label:'Ticks'},{value:'usd',label:'US$'}],g.unit)}${selectObjField('Base','goal-basis',[{value:'gross',label:'Bruto'},{value:'net',label:'Neto'}],g.basis)}</div>${field('Nota / criterio','goal-note','textarea',esc(g.note||''),'span2')}</div><div id="goal-target-hint" class="notice" style="margin-top:12px">${goalMetricDef(g.metric)[2]==='max'?'El objetivo se cumple si el valor es igual o menor al límite.':'El objetivo se cumple si el valor alcanza o supera el mínimo.'}</div></div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(id?'Editar objetivo':'Nuevo objetivo',body,`<button class="btn" onclick="closeModal();editingGoalId=null">Cancelar</button><button class="btn primary" onclick="saveGoal()">Guardar objetivo</button>`));
+}
+function saveGoal(){
+  const p=getCurrentPlan(),g=n=>document.getElementById(`f-${n}`)?.value??'';if(!p)return;ensurePlanGoals(p);
+  const name=String(g('goal-name')).trim();if(!name)return alert('Escribe un nombre para el objetivo.');
+  const old=editingGoalId?p.goals.find(x=>x.id===editingGoalId):null,now=new Date().toISOString();
+  const item={id:old?.id||uid('GOAL'),name,metric:GOAL_METRICS.some(x=>x[0]===g('goal-metric'))?g('goal-metric'):'sample',target:Number(g('goal-target'))||0,horizon:GOAL_HORIZONS.some(x=>x[0]===String(g('goal-horizon')))?String(g('goal-horizon')):'all',unit:['r','ticks','usd'].includes(g('goal-unit'))?g('goal-unit'):'r',basis:g('goal-basis')==='gross'?'gross':'net',active:g('goal-active')!=='0',note:String(g('goal-note')).trim(),createdAt:old?.createdAt||now,updatedAt:now};
+  const i=p.goals.findIndex(x=>x.id===item.id);if(i>=0)p.goals[i]=item;else p.goals.unshift(item);p.updatedAt=now;editingGoalId=null;persist();closeModal();render();
+}
+function deleteGoal(id){const p=getCurrentPlan();ensurePlanGoals(p);const g=p?.goals?.find(x=>x.id===id);if(!g)return;if(!confirm(`¿Eliminar el objetivo “${g.name}”?`))return;p.goals=p.goals.filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();persist();render();}
+function toggleGoalActive(id){const p=getCurrentPlan(),g=p?.goals?.find(x=>x.id===id);if(!g)return;g.active=!g.active;g.updatedAt=new Date().toISOString();p.updatedAt=g.updatedAt;persist();render();}
+function goalReadFilters(){goalViewState.status=document.getElementById('goalStatusFilter')?.value||'';goalViewState.horizon=document.getElementById('goalHorizonFilter')?.value||'';render();}
+function goalResetFilters(){goalViewState={status:'',horizon:''};render();}
+function goalFilteredRows(){
+  const p=getCurrentPlan();ensurePlanGoals(p);
+  return (p.goals||[]).map(g=>({g,e:goalEval(g)})).filter(({g,e})=>{
+    if(goalViewState.horizon&&g.horizon!==goalViewState.horizon)return false;
+    if(goalViewState.status==='active'&&!g.active)return false;
+    if(goalViewState.status==='paused'&&g.active)return false;
+    if(goalViewState.status==='met'&&(!g.active||!e.met))return false;
+    if(goalViewState.status==='pending'&&(!g.active||e.met))return false;
+    return true;
+  });
+}
+function goalCard(row){
+  const {g,e}=row,status=!g.active?'Pausado':!e.hasData?'Sin datos':e.met?'Cumplido':'En progreso',cls=!g.active?'':!e.hasData?'':e.met?'win':'warn';
+  return `<article class="goal-card"><div class="goal-card-head"><div><div class="review-badges"><span class="badge ${cls}">${status}</span><span class="tag">${esc(goalHorizonLabel(g.horizon))}</span></div><h3>${esc(g.name)}</h3><small>${esc(goalMetricLabel(g.metric))}</small></div><div class="goal-actions"><button class="btn small" onclick="openGoalModal('${g.id}')">Editar</button><button class="btn small ghost" onclick="toggleGoalActive('${g.id}')">${g.active?'Pausar':'Activar'}</button><button class="btn small danger" onclick="deleteGoal('${g.id}')">Eliminar</button></div></div><div class="goal-values"><div><span>Actual</span><strong class="${e.met?'positive':''}">${esc(e.display)}</strong></div><div><span>${e.direction==='max'?'Límite':'Objetivo'}</span><strong>${esc(e.targetDisplay)}</strong></div><div><span>Muestra</span><strong>${e.ops.length}</strong></div></div><div class="goal-progress"><i><b style="width:${e.progress}%"></b></i><em>${Math.round(e.progress)}%</em></div>${g.note?`<p class="goal-note">${esc(g.note)}</p>`:''}</article>`;
+}
+function goalsView(){
+  const p=getCurrentPlan();ensurePlanGoals(p);const all=(p.goals||[]).map(g=>({g,e:goalEval(g)})),rows=goalFilteredRows(),active=all.filter(x=>x.g.active),met=active.filter(x=>x.e.met).length,pending=active.filter(x=>!x.e.met).length,noData=active.filter(x=>!x.e.hasData).length;
+  const controls=`<button class="btn primary" onclick="openGoalModal()">+ Nuevo objetivo</button>`;
+  const filter=`<section class="card filter-hub"><div class="filter-hub-top"><div><h3>Scorecard del plan</h3><p>Objetivos dinámicos: se recalculan sobre los datos actuales del Trading Plan.</p></div><button class="btn small ghost" onclick="goalResetFilters()">Limpiar</button></div><div class="filter-grid"><label class="filter-field"><span>Estado</span><select id="goalStatusFilter" class="select" onchange="goalReadFilters()"><option value="">Todos</option><option value="active" ${goalViewState.status==='active'?'selected':''}>Activos</option><option value="met" ${goalViewState.status==='met'?'selected':''}>Cumplidos</option><option value="pending" ${goalViewState.status==='pending'?'selected':''}>En progreso</option><option value="paused" ${goalViewState.status==='paused'?'selected':''}>Pausados</option></select></label><label class="filter-field"><span>Horizonte</span><select id="goalHorizonFilter" class="select" onchange="goalReadFilters()"><option value="">Todos</option>${GOAL_HORIZONS.map(([v,l])=>`<option value="${v}" ${goalViewState.horizon===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label></div></section>`;
+  return `${pageHead('Objetivos & Scorecard','Define estándares cuantificables para el proceso y el rendimiento. El Scorecard separa objetivos de investigación, ejecución y calidad de datos.',controls)}${activePlanBanner()}<div class="review-kpis">${kpi('Objetivos',all.length,'definidos en el plan')}${kpi('Activos',active.length,'en seguimiento')}${kpi('Cumplidos',met,'objetivo alcanzado')}${kpi('En progreso',pending-noData,'con datos disponibles')}</div>${filter}<section class="goal-grid">${rows.length?rows.map(goalCard).join(''):'<div class="card empty">Todavía no hay objetivos para esta selección. Crea uno para convertir una regla de mejora en un criterio medible.</div>'}</section><div class="notice goal-method-note"><strong>Criterio:</strong> un objetivo describe el estado actual de una muestra, no garantiza que el edge sea estable ni implica causalidad. Los objetivos de calidad de datos (checklist, diario, MFE) sirven para mejorar la fiabilidad del research.</div>`;
+}
+
+/* Widget opcional para el Dashboard personalizable. */
+if(!DASHBOARD_PANEL_DEFS.some(x=>x[0]==='goals'))DASHBOARD_PANEL_DEFS.push(['goals','Scorecard de objetivos']);
+function dashboardGoalsPanel(){
+  const p=getCurrentPlan();ensurePlanGoals(p);const rows=(p.goals||[]).filter(g=>g.active).map(g=>({g,e:goalEval(g)})).slice(0,6);
+  return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><div><h3>Scorecard de objetivos</h3><small>Estado de los objetivos activos</small></div><button class="btn tiny ghost" onclick="navigate('goals')">Abrir</button></div><div class="dashboard-goal-list">${rows.length?rows.map(({g,e})=>`<div><span><strong>${esc(g.name)}</strong><small>${esc(e.display)} / ${esc(e.targetDisplay)} · ${esc(goalHorizonLabel(g.horizon))}</small></span><i><b style="width:${e.progress}%"></b></i><em class="badge ${e.met?'win':'warn'}">${e.met?'OK':Math.round(e.progress)+'%'}</em></div>`).join(''):'<div class="empty compact-empty">Sin objetivos activos.</div>'}</div></section>`;
+}
+const dashboardPanelHtmlV20Base=dashboardPanelHtml;
+dashboardPanelHtml=function(id,ctx){if(id==='goals')return dashboardGoalsPanel();return dashboardPanelHtmlV20Base(id,ctx);};
+
+const shellV20Base=shell;
+shell=function(){
+  let html=shellV20Base(),complianceButton=navBtn('compliance','✓','Cumplimiento');
+  html=html.replace(complianceButton,navBtn('goals','◎','Objetivos')+complianceButton);
+  return html.replace(V19_APP_LABEL,V20_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Review & Notes + Confianza estadística + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='goals'?goalsView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{goalViewState,openGoalModal,goalRefreshMetricFields,saveGoal,deleteGoal,toggleGoalActive,goalReadFilters,goalResetFilters});
+render();
+/* ===== END V20 PATCH ===== */

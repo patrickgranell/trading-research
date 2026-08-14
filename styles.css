@@ -513,3 +513,18 @@ html[data-theme="light"] .confidence-status,html[data-theme="light"] .confidence
 html[data-theme="light"] .review-card,html[data-theme="light"] .review-body section,html[data-theme="light"] .review-metrics>span,html[data-theme="light"] .dashboard-review-list>button{background:#fff;border-color:#d8e1eb}html[data-theme="light"] .review-body section,html[data-theme="light"] .review-metrics>span,html[data-theme="light"] .dashboard-review-list>button{background:#f7f9fc}
 @media(max-width:1000px){.review-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.review-body{grid-template-columns:1fr}.review-card-head{flex-direction:column}.review-actions{justify-content:flex-start}.review-card-foot{align-items:flex-start;flex-direction:column}}@media(max-width:620px){.review-kpis{grid-template-columns:1fr}.review-actions{display:grid;grid-template-columns:1fr 1fr;width:100%}.review-actions .btn{width:100%}}
 /* ===== END V19 ===== */
+
+/* ===== V20 · Objetivos & Scorecard ===== */
+.goal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.goal-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+.goal-card-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.goal-card-head h3{margin:7px 0 3px;font-size:15px}.goal-card-head small{color:var(--muted)}
+.goal-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.goal-values{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.goal-values>div{border:1px solid var(--border);border-radius:10px;padding:9px;background:var(--panel2)}
+.goal-values span{display:block;text-transform:uppercase;font-size:10px;color:var(--muted);letter-spacing:.04em;margin-bottom:4px}.goal-values strong{font-size:14px}
+.goal-progress{display:grid;grid-template-columns:1fr 42px;gap:9px;align-items:center;margin-top:12px}.goal-progress i,.dashboard-goal-list i{display:block;height:9px;border-radius:999px;background:var(--panel2);overflow:hidden}.goal-progress i b,.dashboard-goal-list i b{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:999px}.goal-progress em{font-style:normal;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.goal-note{margin:11px 0 0;color:var(--muted);font-size:12px;line-height:1.5}.goal-method-note{margin-top:14px}
+.goal-unit-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dashboard-goal-list{display:grid;gap:10px}.dashboard-goal-list>div{display:grid;grid-template-columns:minmax(160px,1.25fr) minmax(100px,1fr) auto;gap:10px;align-items:center}.dashboard-goal-list span{display:grid;gap:2px}.dashboard-goal-list small{color:var(--muted);font-size:11px}.dashboard-goal-list em{font-style:normal;min-width:46px;text-align:center}
+@media(max-width:900px){.goal-grid{grid-template-columns:1fr}.goal-card-head{flex-direction:column}.goal-actions{justify-content:flex-start}.goal-values{grid-template-columns:1fr}.dashboard-goal-list>div{grid-template-columns:1fr}}

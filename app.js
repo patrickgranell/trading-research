@@ -2759,3 +2759,166 @@ render=function(){
 Object.assign(window,{calendarSetUnit,calendarSetBasis,calendarSetMetric,calendarMoveMonth,calendarGoLatest,calendarSelectDate});
 render();
 /* ===== END V14 PATCH ===== */
+
+/* ===== V15 PATCH · Dashboard personalizable + cero neutro ===== */
+const V15_APP_LABEL='V15 · Dashboard personalizable';
+
+/* Un cero exacto es neutro: no se presenta como "+0". El resto conserva el formato existente. */
+const formatMetricV15Base=formatMetric;
+formatMetric=function(v,unit,dec=2){
+  const n=Number(v)||0;
+  if(Math.abs(n)<1e-12){
+    if(unit==='usd')return `${n.toFixed(2)} US$`;
+    if(unit==='ticks')return `${n.toFixed(dec)}t`;
+    return `${n.toFixed(dec)}R`;
+  }
+  return formatMetricV15Base(n,unit,dec);
+};
+const dashboardSignedMetricV15Base=dashboardSignedMetric;
+dashboardSignedMetric=function(v,unit){
+  const n=Number(v)||0;
+  return Math.abs(n)<1e-12?dashboardPlainMetric(0,unit):dashboardSignedMetricV15Base(n,unit);
+};
+
+const DASHBOARD_DEFAULT_CONFIG={
+  kpis:['operations','winRate','expectancy','pf','drawdown','blocks'],
+  panels:['equity','setupCount'],
+  secondary:['mfe','mae','currentBlock']
+};
+const DASHBOARD_KPI_DEFS=[
+  ['operations','Operaciones'],['winRate','Win rate'],['expectancy','Expectancy'],['result','Resultado total'],
+  ['pf','Profit Factor'],['drawdown','Drawdown'],['avgWin','Media ganadora'],['avgLoss','Media perdedora'],
+  ['commissions','Comisiones'],['blocks','Bloques']
+];
+const DASHBOARD_PANEL_DEFS=[
+  ['equity','Curva de equity'],['setupCount','Operaciones por setup'],['contextCount','Operaciones por contexto'],
+  ['setupExpectancy','Expectancy por setup'],['contextExpectancy','Expectancy por contexto'],['recent20','Últimas 20 operaciones']
+];
+const DASHBOARD_SECONDARY_DEFS=[
+  ['mfe','MFE medio'],['mae','MAE medio'],['currentBlock','Bloque actual']
+];
+let dashboardCustomizeDraft=null;
+
+function dashboardDefIds(defs){return defs.map(x=>x[0]);}
+function normalizeDashboardGroup(value,defs,fallback){
+  const allowed=new Set(dashboardDefIds(defs));
+  const src=Array.isArray(value)?value:Array.isArray(fallback)?fallback:[];
+  const out=[];src.forEach(id=>{if(allowed.has(id)&&!out.includes(id))out.push(id);});return out;
+}
+function dashboardConfigForPlan(p=getCurrentPlan()){
+  const c=p?.dashboardConfig||{};
+  return {
+    kpis:normalizeDashboardGroup(c.kpis,DASHBOARD_KPI_DEFS,DASHBOARD_DEFAULT_CONFIG.kpis),
+    panels:normalizeDashboardGroup(c.panels,DASHBOARD_PANEL_DEFS,DASHBOARD_DEFAULT_CONFIG.panels),
+    secondary:normalizeDashboardGroup(c.secondary,DASHBOARD_SECONDARY_DEFS,DASHBOARD_DEFAULT_CONFIG.secondary)
+  };
+}
+function dashboardMetricValueText(v,unit,{signed=true}={}){
+  return signed?dashboardSignedMetric(v,unit):dashboardPlainMetric(v,unit);
+}
+function dashboardKpiHtml(id,ctx){
+  const {ops,baseStats,metricStats,unit,unitLabel}=ctx;
+  const pf=Number.isFinite(metricStats.pf)?metricStats.pf.toFixed(2):(metricStats.pf===Infinity?'∞':'0.00');
+  const blocks=Math.ceil(baseStats.n/20);
+  const map={
+    operations:()=>kpi('Operaciones',baseStats.n,'plan activo'),
+    winRate:()=>kpi('Win rate',pct(baseStats.winRate),'resultado cerrado'),
+    expectancy:()=>kpi('Expectancy',dashboardMetricValueText(metricStats.expectancy,unit),`por operación · ${unitLabel}`),
+    result:()=>kpi('Resultado total',dashboardMetricValueText(metricStats.sum,unit),`acumulado · ${unitLabel}`),
+    pf:()=>kpi('Profit Factor',pf,'ganancia / pérdida'),
+    drawdown:()=>kpi('Drawdown',dashboardPlainMetric(metricStats.maxDD,unit),`máximo · ${unitLabel}`),
+    avgWin:()=>kpi('Media ganadora',dashboardMetricValueText(metricStats.avgWin,unit),`${metricStats.wins} ganadoras`),
+    avgLoss:()=>kpi('Media perdedora',dashboardMetricValueText(metricStats.avgLoss,unit),`${metricStats.losses} perdedoras`),
+    commissions:()=>kpi('Comisiones',money(metricStats.commissions,'USD'),'coste total'),
+    blocks:()=>kpi('Bloques',blocks,'de 20 operaciones')
+  };
+  return map[id]?map[id]():'';
+}
+function dashboardTopCounts(ops,key,limit=7){
+  const m={};ops.forEach(o=>{const raw=key==='context'?o.h4Context:o[key],k=String(raw||'').trim()||`Sin ${key==='context'?'contexto':key}`;m[k]=(m[k]||0)+1;});
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,limit);
+}
+function dashboardCountPanel(title,items,subtitle){
+  const max=items[0]?.[1]||1;
+  return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><h3>${esc(title)}</h3><span>${esc(subtitle||'')}</span></div><div class="bar-list">${items.length?items.map(([k,v])=>`<div class="bar-row"><div>${esc(k)}</div><div class="bar"><span style="width:${(v/max)*100}%"></span></div><div class="value-right">${v}</div></div>`).join(''):'<div class="empty">Aún no hay operaciones.</div>'}</div></section>`;
+}
+function dashboardGroupedMetric(ops,key,unit){
+  const groups=new Map();ops.forEach(o=>{const raw=key==='context'?o.h4Context:o[key],label=String(raw||'').trim()||`Sin ${key==='context'?'contexto':key}`;if(!groups.has(label))groups.set(label,[]);groups.get(label).push(o);});
+  return [...groups.entries()].map(([label,items])=>({label,n:items.length,value:calcMetricStats(items,unit,'gross').expectancy})).sort((a,b)=>b.n-a.n).slice(0,7);
+}
+function dashboardMetricListPanel(title,rows,unit,subtitle){
+  const max=Math.max(...rows.map(x=>Math.abs(x.value)),1);
+  return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><h3>${esc(title)}</h3><span>${esc(subtitle||'')}</span></div><div class="dashboard-metric-list">${rows.length?rows.map(r=>`<div class="dashboard-metric-row"><div class="dashboard-metric-label"><strong>${esc(r.label)}</strong><small>n=${r.n}</small></div><div class="dashboard-metric-track"><i class="${r.value>0?'pos':r.value<0?'neg':'flat'}" style="width:${Math.max(3,Math.abs(r.value)/max*100)}%"></i></div><b class="${r.value>0?'positive':r.value<0?'negative':''}">${dashboardMetricValueText(r.value,unit)}</b></div>`).join(''):'<div class="empty">Sin muestra.</div>'}</div></section>`;
+}
+function dashboardRecent20Panel(ops,unit){
+  const recent=[...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate)).slice(-20),s=calcMetricStats(recent,unit,'gross'),pf=Number.isFinite(s.pf)?s.pf.toFixed(2):(s.pf===Infinity?'∞':'0.00');
+  return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><div><h3>Últimas 20 operaciones</h3><small>Lectura de la muestra más reciente</small></div><span>${recent.length}/20</span></div><div class="dashboard-mini-stats"><div><span>Resultado</span><strong class="${s.sum>0?'positive':s.sum<0?'negative':''}">${dashboardMetricValueText(s.sum,unit)}</strong></div><div><span>Expectancy</span><strong class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">${dashboardMetricValueText(s.expectancy,unit)}</strong></div><div><span>Win rate</span><strong>${s.winRate.toFixed(1)}%</strong></div><div><span>PF</span><strong>${pf}</strong></div><div><span>Max DD</span><strong class="${s.maxDD<0?'negative':''}">${dashboardPlainMetric(s.maxDD,unit)}</strong></div></div></section>`;
+}
+function dashboardPanelHtml(id,ctx){
+  const {ops,metricStats,unit,unitLabel}=ctx;
+  if(id==='equity'){
+    const svg=dashboardEquitySvgV114(metricStats.equity,unit);
+    return `<section class="card panel dashboard-custom-panel"><div class="panel-title dashboard-equity-title"><div><h3>Equity en ${esc(unitLabel)}</h3><small>Curva acumulada del plan</small></div><strong>${ops.length?`${dashboardMetricValueText(metricStats.sum,unit)} acumulado`:'sin datos'}</strong></div><div class="chart-wrap">${svg}</div></section>`;
+  }
+  if(id==='setupCount')return dashboardCountPanel('Operaciones por setup',dashboardTopCounts(ops,'setup'),planLabel(getCurrentPlan()));
+  if(id==='contextCount')return dashboardCountPanel('Operaciones por contexto',dashboardTopCounts(ops,'context'),'frecuencia de muestra');
+  if(id==='setupExpectancy')return dashboardMetricListPanel('Expectancy por setup',dashboardGroupedMetric(ops,'setup',unit),unit,unitLabel);
+  if(id==='contextExpectancy')return dashboardMetricListPanel('Expectancy por contexto',dashboardGroupedMetric(ops,'context',unit),unit,unitLabel);
+  if(id==='recent20')return dashboardRecent20Panel(ops,unit);
+  return '';
+}
+function dashboardSecondaryHtml(id,ctx){
+  const {ops,baseStats,unit,unitLabel}=ctx;
+  if(id==='mfe'){const v=dashboardExcursionAverage(ops,'mfe',unit);return `<section class="card panel dashboard-secondary-card"><div class="panel-title"><h3>MFE medio</h3><span>${esc(unitLabel)}</span></div><div class="kpi value">${dashboardPlainMetric(v,unit)}</div><div class="help">Potencial favorable observado.</div></section>`;}
+  if(id==='mae'){const v=dashboardExcursionAverage(ops,'mae',unit);return `<section class="card panel dashboard-secondary-card"><div class="panel-title"><h3>MAE medio</h3><span>${esc(unitLabel)}</span></div><div class="kpi value">${dashboardPlainMetric(v,unit)}</div><div class="help">Excursión adversa observada.</div></section>`;}
+  if(id==='currentBlock')return `<section class="card panel dashboard-secondary-card"><div class="panel-title"><h3>Bloque actual</h3><span>20 trades</span></div><div class="kpi value">${baseStats.n?Math.floor((baseStats.n-1)/20)+1:0}</div><div class="help">Agrupación cronológica dentro de este plan.</div></section>`;
+  return '';
+}
+function dashboardCustomizerRows(group,defs){
+  const active=dashboardCustomizeDraft?.[group]||[],map=new Map(defs),ordered=[...active,...defs.map(x=>x[0]).filter(id=>!active.includes(id))];
+  return `<div class="dashboard-config-list">${ordered.map(id=>{const enabled=active.includes(id),idx=active.indexOf(id);return `<div class="dashboard-config-row ${enabled?'enabled':'disabled'}"><label><input type="checkbox" ${enabled?'checked':''} onchange="dashboardToggleDraft('${group}','${id}',this.checked)"><span>${esc(map.get(id)||id)}</span></label><div class="dashboard-config-order">${enabled?`<button class="btn tiny ghost" type="button" onclick="dashboardMoveDraft('${group}','${id}',-1)" ${idx<=0?'disabled':''}>↑</button><button class="btn tiny ghost" type="button" onclick="dashboardMoveDraft('${group}','${id}',1)" ${idx>=active.length-1?'disabled':''}>↓</button>`:'<span>oculto</span>'}</div></div>`;}).join('')}</div>`;
+}
+function dashboardCustomizerBody(){
+  return `<div class="notice dashboard-config-note"><strong>Vista propia de este Trading Plan.</strong> Marca lo que quieras ver y usa ↑ ↓ para decidir el orden. La configuración se guarda con el plan y se sincroniza como el resto de sus datos.</div><div class="dashboard-config-grid"><section><h4>Métricas superiores</h4><p>Tarjetas rápidas de lectura.</p>${dashboardCustomizerRows('kpis',DASHBOARD_KPI_DEFS)}</section><section><h4>Gráficos y paneles</h4><p>Zona analítica principal.</p>${dashboardCustomizerRows('panels',DASHBOARD_PANEL_DEFS)}</section><section><h4>Tarjetas secundarias</h4><p>Información complementaria.</p>${dashboardCustomizerRows('secondary',DASHBOARD_SECONDARY_DEFS)}</section></div>`;
+}
+function openDashboardCustomizer(){
+  dashboardCustomizeDraft=clone(dashboardConfigForPlan());
+  document.body.insertAdjacentHTML('beforeend',modalShell('Personalizar Dashboard',dashboardCustomizerBody(),`<button class="btn ghost" onclick="dashboardResetDraft()">Restaurar predeterminado</button><button class="btn" onclick="closeModal();dashboardCustomizeDraft=null">Cancelar</button><button class="btn primary" onclick="saveDashboardCustomization()">Guardar Dashboard</button>`));
+}
+function dashboardRefreshCustomizer(){const body=document.querySelector('.modal-backdrop .modal-body');if(body)body.innerHTML=dashboardCustomizerBody();}
+function dashboardToggleDraft(group,id,checked){
+  if(!dashboardCustomizeDraft||!['kpis','panels','secondary'].includes(group))return;
+  let arr=dashboardCustomizeDraft[group]||[];arr=arr.filter(x=>x!==id);if(checked)arr.push(id);dashboardCustomizeDraft[group]=arr;dashboardRefreshCustomizer();
+}
+function dashboardMoveDraft(group,id,delta){
+  if(!dashboardCustomizeDraft)return;const arr=dashboardCustomizeDraft[group]||[],i=arr.indexOf(id),j=i+Number(delta||0);if(i<0||j<0||j>=arr.length)return;[arr[i],arr[j]]=[arr[j],arr[i]];dashboardRefreshCustomizer();
+}
+function dashboardResetDraft(){dashboardCustomizeDraft=clone(DASHBOARD_DEFAULT_CONFIG);dashboardRefreshCustomizer();}
+function saveDashboardCustomization(){
+  const p=getCurrentPlan();if(!p||!dashboardCustomizeDraft)return;
+  const total=(dashboardCustomizeDraft.kpis?.length||0)+(dashboardCustomizeDraft.panels?.length||0)+(dashboardCustomizeDraft.secondary?.length||0);
+  if(!total)return alert('Deja al menos una métrica o panel visible.');
+  p.dashboardConfig=clone(dashboardCustomizeDraft);p.updatedAt=new Date().toISOString();persist();dashboardCustomizeDraft=null;closeModal();render();
+}
+
+/* Dashboard V15: la unidad sigue siendo una vista local; la composición se guarda por Trading Plan. */
+dashboard=function(){
+  const ops=currentOps(),baseStats=calcStats(ops),unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r',metricStats=calcMetricStats(ops,unit,'gross'),unitLabel=metricUnitLabel(unit),config=dashboardConfigForPlan();
+  const ctx={ops,baseStats,metricStats,unit,unitLabel};
+  const unitButtons=`<div class="metric-switch dashboard-unit-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${unit===v?'active':''}" type="button" onclick="window.setDashboardUnit('${v}')">${l}</button>`).join('')}</div>`;
+  const actions=`${unitButtons}<button class="btn" onclick="openDashboardCustomizer()">⚙ Personalizar</button><button class="btn primary" onclick="openOperationModal()">+ Nueva operación</button><button class="btn" onclick="openImportModal()">Importar Ankora</button>`;
+  const kpisHtml=config.kpis.map(id=>dashboardKpiHtml(id,ctx)).filter(Boolean).join('');
+  const panelsHtml=config.panels.map(id=>dashboardPanelHtml(id,ctx)).filter(Boolean).join('');
+  const secondaryHtml=config.secondary.map(id=>dashboardSecondaryHtml(id,ctx)).filter(Boolean).join('');
+  return `${pageHead('Dashboard','Tu panel de control del Trading Plan. Unidad local; composición personalizada y guardada por plan.',actions)}${activePlanBanner()}${kpisHtml?`<div class="kpis dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">El Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
+};
+
+const shellV15Base=shell;
+shell=function(){
+  return shellV15Base()
+    .replace(V14_APP_LABEL,V15_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Calendario avanzado + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Dashboard personalizable + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+Object.assign(window,{openDashboardCustomizer,dashboardToggleDraft,dashboardMoveDraft,dashboardResetDraft,saveDashboardCustomization});
+render();
+/* ===== END V15 PATCH ===== */

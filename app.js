@@ -3100,7 +3100,7 @@ render();
 /* ===== END V16 PATCH ===== */
 
 /* ===== V17 PATCH · Estudios guardados ===== */
-const V17_APP_LABEL='V17 · Estudios guardados';
+const V17_APP_LABEL='V17.1 · Estudios + PF';
 
 function ensurePlanStudies(p){
   if(!p)return p;
@@ -3222,7 +3222,15 @@ function savedStudyComparePanel(){
   const actual={name:labStudiesUi.activeId?(p.savedStudies.find(x=>x.id===labStudiesUi.activeId)?.name||'Estudio cargado'):'Configuración actual',...studyStatsFor({lab:labState})};
   const saved={name:s.name,...studyStatsFor(s)};const u=labState.unit,b=labState.basis;
   const row=(label,a,z,fmt=x=>metricStatText(x,u))=>`<tr><th>${label}</th><td>${fmt(a)}</td><td>${fmt(z)}</td><td class="${z-a>0?'positive':z-a<0?'negative':''}">${fmt(z-a)}</td></tr>`;
-  return `<section class="study-compare"><div class="study-compare-head"><div><strong>Comparación de estudios</strong><span>${metricUnitLabel(u)} · ${b==='net'?'Neto':'Bruto'} · mismos datos actuales</span></div><button class="btn tiny ghost" onclick="labStudiesUi.compareId='';render()">Cerrar</button></div><div class="study-compare-names"><div><b>Actual</b><span>${esc(actual.name)}</span><small>${actual.ops.length} operaciones</small></div><div><b>Guardado</b><span>${esc(saved.name)}</span><small>${saved.ops.length} operaciones</small></div></div><div class="table-wrap"><table class="table compact-table"><thead><tr><th>Métrica</th><th>Actual</th><th>${esc(saved.name)}</th><th>Δ guardado − actual</th></tr></thead><tbody>${row('Operaciones',actual.stats.n,saved.stats.n,x=>String(Math.round(x)))}${row('Resultado',actual.stats.sum,saved.stats.sum)}${row('Expectancy',actual.stats.expectancy,saved.stats.expectancy)}${row('Win rate',actual.stats.winRate,saved.stats.winRate,x=>`${Number(x||0).toFixed(1)}%`)}${row('Profit Factor',Number.isFinite(actual.stats.pf)?actual.stats.pf:0,Number.isFinite(saved.stats.pf)?saved.stats.pf:0,x=>Number(x||0).toFixed(2))}${row('Max DD',actual.stats.maxDD,saved.stats.maxDD)}</tbody></table></div><div class="lab-note">La comparación reutiliza los filtros guardados, pero calcula ambos estudios sobre el dataset actual. Si has añadido operaciones desde que guardaste el estudio, su muestra puede crecer.</div></section>`;
+  const pfText=v=>Number.isFinite(v)?Number(v).toFixed(2):'∞';
+  const pfCompareRow=()=>{
+    const a=actual.stats.pf,z=saved.stats.pf;let deltaText='—',cls='';
+    if(Number.isFinite(a)&&Number.isFinite(z)){const d=z-a;deltaText=`${d>0?'+':''}${d.toFixed(2)}`;cls=d>0?'positive':d<0?'negative':'';}
+    else if(!Number.isFinite(a)&&Number.isFinite(z)){deltaText='-∞';cls='negative';}
+    else if(Number.isFinite(a)&&!Number.isFinite(z)){deltaText='+∞';cls='positive';}
+    return `<tr><th>Profit Factor</th><td>${pfText(a)}</td><td>${pfText(z)}</td><td class="${cls}">${deltaText}</td></tr>`;
+  };
+  return `<section class="study-compare"><div class="study-compare-head"><div><strong>Comparación de estudios</strong><span>${metricUnitLabel(u)} · ${b==='net'?'Neto':'Bruto'} · mismos datos actuales</span></div><button class="btn tiny ghost" onclick="labStudiesUi.compareId='';render()">Cerrar</button></div><div class="study-compare-names"><div><b>Actual</b><span>${esc(actual.name)}</span><small>${actual.ops.length} operaciones</small></div><div><b>Guardado</b><span>${esc(saved.name)}</span><small>${saved.ops.length} operaciones</small></div></div><div class="table-wrap"><table class="table compact-table"><thead><tr><th>Métrica</th><th>Actual</th><th>${esc(saved.name)}</th><th>Δ guardado − actual</th></tr></thead><tbody>${row('Operaciones',actual.stats.n,saved.stats.n,x=>String(Math.round(x)))}${row('Resultado',actual.stats.sum,saved.stats.sum)}${row('Expectancy',actual.stats.expectancy,saved.stats.expectancy)}${row('Win rate',actual.stats.winRate,saved.stats.winRate,x=>`${Number(x||0).toFixed(1)}%`)}${pfCompareRow()}${row('Max DD',actual.stats.maxDD,saved.stats.maxDD)}</tbody></table></div><div class="lab-note">La comparación reutiliza los filtros guardados, pero calcula ambos estudios sobre el dataset actual. Si has añadido operaciones desde que guardaste el estudio, su muestra puede crecer.</div></section>`;
 }
 function savedStudiesPanel(){
   const p=getCurrentPlan();ensurePlanStudies(p);reconcileStudyUi();const studies=p.savedStudies,selected=selectedStudy(),active=studies.find(x=>x.id===labStudiesUi.activeId),dirty=activeStudyDirty();

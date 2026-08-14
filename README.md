@@ -1,4 +1,4 @@
-# Trading Research V17 — Plan Compliance
+# Trading Research V17.1 — Estudios Guardados + corrección PF
 
 V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
@@ -47,3 +47,8 @@ No requiere SQL nuevo ni cambios en Supabase/Cloudflare. Continúa utilizando lo
 ## V17 · Estudios guardados
 
 El Laboratorio permite guardar, cargar, actualizar, duplicar, eliminar y comparar configuraciones de estudio por Trading Plan. Se persisten filtros, unidad/base, Research Grid y parámetros de Exit Lab sin duplicar operaciones. También se corrige el filtrado desde Research Grid para NR, Hipótesis y Hora.
+
+
+## V17.1 · Corrección Profit Factor en comparación de estudios
+
+Cuando una muestra no tiene operaciones perdedoras, el Profit Factor es infinito. La comparación de estudios conserva ahora `∞` en lugar de convertirlo erróneamente a `0.00`, y el delta muestra `+∞`, `-∞` o `—` según corresponda.

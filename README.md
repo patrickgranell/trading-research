@@ -1,22 +1,25 @@
-# Trading Research V10 — Advanced Analytics Lab
+# Trading Research V11 — Biblioteca Maestra
 
-Esta versión mantiene intacta la infraestructura V9.2 Conflict Guard y añade una capa analítica no destructiva.
+Esta versión parte de V10 y mantiene intacto el motor V9.2 Conflict Guard. Añade una Biblioteca Maestra global para reutilizar material entre Trading Plans sin volver a escribirlo.
 
-## Laboratorio Analítico Avanzado
+## Biblioteca Maestra
 
-- Heatmap Foco × Estrés con Expectancy / WR / PF / resultado total y tamaño de muestra.
-- Scatter MAE/MFE frente a resultado económico en US$.
-- Penalizaciones conductuales por pérdida neta asociada.
-- Histograma de distribución de resultados en R con diagnóstico de stops alrededor de −1R.
-- Matriz de Edge configurable (Setup × Contexto por defecto).
-- Estabilidad del Edge mediante ventanas móviles de 20 / 40 / 100 operaciones.
-- Simulador de reglas de riesgo: señales brutas vs gestión del Trading Plan.
-- Tabla final del subconjunto analizado.
-- Filtros interactivos compartidos entre módulos.
+- Guarda Setups, VD, Contextos, NR, Hipótesis, Estrategias de gestión, reglas de gestión del riesgo y salidas discrecionales.
+- Importación masiva del material del Trading Plan activo.
+- Si un elemento no cambia, no se duplica; si cambia, se crea una nueva versión.
+- Los Trading Plans reciben snapshots independientes: una versión nueva de la Biblioteca no reescribe planes anteriores.
+- Selector múltiple para añadir material de Biblioteca al plan activo.
+- Creación de un Trading Plan nuevo directamente desde la Biblioteca.
+- Archivado no destructivo de familias de material.
+- Las referencias de imagen de la Biblioteca participan en backup y sincronización de Storage.
 
-## Seguridad
+## Nube y seguridad
 
-El motor Supabase, Safe Sync, Conflict Guard y snapshots de V9.2 no se modifica.
+No requiere SQL nuevo. La Biblioteca Maestra viaja dentro del payload versionado de los Trading Plans, por lo que utiliza las tablas Supabase existentes y sigue protegida por Safe Sync, Conflict Guard y snapshots.
+
+## Laboratorio
+
+Se conserva completo el Laboratorio Analítico Avanzado de V10.
 
 ## Despliegue
 

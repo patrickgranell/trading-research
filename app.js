@@ -1520,3 +1520,217 @@ render=function(){document.getElementById('app').innerHTML=shell();const view=do
 Object.assign(window,{labReadFilters,labReset,setLabUnit,setLabBasis,setLabHeatMetric,setLabScatterX,setLabHistBin,setLabEdgeAxis,setLabRollingWindow,setLabRollingMetric,labApplyFocusStress,labApplyBehavior,labApplyRBin,labApplyEdge});
 render();
 /* ===== END V10 PATCH ===== */
+
+/* ===== V11 PATCH · Master Library ===== */
+const V11_APP_LABEL='V11 · Biblioteca Maestra';
+const MASTER_LIBRARY_SCHEMA=1;
+
+function emptyMasterLibrary(){return {schema:MASTER_LIBRARY_SCHEMA,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),items:[]};}
+function normalizeMasterLibrary(lib){
+  const out=lib&&typeof lib==='object'?clone(lib):emptyMasterLibrary();
+  out.schema=MASTER_LIBRARY_SCHEMA;
+  out.createdAt=out.createdAt||new Date().toISOString();
+  out.updatedAt=out.updatedAt||out.createdAt;
+  out.items=Array.isArray(out.items)?out.items.map(x=>({
+    id:x.id||uid('LIB'),familyId:x.familyId||uid('LIBF'),type:x.type||'setup',name:String(x.name||'Sin nombre'),version:Math.max(1,Number(x.version)||1),
+    status:x.status==='archived'?'archived':'active',createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||x.createdAt||new Date().toISOString(),
+    sourcePlanId:x.sourcePlanId||'',sourcePlanLabel:x.sourcePlanLabel||'',payload:clone(x.payload??null)
+  })):[];
+  return out;
+}
+function ensureMasterLibrary(){state.masterLibrary=normalizeMasterLibrary(state.masterLibrary);return state.masterLibrary;}
+
+const normalizeStateV11Base=normalizeState;
+normalizeState=function(raw){
+  let src=raw;
+  let lib=raw?.masterLibrary||null;
+  if(!lib&&Array.isArray(raw?.tradingPlans)){
+    const carrier=raw.tradingPlans.find(p=>p&&p.__masterLibrary);
+    if(carrier?.__masterLibrary)lib=carrier.__masterLibrary;
+  }
+  if(raw&&typeof raw==='object'){
+    src=clone(raw);
+    if(Array.isArray(src.tradingPlans))src.tradingPlans=src.tradingPlans.map(p=>{const q={...p};delete q.__masterLibrary;return q;});
+  }
+  const out=normalizeStateV11Base(src);
+  out.masterLibrary=normalizeMasterLibrary(lib);
+  return out;
+};
+state=normalizeState(state);ensureMasterLibrary();
+try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}
+
+function libraryTypeLabel(type){return ({setup:'Setup',vd:'VD',context:'Contexto',nr:'NR',hypothesis:'Hipótesis',riskStrategy:'Estrategia',riskRules:'Gestión del riesgo',discretionaryTarget:'Salida discrecional'})[type]||type;}
+function libraryTypeOrder(type){return ['setup','vd','context','nr','hypothesis','riskStrategy','riskRules','discretionaryTarget'].indexOf(type);}
+function libraryPayloadComparable(type,payload){
+  const p=clone(payload??null);
+  if(!p||typeof p!=='object')return p;
+  delete p.updatedAt;delete p.createdAt;
+  if(['setup','vd','context','hypothesis','riskStrategy'].includes(type))delete p.id;
+  if(type==='riskStrategy'&&Array.isArray(p.lots))p.lots=p.lots.map(l=>{const q={...l};delete q.id;return q;});
+  return p;
+}
+function libraryPayloadEqual(type,a,b){return JSON.stringify(libraryPayloadComparable(type,a))===JSON.stringify(libraryPayloadComparable(type,b));}
+function libraryFamilyItems(familyId){return ensureMasterLibrary().items.filter(x=>x.familyId===familyId).sort((a,b)=>b.version-a.version);}
+function latestLibraryItems(includeArchived=false){
+  const groups=new Map();
+  ensureMasterLibrary().items.forEach(i=>{if(!includeArchived&&i.status==='archived')return;const prev=groups.get(i.familyId);if(!prev||i.version>prev.version)groups.set(i.familyId,i);});
+  return [...groups.values()].sort((a,b)=>libraryTypeOrder(a.type)-libraryTypeOrder(b.type)||a.name.localeCompare(b.name,'es'));
+}
+function latestLibraryFamilyItem(type,name){return latestLibraryItems(true).find(x=>x.type===type&&x.name===name)||null;}
+function upsertLibrarySnapshot(type,name,payload,sourcePlan){
+  const lib=ensureMasterLibrary();
+  const existing=lib.items.filter(x=>x.type===type&&x.name===name).sort((a,b)=>b.version-a.version)[0];
+  if(existing&&libraryPayloadEqual(type,existing.payload,payload)){
+    if(existing.status==='archived')existing.status='active';
+    return {status:'same',item:existing};
+  }
+  const now=new Date().toISOString();
+  const item={id:uid('LIB'),familyId:existing?.familyId||uid('LIBF'),type,name,version:existing?existing.version+1:1,status:'active',createdAt:now,updatedAt:now,sourcePlanId:sourcePlan?.id||'',sourcePlanLabel:sourcePlan?planLabel(sourcePlan):'',payload:clone(payload)};
+  lib.items.push(item);lib.updatedAt=now;return {status:existing?'version':'new',item};
+}
+function librarySnapshotsFromPlan(p){
+  ensurePlanV8Structure(p);
+  const rows=[];
+  (p.setupDefinitions||[]).forEach(d=>rows.push(['setup',d.key,d]));
+  (p.vdDefinitions||[]).forEach(d=>rows.push(['vd',d.key,d]));
+  (p.contextDefinitions||[]).forEach(d=>rows.push(['context',d.key,d]));
+  (p.nr||[]).forEach(name=>rows.push(['nr',name,{name}]));
+  (p.hypotheses||[]).forEach(h=>rows.push(['hypothesis',h.name,h]));
+  (p.riskStrategies||[]).forEach(r=>rows.push(['riskStrategy',r.name,r]));
+  rows.push(['riskRules','Reglas de gestión del riesgo',p.riskManagement||clone(basePlanConfig.riskManagement)]);
+  (p.discretionaryTargets||[]).forEach(name=>rows.push(['discretionaryTarget',name,{name}]));
+  return rows;
+}
+function saveCurrentPlanToLibrary(){
+  const p=getCurrentPlan();if(!p)return;
+  if(!confirm(`Guardar el material de ${planLabel(p)} en la Biblioteca Maestra?\n\nSi un elemento no ha cambiado, no se duplica. Si cambió, se crea una nueva versión y los planes antiguos no se modifican.`))return;
+  let added=0,versions=0,same=0;
+  librarySnapshotsFromPlan(p).forEach(([type,name,payload])=>{const r=upsertLibrarySnapshot(type,name,payload,p);if(r.status==='new')added++;else if(r.status==='version')versions++;else same++;});
+  persist();render();alert(`Biblioteca actualizada.\nNuevos: ${added}\nNuevas versiones: ${versions}\nSin cambios: ${same}`);
+}
+function planHasLibraryEquivalent(p,item){
+  ensurePlanV8Structure(p);
+  if(item.type==='setup')return (p.setups||[]).includes(item.name);
+  if(item.type==='vd')return (p.vd||[]).includes(item.name);
+  if(item.type==='context')return (p.contextDefinitions||[]).some(d=>d.key===item.name);
+  if(item.type==='nr')return (p.nr||[]).includes(item.name);
+  if(item.type==='hypothesis')return (p.hypotheses||[]).some(h=>h.name===item.name);
+  if(item.type==='riskStrategy')return (p.riskStrategies||[]).some(r=>r.name===item.name);
+  if(item.type==='riskRules')return false;
+  if(item.type==='discretionaryTarget')return (p.discretionaryTargets||[]).includes(item.name);
+  return false;
+}
+function addLibraryLink(p,item,key=item.name){
+  p.libraryLinks=Array.isArray(p.libraryLinks)?p.libraryLinks:[];
+  p.libraryLinks=p.libraryLinks.filter(x=>!(x.type===item.type&&x.key===key));
+  p.libraryLinks.push({type:item.type,key,itemId:item.id,familyId:item.familyId,version:item.version,linkedAt:new Date().toISOString()});
+}
+function nextHypothesisId(p,desired=''){
+  if(desired&&!p.hypotheses.some(h=>h.id===desired))return desired;
+  let n=1,id='H1';while(p.hypotheses.some(h=>h.id===id)){n++;id=`H${n}`;}return id;
+}
+function applyLibraryItemToPlan(item,p){
+  if(!item||!p)return {status:'error'};ensurePlanV8Structure(p);
+  if(item.type!=='riskRules'&&planHasLibraryEquivalent(p,item))return {status:'exists'};
+  if(item.type==='setup'){
+    const d=clone(item.payload);d.id=uid('SETDEF');d.updatedAt=new Date().toISOString();p.setupDefinitions.push(d);p.setups=uniq([...(p.setups||[]),item.name]);
+  }else if(item.type==='vd'){
+    const d=clone(item.payload);d.id=uid('VDDEF');d.updatedAt=new Date().toISOString();p.vdDefinitions.push(d);p.vd=uniq([...(p.vd||[]),item.name]);
+  }else if(item.type==='context'){
+    const d=clone(item.payload);d.id=uid('CTXDEF');d.updatedAt=new Date().toISOString();p.contextDefinitions.push(d);
+  }else if(item.type==='nr')p.nr=uniq([...(p.nr||[]),item.name]);
+  else if(item.type==='hypothesis'){
+    const h=clone(item.payload);h.id=nextHypothesisId(p,h.id);p.hypotheses.push(h);
+  }else if(item.type==='riskStrategy'){
+    const r=normalizeRiskStrategy(clone(item.payload),state.settings.instruments);r.id=uid('R');r.lots=(r.lots||[]).map(l=>({...l,id:uid('L')}));p.riskStrategies.push(r);
+  }else if(item.type==='riskRules')p.riskManagement=clone(item.payload);
+  else if(item.type==='discretionaryTarget')p.discretionaryTargets=uniq([...(p.discretionaryTargets||[]),item.name]);
+  addLibraryLink(p,item,item.name);p.updatedAt=new Date().toISOString();ensurePlanV8Structure(p);return {status:'added'};
+}
+function applyLibraryItemsToPlan(ids,p){
+  const lib=ensureMasterLibrary();let added=0,exists=0;
+  ids.forEach(id=>{const item=lib.items.find(x=>x.id===id&&x.status!=='archived');if(!item)return;const r=applyLibraryItemToPlan(item,p);if(r.status==='added')added++;else if(r.status==='exists')exists++;});
+  return {added,exists};
+}
+function libraryItemUsage(item){return state.tradingPlans.filter(p=>(p.libraryLinks||[]).some(x=>x.familyId===item.familyId)).length;}
+function libraryUpdateForPlan(p,item){const link=(p.libraryLinks||[]).find(x=>x.familyId===item.familyId);return link&&Number(link.version)<Number(item.version)?item.version:null;}
+
+function libraryPickerGroups(items,checkboxName,targetPlan=null){
+  const types=['setup','vd','context','nr','hypothesis','riskStrategy','riskRules','discretionaryTarget'];
+  return `<div class="library-picker">${types.map(type=>{const rows=items.filter(x=>x.type===type);if(!rows.length)return '';return `<section class="library-picker-group"><h4>${libraryTypeLabel(type)}</h4>${rows.map(i=>{const exists=targetPlan&&type!=='riskRules'&&planHasLibraryEquivalent(targetPlan,i);return `<label class="library-check ${exists?'disabled':''}"><input type="checkbox" name="${checkboxName}" value="${esc(i.id)}" ${exists?'disabled':''}><span><strong>${esc(i.name)}</strong><small>v${i.version}${i.sourcePlanLabel?` · ${esc(i.sourcePlanLabel)}`:''}${exists?' · Ya está en el plan':''}</small></span></label>`;}).join('')}</section>`;}).join('')}</div>`;
+}
+function openLibraryPicker(){
+  const p=getCurrentPlan(),items=latestLibraryItems(false);if(!p)return;if(!items.length)return alert('La Biblioteca Maestra está vacía. Guarda primero material desde un Trading Plan.');
+  const body=`<div class="notice">Selecciona el material que quieres añadir a <strong>${esc(planLabel(p))}</strong>. Se copia como snapshot: futuras versiones de la Biblioteca no modificarán este plan.</div>${libraryPickerGroups(items,'lib-pick-item',p)}`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Seleccionar desde Biblioteca Maestra',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="confirmLibraryPicker()">Añadir selección</button>`));
+}
+function confirmLibraryPicker(){const p=getCurrentPlan();if(!p)return;const ids=[...document.querySelectorAll('input[name="lib-pick-item"]:checked')].map(x=>x.value);if(!ids.length)return alert('Selecciona al menos un elemento.');const r=applyLibraryItemsToPlan(ids,p);persist();closeModal();render();alert(`Añadidos al plan: ${r.added}${r.exists?`\nYa existentes: ${r.exists}`:''}`);}
+function addSingleLibraryItem(id){const p=getCurrentPlan(),item=ensureMasterLibrary().items.find(x=>x.id===id);if(!p||!item)return;const r=applyLibraryItemToPlan(item,p);if(r.status==='exists')return alert('Ese elemento ya existe en el Trading Plan actual.');persist();render();}
+function archiveLibraryFamily(familyId){const items=libraryFamilyItems(familyId);if(!items.length)return;if(!confirm(`Archivar "${items[0].name}" y todas sus versiones?\n\nNo se borrará de ningún Trading Plan que ya lo utilice.`))return;items.forEach(i=>{i.status='archived';i.updatedAt=new Date().toISOString();});ensureMasterLibrary().updatedAt=new Date().toISOString();persist();render();}
+function restoreLibraryFamily(familyId){libraryFamilyItems(familyId).forEach(i=>{i.status='active';i.updatedAt=new Date().toISOString();});ensureMasterLibrary().updatedAt=new Date().toISOString();persist();render();}
+
+function masterLibraryPanel(){
+  const p=getCurrentPlan(),lib=ensureMasterLibrary(),latest=latestLibraryItems(false),archivedFamilies=[...new Set(lib.items.filter(x=>x.status==='archived').map(x=>x.familyId))].filter(fid=>!lib.items.some(x=>x.familyId===fid&&x.status==='active'));
+  const counts={};latest.forEach(i=>counts[i.type]=(counts[i.type]||0)+1);
+  const group=type=>{const items=latest.filter(i=>i.type===type);if(!items.length)return '';return `<section class="card panel config-wide master-lib-section"><div class="panel-title"><div><h3>${libraryTypeLabel(type)}</h3><div class="help">${items.length} elemento(s) reutilizable(s)</div></div></div><div class="master-lib-grid">${items.map(i=>{const versions=libraryFamilyItems(i.familyId).length,usage=libraryItemUsage(i),update=libraryUpdateForPlan(p,i);return `<article class="master-lib-card"><div class="master-lib-head"><div><span class="badge">v${i.version}</span><strong>${esc(i.name)}</strong></div><span>${versions} versión(es)</span></div><div class="master-lib-meta">${i.sourcePlanLabel?`Origen: ${esc(i.sourcePlanLabel)} · `:''}${usage} plan(es) vinculados${update?` · <b class="positive">v${update} disponible</b>`:''}</div><div class="master-lib-actions"><button class="btn small primary" onclick="addSingleLibraryItem('${i.id}')" ${type!=='riskRules'&&planHasLibraryEquivalent(p,i)?'disabled':''}>${type!=='riskRules'&&planHasLibraryEquivalent(p,i)?'Ya en este plan':'Añadir al plan'}</button><button class="btn small danger" onclick="archiveLibraryFamily('${i.familyId}')">Archivar</button></div></article>`;}).join('')}</div></section>`;};
+  return `<section class="card panel config-wide master-lib-hero"><div class="panel-title"><div><h3>Biblioteca Maestra</h3><div class="help">Material global reutilizable entre Trading Plans. Cada plan recibe una copia versionada; una actualización futura no reescribe su histórico.</div></div><div class="master-lib-toolbar"><button class="btn" onclick="openLibraryPicker()">Seleccionar para este plan</button><button class="btn primary" onclick="saveCurrentPlanToLibrary()">Guardar plan actual en Biblioteca</button></div></div><div class="master-lib-kpis"><div><span>Familias activas</span><strong>${latest.length}</strong></div><div><span>Setups</span><strong>${counts.setup||0}</strong></div><div><span>Contextos</span><strong>${counts.context||0}</strong></div><div><span>VD</span><strong>${counts.vd||0}</strong></div><div><span>Estrategias</span><strong>${counts.riskStrategy||0}</strong></div></div><div class="notice">Prueba recomendada: guarda el plan actual, crea un plan nuevo desde Biblioteca y selecciona solo 2–3 elementos. El original no cambia y el nuevo recibe sus propias copias.</div></section>${['setup','vd','context','nr','hypothesis','riskStrategy','riskRules','discretionaryTarget'].map(group).join('')}${archivedFamilies.length?`<section class="card panel config-wide"><div class="panel-title"><div><h3>Archivados</h3><div class="help">Se conservan para no perder versiones históricas.</div></div></div><div class="config-list">${archivedFamilies.map(fid=>{const i=libraryFamilyItems(fid)[0];return `<div class="config-row"><div class="config-main"><div class="config-name">${esc(i?.name||'Elemento')}</div><div class="config-meta">${esc(libraryTypeLabel(i?.type||''))} · ${libraryFamilyItems(fid).length} versión(es)</div></div><button class="btn small" onclick="restoreLibraryFamily('${fid}')">Restaurar</button></div>`;}).join('')}</div></section>`:''}`;
+}
+
+function openPlanFromLibraryModal(){
+  const items=latestLibraryItems(false);if(!items.length)return alert('La Biblioteca Maestra está vacía. Guarda primero el material de un Trading Plan.');
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Identidad del nuevo plan</h4><div class="form-grid">${field('Familia / sistema','lib-plan-family','text','')}${field('Nombre','lib-plan-name','text','')}${field('Versión','lib-plan-version','text','v1')}${field('Descripción','lib-plan-description','textarea','','full')}</div></div><div class="form-section"><h4>Material inicial</h4><div class="help">Elige solamente lo que quieras utilizar. Los elementos se copian y quedan congelados en esta versión del plan.</div>${libraryPickerGroups(items,'lib-create-item',null)}</div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Nuevo Trading Plan desde Biblioteca',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="createPlanFromLibrary()">Crear plan</button>`));
+}
+function createPlanFromLibrary(){
+  const get=n=>document.getElementById(`f-${n}`)?.value||'',name=get('lib-plan-name').trim();if(!name)return alert('El nombre del plan es obligatorio.');
+  const family=get('lib-plan-family').trim()||name,version=get('lib-plan-version').trim()||'v1',description=get('lib-plan-description').trim();
+  const ids=[...document.querySelectorAll('input[name="lib-create-item"]:checked')].map(x=>x.value);if(!ids.length&&!confirm('No has seleccionado material. ¿Crear igualmente un plan vacío?'))return;
+  const p=makeBlankPlan({familyName:family,name,version,description,status:'active'});ensurePlanV8Structure(p);applyLibraryItemsToPlan(ids,p);state.tradingPlans.push(p);state.currentPlanId=p.id;persist();closeModal();currentView='plans';render();
+}
+
+const plansViewV11Base=plansView;
+plansView=function(){
+  let html=plansViewV11Base();
+  const old='<button class="btn primary" onclick="openPlanModal()">+ Nuevo plan desde cero</button>';
+  const repl='<div class="page-head-actions"><button class="btn" onclick="openPlanModal()">+ Nuevo desde cero</button><button class="btn primary" onclick="openPlanFromLibraryModal()">+ Nuevo desde Biblioteca</button></div>';
+  return html.replace(old,repl);
+};
+
+configTabs=function(p){const tabs=[['instruments','Contratos','Biblioteca global'],['masterLibrary','Biblioteca Maestra','Material reutilizable'],['management','Gestión','Estrategias y salidas'],['taxonomy','Taxonomías','Setups, VD, contexto y estructura'],['visual','Referencias visuales','Galería del plan'],['emotional','Emocional','Estados y comportamientos'],['riskrules','Riesgo','Reglas diarias/semanales'],['data','Datos y seguridad','Backup e integridad'],['cloud','Nube','Supabase y sincronización']];return `<div class="config-tabs">${tabs.map(([id,label,desc])=>`<button class="config-tab ${configTab===id?'active':''}" onclick="setConfigTab('${id}')"><strong>${label}</strong><span>${desc}</span></button>`).join('')}</div>`;};
+const configContentV11Base=configContent;
+configContent=function(p){if(configTab==='masterLibrary')return masterLibraryPanel();return configContentV11Base(p);};
+
+const planCloudRowV11Base=planCloudRow;
+planCloudRow=function(p,userId){const row=planCloudRowV11Base(p,userId);row.payload={...clone(row.payload),__masterLibrary:clone(ensureMasterLibrary())};return row;};
+cloudLocalFingerprintPayload=function(){
+  ensureAllPlansV8();ensureMasterLibrary();
+  const byId=a=>clone(a||[]).sort((x,y)=>String(x?.id||'').localeCompare(String(y?.id||'')));
+  const plans=byId(state.tradingPlans).map(p=>({...p,__masterLibrary:clone(state.masterLibrary)}));
+  return {currentPlanId:state.currentPlanId||'',plans,instruments:byId(state.settings?.instruments),operations:byId(state.operations),batches:byId(state.importBatches),opportunities:byId(state.opportunities)};
+};
+
+const collectReferencedImageIdsV11Base=collectReferencedImageIds;
+collectReferencedImageIds=function(){
+  const ids=collectReferencedImageIdsV11Base();
+  ensureMasterLibrary().items.forEach(i=>{
+    const p=i.payload||{};
+    [...(p.images||[]),...(p.imagesLong||[]),...(p.imagesShort||[])].forEach(x=>x?.id&&ids.push(x.id));
+  });
+  return ids;
+};
+
+// Do not delete an image blob if another plan or the Master Library still references it.
+deleteTaxonomyAsset=async function(type,key){
+  const p=getCurrentPlan();if(!p)return;ensurePlanV8Structure(p);const clean=decodeURIComponent(key||'');
+  if(!confirm(`¿Eliminar ${taxonomyLabel(type).toLowerCase()} "${clean}"? Las operaciones históricas no se borrarán.`))return;
+  const collName=defCollectionName(type),coll=p[collName],item=coll.find(d=>d.key===clean),imgs=item?[...(item.images||[]),...(item.imagesLong||[]),...(item.imagesShort||[])]:[];
+  p[collName]=coll.filter(d=>d.key!==clean);if(type==='setup')p.setups=(p.setups||[]).filter(x=>x!==clean);if(type==='vd')p.vd=(p.vd||[]).filter(x=>x!==clean);p.updatedAt=new Date().toISOString();
+  const refs=new Set(collectReferencedImageIds());for(const img of imgs)if(!refs.has(img.id))await deleteImageBlob(img.id);
+  persist();render();
+};
+
+const shellV11Base=shell;
+shell=function(){return shellV11Base().replace(V10_APP_LABEL,V11_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. El Laboratorio es una capa analítica no destructiva.','Motor cloud V9.2 Conflict Guard intacto. Biblioteca Maestra y Laboratorio trabajan encima de la misma base estable.');};
+Object.assign(window,{saveCurrentPlanToLibrary,openLibraryPicker,confirmLibraryPicker,addSingleLibraryItem,archiveLibraryFamily,restoreLibraryFamily,openPlanFromLibraryModal,createPlanFromLibrary,deleteTaxonomyAsset});
+render();
+/* ===== END V11 PATCH ===== */

@@ -179,7 +179,7 @@ No requiere SQL nuevo y mantiene Supabase, Conflict Guard, snapshots, Forward OO
 - No requiere SQL nuevo y mantiene Supabase / Conflict Guard / Forward OOS intactos.
 
 
-## V28 · Quality-Aware Analytics
+## V29 · Research Decision Center
 
 - Cobertura contextual por módulo calculada sobre el subconjunto actualmente filtrado.
 - Exit Lab muestra cobertura MFE/MAE antes de interpretar salidas y escenarios.

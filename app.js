@@ -4905,3 +4905,153 @@ shell=function(){return shellV28Base().replace(V27_APP_LABEL,V28_APP_LABEL).repl
 Object.assign(window,{dqV28OpenQuality,exitLabModule,labMaeMfeScatter,labFocusStressHeatmap,labBehaviorPenalties,researchGridModule,confidencePanel,robustnessModule,riskStressModule,walkForwardModule,complianceView,journal});
 render();
 /* ===== END V28 PATCH ===== */
+
+/* ===== V29 PATCH · Research Decision Center ===== */
+const V29_APP_LABEL='V29 · Research Decision Center';
+
+function decisionSeverityRank(v){return v==='high'?3:v==='medium'?2:1;}
+function decisionSeverityLabel(v){return v==='high'?'Prioridad alta':v==='medium'?'Atención':'Seguimiento';}
+function decisionMetric(v,unit='r'){return Number.isFinite(Number(v))?metricStatText(Number(v),unit):'—';}
+function decisionPct(v){return Number.isFinite(Number(v))?`${Number(v).toFixed(0)}%`:'—';}
+function decisionDate(v){try{return new Date(v).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'});}catch{return '—';}}
+
+function decisionOpenStudy(id){
+  const p=getCurrentPlan();ensurePlanStudies(p);if(!p.savedStudies.some(x=>x.id===id))return;
+  labStudiesUi.selectedId=id;currentView='lab';loadSelectedStudy();
+  setTimeout(()=>document.querySelector('.saved-studies-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+}
+function decisionOpenForward(){currentView='lab';render();setTimeout(()=>document.querySelector('.forward-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),80);}
+function decisionOpenGoals(){currentView='goals';render();}
+function decisionOpenReviews(){currentView='review';render();}
+function decisionOpenStress(){currentView='lab';render();setTimeout(()=>document.querySelector('.stress-module')?.scrollIntoView({behavior:'smooth',block:'start'}),80);}
+function decisionOpenCompliance(){currentView='compliance';render();}
+
+function decisionQualitySnapshot(p,ops){
+  ensurePlanDataQualityV27(p);const a=analyzeDataQuality(p,ops),by=id=>a.coverage.find(x=>x.id===id)||{pct:0,ok:0,total:ops.length};
+  const errors=a.issues.filter(x=>x.severity==='error').reduce((n,x)=>n+x.opIds.length,0);
+  const warnings=a.issues.filter(x=>x.severity==='warning').reduce((n,x)=>n+x.opIds.length,0);
+  return {a,errors,warnings,core:dqV28Coverage(ops,'core'),mfe:dqV28Coverage(ops,'mfe'),mae:dqV28Coverage(ops,'mae'),check:dqV28Coverage(ops,'checklist'),journal:dqV28Coverage(ops,'journal'),vd:by('vd')};
+}
+function decisionStudyRows(p){
+  ensurePlanStudies(p);
+  return (p.savedStudies||[]).map(s=>{const ops=labFilteredOpsForState(s.lab||{}),stats=calcMetricStats(ops,'r','net'),ev=confidenceEvidence(stats);return {s,ops,stats,ev};})
+    .sort((a,b)=>{
+      const ea=a.ev.key==='positive'?3:a.stats.expectancy>0?2:1,eb=b.ev.key==='positive'?3:b.stats.expectancy>0?2:1;
+      return eb-ea||(b.stats.ciLow95||-999)-(a.stats.ciLow95||-999)||b.ops.length-a.ops.length;
+    });
+}
+function decisionForwardRows(p){
+  ensurePlanForwardTests(p);
+  return (p.forwardTests||[]).map(t=>{const ops=forwardFrozenOps(t),s=calcMetricStats(ops,t.lab?.unit||'r',t.lab?.basis||'net'),disc=forwardDiscoveryStats(t),target=t.targetN||50,progress=Math.min(100,target?ops.length/target*100:0),ev=forwardEvidence(s);return {t,ops,s,disc,target,progress,ev};});
+}
+function decisionGoalRows(p){
+  ensurePlanGoals(p);return (p.goals||[]).filter(g=>g.active).map(g=>({g,e:goalEval(g)})).sort((a,b)=>Number(a.e.met)-Number(b.e.met)||a.e.progress-b.e.progress);
+}
+function decisionReviewRows(p){
+  ensurePlanReviews(p);return (p.reviewNotes||[]).filter(n=>['open','monitoring'].includes(n.status)).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+}
+function decisionRecentDrift(ops){
+  const rows=[...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));if(rows.length<20)return null;
+  const recent=rows.slice(-20),prior=rows.slice(0,-20),all=calcMetricStats(rows,'r','net'),r=calcMetricStats(recent,'r','net'),p=prior.length?calcMetricStats(prior,'r','net'):null;
+  const retention=p&&p.expectancy?100*r.expectancy/p.expectancy:NaN;
+  let state='stable',severity='info';
+  if(p&&p.expectancy>0&&r.expectancy<0){state='signflip';severity='high';}
+  else if(p&&p.expectancy>0&&r.expectancy<p.expectancy*.5){state='weak';severity='medium';}
+  else if(r.ciHigh95<0){state='negative';severity='high';}
+  return {recent,prior,all,r,p,retention,state,severity};
+}
+function decisionRiskSnapshot(ops){
+  if(!ops.length)return null;
+  const unit=labState.unit||'r',basis=labState.basis||'net',observed=calcMetricStats(ops,unit,basis),sim=riskStressSimulation(ops,unit);
+  if(!sim)return {unit,basis,observed,sim:null};
+  const ratio=Math.abs(sim.ddP95)>0?Math.abs(observed.maxDD)/Math.abs(sim.ddP95):0;
+  return {unit,basis,observed,sim,ratio};
+}
+function decisionPriorityItems(p,ops,q,forwardRows,goalRows,reviewRows,drift,risk){
+  const items=[];const add=(severity,area,title,text,metric,action,label)=>items.push({severity,area,title,text,metric,action,label});
+  const target=k=>dqV28Target(k);
+  if(q.errors>0)add('high','Integridad','Corregir errores de integridad',`${q.errors} operación(es) presentan inconsistencias que pueden distorsionar cálculos.`,`${q.errors} errores`,`dqV28OpenQuality('group:critical')`,'Revisar');
+  if(q.mfe.pct<target('mfe')||q.mae.pct<target('mae')){
+    const sev=Math.min(q.mfe.pct,q.mae.pct)<50?'high':'medium';
+    add(sev,'Datos de salida','Completar MFE / MAE',`Exit Lab y el análisis de excursiones tienen cobertura MFE ${q.mfe.pct.toFixed(0)}% y MAE ${q.mae.pct.toFixed(0)}%.`,`MFE ${q.mfe.ok}/${q.mfe.total} · MAE ${q.mae.ok}/${q.mae.total}`,`dqV28OpenQuality('${q.mfe.pct<=q.mae.pct?'mfe':'mae'}')`,'Completar');
+  }
+  if(q.check.pct<target('checklist'))add(q.check.pct<50?'high':'medium','Proceso','Aumentar cobertura de checklist',`Compliance representa hoy solo ${q.check.ok} de ${q.check.total} operaciones.`,`Checklist ${q.check.pct.toFixed(0)}%`,`dqV28OpenQuality('checklist')`,'Completar');
+  if(q.journal.pct<target('journal'))add(q.journal.pct<50?'medium':'info','Proceso','Completar diario emocional',`Foco, estrés, conducta y emociones solo son interpretables sobre las operaciones registradas.`,`Diario ${q.journal.pct.toFixed(0)}%`,`dqV28OpenQuality('journal')`,'Completar');
+  if(q.core.pct<target('core'))add('medium','Research','Completar clasificación técnica',`La cobertura media de Setup/VD/NR/Contexto/Hipótesis/Estrategia está por debajo del estándar.`,`Research ${q.core.pct.toFixed(0)}%`,`dqV28OpenQuality('group:incomplete')`,'Revisar');
+  forwardRows.filter(x=>x.t.status==='active').forEach(x=>{
+    const sev=x.ops.length>=x.target?'high':'info',metric=`${x.ops.length}/${x.target} OOS`;
+    const txt=x.ops.length?`Expectancy OOS ${decisionMetric(x.s.expectancy,x.t.lab?.unit||'r')} · ${x.ev.label}.`:'Todavía no hay operaciones nuevas que cumplan la definición congelada.';
+    add(sev,'Validación OOS',x.t.name,txt,metric,'decisionOpenForward()','Abrir');
+  });
+  goalRows.filter(x=>!x.e.met).slice(0,3).forEach(x=>add(x.e.progress<50?'medium':'info','Objetivo',x.g.name,`${goalMetricLabel(x.g.metric)} · ${goalHorizonLabel(x.g.horizon)}.`,`${x.e.display} / ${x.e.targetDisplay}`,'decisionOpenGoals()','Ver objetivo'));
+  if(drift&&drift.severity!=='info'){
+    const txt=drift.state==='signflip'?'Las últimas 20 operaciones han cambiado el signo de la expectancy respecto al historial anterior.':'La expectancy reciente está bastante por debajo del historial anterior.';
+    add(drift.severity,'Estabilidad','Revisar deterioro reciente',txt,`Últ.20 ${decisionMetric(drift.r.expectancy,'r')}`,'decisionOpenStress()','Analizar');
+  }
+  if(risk?.sim){
+    const obs=Math.abs(risk.observed.maxDD),p95=Math.abs(risk.sim.ddP95);
+    if(p95>0&&obs/p95>=.75)add('medium','Riesgo','DD observado cerca del estrés p95',`El drawdown histórico ya representa ${(obs/p95*100).toFixed(0)}% del DD p95 del escenario actual del Stress Lab.`,`Obs ${decisionMetric(risk.observed.maxDD,risk.unit)} · p95 ${decisionMetric(risk.sim.ddP95,risk.unit)}`,'decisionOpenStress()','Abrir Stress Lab');
+  }
+  if(reviewRows.length)add('info','Review',`${reviewRows.length} review(s) abiertas / en seguimiento`,'Hay decisiones o hallazgos todavía no consolidados.',`${reviewRows.length} pendientes`,'decisionOpenReviews()','Revisar');
+  if(!items.length)add('info','Estado','Sin prioridades críticas detectadas','No hay alertas relevantes con los estándares y datos actuales.','Seguimiento normal','decisionOpenForward()','Abrir Laboratorio');
+  return items.sort((a,b)=>decisionSeverityRank(b.severity)-decisionSeverityRank(a.severity));
+}
+function decisionPriorityCard(x){
+  return `<article class="decision-priority ${x.severity}"><div class="decision-priority-top"><span class="decision-severity">${decisionSeverityLabel(x.severity)}</span><em>${esc(x.area)}</em></div><h3>${esc(x.title)}</h3><p>${esc(x.text)}</p><div class="decision-priority-foot"><strong>${esc(x.metric)}</strong><button class="btn tiny" onclick="${x.action}">${esc(x.label)}</button></div></article>`;
+}
+function decisionForwardMini(rows){
+  const act=rows.filter(x=>x.t.status==='active');
+  if(!act.length)return '<div class="empty compact-empty">No hay validaciones Forward OOS activas.</div>';
+  return `<div class="decision-list">${act.slice(0,5).map(x=>`<button onclick="decisionOpenForward()"><span><strong>${esc(x.t.name)}</strong><small>${x.ev.label} · ${esc(forwardSourceLabel(x.t))}</small></span><i><b style="width:${x.progress}%"></b></i><em>${x.ops.length}/${x.target}</em></button>`).join('')}</div>`;
+}
+function decisionStudyMini(rows){
+  if(!rows.length)return '<div class="empty compact-empty">Todavía no hay estudios guardados.</div>';
+  return `<div class="decision-study-table">${rows.slice(0,6).map(x=>`<button onclick="decisionOpenStudy('${x.s.id}')"><span><strong>${esc(x.s.name)}</strong><small>${esc(studyFilterSummary(x.s))}</small></span><em class="${x.stats.expectancy>0?'positive':x.stats.expectancy<0?'negative':''}">${decisionMetric(x.stats.expectancy,'r')}</em><b>n=${x.stats.n}</b><u class="${x.ev.key==='positive'?'positive':x.ev.key==='negative'?'negative':''}">${esc(x.ev.label)}</u></button>`).join('')}</div>`;
+}
+function decisionGoalsMini(rows){
+  if(!rows.length)return '<div class="empty compact-empty">No hay objetivos activos.</div>';
+  return `<div class="decision-list">${rows.slice(0,5).map(x=>`<button onclick="decisionOpenGoals()"><span><strong>${esc(x.g.name)}</strong><small>${esc(goalMetricLabel(x.g.metric))} · ${esc(goalHorizonLabel(x.g.horizon))}</small></span><i><b style="width:${x.e.progress}%"></b></i><em class="${x.e.met?'positive':''}">${esc(x.e.display)}</em></button>`).join('')}</div>`;
+}
+function decisionReviewsMini(rows){
+  if(!rows.length)return '<div class="empty compact-empty">No hay reviews abiertas o en seguimiento.</div>';
+  return `<div class="decision-review-list">${rows.slice(0,5).map(n=>`<button onclick="decisionOpenReviews()"><span class="badge ${reviewStatusClass(n.status)}">${esc(reviewStatusLabel(n.status))}</span><div><strong>${esc(n.title)}</strong><small>${esc(reviewNoteScope(n))}${n.followUpN?` · revisar tras ${n.followUpN} nuevas`:''}</small></div></button>`).join('')}</div>`;
+}
+function decisionRiskBlock(risk,drift){
+  if(!risk)return '<div class="empty compact-empty">Sin datos suficientes.</div>';
+  const sim=risk.sim,u=risk.unit;
+  const driftText=!drift?'Sin ventana suficiente':`${decisionMetric(drift.r.expectancy,'r')} últimas 20${drift.p?` vs ${decisionMetric(drift.p.expectancy,'r')} historial previo`:''}`;
+  return `<div class="decision-risk-grid"><div><span>Max DD observado</span><strong class="negative">${decisionMetric(risk.observed.maxDD,u)}</strong></div><div><span>Stress DD p95</span><strong class="negative">${sim?decisionMetric(sim.ddP95,u):'—'}</strong></div><div><span>Stress DD p99</span><strong class="negative">${sim?decisionMetric(sim.ddP99,u):'—'}</strong></div><div><span>Racha p95 / p99</span><strong>${sim?`${sim.streakP95} / ${sim.streakP99}`:'—'}</strong></div><div class="wide"><span>Pulse de expectancy</span><strong class="${drift?.r?.expectancy>0?'positive':drift?.r?.expectancy<0?'negative':''}">${esc(driftText)}</strong></div></div><div class="decision-risk-note">Stress Lab actual: ${riskStressState.method==='block'?`bloques ${riskStressState.blockSize}`:'independiente'} · deterioro ${riskStressState.edgeShock}% · ${riskStressState.iterations.toLocaleString('es-ES')} simulaciones · ${metricUnitLabel(u)} ${risk.basis==='net'?'neto':'bruto'}.</div>`;
+}
+function researchDecisionCenter(){
+  const p=getCurrentPlan(),ops=currentOps();ensurePlanStudies(p);ensurePlanForwardTests(p);ensurePlanGoals(p);ensurePlanReviews(p);ensurePlanDataQualityV27(p);
+  const q=decisionQualitySnapshot(p,ops),forwardRows=decisionForwardRows(p),studyRows=decisionStudyRows(p),goalRows=decisionGoalRows(p),reviewRows=decisionReviewRows(p),drift=decisionRecentDrift(ops),risk=decisionRiskSnapshot(ops);
+  const priorities=decisionPriorityItems(p,ops,q,forwardRows,goalRows,reviewRows,drift,risk),high=priorities.filter(x=>x.severity==='high').length,medium=priorities.filter(x=>x.severity==='medium').length,activeOos=forwardRows.filter(x=>x.t.status==='active').length,goalsPending=goalRows.filter(x=>!x.e.met).length;
+  const heroState=high?'Prioridades críticas':medium?'Hay puntos a revisar':'Seguimiento estable';
+  const heroText=high?'Hay datos o procesos que conviene resolver antes de elevar la confianza del research.':medium?'La base funciona, con algunas áreas que merecen atención.':'No se detectan bloqueos importantes con los criterios actuales.';
+  return `${pageHead('Research Decision Center','Centro de mando del Trading Plan: sintetiza validación, calidad, riesgo, objetivos, reviews y estabilidad para decidir qué merece atención ahora.',`<button class="btn" onclick="navigate('quality')">Calidad datos</button><button class="btn primary" onclick="navigate('lab')">Abrir Laboratorio</button>`)}${activePlanBanner()}
+  <section class="card panel decision-hero ${high?'high':medium?'medium':'good'}"><div><span>Estado del plan</span><h2>${esc(heroState)}</h2><p>${esc(heroText)}</p></div><div class="decision-hero-kpis"><div><span>Calidad dataset</span><strong>${q.a.score.toFixed(0)}/100</strong></div><div><span>OOS activas</span><strong>${activeOos}</strong></div><div><span>Objetivos pendientes</span><strong>${goalsPending}</strong></div><div><span>Reviews abiertas</span><strong>${reviewRows.length}</strong></div></div></section>
+  <section class="decision-section"><div class="decision-section-head"><div><h3>Qué merece atención ahora</h3><p>Prioridades ordenadas por impacto potencial sobre la fiabilidad del research y la ejecución.</p></div><span>${high} altas · ${medium} atención</span></div><div class="decision-priority-grid">${priorities.slice(0,8).map(decisionPriorityCard).join('')}</div></section>
+  <div class="decision-two-col"><section class="card panel"><div class="panel-title"><div><h3>Forward OOS</h3><small>Hipótesis congeladas y progreso de evidencia futura.</small></div><button class="btn tiny ghost" onclick="decisionOpenForward()">Abrir</button></div>${decisionForwardMini(forwardRows)}</section><section class="card panel"><div class="panel-title"><div><h3>Estudios guardados</h3><small>Ranking orientativo por evidencia, expectancy y tamaño de muestra; no es una selección automática de estrategia.</small></div><button class="btn tiny ghost" onclick="navigate('lab')">Laboratorio</button></div>${decisionStudyMini(studyRows)}</section></div>
+  <div class="decision-two-col"><section class="card panel"><div class="panel-title"><div><h3>Objetivos activos</h3><small>Scorecard del proceso y del rendimiento.</small></div><button class="btn tiny ghost" onclick="decisionOpenGoals()">Abrir</button></div>${decisionGoalsMini(goalRows)}</section><section class="card panel"><div class="panel-title"><div><h3>Reviews pendientes</h3><small>Hallazgos y decisiones aún abiertas o en seguimiento.</small></div><button class="btn tiny ghost" onclick="decisionOpenReviews()">Abrir</button></div>${decisionReviewsMini(reviewRows)}</section></div>
+  <section class="card panel decision-risk"><div class="panel-title"><div><h3>Riesgo & estabilidad</h3><small>Compara el drawdown observado con el escenario actual del Stress Lab y vigila el comportamiento reciente del edge.</small></div><button class="btn tiny ghost" onclick="decisionOpenStress()">Stress Lab</button></div>${decisionRiskBlock(risk,drift)}</section>
+  <div class="notice decision-method"><strong>Criterio del centro:</strong> esta pantalla no crea señales de trading ni decide qué operar. Ordena información ya existente en Trading Research. Una prioridad indica qué revisar, completar o validar; no implica causalidad ni sustituye Forward OOS, IC95 o el análisis detallado de cada módulo.</div>`;
+}
+
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push(
+  {id:'decisioncenter',terms:['research decision center','centro de decisión','qué merece atención','centro de mando'],title:'Research Decision Center',summary:'Pantalla de síntesis que prioriza calidad de datos, validaciones OOS, objetivos, reviews, riesgo y estabilidad.',body:'No añade una nueva estadística. Reutiliza los módulos existentes para señalar qué requiere atención: cobertura insuficiente, hipótesis OOS, objetivos pendientes, reviews abiertas, deterioro reciente o proximidad del drawdown a escenarios de estrés.',use:'Sirve como punto de entrada al Trading Plan cuando quieres decidir qué investigar, completar o validar a continuación sin recorrer manualmente todas las pantallas.'}
+);
+
+const shellV29Base=shell;
+shell=function(){
+  let html=shellV29Base(),dashboardButton=navBtn('dashboard','◈','Dashboard');
+  html=html.replace(dashboardButton,dashboardButton+navBtn('decision','⌾','Centro Research'));
+  return html.replace(V28_APP_LABEL,V29_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Quality-Aware Analytics + Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Research Decision Center + Quality-Aware Analytics + Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='decision'?researchDecisionCenter():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='goals'?goalsView():currentView==='quality'?dataQualityView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{researchDecisionCenter,decisionOpenStudy,decisionOpenForward,decisionOpenGoals,decisionOpenReviews,decisionOpenStress,decisionOpenCompliance});
+render();
+/* ===== END V29 PATCH ===== */

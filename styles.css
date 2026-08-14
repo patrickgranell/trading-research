@@ -199,3 +199,14 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .signed-existing-positive{color:#7cf0c4!important}
 .signed-existing-negative{color:#ff8f9c!important}
 /* ===== END V11.2 ===== */
+
+/* ===== V11.3 · Dashboard multiuidad + selecciones reversibles ===== */
+.dashboard-unit-switch{align-self:center}
+.dashboard-unit-switch .seg-btn{min-width:48px}
+.panel-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.chart-reset{white-space:nowrap;border-color:#365174;color:#cfe0fa}
+.chart-reset:hover{border-color:#6d8fbd;background:#142039}
+.heat-table td.chart-cell-selected{outline:2px solid #d9e8ff;outline-offset:1px;border-color:#d9e8ff;box-shadow:0 0 0 3px rgba(109,143,189,.18)}
+.breakdown-row.chart-row-selected{background:#14223a;border-color:#6d8fbd;box-shadow:inset 3px 0 0 #7cf0c4}
+@media(max-width:900px){.dashboard-unit-switch{width:100%;justify-content:flex-end}.topbar .actions{justify-content:flex-end}}
+/* ===== END V11.3 ===== */

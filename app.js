@@ -1900,3 +1900,114 @@ shell=function(){
 paintExistingSignedNumbers(document);
 render();
 /* ===== END V11.2 PATCH ===== */
+
+/* ===== V11.3 PATCH · Dashboard multiuidad + reset de selecciones gráficas ===== */
+const V113_APP_LABEL='V11.3 · Dashboard + Reset';
+let dashboardViewState={unit:'r'};
+
+function setDashboardUnit(unit){
+  dashboardViewState.unit=['r','ticks','usd'].includes(unit)?unit:'r';
+  render();
+}
+function dashboardPlainMetric(v,unit){
+  v=Number(v)||0;
+  if(unit==='usd') return `${v.toFixed(2)} US$`;
+  if(unit==='ticks') return `${v.toFixed(1)}t`;
+  return `${v.toFixed(2)}R`;
+}
+function dashboardSignedMetric(v,unit){
+  v=Number(v)||0;
+  return `${v>=0?'+':''}${dashboardPlainMetric(v,unit)}`;
+}
+function dashboardExcursionAverage(ops,key,unit){
+  if(!ops.length)return 0;
+  const values=ops.map(o=>{
+    const r=Number(o[key])||0;
+    if(unit==='r')return r;
+    if(unit==='ticks')return r*(Number(o.riskTickExposure)||0);
+    return r*(Number(o.riskUsd)||0);
+  });
+  return values.reduce((a,b)=>a+b,0)/values.length;
+}
+
+dashboard=function(){
+  const ops=currentOps(),baseStats=calcStats(ops),unit=dashboardViewState.unit||'r',metricStats=calcMetricStats(ops,unit,'gross'),bySetup={};
+  ops.forEach(o=>bySetup[o.setup]=(bySetup[o.setup]||0)+1);
+  const top=Object.entries(bySetup).sort((a,b)=>b[1]-a[1]).slice(0,6),max=top[0]?.[1]||1;
+  const pts=metricStats.equity;let svg='';
+  if(pts.length){
+    const min=Math.min(...pts,0),maxE=Math.max(...pts,0),range=(maxE-min)||1,W=760,H=250,
+      coords=pts.map((v,i)=>`${(i/Math.max(pts.length-1,1))*W},${H-((v-min)/range)*H}`).join(' '),
+      area=`0,${H} ${coords} ${W},${H}`;
+    svg=`<svg class="equity-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line class="axis" x1="0" y1="${H/2}" x2="${W}" y2="${H/2}"/><polygon class="area" points="${area}"/><polyline class="line" points="${coords}"/></svg>`;
+  }else svg='<div class="empty">Registra o importa la primera operación de este plan para ver la curva de equity.</div>';
+  const pf=Number.isFinite(metricStats.pf)?metricStats.pf.toFixed(2):'∞',mfe=dashboardExcursionAverage(ops,'mfe',unit),mae=dashboardExcursionAverage(ops,'mae',unit),unitLabel=metricUnitLabel(unit);
+  const actions=`<div class="metric-switch dashboard-unit-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${unit===v?'active':''}" onclick="setDashboardUnit('${v}')">${l}</button>`).join('')}</div><button class="btn primary" onclick="openOperationModal()">+ Nueva operación</button><button class="btn" onclick="openImportModal()">Importar Ankora</button>`;
+  return `${pageHead('Dashboard','Vista del Trading Plan seleccionado. Cambia R, ticks o US$ sin alterar el dataset.',actions)}${activePlanBanner()}<div class="kpis">${kpi('Operaciones',baseStats.n,'plan activo')}${kpi('Win rate',pct(baseStats.winRate),'resultado cerrado')}${kpi('Expectancy',dashboardSignedMetric(metricStats.expectancy,unit),`por operación · ${unitLabel}`)}${kpi('Profit Factor',pf,'ganancia / pérdida')}${kpi('Drawdown',dashboardPlainMetric(metricStats.maxDD,unit),`máximo · ${unitLabel}`)}${kpi('Bloques',Math.ceil(baseStats.n/20),'de 20 operaciones')}</div><div class="grid two"><section class="card panel"><div class="panel-title"><h3>Equity en ${unitLabel}</h3><span>${baseStats.n?`${dashboardSignedMetric(metricStats.sum,unit)} acumulado`:'sin datos'}</span></div><div class="chart-wrap">${svg}</div></section><section class="card panel"><div class="panel-title"><h3>Operaciones por setup</h3><span>${esc(planLabel(getCurrentPlan()))}</span></div><div class="bar-list">${top.length?top.map(([k,v])=>`<div class="bar-row"><div>${esc(k||'Sin setup')}</div><div class="bar"><span style="width:${(v/max)*100}%"></span></div><div class="value-right">${v}</div></div>`).join(''):'<div class="empty">Aún no hay operaciones.</div>'}</div></section></div><div class="grid three" style="margin-top:16px"><section class="card panel"><div class="panel-title"><h3>MFE medio</h3><span>${unitLabel}</span></div><div class="kpi value">${dashboardPlainMetric(mfe,unit)}</div><div class="help">Potencial favorable y salidas.</div></section><section class="card panel"><div class="panel-title"><h3>MAE medio</h3><span>${unitLabel}</span></div><div class="kpi value">${dashboardPlainMetric(mae,unit)}</div><div class="help">Excursión adversa y stops.</div></section><section class="card panel"><div class="panel-title"><h3>Bloque actual</h3><span>20 trades</span></div><div class="kpi value">${baseStats.n?Math.floor((baseStats.n-1)/20)+1:0}</div><div class="help">Agrupación cronológica dentro de este plan.</div></section></div>`;
+};
+
+function opsHeatSelectionActive(){return (opsViewState.days||[]).length===1&&!!opsViewState.timeFrom&&!!opsViewState.timeTo;}
+function clearHeatSelection(){opsViewState.days=[];opsViewState.timeFrom='';opsViewState.timeTo='';render();}
+applyHeatCell=function(day,hour){
+  day=Number(day);hour=Number(hour);
+  const from=`${String(hour).padStart(2,'0')}:00`,to=`${String(hour).padStart(2,'0')}:59`;
+  const same=(opsViewState.days||[]).length===1&&Number(opsViewState.days[0])===day&&opsViewState.timeFrom===from&&opsViewState.timeTo===to;
+  if(same)return clearHeatSelection();
+  opsViewState.days=[day];opsViewState.timeFrom=from;opsViewState.timeTo=to;render();
+};
+
+function opsDimensionFilterValue(dim){
+  if(dim==='setup')return opsViewState.setup||'';
+  if(dim==='vd')return opsViewState.vd||'';
+  if(dim==='nr')return opsViewState.nr||'';
+  if(dim==='hypothesis')return opsViewState.hypothesis||'';
+  if(dim==='strategy')return opsViewState.risk||'';
+  if(dim==='direction')return opsViewState.direction||'';
+  if(dim==='contract')return opsViewState.contract||'';
+  if(dim==='source')return opsViewState.source||'';
+  if(dim==='result')return opsViewState.result||'';
+  if(dim==='month')return opsViewState.year&&opsViewState.month?`${opsViewState.year}-${String(opsViewState.month).padStart(2,'0')}`:'';
+  return '';
+}
+function clearDimensionSelection(dim){
+  if(dim==='setup')opsViewState.setup='';
+  else if(dim==='vd')opsViewState.vd='';
+  else if(dim==='nr')opsViewState.nr='';
+  else if(dim==='hypothesis')opsViewState.hypothesis='';
+  else if(dim==='strategy')opsViewState.risk='';
+  else if(dim==='direction')opsViewState.direction='';
+  else if(dim==='contract')opsViewState.contract='';
+  else if(dim==='source')opsViewState.source='';
+  else if(dim==='result')opsViewState.result='';
+  else if(dim==='month'){opsViewState.year='';opsViewState.month='';}
+  render();
+}
+applyDimensionFilter=function(dim,val){
+  if(String(opsDimensionFilterValue(dim))===String(val))return clearDimensionSelection(dim);
+  if(dim==='setup')opsViewState.setup=val;else if(dim==='vd')opsViewState.vd=val;else if(dim==='nr')opsViewState.nr=val;else if(dim==='hypothesis')opsViewState.hypothesis=val;else if(dim==='strategy')opsViewState.risk=val;else if(dim==='direction')opsViewState.direction=val;else if(dim==='contract')opsViewState.contract=val;else if(dim==='source')opsViewState.source=val;else if(dim==='result')opsViewState.result=val;else if(dim==='month'){const [y,m]=String(val).split('-');opsViewState.year=y;opsViewState.month=String(Number(m));}
+  render();
+};
+
+heatmapModule=function(ops){
+  if(!ops.length)return `<section class="card panel analytics-module wide-module"><div class="panel-title"><div><h3>Mapa de calor · día × hora</h3><small>Expectancy; pulsa una celda para filtrar</small></div>${opsHeatSelectionActive()?'<button class="btn small ghost chart-reset" onclick="clearHeatSelection()">Restablecer selección</button>':''}</div><div class="empty">Sin datos para construir el mapa de calor.</div></section>`;
+  const hours=uniqueSorted(ops.map(o=>new Date(o.entryDate).getHours())).map(Number).sort((a,b)=>a-b),days=uniqueSorted(ops.map(o=>new Date(o.entryDate).getDay())).map(Number).sort((a,b)=>((a+6)%7)-((b+6)%7));let maxAbs=0;const cells={};
+  days.forEach(d=>hours.forEach(h=>{const subset=ops.filter(o=>{const dt=new Date(o.entryDate);return dt.getDay()===d&&dt.getHours()===h;}),s=calcMetricStats(subset,opsViewState.unit,opsViewState.basis);cells[`${d}-${h}`]=s;maxAbs=Math.max(maxAbs,Math.abs(s.expectancy));}));maxAbs=maxAbs||1;
+  return `<section class="card panel analytics-module wide-module"><div class="panel-title"><div><h3>Mapa de calor · día × hora</h3><small>${opsHeatSelectionActive()?'Celda aislada · vuelve a pulsarla o usa Restablecer selección':'Expectancy; pulsa una celda para aislarla'}</small></div><div class="panel-tools"><span>${metricUnitLabel(opsViewState.unit)}</span>${opsHeatSelectionActive()?'<button class="btn small ghost chart-reset" onclick="clearHeatSelection()">Restablecer selección</button>':''}</div></div><div class="heat-wrap"><table class="heat-table"><thead><tr><th></th>${hours.map(h=>`<th>${String(h).padStart(2,'0')}:00</th>`).join('')}</tr></thead><tbody>${days.map(d=>`<tr><th>${DOW_LABELS[d]}</th>${hours.map(h=>{const s=cells[`${d}-${h}`],v=s.expectancy,a=Math.min(.65,.10+Math.abs(v)/maxAbs*.55),bg=v>0?`rgba(124,240,196,${a})`:v<0?`rgba(255,123,138,${a})`:'rgba(255,255,255,.03)',selected=opsHeatSelectionActive()&&Number(opsViewState.days[0])===d&&opsViewState.timeFrom===`${String(h).padStart(2,'0')}:00`;return `<td class="${selected?'chart-cell-selected':''}" onclick="applyHeatCell(${d},${h})" style="background:${bg}" title="${s.n} operaciones · ${metricStatText(v,opsViewState.unit)}"><strong>${s.n?metricStatText(v,opsViewState.unit):'—'}</strong><small>${s.n} op.</small></td>`}).join('')}</tr>`).join('')}</tbody></table></div></section>`;
+};
+
+breakdownModule=function(ops){
+  const dim=opsViewState.dimension||'setup',activeValue=opsDimensionFilterValue(dim),groups=new Map();
+  ops.forEach(o=>{const x=dimensionItem(o,dim);if(!groups.has(x.key))groups.set(x.key,{key:x.key,label:x.label,ops:[]});groups.get(x.key).ops.push(o);});
+  const rows=[...groups.values()].map(g=>({...g,stats:calcMetricStats(g.ops,opsViewState.unit,opsViewState.basis)})).sort((a,b)=>b.stats.expectancy-a.stats.expectancy).slice(0,14),maxAbs=Math.max(...rows.map(r=>Math.abs(r.stats.expectancy)),1);
+  return `<section class="card panel analytics-module"><div class="panel-title"><div><h3>Desglose interactivo</h3><small>${activeValue?'Categoría aislada · vuelve a pulsarla o restablécela':'Pulsa una categoría para convertirla en filtro'}</small></div><div class="panel-tools"><select id="filterDimension" class="select compact-select" onchange="setOpsDimension(this.value)">${[['setup','Setup'],['vd','VD'],['nr','NR'],['hypothesis','Hipótesis'],['strategy','Estrategia'],['direction','Dirección'],['contract','Contrato'],['source','Origen'],['result','Resultado'],['month','Mes']].map(([v,l])=>`<option value="${v}" ${dim===v?'selected':''}>${l}</option>`).join('')}</select>${activeValue?`<button class="btn small ghost chart-reset" onclick="clearDimensionSelection('${dim}')">Restablecer</button>`:''}</div></div><div class="breakdown-list">${rows.length?rows.map(r=>`<button class="breakdown-row ${String(activeValue)===String(r.key)?'chart-row-selected':''}" onclick="applyDimensionFilter('${dim}',decodeURIComponent('${encodeURIComponent(String(r.key))}'))"><span class="break-label">${esc(r.label)}</span><span class="break-track"><i class="${r.stats.expectancy>=0?'pos':'neg'}" style="width:${Math.max(4,Math.abs(r.stats.expectancy)/maxAbs*100)}%"></i></span><span>${r.stats.n} op.</span><strong>${metricStatText(r.stats.expectancy,opsViewState.unit)}</strong><em>${pct(r.stats.winRate)}</em></button>`).join(''):'<div class="empty">Sin categorías.</div>'}</div></section>`;
+};
+
+const shellV113Base=shell;
+shell=function(){
+  return shellV113Base()
+    .replace(V112_APP_LABEL,V113_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Biblioteca Simple + Laboratorio, con legibilidad mejorada y color de signos existentes.','Motor cloud V9.2 Conflict Guard intacto. Dashboard multiuidad y selecciones gráficas reversibles sobre la misma base estable.');
+};
+Object.assign(window,{setDashboardUnit,applyHeatCell,clearHeatSelection,applyDimensionFilter,clearDimensionSelection});
+render();
+/* ===== END V11.3 PATCH ===== */

@@ -1,35 +1,46 @@
-# Trading Research V11.2 — Legibilidad y color de signos
+# Trading Research V11.3 — Dashboard multiuidad y reset de gráficos
 
-Esta versión parte directamente de **V11.1 Biblioteca Simple**. Mantiene intactos el motor **V9.2 Conflict Guard**, Supabase, snapshots, Biblioteca Simple y Laboratorio Analítico Avanzado.
+Esta versión parte de **V11.2 Legibilidad corregida** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple y Laboratorio Analítico Avanzado.
 
-## Legibilidad
+## Dashboard
 
-- Se aumenta de forma moderada la tipografía pequeña de tablas, filtros, ayudas, etiquetas, badges, fichas y gráficos.
-- Los títulos y KPIs grandes conservan su tamaño y jerarquía.
-- Se usan cifras tabulares en varias zonas para facilitar la comparación vertical.
+El Dashboard incorpora un selector de unidad:
 
-## Regla de color numérico
+- `R`
+- `Ticks`
+- `US$`
 
-Esta versión **no añade, elimina ni modifica signos numéricos**.
+El selector recalcula sin modificar datos:
 
-- Si un valor ya se muestra empezando por `+`, se pinta en verde.
-- Si un valor ya se muestra empezando por `-` o `−`, se pinta en rojo.
-- Si el valor no tiene signo, se deja exactamente como estaba.
+- Expectancy
+- Drawdown
+- Equity acumulada y curva
+- MFE medio
+- MAE medio
+- Profit Factor sobre la unidad seleccionada
 
-Ejemplos:
+Operaciones, Win rate y Bloques siguen siendo conteos/porcentajes y no cambian de unidad.
 
-- `+1.84R` → mismo texto, verde.
-- `-1.16R` → mismo texto, rojo.
-- `2 contratos` → permanece `2 contratos` y no recibe un `+` artificial.
-- `40 ticks` → permanece sin cambios.
+MFE y MAE se almacenan originalmente en R. Para mostrarlos en ticks o US$, la aplicación los convierte usando el riesgo registrado en cada operación (`riskTickExposure` / `riskUsd`).
 
-La lógica se aplica también a contenido que aparece dinámicamente, como modales o paneles que se vuelven a renderizar.
+## Gráficos interactivos de Operaciones
 
-## Nube y datos
+Las selecciones ya no quedan atrapadas:
 
-No requiere SQL nuevo ni cambia el esquema de Supabase. No se modifica Safe Sync, Conflict Guard, snapshots ni la estructura de los datos.
+- En el mapa de calor Día × Hora, un clic aísla una celda.
+- Volver a pulsar la misma celda la desactiva.
+- Cuando existe una selección aparece `Restablecer selección`.
+- En Desglose interactivo ocurre lo mismo con Setup, VD, NR, Hipótesis, Estrategia, Dirección, Contrato, Origen, Resultado o Mes.
+- El botón de restablecimiento elimina solo la selección de ese gráfico y conserva el resto de filtros.
+- `Limpiar filtros` continúa disponible para borrar todos los filtros de Operaciones.
 
-## Despliegue
+## Legibilidad y signos
+
+Se conserva la regla de V11.2 corregida: la aplicación no inventa signos. Solo colorea de verde los valores cuyo texto ya comienza por `+` y de rojo los que ya comienzan por `-`/`−`.
+
+## Nube y despliegue
+
+No requiere SQL nuevo ni cambios en Supabase.
 
 Los 6 archivos deben permanecer en la raíz del repositorio:
 

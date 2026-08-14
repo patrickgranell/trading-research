@@ -3098,3 +3098,168 @@ render=function(){
 Object.assign(window,{openComplianceRuleModal,saveComplianceRule,deleteComplianceRule,moveComplianceRule,toggleOperationChecklistEvaluation,markAllOperationChecklist,updateOperationChecklistPreview,complianceSetUnit,complianceSetBasis,complianceSetFilter,complianceResetFilters});
 render();
 /* ===== END V16 PATCH ===== */
+
+/* ===== V17 PATCH · Estudios guardados ===== */
+const V17_APP_LABEL='V17 · Estudios guardados';
+
+function ensurePlanStudies(p){
+  if(!p)return p;
+  if(!Array.isArray(p.savedStudies))p.savedStudies=[];
+  p.savedStudies=p.savedStudies.map(s=>({
+    id:s.id||uid('STUDY'),
+    name:String(s.name||'Estudio sin nombre'),
+    description:String(s.description||''),
+    createdAt:s.createdAt||new Date().toISOString(),
+    updatedAt:s.updatedAt||s.createdAt||new Date().toISOString(),
+    lab:{...labStudyDefaultState(),...(s.lab||{})},
+    research:{rowDim:'setup',colDim:'context',metric:'expectancy',minN:1,maxCats:12,...(s.research||{})},
+    exit:{tpR:2,beTrigger:1,...(s.exit||{})}
+  }));
+  return p;
+}
+function labStudyDefaultState(){
+  return {unit:'r',basis:'net',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',nr:'',hypothesis:'',hour:'',context:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',rMin:'',rMax:'',heatMetric:'expectancy',scatterX:'mae',histBin:.25,edgeX:'setup',edgeY:'context',rollingWindow:20,rollingMetric:'expectancy'};
+}
+state.tradingPlans.forEach(ensurePlanStudies);
+const makeBlankPlanV17Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV17Base(meta);ensurePlanStudies(p);return p;};
+const normalizePlanV17Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV17Base(p,instruments);ensurePlanStudies(out);return out;};
+const normalizeStateV17Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV17Base(raw);(out.tradingPlans||[]).forEach(ensurePlanStudies);return out;};
+
+let labStudiesUi={selectedId:'',activeId:'',compareId:''};
+
+function currentStudySnapshot(){
+  const lab={...labStudyDefaultState()};
+  Object.keys(lab).forEach(k=>{if(labState[k]!==undefined)lab[k]=clone(labState[k]);});
+  return {
+    lab,
+    research:{rowDim:researchGridState.rowDim,colDim:researchGridState.colDim,metric:researchGridState.metric,minN:researchGridState.minN,maxCats:researchGridState.maxCats},
+    exit:{tpR:exitLabState.tpR,beTrigger:exitLabState.beTrigger}
+  };
+}
+function studyComparableSnapshot(s){return {lab:s?.lab||{},research:s?.research||{},exit:s?.exit||{}};}
+function studySignature(v){try{return JSON.stringify(v);}catch{return '';}}
+function activeStudyDirty(){
+  const p=getCurrentPlan();ensurePlanStudies(p);const s=p.savedStudies.find(x=>x.id===labStudiesUi.activeId);if(!s)return false;
+  return studySignature(currentStudySnapshot())!==studySignature(studyComparableSnapshot(s));
+}
+function selectedStudy(){const p=getCurrentPlan();ensurePlanStudies(p);return p.savedStudies.find(x=>x.id===labStudiesUi.selectedId)||null;}
+function reconcileStudyUi(){
+  const p=getCurrentPlan();ensurePlanStudies(p);const ids=new Set(p.savedStudies.map(x=>x.id));
+  if(!ids.has(labStudiesUi.selectedId))labStudiesUi.selectedId=p.savedStudies[0]?.id||'';
+  if(!ids.has(labStudiesUi.activeId))labStudiesUi.activeId='';
+  if(!ids.has(labStudiesUi.compareId))labStudiesUi.compareId='';
+}
+function studyFilterSummary(s){
+  const f=s?.lab||{},parts=[];
+  const add=(label,v)=>{if(v!==''&&v!==null&&v!==undefined)parts.push(`${label}: ${v}`);};
+  add('Setup',f.setup);add('VD',f.vd);add('NR',f.nr);add('H',f.hypothesis);add('Contexto',f.context);add('Dir.',f.direction);add('Hora',f.hour);add('Desde',f.dateFrom);add('Hasta',f.dateTo);add('Comport.',f.behavior);add('Emoción',f.emotion);add('Foco',f.focus);add('Estrés',f.stress);
+  if(f.rMin!==''||f.rMax!=='')parts.push(`R ${f.rMin||'−∞'} → ${f.rMax||'∞'}`);
+  return parts.length?parts.slice(0,5).join(' · ')+(parts.length>5?` · +${parts.length-5}`:''):'Sin filtros · dataset completo';
+}
+function studyUnitText(s){const f=s?.lab||{};return `${metricUnitLabel(f.unit||'r')} · ${(f.basis||'net')==='net'?'Neto':'Bruto'}`;}
+
+function setStudySelection(id){labStudiesUi.selectedId=id;labStudiesUi.compareId='';render();}
+function openSaveStudyModal(){
+  const p=getCurrentPlan();ensurePlanStudies(p);
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Guardar configuración del Laboratorio</h4><div class="form-grid">${field('Nombre del estudio','study-name','text','')}${field('Descripción / hipótesis','study-description','textarea','','full')}</div><div class="notice" style="margin-top:12px">Se guardarán filtros, unidad/base, configuración del Research Grid y parámetros de Exit Lab. Las operaciones no se duplican: el estudio siempre consulta el dataset actual de este Trading Plan.</div></div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Nuevo estudio guardado',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="saveCurrentStudy()">Guardar estudio</button>`));
+}
+function saveCurrentStudy(){
+  const p=getCurrentPlan();if(!p)return;ensurePlanStudies(p);
+  const name=(document.getElementById('f-study-name')?.value||'').trim();if(!name)return alert('Escribe un nombre para el estudio.');
+  const now=new Date().toISOString(),snap=currentStudySnapshot();
+  const s={id:uid('STUDY'),name,description:(document.getElementById('f-study-description')?.value||'').trim(),createdAt:now,updatedAt:now,...snap};
+  p.savedStudies.unshift(s);p.updatedAt=now;labStudiesUi.selectedId=s.id;labStudiesUi.activeId=s.id;labStudiesUi.compareId='';persist();closeModal();render();
+}
+function applyStudySnapshot(s){
+  if(!s)return;
+  if(typeof researchRestoreSelectionInternal==='function')researchRestoreSelectionInternal();
+  labState={...labStudyDefaultState(),...clone(s.lab||{})};
+  researchGridState={...researchGridState,...clone(s.research||{}),selection:null};
+  exitLabState={...exitLabState,...clone(s.exit||{})};
+}
+function loadSelectedStudy(){const s=selectedStudy();if(!s)return;applyStudySnapshot(s);labStudiesUi.activeId=s.id;labStudiesUi.compareId='';render();}
+function updateActiveStudy(){
+  const p=getCurrentPlan();ensurePlanStudies(p);const s=p.savedStudies.find(x=>x.id===labStudiesUi.activeId);if(!s)return alert('Primero carga un estudio guardado.');
+  if(!confirm(`Actualizar “${s.name}” con la configuración actual del Laboratorio?`))return;
+  Object.assign(s,currentStudySnapshot(),{updatedAt:new Date().toISOString()});p.updatedAt=s.updatedAt;labStudiesUi.selectedId=s.id;persist();render();
+}
+function duplicateSelectedStudy(){
+  const p=getCurrentPlan(),s=selectedStudy();if(!p||!s)return;ensurePlanStudies(p);
+  const name=prompt('Nombre de la copia',`${s.name} · copia`);if(name===null||!name.trim())return;
+  const now=new Date().toISOString(),copy={...clone(s),id:uid('STUDY'),name:name.trim(),createdAt:now,updatedAt:now};
+  p.savedStudies.unshift(copy);p.updatedAt=now;labStudiesUi.selectedId=copy.id;labStudiesUi.compareId='';persist();render();
+}
+function deleteSelectedStudy(){
+  const p=getCurrentPlan(),s=selectedStudy();if(!p||!s)return;if(!confirm(`Eliminar el estudio guardado “${s.name}”?\n\nNo se eliminará ninguna operación.`))return;
+  p.savedStudies=p.savedStudies.filter(x=>x.id!==s.id);if(labStudiesUi.activeId===s.id)labStudiesUi.activeId='';if(labStudiesUi.compareId===s.id)labStudiesUi.compareId='';labStudiesUi.selectedId=p.savedStudies[0]?.id||'';p.updatedAt=new Date().toISOString();persist();render();
+}
+function toggleCompareSelectedStudy(){const s=selectedStudy();if(!s)return;labStudiesUi.compareId=labStudiesUi.compareId===s.id?'':s.id;render();}
+
+function labFilteredOpsForState(f={}){
+  return currentOps().filter(o=>{
+    const d=new Date(o.entryDate);if(isNaN(d))return false;const date=inputDateValue(d),hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'),hour=`${String(d.getHours()).padStart(2,'0')}:00`;
+    if(f.dateFrom&&date<f.dateFrom)return false;if(f.dateTo&&date>f.dateTo)return false;
+    if(f.timeFrom&&f.timeTo){if(f.timeFrom<=f.timeTo){if(hh<f.timeFrom||hh>f.timeTo)return false;}else if(hh<f.timeFrom&&hh>f.timeTo)return false;}
+    else if(f.timeFrom&&hh<f.timeFrom)return false;else if(f.timeTo&&hh>f.timeTo)return false;
+    if(f.hour&&hour!==String(f.hour))return false;
+    if(f.direction&&o.direction!==f.direction)return false;if(f.setup&&o.setup!==f.setup)return false;if(f.vd&&o.vd!==f.vd)return false;if(f.nr&&String(o.nr||'')!==String(f.nr))return false;
+    if(f.hypothesis&&String(o.hypothesis||'')!==String(f.hypothesis))return false;if(f.context&&String(o.h4Context||'')!==String(f.context))return false;if(f.risk&&o.riskStrategyId!==f.risk)return false;if(f.result&&o.result!==f.result)return false;
+    if(f.behavior&&!(o.emotional?.behaviors||[]).includes(f.behavior))return false;if(f.emotion&&!labEmotionsOf(o).includes(f.emotion))return false;
+    if(f.focus&&String(o.emotional?.focus||'')!==String(f.focus))return false;if(f.stress&&String(o.emotional?.stress||'')!==String(f.stress))return false;
+    const rv=opMetricValue(o,'r',f.basis||'net');if(f.rMin!==''&&f.rMin!==undefined&&rv<Number(f.rMin))return false;if(f.rMax!==''&&f.rMax!==undefined&&rv>Number(f.rMax))return false;
+    return true;
+  }).sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));
+}
+labFilteredOps=function(){return labFilteredOpsForState(labState);};
+
+function studyStatsFor(s,unit=labState.unit,basis=labState.basis){const ops=labFilteredOpsForState(s?.lab||{}),stats=calcMetricStats(ops,unit,basis);return {ops,stats};}
+function savedStudyComparePanel(){
+  const p=getCurrentPlan();ensurePlanStudies(p);const s=p.savedStudies.find(x=>x.id===labStudiesUi.compareId);if(!s)return '';
+  const actual={name:labStudiesUi.activeId?(p.savedStudies.find(x=>x.id===labStudiesUi.activeId)?.name||'Estudio cargado'):'Configuración actual',...studyStatsFor({lab:labState})};
+  const saved={name:s.name,...studyStatsFor(s)};const u=labState.unit,b=labState.basis;
+  const row=(label,a,z,fmt=x=>metricStatText(x,u))=>`<tr><th>${label}</th><td>${fmt(a)}</td><td>${fmt(z)}</td><td class="${z-a>0?'positive':z-a<0?'negative':''}">${fmt(z-a)}</td></tr>`;
+  return `<section class="study-compare"><div class="study-compare-head"><div><strong>Comparación de estudios</strong><span>${metricUnitLabel(u)} · ${b==='net'?'Neto':'Bruto'} · mismos datos actuales</span></div><button class="btn tiny ghost" onclick="labStudiesUi.compareId='';render()">Cerrar</button></div><div class="study-compare-names"><div><b>Actual</b><span>${esc(actual.name)}</span><small>${actual.ops.length} operaciones</small></div><div><b>Guardado</b><span>${esc(saved.name)}</span><small>${saved.ops.length} operaciones</small></div></div><div class="table-wrap"><table class="table compact-table"><thead><tr><th>Métrica</th><th>Actual</th><th>${esc(saved.name)}</th><th>Δ guardado − actual</th></tr></thead><tbody>${row('Operaciones',actual.stats.n,saved.stats.n,x=>String(Math.round(x)))}${row('Resultado',actual.stats.sum,saved.stats.sum)}${row('Expectancy',actual.stats.expectancy,saved.stats.expectancy)}${row('Win rate',actual.stats.winRate,saved.stats.winRate,x=>`${Number(x||0).toFixed(1)}%`)}${row('Profit Factor',Number.isFinite(actual.stats.pf)?actual.stats.pf:0,Number.isFinite(saved.stats.pf)?saved.stats.pf:0,x=>Number(x||0).toFixed(2))}${row('Max DD',actual.stats.maxDD,saved.stats.maxDD)}</tbody></table></div><div class="lab-note">La comparación reutiliza los filtros guardados, pero calcula ambos estudios sobre el dataset actual. Si has añadido operaciones desde que guardaste el estudio, su muestra puede crecer.</div></section>`;
+}
+function savedStudiesPanel(){
+  const p=getCurrentPlan();ensurePlanStudies(p);reconcileStudyUi();const studies=p.savedStudies,selected=selectedStudy(),active=studies.find(x=>x.id===labStudiesUi.activeId),dirty=activeStudyDirty();
+  const options=studies.map(s=>`<option value="${esc(s.id)}" ${s.id===labStudiesUi.selectedId?'selected':''}>${esc(s.name)}</option>`).join('');
+  return `<section class="card panel saved-studies-panel"><div class="panel-title"><div><h3>Estudios guardados</h3><small>Guarda hipótesis de filtros y recupéralas sin reconstruir el Laboratorio.</small></div><button class="btn primary small" onclick="openSaveStudyModal()">+ Guardar estudio</button></div>${studies.length?`<div class="saved-study-toolbar"><label><span>Estudio</span><select class="select" onchange="setStudySelection(this.value)">${options}</select></label><div class="saved-study-actions"><button class="btn small" onclick="loadSelectedStudy()">Cargar</button><button class="btn small ${active?'':'ghost'}" onclick="updateActiveStudy()" ${active?'':'disabled'}>Actualizar cargado</button><button class="btn small" onclick="duplicateSelectedStudy()">Duplicar</button><button class="btn small" onclick="toggleCompareSelectedStudy()">${labStudiesUi.compareId===selected?.id?'Cerrar comparación':'Comparar con actual'}</button><button class="btn small danger" onclick="deleteSelectedStudy()">Eliminar</button></div></div><div class="saved-study-meta"><div><span>Seleccionado</span><strong>${esc(selected?.name||'—')}</strong><small>${esc(studyFilterSummary(selected))}</small></div><div><span>Configuración</span><strong>${esc(studyUnitText(selected))}</strong><small>Grid: ${esc(researchDimLabel(selected?.research?.rowDim||'setup'))} × ${esc(researchDimLabel(selected?.research?.colDim||'context'))} · ${esc(RESEARCH_METRICS.find(x=>x[0]===(selected?.research?.metric||'expectancy'))?.[1]||'Expectancy')}</small></div><div><span>Estado actual</span><strong>${active?`Cargado: ${esc(active.name)}`:'Sin estudio cargado'}</strong><small class="${dirty?'negative':''}">${active?(dirty?'Cambios sin guardar':'Sin cambios respecto al guardado'):'Puedes trabajar libremente y guardarlo después'}</small></div></div>${savedStudyComparePanel()}`:`<div class="empty compact-empty">Todavía no hay estudios guardados. Configura el Laboratorio y pulsa <strong>Guardar estudio</strong>.</div>`}</section>`;
+}
+
+const labActiveChipsV17Base=labActiveChips;
+labActiveChips=function(){
+  let html=labActiveChipsV17Base();const extra=[];const add=(label,val,field)=>{if(val)extra.push(`<button class="lab-active-chip" onclick="labState.${field}='';render()"><span>${esc(label)}</span><strong>${esc(val)}</strong> ×</button>`);};
+  add('NR',labState.nr,'nr');add('Hipótesis',labState.hypothesis,'hypothesis');add('Hora',labState.hour,'hour');
+  if(!extra.length)return html;
+  if(html)return html.replace('</div>',extra.join('')+'</div>');
+  return `<div class="lab-active-filters">${extra.join('')}</div>`;
+};
+
+const labFilterPanelV17Base=labFilterPanel;
+labFilterPanel=function(){
+  const p=getCurrentPlan();let html=labFilterPanelV17Base();
+  const insert=`${labSelect('labNR','NR',p?.nr||[],labState.nr||'',"labState.nr=this.value;render()")}${labSelect('labHypothesis','Hipótesis',(p?.hypotheses||[]).map(h=>({value:h.id,label:h.name})),labState.hypothesis||'',"labState.hypothesis=this.value;render()")}`;
+  // Inserta NR/Hipótesis antes de Estrategia para que todos los ejes principales puedan guardarse/filtrarse manualmente.
+  const marker=labSelect('labRisk','Estrategia',(p?.riskStrategies||[]).map(r=>({value:r.id,label:r.name})),labState.risk);
+  if(html.includes(marker))html=html.replace(marker,insert+marker);
+  return html;
+};
+
+const labResetV17Base=labReset;
+labReset=function(){labStudiesUi.activeId='';labStudiesUi.compareId='';labState.nr='';labState.hypothesis='';labState.hour='';labResetV17Base();};
+
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: combinaciones, salidas, comportamiento, riesgo y estabilidad.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${savedStudiesPanel()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV17Base=shell;
+shell=function(){return shellV17Base().replace(V16_APP_LABEL,V17_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Estudios guardados + Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');};
+
+Object.assign(window,{labStudiesUi,setStudySelection,openSaveStudyModal,saveCurrentStudy,loadSelectedStudy,updateActiveStudy,duplicateSelectedStudy,deleteSelectedStudy,toggleCompareSelectedStudy});
+render();
+/* ===== END V17 PATCH ===== */

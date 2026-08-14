@@ -1,6 +1,6 @@
-# Trading Research V16 — Plan Compliance
+# Trading Research V17 — Plan Compliance
 
-V16 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
+V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
 ## Nuevo · Checklist del Trading Plan
 
@@ -28,7 +28,7 @@ Nueva sección principal `Cumplimiento` con:
 - Unidades R / ticks / US$ y Bruto / Neto.
 - Tabla de operaciones evaluadas y filtro para inspeccionar los fallos de una regla concreta.
 
-Las importaciones antiguas o trades sin checklist se consideran `No evaluados`; nunca se convierten automáticamente en incumplimientos. `TPCompliance` de Ankora sigue siendo válido para Disciplina, pero V16 no inventa qué regla concreta falló.
+Las importaciones antiguas o trades sin checklist se consideran `No evaluados`; nunca se convierten automáticamente en incumplimientos. `TPCompliance` de Ankora sigue siendo válido para Disciplina, pero V17 no inventa qué regla concreta falló.
 
 ## Dashboard
 
@@ -42,3 +42,8 @@ No están forzados en el Dashboard: se pueden activar desde `⚙ Personalizar`.
 ## Infraestructura
 
 No requiere SQL nuevo ni cambios en Supabase/Cloudflare. Continúa utilizando los mismos seis archivos raíz.
+
+
+## V17 · Estudios guardados
+
+El Laboratorio permite guardar, cargar, actualizar, duplicar, eliminar y comparar configuraciones de estudio por Trading Plan. Se persisten filtros, unidad/base, Research Grid y parámetros de Exit Lab sin duplicar operaciones. También se corrige el filtrado desde Research Grid para NR, Hipótesis y Hora.

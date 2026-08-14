@@ -52,3 +52,19 @@ El Laboratorio permite guardar, cargar, actualizar, duplicar, eliminar y compara
 ## V17.1 · Corrección Profit Factor en comparación de estudios
 
 Cuando una muestra no tiene operaciones perdedoras, el Profit Factor es infinito. La comparación de estudios conserva ahora `∞` en lugar de convertirlo erróneamente a `0.00`, y el delta muestra `+∞`, `-∞` o `—` según corresponda.
+
+## V18 · Confianza estadística
+
+Se añade una capa de incertidumbre al Laboratorio para evitar sobreinterpretar muestras pequeñas:
+
+- IC 95% aproximado de la expectancy mediante intervalo t.
+- Intervalo de Wilson 95% para el win rate.
+- Desviación por trade y error estándar.
+- Límite inferior 95% como lectura conservadora del edge.
+- Clasificación explícita de la evidencia: exploratoria, inconclusa, positiva o negativa.
+- Madurez de muestra y objetivo configurable de 20 / 50 / 100 / 200 operaciones.
+- Comparación simple entre primera y segunda mitad de la muestra para detectar cambios de signo.
+- Nueva métrica `Límite inferior 95%` dentro de Research Grid.
+- Aviso metodológico sobre independencia, cambios de régimen, data snooping y múltiples comparaciones.
+
+La capa estadística utiliza la unidad/base activa del Laboratorio (R, ticks o US$; bruto o neto). No requiere SQL nuevo.

@@ -3271,3 +3271,141 @@ shell=function(){return shellV17Base().replace(V16_APP_LABEL,V17_APP_LABEL).repl
 Object.assign(window,{labStudiesUi,setStudySelection,openSaveStudyModal,saveCurrentStudy,loadSelectedStudy,updateActiveStudy,duplicateSelectedStudy,deleteSelectedStudy,toggleCompareSelectedStudy});
 render();
 /* ===== END V17 PATCH ===== */
+
+/* ===== V18 PATCH · Confianza estadística ===== */
+const V18_APP_LABEL='V18 · Confianza estadística';
+
+function ensurePlanConfidence(p){
+  if(!p)return p;
+  const c=p.confidenceConfig||{};
+  p.confidenceConfig={targetN:[20,50,100,200].includes(Number(c.targetN))?Number(c.targetN):100};
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanConfidence);
+const makeBlankPlanV18Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV18Base(meta);ensurePlanConfidence(p);return p;};
+const normalizePlanV18Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV18Base(p,instruments);ensurePlanConfidence(out);return out;};
+const normalizeStateV18Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV18Base(raw);(out.tradingPlans||[]).forEach(ensurePlanConfidence);return out;};
+
+function meanOf(vals){return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;}
+function sampleSd(vals){
+  if(vals.length<2)return NaN;
+  const m=meanOf(vals),ss=vals.reduce((a,v)=>a+(v-m)*(v-m),0);
+  return Math.sqrt(ss/(vals.length-1));
+}
+function tCritical95(df){
+  if(df<=0)return NaN;
+  const exact={1:12.706,2:4.303,3:3.182,4:2.776,5:2.571,6:2.447,7:2.365,8:2.306,9:2.262,10:2.228,11:2.201,12:2.179,13:2.160,14:2.145,15:2.131,16:2.120,17:2.110,18:2.101,19:2.093,20:2.086,21:2.080,22:2.074,23:2.069,24:2.064,25:2.060,26:2.056,27:2.052,28:2.048,29:2.045,30:2.042};
+  if(exact[df])return exact[df];
+  const bands=[[30,2.042],[40,2.021],[60,2.000],[120,1.980],[1e9,1.960]];
+  let prev=[30,2.042];
+  for(const next of bands.slice(1)){
+    if(df<=next[0]){
+      const t=(df-prev[0])/(next[0]-prev[0]);
+      return prev[1]+t*(next[1]-prev[1]);
+    }
+    prev=next;
+  }
+  return 1.96;
+}
+function wilson95(wins,n){
+  if(!n)return {low:NaN,high:NaN};
+  const z=1.959963984540054,p=wins/n,z2=z*z,den=1+z2/n;
+  const center=(p+z2/(2*n))/den;
+  const half=z*Math.sqrt((p*(1-p)+z2/(4*n))/n)/den;
+  return {low:Math.max(0,center-half)*100,high:Math.min(1,center+half)*100};
+}
+function confidenceFromValues(vals,wins=vals.filter(v=>v>0).length){
+  const clean=vals.map(Number).filter(Number.isFinite),n=clean.length,mean=meanOf(clean),sd=sampleSd(clean),se=n>1?sd/Math.sqrt(n):NaN,t=tCritical95(n-1),margin=n>1?t*se:NaN;
+  const ciLow95=n>1?mean-margin:NaN,ciHigh95=n>1?mean+margin:NaN,wr=wilson95(wins,n);
+  return {n,mean,sd,se,ciLow95,ciHigh95,winLow95:wr.low,winHigh95:wr.high};
+}
+
+const calcMetricStatsV18Base=calcMetricStats;
+calcMetricStats=function(ops,unit='r',basis='gross'){
+  const s=calcMetricStatsV18Base(ops,unit,basis),vals=ops.map(o=>opMetricValue(o,unit,basis));
+  return {...s,...confidenceFromValues(vals,s.wins)};
+};
+
+function confidenceMaturity(n){
+  if(n<20)return {key:'exploratory',label:'Exploratoria',detail:'menos de 20 operaciones'};
+  if(n<50)return {key:'initial',label:'Inicial',detail:'20–49 operaciones'};
+  if(n<100)return {key:'developing',label:'En desarrollo',detail:'50–99 operaciones'};
+  return {key:'mature',label:'Muestra amplia',detail:'100+ operaciones'};
+}
+function confidenceEvidence(s){
+  if(s.n<2||!Number.isFinite(s.ciLow95)||!Number.isFinite(s.ciHigh95))return {key:'unknown',label:'Sin estimar',detail:'se necesitan al menos 2 operaciones'};
+  if(s.n<20)return {key:'exploratory',label:'Señal exploratoria',detail:'muestra demasiado pequeña para clasificar el edge'};
+  if(s.ciLow95>0)return {key:'positive',label:'Evidencia positiva',detail:'el IC 95% de expectancy queda por encima de 0'};
+  if(s.ciHigh95<0)return {key:'negative',label:'Evidencia negativa',detail:'el IC 95% de expectancy queda por debajo de 0'};
+  return {key:'inconclusive',label:'Inconclusa',detail:'el IC 95% todavía cruza 0'};
+}
+function confidenceSplit(ops,unit,basis){
+  const ordered=[...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate)),cut=Math.floor(ordered.length/2);
+  if(cut<1||ordered.length-cut<1)return {first:null,second:null,label:'Sin muestra suficiente'};
+  const first=calcMetricStats(ordered.slice(0,cut),unit,basis),second=calcMetricStats(ordered.slice(cut),unit,basis);
+  const same=(first.expectancy>0&&second.expectancy>0)||(first.expectancy<0&&second.expectancy<0)||(first.expectancy===0&&second.expectancy===0);
+  return {first,second,label:same?'Signo consistente':'Cambio de signo'};
+}
+function confidenceMetric(v){return Number.isFinite(v)?metricStatText(v,labState.unit):'—';}
+function confidenceSetTarget(v){
+  const p=getCurrentPlan();if(!p)return;ensurePlanConfidence(p);const n=Number(v);
+  p.confidenceConfig.targetN=[20,50,100,200].includes(n)?n:100;p.updatedAt=new Date().toISOString();persist();render();
+}
+function confidencePanel(ops){
+  const p=getCurrentPlan();ensurePlanConfidence(p);const target=p.confidenceConfig.targetN||100,s=calcMetricStats(ops,labState.unit,labState.basis),m=confidenceMaturity(s.n),e=confidenceEvidence(s),split=confidenceSplit(ops,labState.unit,labState.basis),progress=Math.min(100,s.n/target*100);
+  const ci=s.n>1?`${confidenceMetric(s.ciLow95)} → ${confidenceMetric(s.ciHigh95)}`:'—';
+  const wr=s.n?`${Number(s.winLow95).toFixed(1)}% → ${Number(s.winHigh95).toFixed(1)}%`:'—';
+  const first=split.first?confidenceMetric(split.first.expectancy):'—',second=split.second?confidenceMetric(split.second.expectancy):'—';
+  return `<section class="card panel lab-module lab-span-2 confidence-module">
+    <div class="panel-title"><div><h3>Confianza estadística</h3><small>Cuantifica incertidumbre de la muestra actual; no confunde una estimación puntual con evidencia.</small></div><label class="confidence-target"><span>Objetivo de muestra</span><select class="select compact-select" onchange="confidenceSetTarget(this.value)">${[20,50,100,200].map(n=>`<option value="${n}" ${target===n?'selected':''}>${n} trades</option>`).join('')}</select></label></div>
+    <div class="confidence-summary">
+      <div class="confidence-status ${e.key}"><span>Evidencia del edge</span><strong>${esc(e.label)}</strong><small>${esc(e.detail)}</small></div>
+      <div class="confidence-status ${m.key}"><span>Madurez de muestra</span><strong>${esc(m.label)}</strong><small>${esc(m.detail)}</small></div>
+      <div class="confidence-progress-card"><div><span>Progreso hacia n=${target}</span><strong>${s.n}/${target}</strong></div><i><b style="width:${progress}%"></b></i><small>${progress.toFixed(0)}% del objetivo seleccionado</small></div>
+    </div>
+    <div class="confidence-kpis">
+      <div><span>Expectancy observada</span><strong class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">${confidenceMetric(s.expectancy)}</strong><small>media de la muestra</small></div>
+      <div><span>IC 95% · Expectancy</span><strong>${ci}</strong><small>intervalo t aproximado</small></div>
+      <div><span>Límite inferior 95%</span><strong class="${Number.isFinite(s.ciLow95)?(s.ciLow95>0?'positive':s.ciLow95<0?'negative':''):''}">${confidenceMetric(s.ciLow95)}</strong><small>lectura conservadora del edge</small></div>
+      <div><span>Win rate · IC 95%</span><strong>${wr}</strong><small>intervalo de Wilson</small></div>
+      <div><span>Desviación por trade</span><strong>${confidenceMetric(s.sd)}</strong><small>dispersión de resultados</small></div>
+      <div><span>Error estándar</span><strong>${confidenceMetric(s.se)}</strong><small>incertidumbre de la media</small></div>
+    </div>
+    <div class="confidence-split"><div><span>1ª mitad</span><strong class="${split.first?.expectancy>0?'positive':split.first?.expectancy<0?'negative':''}">${first}</strong></div><div class="confidence-arrow">→</div><div><span>2ª mitad</span><strong class="${split.second?.expectancy>0?'positive':split.second?.expectancy<0?'negative':''}">${second}</strong></div><div class="confidence-split-status"><span>Estabilidad temporal básica</span><strong>${esc(split.label)}</strong></div></div>
+    <div class="lab-note warn"><strong>Lectura correcta:</strong> el IC 95% es una aproximación para la media y supone una muestra razonablemente estable/independiente. No corrige cambios de régimen, autocorrelación, selección de setups ni el sesgo de probar muchas combinaciones en el Research Grid. Una combinación descubierta explorando muchas celdas debería confirmarse con operaciones nuevas antes de considerarla edge validado.</div>
+  </section>`;
+}
+
+/* El Grid puede usar el límite inferior del IC95 como métrica conservadora. */
+if(!RESEARCH_METRICS.some(x=>x[0]==='lcb95'))RESEARCH_METRICS.push(['lcb95','Límite inferior 95%']);
+const researchMetricValueV18Base=researchMetricValue;
+researchMetricValue=function(stats,metric=researchGridState.metric){
+  if(metric==='lcb95')return Number.isFinite(stats?.ciLow95)?stats.ciLow95:NaN;
+  return researchMetricValueV18Base(stats,metric);
+};
+const researchMetricTextV18Base=researchMetricText;
+researchMetricText=function(stats,metric=researchGridState.metric){
+  if(metric==='lcb95')return Number.isFinite(stats?.ciLow95)?metricStatText(stats.ciLow95,labState.unit):'—';
+  return researchMetricTextV18Base(stats,metric);
+};
+const researchColorScoreV18Base=researchColorScore;
+researchColorScore=function(stats,metric=researchGridState.metric){
+  if(metric==='lcb95')return Number.isFinite(stats?.ciLow95)?stats.ciLow95:null;
+  return researchColorScoreV18Base(stats,metric);
+};
+
+const analyticsLabV18Base=analyticsLab;
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: combinaciones, salidas, comportamiento, riesgo, estabilidad y confianza estadística.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${savedStudiesPanel()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${confidencePanel(ops)}${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV18Base=shell;
+shell=function(){return shellV18Base().replace(V17_APP_LABEL,V18_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Estudios guardados + Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Confianza estadística + Estudios guardados + Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');};
+
+Object.assign(window,{confidenceSetTarget});
+render();
+/* ===== END V18 PATCH ===== */

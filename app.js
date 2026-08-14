@@ -4377,3 +4377,142 @@ shell=function(){
 Object.assign(window,{openFreezeHypothesisModal,freezeCurrentHypothesis,loadForwardFilters,closeForwardTest,deleteForwardTest});
 render();
 /* ===== END V25 PATCH ===== */
+
+/* ===== V26 PATCH · Data Quality & Integrity ===== */
+const V26_APP_LABEL='V26 · Data Quality & Integrity';
+let dataQualityState={focus:'all'};
+
+function dqPct(n,d){return d?Math.max(0,Math.min(100,(n/d)*100)):0;}
+function dqFinite(v){return v!==''&&v!==null&&v!==undefined&&Number.isFinite(Number(v));}
+function dqInstrumentForOp(o){
+  if(o?.instrumentId){const direct=getInstrument(o.instrumentId);if(direct)return direct;}
+  const snap=o?.instrumentSnapshot||{};
+  const symbol=String(snap.symbol||o?.contract||'').trim().split(/\s+/)[0].toUpperCase();
+  return state.settings.instruments.find(i=>String(i.symbol||'').toUpperCase()===symbol)||null;
+}
+function dqValidTimestamp(o){const d=new Date(o?.entryDate);return !!o?.entryDate&&!isNaN(d);}
+function dqFinancialConsistency(o){
+  const tv=Number(o?.instrumentSnapshot?.tickValue||dqInstrumentForOp(o)?.tickValue||0),ticks=Number(o?.resultTicks),gross=Number(o?.pnlGross),net=Number(o?.pnlNet),commission=Number(o?.commission),riskTicks=Number(o?.riskTickExposure),r=Number(o?.rMultiple);
+  if(!Number.isFinite(ticks)||!tv||!Number.isFinite(gross)||!Number.isFinite(net)||!Number.isFinite(commission))return false;
+  const moneyTol=Math.max(.02,Math.abs(gross)*.0005);
+  if(Math.abs(gross-ticks*tv)>moneyTol)return false;
+  if(Math.abs(net-(gross-commission))>Math.max(.02,Math.abs(net)*.0005))return false;
+  if(riskTicks>0&&Number.isFinite(r)&&Math.abs(r-(ticks/riskTicks))>.02)return false;
+  return true;
+}
+function dqContractRecognized(o){
+  const inst=dqInstrumentForOp(o),snap=o?.instrumentSnapshot||{};
+  return !!inst&&Number(inst.tickSize)>0&&Number(inst.tickValue)>0&&Number(snap.tickSize||inst.tickSize)>0&&Number(snap.tickValue||inst.tickValue)>0;
+}
+function dqDuplicateGroups(ops){
+  const map=new Map();
+  for(const o of ops){
+    const d=new Date(o.entryDate),minute=isNaN(d)?String(o.entryDate||''):`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()} ${d.getHours()}:${d.getMinutes()}`;
+    const symbol=String(o.contract||o.instrumentSnapshot?.symbol||'').trim().toUpperCase();
+    const k=[minute,symbol,o.direction||'',o.setup||'',Number(o.resultTicks||0).toFixed(4)].join('|');
+    if(!map.has(k))map.set(k,[]);map.get(k).push(o);
+  }
+  return [...map.values()].filter(g=>g.length>1);
+}
+function dqCoverageDefs(ops){
+  const total=ops.length;
+  const def=(id,label,test,weight,note)=>{const ids=ops.filter(test).map(o=>o.id);return {id,label,ok:ids.length,total,pct:dqPct(ids.length,total),weight,note,missingIds:ops.filter(o=>!test(o)).map(o=>o.id)};};
+  return [
+    def('setup','Setup',o=>!!String(o.setup||'').trim(),6,'Clasificación técnica principal.'),
+    def('vd','VD',o=>!!String(o.vd||'').trim(),6,'Vela / patrón disparador registrado.'),
+    def('nr','NR',o=>!!String(o.nr||'').trim(),6,'Nivel o referencia registrado.'),
+    def('context','Contexto',o=>!!String(o.h4Context||'').trim(),7,'Contexto de mercado asociado.'),
+    def('hypothesis','Hipótesis',o=>!!String(o.hypothesis||'').trim(),5,'Hipótesis vinculada al trade.'),
+    def('strategy','Estrategia / gestión',o=>!!String(o.riskStrategyId||o.riskStrategyName||'').trim(),5,'Régimen de gestión identificable.'),
+    def('mfe','MFE utilizable',o=>Number(o.mfe)>0,10,'MFE > 0. Actualmente 0 no puede distinguirse de “no informado”.'),
+    def('mae','MAE utilizable',o=>Number(o.mae)>0,10,'MAE > 0. Actualmente 0 no puede distinguirse de “no informado”.'),
+    def('checklist','Checklist evaluado',o=>!!o?.compliance?.evaluated,10,'Cumplimiento objetivo del Trading Plan registrado.'),
+    def('journal','Diario emocional',o=>hasEmotionalEntry(o),10,'Existe al menos una entrada emocional / conductual.'),
+    def('finance','Coherencia financiera',dqFinancialConsistency,10,'Ticks, P&L, comisión y R son internamente coherentes.'),
+    def('contract','Contrato reconocido',dqContractRecognized,5,'Instrumento reconocible con tick size y tick value válidos.'),
+    def('timestamp','Timestamp válido',dqValidTimestamp,5,'Fecha/hora de entrada interpretable.'),
+    def('images','Captura visual',o=>(o.images||[]).length>0,5,'Al menos una imagen asociada a la operación.')
+  ];
+}
+function dqIssue(id,severity,label,description,ops){return {id,severity,label,description,opIds:[...new Set((ops||[]).map(o=>o.id))]};}
+function analyzeDataQuality(plan=getCurrentPlan(),ops=currentOps()){
+  const issues=[];
+  const invalidTime=ops.filter(o=>!dqValidTimestamp(o));if(invalidTime.length)issues.push(dqIssue('invalidTime','error','Timestamp inválido','La fecha/hora de entrada no puede interpretarse.',invalidTime));
+  const exitBefore=ops.filter(o=>{if(!o.exitDate||!dqValidTimestamp(o))return false;const a=new Date(o.entryDate),b=new Date(o.exitDate);return !isNaN(b)&&b<a;});if(exitBefore.length)issues.push(dqIssue('exitBefore','error','Salida anterior a entrada','La fecha/hora de salida es anterior a la entrada.',exitBefore));
+  const finance=ops.filter(o=>!dqFinancialConsistency(o));if(finance.length)issues.push(dqIssue('finance','error','Inconsistencia financiera','Ticks, P&L, comisión o R no cuadran con el snapshot del instrumento/riesgo.',finance));
+  const contract=ops.filter(o=>!dqContractRecognized(o));if(contract.length)issues.push(dqIssue('contract','warning','Contrato no verificable','Falta instrumento reconocible, tick size o tick value válido.',contract));
+  const inactive=ops.filter(o=>{const i=dqInstrumentForOp(o);return i&&i.active===false;});if(inactive.length)issues.push(dqIssue('inactive','info','Instrumento actualmente inactivo','La operación histórica usa un instrumento que hoy está marcado como inactivo.',inactive));
+  const mfeNeg=ops.filter(o=>dqFinite(o.mfe)&&Number(o.mfe)<0);if(mfeNeg.length)issues.push(dqIssue('mfeNegative','error','MFE negativo','MFE se registra como magnitud favorable y no debería ser negativo.',mfeNeg));
+  const maeNeg=ops.filter(o=>dqFinite(o.mae)&&Number(o.mae)<0);if(maeNeg.length)issues.push(dqIssue('maeNegative','error','MAE negativo','MAE se registra como magnitud adversa positiva y no debería ser negativo.',maeNeg));
+  const mfeBelowClose=ops.filter(o=>Number(o.rMultiple)>0&&Number(o.mfe)>0&&Number(o.mfe)+.02<Number(o.rMultiple));if(mfeBelowClose.length)issues.push(dqIssue('mfeBelowClose','warning','MFE menor que cierre ganador','En una ganadora, el máximo favorable debería ser al menos igual al resultado final bruto.',mfeBelowClose));
+  const resultMismatch=ops.filter(o=>(Number(o.resultTicks)>0&&o.result!=='win')||(Number(o.resultTicks)<0&&o.result!=='loss')||(Number(o.resultTicks)===0&&o.result&&o.result!=='pending'));if(resultMismatch.length)issues.push(dqIssue('resultMismatch','warning','Etiqueta de resultado incoherente','La etiqueta ganadora/perdedora no coincide con el signo de los ticks.',resultMismatch));
+  const badDirection=ops.filter(o=>o.direction&&!['LONG','SHORT'].includes(o.direction));if(badDirection.length)issues.push(dqIssue('direction','warning','Dirección no estándar','La dirección no es LONG ni SHORT.',badDirection));
+  const dupGroups=dqDuplicateGroups(ops);if(dupGroups.length)issues.push(dqIssue('duplicates','warning','Posibles duplicados',`${dupGroups.length} grupo(s) comparten minuto, contrato, dirección, setup y resultado en ticks. Revisa antes de borrar.`,dupGroups.flat()));
+  const coverage=dqCoverageDefs(ops),base=coverage.reduce((s,c)=>s+(c.pct/100)*c.weight,0),errors=issues.filter(i=>i.severity==='error').reduce((s,i)=>s+i.opIds.length,0),warnings=issues.filter(i=>i.severity==='warning').reduce((s,i)=>s+i.opIds.length,0),penalty=Math.min(20,errors*2+warnings*.35),score=Math.max(0,Math.min(100,base-penalty));
+  return {ops,coverage,issues,score,baseScore:base,penalty,errors,warnings,infos:issues.filter(i=>i.severity==='info').reduce((s,i)=>s+i.opIds.length,0)};
+}
+function dqScoreClass(v){return v>=85?'good':v>=70?'mid':'low';}
+function dqSeverityLabel(s){return s==='error'?'Error':s==='warning'?'Aviso':'Info';}
+function dqFocusOps(a){
+  const f=dataQualityState.focus||'all';if(f==='all')return [];
+  if(f.startsWith('missing:')){const c=a.coverage.find(x=>x.id===f.slice(8));return c?a.ops.filter(o=>c.missingIds.includes(o.id)):[];}
+  if(f.startsWith('issue:')){const i=a.issues.find(x=>x.id===f.slice(6));return i?a.ops.filter(o=>i.opIds.includes(o.id)):[];}
+  return [];
+}
+function dqSetFocus(f){dataQualityState.focus=f||'all';render();setTimeout(()=>document.getElementById('dq-repair')?.scrollIntoView({behavior:'smooth',block:'start'}),40);}
+function dqOpenConfigAudit(){currentView='config';configTab='data';render();}
+function dqCoverageCard(c){
+  const cls=c.pct>=95?'good':c.pct>=70?'mid':'low';
+  return `<article class="dq-coverage-card ${cls}"><div class="dq-cov-head"><span>${esc(c.label)}</span><strong>${c.pct.toFixed(0)}%</strong></div><div class="dq-cov-bar"><i style="width:${c.pct}%"></i></div><div class="dq-cov-meta"><span>${c.ok}/${c.total}</span><small>${esc(c.note)}</small></div>${c.missingIds.length?`<button class="btn tiny ghost" onclick="dqSetFocus('missing:${c.id}')">Ver ${c.missingIds.length} pendiente(s)</button>`:'<span class="dq-complete">✓ Completo</span>'}</article>`;
+}
+function dqIssueCard(i){return `<button class="dq-issue-card ${i.severity}" onclick="dqSetFocus('issue:${i.id}')"><span class="integrity-badge ${i.severity}">${dqSeverityLabel(i.severity)}</span><div><strong>${esc(i.label)}</strong><small>${esc(i.description)}</small></div><em>${i.opIds.length}</em></button>`;}
+function dqRepairTable(a){
+  const rows=dqFocusOps(a),f=dataQualityState.focus;
+  if(f==='all')return `<section id="dq-repair" class="card panel dq-repair"><div class="panel-title"><div><h3>Reparación dirigida</h3><small>Pulsa cualquier cobertura incompleta o anomalía para obtener las operaciones exactas.</small></div></div><div class="empty">No hay un problema seleccionado.</div></section>`;
+  const label=f.startsWith('missing:')?(a.coverage.find(x=>x.id===f.slice(8))?.label||'Pendientes'):(a.issues.find(x=>x.id===f.slice(6))?.label||'Incidencias');
+  return `<section id="dq-repair" class="card panel dq-repair"><div class="panel-title"><div><h3>${esc(label)}</h3><small>${rows.length} operación(es) requieren revisión.</small></div><button class="btn small ghost" onclick="dqSetFocus('all')">Cerrar selección</button></div>${rows.length?`<div class="table-wrap"><table class="table compact-table"><thead><tr><th>Fecha</th><th>Contrato</th><th>Setup</th><th>VD</th><th>Contexto</th><th>Resultado</th><th>MFE</th><th>MAE</th><th>Acciones</th></tr></thead><tbody>${rows.slice(0,150).map(o=>`<tr><td>${esc(fmtDate(o.entryDate))}</td><td>${esc(o.contract||o.instrumentSnapshot?.symbol||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.h4Context||'—')}</td><td class="${Number(o.rMultiple)>0?'positive':Number(o.rMultiple)<0?'negative':''}">${Number(o.rMultiple||0).toFixed(2)}R</td><td>${Number(o.mfe||0).toFixed(2)}R</td><td>${Number(o.mae||0).toFixed(2)}R</td><td><button class="btn tiny" onclick="viewOperation('${o.id}')">Ver</button> <button class="btn tiny" onclick="editOperation('${o.id}')">Editar</button></td></tr>`).join('')}</tbody></table></div>${rows.length>150?`<div class="notice">Mostrando las primeras 150 operaciones de ${rows.length}.</div>`:''}`:'<div class="integrity-ok">✓ No hay operaciones pendientes en esta selección.</div>'}</section>`;
+}
+function dataQualityView(){
+  const p=getCurrentPlan(),a=analyzeDataQuality(p,currentOps()),score=a.score,scoreCls=dqScoreClass(score),critical=a.issues.filter(i=>i.severity==='error').length,warnGroups=a.issues.filter(i=>i.severity==='warning').length;
+  const researchIds=['setup','vd','nr','context','hypothesis','strategy','mfe','mae'],processIds=['checklist','journal','images'],integrityIds=['finance','contract','timestamp'];
+  const avg=ids=>{const r=a.coverage.filter(c=>ids.includes(c.id));return r.length?r.reduce((s,c)=>s+c.pct,0)/r.length:0;};
+  return `${pageHead('Data Quality & Integrity','Comprueba si el dataset está suficientemente completo y coherente antes de confiar en el análisis estadístico.',`<button class="btn" onclick="dqOpenConfigAudit()">Auditoría técnica / blobs</button><button class="btn primary" onclick="navigate('operations')">Abrir operaciones</button>`)}${activePlanBanner()}
+  <section class="card panel dq-hero"><div class="dq-score ${scoreCls}"><span>Calidad del dataset</span><strong>${score.toFixed(0)}<em>/100</em></strong><small>Completitud ponderada − penalización por anomalías</small></div><div class="dq-hero-kpis"><div><span>Operaciones</span><strong>${a.ops.length}</strong></div><div><span>Research</span><strong>${avg(researchIds).toFixed(0)}%</strong></div><div><span>Proceso</span><strong>${avg(processIds).toFixed(0)}%</strong></div><div><span>Integridad</span><strong>${avg(integrityIds).toFixed(0)}%</strong></div><div><span>Errores</span><strong class="${critical?'negative':''}">${critical}</strong></div><div><span>Avisos</span><strong>${warnGroups}</strong></div></div></section>
+  <section class="card panel dq-coverage"><div class="panel-title"><div><h3>Cobertura del dataset</h3><small>Qué porcentaje de operaciones contiene cada campo necesario para research, ejecución y revisión.</small></div></div><div class="dq-coverage-grid">${a.coverage.map(dqCoverageCard).join('')}</div><div class="lab-note warn"><strong>MFE / MAE:</strong> en la estructura actual un valor 0 puede significar “no informado” o una excursión real exactamente igual a 0. Por prudencia, este panel considera utilizable solo un valor &gt; 0; no marca los ceros como error.</div></section>
+  <section class="card panel dq-anomalies"><div class="panel-title"><div><h3>Anomalías automáticas</h3><small>Busca inconsistencias que pueden distorsionar estadísticas o indicar datos incompletos.</small></div><span>${a.issues.length} tipo(s) detectado(s)</span></div>${a.issues.length?`<div class="dq-issue-grid">${a.issues.map(dqIssueCard).join('')}</div>`:'<div class="integrity-ok">✓ No se han detectado anomalías automáticas en este Trading Plan.</div>'}<div class="notice"><strong>Posibles duplicados</strong> son candidatos, no borrados automáticos. Trading Research nunca elimina una operación desde este panel.</div></section>
+  ${dqRepairTable(a)}
+  <div class="notice dq-method"><strong>Cómo se calcula el 0–100:</strong> cobertura técnica 35 pt, MFE/MAE 20 pt, checklist/diario 20 pt, coherencia financiera/contrato/timestamp 20 pt e imágenes 5 pt. Los errores y avisos de integridad aplican una penalización limitada a 20 puntos. Es un indicador de preparación del dataset, no una medida del edge ni de la calidad del trader.</div>`;
+}
+
+if(typeof CONTEXT_HELP!=='undefined'){
+  CONTEXT_HELP.push(
+    {id:'dataquality',terms:['calidad del dataset','data quality','integridad del dataset','research readiness'],title:'Data Quality & Integrity',summary:'Evalúa si las operaciones contienen suficiente información y si sus campos principales son internamente coherentes.',body:'Combina cobertura de clasificaciones, MFE/MAE, checklist, diario, contrato, timestamps, coherencia financiera e imágenes. También detecta candidatos a duplicado y otras anomalías.',use:'Sirve para saber qué datos faltan antes de interpretar IC95, Monte Carlo, Walk-Forward u otros análisis avanzados. Una buena estadística sobre datos pobres sigue siendo una mala conclusión.'}
+  );
+}
+
+/* Widget opcional para el Dashboard personalizable. */
+if(typeof DASHBOARD_PANEL_DEFS!=='undefined'&&!DASHBOARD_PANEL_DEFS.some(x=>x[0]==='dataQuality'))DASHBOARD_PANEL_DEFS.push(['dataQuality','Calidad del dataset']);
+function dashboardDataQualityPanel(){
+  const a=analyzeDataQuality(getCurrentPlan(),currentOps()),cls=dqScoreClass(a.score),critical=a.issues.filter(i=>i.severity==='error').length,warn=a.issues.filter(i=>i.severity==='warning').length;
+  const weakest=[...a.coverage].sort((x,y)=>x.pct-y.pct).slice(0,4);
+  return `<section class="card panel dashboard-custom-panel dq-dashboard"><div class="panel-title"><div><h3>Calidad del dataset</h3><small>Preparación del plan para research fiable</small></div><button class="btn tiny ghost" onclick="navigate('quality')">Abrir</button></div><div class="dq-dashboard-score ${cls}"><strong>${a.score.toFixed(0)}/100</strong><span>${critical} errores · ${warn} avisos</span></div><div class="dq-dashboard-list">${weakest.map(c=>`<div><span>${esc(c.label)}</span><i><b style="width:${c.pct}%"></b></i><em>${c.pct.toFixed(0)}%</em></div>`).join('')}</div></section>`;
+}
+if(typeof dashboardPanelHtml!=='undefined'){
+  const dashboardPanelHtmlV26Base=dashboardPanelHtml;
+  dashboardPanelHtml=function(id,ctx){if(id==='dataQuality')return dashboardDataQualityPanel();return dashboardPanelHtmlV26Base(id,ctx);};
+}
+
+const shellV26Base=shell;
+shell=function(){
+  let html=shellV26Base(),labButton=navBtn('lab','⌁','Laboratorio');
+  html=html.replace(labButton,navBtn('quality','◇','Calidad datos')+labButton);
+  return html.replace(V25_APP_LABEL,V26_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Data Quality + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='goals'?goalsView():currentView==='quality'?dataQualityView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{dqSetFocus,dqOpenConfigAudit,dataQualityView});
+render();
+/* ===== END V26 PATCH ===== */

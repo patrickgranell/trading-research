@@ -146,3 +146,20 @@ No requiere SQL nuevo ni cambios de infraestructura. Mantiene Supabase, Conflict
 - Hipótesis congeladas e inmutables para validación con operaciones añadidas después del freeze.
 - Comparación discovery vs OOS, IC95, retención de expectancy, PF, WR y DD.
 - Cierre de validación congela también el conjunto OOS final.
+
+
+## V26 · Data Quality & Integrity
+
+Nueva sección principal de calidad del dataset por Trading Plan:
+
+- Score 0–100 de preparación del dataset, separado de cualquier medida de edge.
+- Cobertura de Setup, VD, NR, Contexto, Hipótesis, estrategia/gestión, MFE, MAE, checklist, diario emocional, coherencia financiera, contrato, timestamp e imágenes.
+- Detección automática de timestamps inválidos, salida anterior a entrada, inconsistencias entre ticks/P&L/comisión/R, contratos no verificables, signos incoherentes en MFE/MAE, MFE inferior al cierre ganador, etiquetas de resultado incoherentes y candidatos a duplicado.
+- Cada cobertura incompleta o anomalía puede abrir una tabla con las operaciones exactas y acceso directo a Ver / Editar.
+- Los posibles duplicados nunca se eliminan automáticamente.
+- MFE/MAE = 0 se trata de forma conservadora como no distinguible de dato ausente; solo > 0 se considera cobertura utilizable.
+- Acceso desde Data Quality a la auditoría técnica existente de backups / blobs de IndexedDB.
+- Módulo opcional “Calidad del dataset” para el Dashboard personalizable.
+- Definición añadida al glosario contextual.
+
+No requiere SQL nuevo y mantiene Supabase, Conflict Guard, snapshots, Forward OOS y el resto de módulos sobre la misma base.

@@ -1,4 +1,4 @@
-# Trading Research V17.1 — Estudios Guardados + corrección PF
+# Trading Research V21 — Ayuda contextual + Glosario
 
 V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
@@ -84,3 +84,14 @@ La capa estadística utiliza la unidad/base activa del Laboratorio (R, ticks o U
 - Horizontes: plan completo, últimas 20/50/100 y mes actual.
 - Métricas de rendimiento, cumplimiento y calidad de datos.
 - Scorecard dinámico y panel opcional para Dashboard.
+
+## V21 · Ayuda contextual + Glosario
+
+- Añade iconos `i` contextuales junto a métricas y módulos importantes.
+- Hover/foco: resumen corto sin salir de la pantalla.
+- Clic: explicación ampliada con significado y utilidad práctica.
+- Glosario central accesible desde la barra lateral con búsqueda.
+- Definiciones centralizadas para evitar explicaciones contradictorias entre pantallas.
+- Cobertura inicial: Expectancy, Win Rate, Profit Factor, Drawdown, R/Ticks/US$, Bruto/Neto, MFE/MAE, Equity, distribuciones, heatmaps, Research Grid, Exit Lab, confianza estadística, IC95, Compliance, Diario, Estudios, Reviews, Calendario, Objetivos, Conflict Guard y Snapshots.
+- Compatible con modo oscuro/claro y con interacción táctil mediante clic.
+- No modifica el dataset ni requiere cambios SQL.

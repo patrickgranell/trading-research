@@ -3756,3 +3756,111 @@ render=function(){
 Object.assign(window,{goalViewState,openGoalModal,goalRefreshMetricFields,saveGoal,deleteGoal,toggleGoalActive,goalReadFilters,goalResetFilters});
 render();
 /* ===== END V20 PATCH ===== */
+
+/* ===== V21 PATCH · Ayuda contextual + Glosario ===== */
+const V21_APP_LABEL='V21 · Ayuda contextual';
+
+const CONTEXT_HELP=[
+  {id:'operations',terms:['operaciones','trades visibles','muestra'],title:'Operaciones / muestra',summary:'Número de operaciones incluidas en el cálculo actual.',body:'Indica cuántos trades forman el subconjunto que estás analizando. Es esencial leer cualquier métrica junto con su tamaño de muestra: una cifra llamativa con pocas operaciones puede ser puro ruido.',use:'Úsalo para valorar la madurez de una conclusión y para saber cuánto peso dar a Expectancy, Win Rate, Profit Factor o cualquier comparación.'},
+  {id:'winrate',terms:['win rate','wr'],title:'Win Rate',summary:'Porcentaje de operaciones cerradas con resultado ganador.',body:'Se calcula como operaciones ganadoras dividido entre operaciones cerradas evaluadas. Un Win Rate alto no implica por sí solo una estrategia rentable: debe interpretarse junto con el tamaño medio de ganancias y pérdidas.',use:'Compáralo con Expectancy, Profit Factor y la relación entre ganancia media y pérdida media.'},
+  {id:'expectancy',terms:['expectancy','r media'],title:'Expectancy',summary:'Resultado medio esperado por operación en la muestra seleccionada.',body:'Es la media aritmética del resultado de todas las operaciones del subconjunto, expresada en R, ticks o US$ según la unidad seleccionada. Resume cuánto ha aportado de media cada trade observado.',use:'Sirve para comparar setups, contextos, horarios o reglas. Una Expectancy positiva necesita una muestra suficiente y estabilidad temporal antes de considerarse evidencia sólida.'},
+  {id:'pf',terms:['profit factor','pf'],title:'Profit Factor',summary:'Beneficio bruto total dividido entre pérdida bruta total.',body:'Un Profit Factor mayor que 1 indica que las ganancias agregadas superan las pérdidas agregadas. Si no existen operaciones perdedoras, el valor matemático es infinito (∞).',use:'Úsalo como medida complementaria de eficiencia del conjunto, nunca aislado del número de operaciones ni del drawdown.'},
+  {id:'drawdown',terms:['drawdown','max drawdown','max dd','máx. dd','mdd'],title:'Maximum Drawdown',summary:'Mayor caída acumulada desde un máximo de equity hasta el mínimo posterior.',body:'Mide la peor contracción observada de la curva dentro del subconjunto y unidad seleccionados. No es la mayor operación perdedora, sino la peor secuencia acumulada desde un pico.',use:'Sirve para evaluar riesgo, tolerancia psicológica y comparar estrategias con rentabilidades parecidas pero trayectorias distintas.'},
+  {id:'result',terms:['resultado','resultado total','resultado acumulado','p&l neto','p&l bruto'],title:'Resultado acumulado',summary:'Suma de los resultados de las operaciones seleccionadas.',body:'Representa el resultado agregado del subconjunto. Puede mostrarse en R, ticks o US$. En base Neta se descuentan las comisiones cuando están disponibles.',use:'Sirve para conocer el impacto total, pero no sustituye a Expectancy: un resultado grande puede deberse simplemente a haber realizado más operaciones.'},
+  {id:'commissions',terms:['comisiones','comisión'],title:'Comisiones',summary:'Coste de ejecución registrado para las operaciones seleccionadas.',body:'Suma los costes de comisión asociados a los contratos ejecutados. Permite diferenciar P&L bruto de P&L neto y cuantificar cuánto edge consume la fricción operativa.',use:'Es especialmente relevante en estrategias de alta frecuencia de trades o con objetivos pequeños.'},
+  {id:'avgwin',terms:['media ganadora','media ganancia','máx. ganancia'],title:'Ganancia media',summary:'Resultado medio de las operaciones ganadoras.',body:'Calcula la media únicamente sobre trades positivos. Ayuda a entender el tamaño típico de una ganancia y a interpretar correctamente el Win Rate.',use:'Compárala con la pérdida media para entender la asimetría del sistema.'},
+  {id:'avgloss',terms:['media perdedora','media pérdida','máx. pérdida'],title:'Pérdida media',summary:'Resultado medio de las operaciones perdedoras.',body:'Calcula la media únicamente sobre trades negativos. Una pérdida media estable cerca del stop planificado suele indicar consistencia en la ejecución del riesgo.',use:'Compárala con la ganancia media, distribución de R y reglas de gestión.'},
+  {id:'equity',terms:['equity','equity filtrada','equity en r','equity en ticks','equity en us$'],title:'Curva de Equity',summary:'Evolución acumulada del resultado operación a operación.',body:'Ordena cronológicamente las operaciones y acumula su resultado. Permite observar crecimiento, estancamiento, rachas, drawdowns y cambios de régimen que una métrica agregada puede ocultar.',use:'Busca estabilidad del crecimiento y deterioros persistentes, no solo el valor final.'},
+  {id:'distribution',terms:['distribución','distribución de resultados','distribución de riesgo'],title:'Distribución de resultados',summary:'Frecuencia con la que aparecen distintos tamaños de resultado.',body:'Agrupa los trades por rangos para mostrar la forma de la distribución. En R permite comprobar si las pérdidas se concentran cerca de -1R y cómo se distribuyen las ganancias.',use:'Sirve para detectar colas, salidas anticipadas, stops excedidos y concentración excesiva de resultados.'},
+  {id:'heatmap',terms:['mapa de calor','heatmap','mapa de calor · día × hora','heatmap · foco × estrés'],title:'Heatmap',summary:'Matriz que compara dos dimensiones mediante color e intensidad.',body:'Cada celda agrupa las operaciones que comparten dos características. El color representa la métrica elegida y el número n indica cuántas operaciones sostienen esa lectura.',use:'Úsalo para descubrir interacciones, pero evita concluir demasiado a partir de celdas con muestra pequeña.'},
+  {id:'mfe',terms:['mfe','mfe medio','maximum favorable excursion'],title:'MFE · Maximum Favorable Excursion',summary:'Máximo recorrido favorable alcanzado mientras la operación estuvo abierta.',body:'Mide cuánto llegó a avanzar el precio a favor antes del cierre. En R normaliza ese recorrido respecto al riesgo inicial.',use:'Sirve para estudiar calidad de salida, objetivos potenciales y cuánto recorrido favorable se devuelve antes de cerrar.'},
+  {id:'mae',terms:['mae','mae medio','maximum adverse excursion'],title:'MAE · Maximum Adverse Excursion',summary:'Máximo recorrido adverso sufrido mientras la operación estuvo abierta.',body:'Mide la peor excursión en contra antes del cierre. En R permite comparar operaciones con stops de distinto tamaño.',use:'Sirve para estudiar ubicación de stops, calidad de entrada y cuánto riesgo intratrade soportan las operaciones ganadoras.'},
+  {id:'researchgrid',terms:['research grid','matriz de edge'],title:'Research Grid',summary:'Tabla dinámica multidimensional para cruzar variables y buscar diferencias de rendimiento.',body:'Permite elegir filas, columnas y métrica para comparar Setup, Contexto, VD, NR, Hipótesis, horario, comportamiento y otras dimensiones. Cada celda se calcula sobre el dataset actual.',use:'Es una herramienta exploratoria. Las combinaciones prometedoras deben confirmarse con muestra suficiente y operaciones nuevas para reducir sesgo de selección.'},
+  {id:'exitlab',terms:['exit lab'],title:'Exit Lab',summary:'Laboratorio para estudiar MFE, MAE y eficiencia de las salidas.',body:'Analiza cuánto recorrido favorable se capturó, cuánto se devolvió y escenarios de TP que sí pueden inferirse de los datos disponibles.',use:'Úsalo para evaluar la gestión de salidas sin atribuir a los datos más información de la que realmente contienen.'},
+  {id:'capture',terms:['captura media del mfe','captura del mfe','eficiencia de salida'],title:'Captura del MFE',summary:'Proporción del máximo recorrido favorable que terminó convertida en resultado.',body:'Compara el resultado final con el MFE observado. Una captura baja puede señalar cesión de beneficio, aunque no implica automáticamente que una salida anterior hubiera sido óptima.',use:'Sirve para comparar estilos de salida y estudiar si determinados setups devuelven demasiado recorrido.'},
+  {id:'confidence',terms:['confianza estadística','evidencia del edge','madurez de muestra'],title:'Confianza estadística',summary:'Capa que cuantifica la incertidumbre de las métricas observadas.',body:'Distingue la estimación puntual de la evidencia que la sostiene. Una muestra amplia reduce incertidumbre, pero no elimina sesgos de selección, cambios de régimen ni dependencia entre operaciones.',use:'Úsala para decidir cuándo una hipótesis merece seguimiento y cuándo todavía es exploratoria.'},
+  {id:'ci95',terms:['ic 95% · expectancy','ic 95%','intervalo 95%'],title:'IC 95% de la Expectancy',summary:'Rango aproximado de valores plausibles para la media de la muestra.',body:'Se construye alrededor de la Expectancy observada usando su error estándar. Un intervalo ancho indica mucha incertidumbre; uno estrecho indica mayor precisión estadística.',use:'Si todo el intervalo está por encima de cero, la evidencia positiva es más fuerte que una Expectancy positiva aislada, aunque no constituye una prueba absoluta de edge.'},
+  {id:'lower95',terms:['límite inferior 95%'],title:'Límite inferior 95%',summary:'Extremo conservador del intervalo de confianza de la Expectancy.',body:'Representa una lectura prudente de la media compatible con el IC aproximado. Penaliza automáticamente las muestras pequeñas o muy variables.',use:'Es útil para ordenar combinaciones del Research Grid evitando favorecer únicamente valores espectaculares con n muy pequeño.'},
+  {id:'stddev',terms:['desviación por trade','desviación estándar'],title:'Desviación por trade',summary:'Dispersión de los resultados individuales alrededor de la media.',body:'Cuanto mayor es, más variables son los resultados operación a operación. Una alta dispersión ensancha el intervalo de confianza de la Expectancy.',use:'Sirve para entender cuánta volatilidad existe detrás de una media aparentemente buena.'},
+  {id:'stderr',terms:['error estándar'],title:'Error estándar',summary:'Incertidumbre estimada de la media de la muestra.',body:'Aproximadamente es la desviación estándar dividida por la raíz del número de operaciones. Disminuye al crecer la muestra si la distribución permanece comparable.',use:'Es la base para construir el intervalo de confianza aproximado de la Expectancy.'},
+  {id:'compliance',terms:['cobertura checklist','cumplimiento medio','obligatorias 100%','cumplimiento checklist','cumplimiento por regla'],title:'Plan Compliance',summary:'Mide cuánto se cumplen las reglas objetivas definidas en el Trading Plan.',body:'Solo las operaciones evaluadas entran en estas métricas. Las operaciones antiguas sin checklist permanecen como no evaluadas, nunca como incumplimientos.',use:'Permite separar el resultado del mercado de la calidad de ejecución y estudiar asociaciones entre reglas incumplidas y rendimiento.'},
+  {id:'discipline',terms:['disciplina'],title:'Disciplina',summary:'Valoración registrada de la calidad de ejecución del trade.',body:'Es una capa distinta del checklist objetivo del plan. Puede reflejar tu evaluación global de la ejecución aunque todas las reglas técnicas se hayan cumplido o viceversa.',use:'Úsala junto al diario emocional y Compliance para detectar patrones de proceso.'},
+  {id:'stress',terms:['estrés','estrés medio'],title:'Nivel de Estrés',summary:'Intensidad de estrés registrada en el diario emocional.',body:'Escala subjetiva de 1 a 5 asociada a cada operación cuando el diario está completado.',use:'Sirve para cruzar estado psicológico y rendimiento, especialmente mediante el heatmap Foco × Estrés.'},
+  {id:'focus',terms:['foco','foco medio'],title:'Nivel de Foco',summary:'Nivel de concentración percibido durante la operación.',body:'Escala subjetiva de 1 a 5 registrada en el diario emocional.',use:'Permite estudiar si determinados niveles de concentración se asocian con mejor cumplimiento o rendimiento.'},
+  {id:'scorecard',terms:['objetivos & scorecard','scorecard del plan','scorecard de objetivos'],title:'Objetivos & Scorecard',summary:'Seguimiento de criterios cuantificables definidos para el Trading Plan.',body:'Cada objetivo se recalcula sobre los datos actuales y puede medir rendimiento, riesgo, cumplimiento o calidad del dataset.',use:'Sirve para convertir intenciones como “registrar MFE en el 95%” o “mantener DD bajo X” en condiciones medibles.'},
+  {id:'goalprogress',terms:['progreso','objetivo','límite'],title:'Progreso de objetivo',summary:'Grado de avance del valor actual respecto al objetivo o límite definido.',body:'Para objetivos mínimos, el progreso aumenta al acercarse o superar el valor deseado. Para límites máximos, el estado se evalúa comprobando que el valor no exceda el umbral.',use:'Es un indicador de estado, no una evidencia de causalidad ni de estabilidad futura.'},
+  {id:'reviews',terms:['review & notes','archivo de investigación'],title:'Review & Notes',summary:'Archivo de hallazgos, decisiones y conclusiones del proceso de investigación.',body:'Permite vincular una observación a un trade, día, semana, mes, bloque, estudio o Trading Plan y conservar la decisión que surgió de ella.',use:'Sirve para transformar análisis dispersos en conocimiento acumulado y revisar hipótesis cuando crece la muestra.'},
+  {id:'savedstudies',terms:['estudios guardados','comparación de estudios'],title:'Estudios guardados',summary:'Configuraciones reutilizables de filtros y parámetros del Laboratorio.',body:'Un estudio guarda la definición del análisis, no una copia congelada de las operaciones. Al abrirlo más adelante consulta el dataset actual.',use:'Sirve para seguir hipótesis a lo largo del tiempo y comparar muestras sin reconstruir filtros manualmente.'},
+  {id:'calendar',terms:['calendario de rendimiento'],title:'Calendario de rendimiento',summary:'Vista temporal diaria y mensual del rendimiento y proceso.',body:'Agrupa las operaciones por día y permite colorearlas por Resultado, Expectancy, Win Rate o Disciplina.',use:'Ayuda a localizar rachas, días anómalos, patrones temporales y jornadas que merecen una review.'},
+  {id:'r',terms:['unidad analítica'],title:'Unidad analítica · R / Ticks / US$',summary:'Cambia la unidad con la que se expresan las métricas financieras.',body:'R normaliza el resultado por el riesgo inicial de cada operación; Ticks expresa movimiento de precio; US$ expresa impacto monetario según contrato y tamaño.',use:'Usa R para comparar riesgos distintos, ticks para estudiar comportamiento del instrumento y US$ para impacto económico real.'},
+  {id:'basis',terms:['base'],title:'Bruto / Neto',summary:'Define si el resultado se calcula antes o después de costes registrados.',body:'Bruto refleja el resultado de mercado. Neto descuenta comisiones cuando están disponibles.',use:'Para evaluar rendimiento económico real suele ser preferible Neto; para estudiar comportamiento puro del precio puede ser útil Bruto.'},
+  {id:'conflictguard',terms:['conflict guard'],title:'Conflict Guard',summary:'Protección frente a sobrescrituras entre dispositivos con revisiones diferentes.',body:'Cada dispositivo conserva una revisión base de Supabase. Si la nube cambió desde esa revisión y existen cambios locales, la aplicación bloquea una subida normal para evitar perder trabajo.',use:'Sirve como barrera de seguridad al trabajar con varios navegadores o dispositivos.'},
+  {id:'snapshots',terms:['snapshots locales de seguridad'],title:'Snapshots locales',summary:'Copias de seguridad del estado local antes de operaciones sensibles.',body:'Guardan estados recientes antes de subidas o descargas importantes para permitir recuperar trabajo descartado accidentalmente.',use:'Son una red de seguridad adicional; no sustituyen a Supabase ni al backup completo.'}
+];
+
+function helpNormalizeText(v){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9%$+\/·× -]+/g,' ').replace(/\s+/g,' ').trim();}
+function helpEntryForText(text){
+  const t=helpNormalizeText(text);
+  if(!t)return null;
+  let best=null,bestLen=0;
+  for(const item of CONTEXT_HELP){
+    for(const term of item.terms){const n=helpNormalizeText(term);if(!n)continue;if((t===n||t.startsWith(n+' ')||t.includes(n))&&n.length>bestLen){best=item;bestLen=n.length;}}
+  }
+  return best;
+}
+function helpButtonHtml(id){return `<button type="button" class="info-dot" data-help-id="${esc(id)}" aria-label="Información" title="Información">i</button>`;}
+function ensureHelpPopover(){
+  let el=document.getElementById('context-help-popover');
+  if(el)return el;
+  el=document.createElement('div');el.id='context-help-popover';el.className='context-help-popover';el.setAttribute('role','tooltip');el.innerHTML='<strong></strong><p></p>';
+  document.body.appendChild(el);return el;
+}
+function positionHelpPopover(btn,el){
+  const r=btn.getBoundingClientRect(),pad=12,w=Math.min(330,window.innerWidth-pad*2);el.style.width=w+'px';
+  let left=Math.min(window.innerWidth-w-pad,Math.max(pad,r.left+r.width/2-w/2));
+  let top=r.bottom+8;if(top+150>window.innerHeight)top=Math.max(pad,r.top-138);
+  el.style.left=left+'px';el.style.top=top+'px';
+}
+function showHelpHover(btn){
+  const item=CONTEXT_HELP.find(x=>x.id===btn.dataset.helpId);if(!item)return;
+  const el=ensureHelpPopover();el.querySelector('strong').textContent=item.title;el.querySelector('p').textContent=item.summary;positionHelpPopover(btn,el);el.classList.add('show');
+}
+function hideHelpHover(){document.getElementById('context-help-popover')?.classList.remove('show');}
+function openContextHelp(id){
+  hideHelpHover();const item=CONTEXT_HELP.find(x=>x.id===id);if(!item)return;
+  const body=`<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(`ⓘ ${esc(item.title)}`,body,`<button class="btn primary" onclick="closeModal()">Entendido</button>`));
+}
+function openGlossary(){
+  const body=`<div class="glossary-search"><input class="input" id="glossary-search" placeholder="Buscar métrica o concepto…" oninput="filterGlossary(this.value)"></div><div id="glossary-list" class="glossary-list">${CONTEXT_HELP.map(x=>`<button type="button" data-glossary-search="${esc(helpNormalizeText(x.title+' '+x.summary+' '+x.body))}" onclick="openContextHelp('${x.id}')"><strong>${esc(x.title)}</strong><span>${esc(x.summary)}</span></button>`).join('')}</div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Glosario de Trading Research',body,`<button class="btn" onclick="closeModal()">Cerrar</button>`));
+}
+function filterGlossary(q){const n=helpNormalizeText(q);document.querySelectorAll('#glossary-list [data-glossary-search]').forEach(el=>el.classList.toggle('hidden',n&&!el.dataset.glossarySearch.includes(n)));}
+function attachInfoButton(el,item){
+  if(!el||!item||el.dataset.helpAttached)return;el.dataset.helpAttached=item.id;
+  const btn=document.createElement('button');btn.type='button';btn.className='info-dot';btn.dataset.helpId=item.id;btn.textContent='i';btn.setAttribute('aria-label',`Información: ${item.title}`);btn.title='Información';
+  btn.addEventListener('mouseenter',()=>showHelpHover(btn));btn.addEventListener('mouseleave',hideHelpHover);btn.addEventListener('focus',()=>showHelpHover(btn));btn.addEventListener('blur',hideHelpHover);btn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openContextHelp(item.id);});
+  el.appendChild(btn);
+}
+function applyContextHelp(){
+  const selectors=['.kpi .label','.panel-title h3','.calendar-month-kpis span','.calendar-detail-kpis span','.dashboard-mini-stats span','.block-core-grid span','.block-detail-kpis span','.confidence-stats span','.confidence-main-card span','.confidence-split span','.compliance-kpis .label','.goal-values span','.filter-hub-top h3','.page-title h2','.trade-detail-kpis span','.research-grid-controls label>span','.exit-kpis span','th'];
+  document.querySelectorAll(selectors.join(',')).forEach(el=>{if(el.closest('.context-help-modal,.glossary-list'))return;const item=helpEntryForText(el.childNodes?.[0]?.textContent||el.textContent);if(item)attachInfoButton(el,item);});
+  document.querySelectorAll('.metric-switch>span,.calendar-metric-select>span').forEach(el=>{const item=helpEntryForText(el.textContent);if(item)attachInfoButton(el,item);});
+  const side=document.querySelector('.side-bottom .mini-card');if(side&&!side.querySelector('.open-glossary-btn'))side.insertAdjacentHTML('beforeend',`<button type="button" class="open-glossary-btn" onclick="openGlossary()">ⓘ Glosario</button>`);
+}
+
+const shellV21Base=shell;
+shell=function(){
+  return shellV21Base().replace(V20_APP_LABEL,V21_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+let contextHelpObserver=null,contextHelpTimer=null;
+function ensureContextHelpObserver(){
+  const root=document.getElementById('app');if(!root||contextHelpObserver)return;
+  contextHelpObserver=new MutationObserver(()=>{clearTimeout(contextHelpTimer);contextHelpTimer=setTimeout(applyContextHelp,20);});
+  contextHelpObserver.observe(root,{childList:true,subtree:true});
+}
+const renderV21Base=render;
+render=function(){renderV21Base();ensureContextHelpObserver();setTimeout(applyContextHelp,0);};
+Object.assign(window,{openContextHelp,openGlossary,filterGlossary});
+render();
+/* ===== END V21 PATCH ===== */

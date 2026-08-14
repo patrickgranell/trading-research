@@ -1,33 +1,40 @@
-# Trading Research V30.1 — Excursiones en ticks + Alerts Fix
+# Trading Research V30.2 — MAE/MFE intratrade en ticks
 
-V30.1 parte de V30 y conserva toda la base anterior: Supabase, Conflict Guard V9.2, snapshots, Dashboard configurable, Calendario, Research Grid, Exit Lab, Compliance, Estudios, Confianza estadística, Review & Notes, Objetivos, ayuda contextual, Monte Carlo, Risk & Stress Lab, Walk-Forward, Forward OOS, Data Quality Workbench, Quality-Aware Analytics, Research Decision Center y Change Tracking.
+V30.2 parte de V30.1 y conserva toda la base anterior: Supabase, Conflict Guard V9.2, snapshots, Dashboard configurable, Calendario, Research Grid, Exit Lab, Compliance, Estudios, Confianza estadística, Review & Notes, Objetivos, ayuda contextual, Monte Carlo, Risk & Stress Lab, Walk-Forward, Forward OOS, Data Quality Workbench, Quality-Aware Analytics, Research Decision Center y Change Tracking.
 
-## Cambio principal · MAE/MFE se registran en ticks
+## Definición formal de MAE / MFE
 
-- La observación primaria pasa a ser `MFE (ticks)` y `MAE (ticks)`.
-- Ambos se registran como magnitudes positivas observables directamente en el gráfico.
-- Trading Research calcula automáticamente la equivalencia en R usando contratos y exposición de riesgo inicial.
-- Los análisis existentes continúan trabajando en R cuando la normalización es la lectura adecuada.
-- Se mantienen `mfe` y `mae` derivados en R para compatibilidad con Exit Lab, Scatter y estadísticas históricas.
-- Se añaden `mfeTicks` y `maeTicks` como datos primarios.
-- Las operaciones antiguas con MFE/MAE en R se migran localmente a ticks cuando la exposición de riesgo permite derivarlos.
-- `0 ticks` marcado como `Medido` sigue siendo un cero real; `No informado` y `N/A` continúan siendo estados distintos.
+Trading Research adopta una única definición para evitar mezclar excursiones reales con movimientos posteriores a la operación:
 
-## Multi-lote
+- **MFE real**: máxima excursión favorable del precio desde la entrada mientras todavía queda posición abierta.
+- **MAE real**: máxima excursión adversa del precio desde la entrada mientras todavía queda posición abierta.
+- La ventana de medición termina en la **salida final real** de la operación.
+- Nunca se continúa midiendo MAE/MFE después de que la posición se haya cerrado.
+- El dato primario se introduce como magnitud positiva en **ticks**.
+- La equivalencia en **R** se calcula automáticamente a partir del riesgo inicial registrado.
+- `0 ticks` marcado como `Medido` sigue siendo un dato real; `No informado` y `N/A` permanecen separados.
 
-Para estrategias con varios lotes/stops, la equivalencia se normaliza sobre el riesgo agregado de la operación. El usuario introduce el recorrido del precio en ticks y la aplicación convierte ese recorrido a R sin exigir cálculo manual.
+## Censura por la propia gestión
 
-## Fix · Research Alerts / Forward OOS
+Un stop o un take profit pueden limitar lo que MAE/MFE llegan a observar:
 
-V30.1 añade una reconciliación explícita alrededor del guardado de operaciones:
+- Si el stop cierra la posición, el MAE queda censurado por ese stop y no demuestra qué habría ocurrido con un stop más amplio.
+- Si un TP fijo cierra toda la posición, el MFE queda censurado por ese objetivo y no demuestra qué habría ocurrido con un TP mayor.
+- Esto no invalida MAE/MFE: mantiene su función estándar para estudiar el recorrido realmente soportado/capturado durante la operación.
+- El problema contrafactual de ampliar stop o TP queda deliberadamente fuera de MAE/MFE y se investigará en un módulo específico posterior.
 
-- guarda los conteos Forward antes de registrar una operación;
-- comprueba los conteos después;
-- si una operación nueva incrementa una muestra OOS y V30 no generó el evento, V30.1 lo crea de seguridad;
-- al instalarse, reconcilia progreso OOS ya existente que no tenga un evento asociado;
-- `Cambios` incorpora `Comprobar ahora` para volver a comparar el estado con la referencia sin modificarla.
+## Validaciones añadidas
 
-`Actualizar referencia` conserva su función original: cambia el punto de comparación futuro y no debe usarse como botón de comprobación.
+- Se rechazan valores negativos en vez de corregirlos silenciosamente.
+- Si MAE supera el stop inicial más amplio, Trading Research avisa y permite guardar solo si refleja una modificación real de la gestión.
+- Si MFE supera el TP fijo más lejano, se genera el mismo tipo de aviso.
+- Data Quality detecta estos casos como posibles incoherencias de gestión/dato.
+- La ficha de operación indica cuándo la excursión queda censurada por el SL/TP inicial.
+- Exit Lab muestra explícitamente que trabaja con la ventana `entrada → salida final real` y que no usa recorrido post-salida para justificar objetivos o stops más amplios.
+
+## Change Tracking
+
+Se conserva el fix de V30.1 para Forward OOS: el alta de una operación compara el progreso antes/después y crea el evento correspondiente si el sistema general no lo hubiese registrado. `Cambios` mantiene también `Comprobar ahora` y `Actualizar referencia` como acciones distintas.
 
 ## Archivos
 

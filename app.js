@@ -5365,3 +5365,184 @@ v301ReconcileCurrentOos();
 Object.assign(window,{v301ExcursionInput,v301RefreshExcursionEquivalents,v301WorkbenchExcursionInput,v301CheckChangesNow,saveOperationFromForm,dqSaveWorkbench});
 render();
 /* ===== END V30.1 PATCH ===== */
+
+/* ===== V30.2 PATCH · Definición profesional MAE/MFE intratrade ===== */
+const V302_APP_LABEL='V30.2 · MAE/MFE intratrade en ticks';
+const V302_EXCURSION_DEFINITION='entry_to_final_exit_v1';
+
+/*
+  Definición V30.2:
+  - MFE real = máxima excursión favorable del precio desde la entrada mientras quede posición abierta.
+  - MAE real = máxima excursión adversa del precio desde la entrada mientras quede posición abierta.
+  - La ventana termina en la salida final real. Nunca se prolonga después del cierre.
+  - El dato primario es una magnitud positiva en ticks. R es una normalización derivada.
+  - Alcanzar el stop/TP puede censurar la observación: MAE/MFE estándar no justifican por sí solos
+    ampliar un stop o un objetivo más allá del límite que cerró la operación.
+*/
+function v302LotsFromCtx(ctx){
+  if(Array.isArray(ctx?.lots))return ctx.lots;
+  if(Array.isArray(ctx?.strategyPlanSnapshot?.lots))return ctx.strategyPlanSnapshot.lots;
+  return [];
+}
+function v302ExcursionLimits(ctx){
+  const lots=v302LotsFromCtx(ctx).filter(l=>Number(l?.quantity)>0);
+  const stops=lots.map(l=>Number(l.stopTicks)).filter(v=>Number.isFinite(v)&&v>0);
+  const fixed=lots.length>0&&lots.every(l=>l.targetType!=='discretionary'&&Number(l.targetTicks)>0);
+  const targets=fixed?lots.map(l=>Number(l.targetTicks)).filter(v=>Number.isFinite(v)&&v>0):[];
+  return {
+    minStop:stops.length?Math.min(...stops):0,
+    maxStop:stops.length?Math.max(...stops):0,
+    sameStop:stops.length>0&&stops.every(v=>Math.abs(v-stops[0])<1e-9),
+    fixedTargets:fixed&&targets.length===lots.length,
+    minTarget:targets.length?Math.min(...targets):0,
+    maxTarget:targets.length?Math.max(...targets):0,
+    lots:lots.length
+  };
+}
+function v302RangeLabel(a,b,suffix='t'){
+  if(!a&&!b)return '—';
+  return Math.abs(a-b)<1e-9?`${Number(a).toFixed(0)}${suffix}`:`${Number(a).toFixed(0)}–${Number(b).toFixed(0)}${suffix}`;
+}
+function v302DefinitionInner(ctx){
+  const l=v302ExcursionLimits(ctx);
+  const sl=l.maxStop?v302RangeLabel(l.minStop,l.maxStop):'sin SL fijo verificable';
+  const tp=l.fixedTargets?v302RangeLabel(l.minTarget,l.maxTarget):'mixto/discrecional o no verificable';
+  return `<div class="excursion-definition-title"><strong>Definición MAE / MFE</strong><span>Entrada → salida final real</span></div>
+    <div class="excursion-definition-grid">
+      <div><b>MFE real</b><small>Máximo recorrido favorable mientras la operación estaba abierta.</small></div>
+      <div><b>MAE real</b><small>Máximo recorrido adverso mientras la operación estaba abierta.</small></div>
+      <div><b>SL inicial</b><small>${esc(sl)}</small></div>
+      <div><b>TP inicial</b><small>${esc(tp)}</small></div>
+    </div>
+    <p><strong>No continúes midiendo después de cerrar.</strong> Un MAE que llega al stop o un MFE que llega a un TP fijo queda censurado por esa salida: sirve para estudiar la gestión observada, no para demostrar que un SL/TP mayor habría funcionado. En multi-lote, la R mostrada normaliza la excursión de precio contra el riesgo inicial agregado; no reconstruye el P&amp;L intrabar de parciales.</p>`;
+}
+function v302DefinitionBox(ctx,id='excursionDefinitionBox'){
+  return `<div id="${id}" class="excursion-definition-box">${v302DefinitionInner(ctx)}</div>`;
+}
+function v302CurrentRisk(){const p=getCurrentPlan();return getRisk(document.getElementById('f-riskStrategyId')?.value||'',p);}
+function v302RefreshExcursionDefinition(){const el=document.getElementById('excursionDefinitionBox');if(el)el.innerHTML=v302DefinitionInner(v302CurrentRisk());}
+function v302RefreshWorkbenchDefinition(id){const el=document.getElementById('dqWorkbenchExcursionDefinition'),o=state.operations.find(x=>x.id===id);if(el&&o)el.innerHTML=v302DefinitionInner(o);}
+
+function v302AverageRealizedTicks(ctx){
+  const contracts=Math.max(1,v301OpContracts(ctx));
+  const ticks=Number(ctx?.resultTicks);
+  return Number.isFinite(ticks)?ticks/contracts:0;
+}
+function v302ExcursionCheck({mfeStatus='missing',maeStatus='missing',mfeRaw='',maeRaw='',ctx,resultTicks=null,contracts=null,ask=true}){
+  const errors=[],warnings=[];
+  const parse=(status,raw,label)=>{
+    if(status!=='measured')return null;
+    if(raw===''||raw===null||raw===undefined){errors.push(`${label}: introduce los ticks medidos o cambia el estado a No informado / N/A.`);return null;}
+    const n=Number(raw);
+    if(!Number.isFinite(n)){errors.push(`${label}: el valor debe ser numérico.`);return null;}
+    if(n<0){errors.push(`${label}: se registra como magnitud positiva; no puede ser negativo.`);return null;}
+    return n;
+  };
+  const mfe=parse(mfeStatus,mfeRaw,'MFE'),mae=parse(maeStatus,maeRaw,'MAE');
+  if(errors.length){alert(errors.join('\n'));return false;}
+  const lim=v302ExcursionLimits(ctx);
+  const c=Math.max(1,Number(contracts)||v301OpContracts(ctx)||1),rt=Number.isFinite(Number(resultTicks))?Number(resultTicks):Number(ctx?.resultTicks||0),avg=rt/c;
+  if(mfe!==null&&avg>0&&mfe+1e-9<avg)warnings.push(`MFE ${mfe}t es menor que la ganancia media realizada por contrato (${avg.toFixed(1)}t). Revisa el dato.`);
+  if(mae!==null&&avg<0&&mae+1e-9<Math.abs(avg))warnings.push(`MAE ${mae}t es menor que la pérdida media realizada por contrato (${Math.abs(avg).toFixed(1)}t). Revisa el dato.`);
+  if(mae!==null&&lim.maxStop>0&&mae>lim.maxStop+1e-9)warnings.push(`MAE ${mae}t supera el stop inicial más amplio (${lim.maxStop}t). Solo es coherente si la gestión real modificó/amplió el stop; de lo contrario revisa el dato.`);
+  if(mfe!==null&&lim.fixedTargets&&lim.maxTarget>0&&mfe>lim.maxTarget+1e-9)warnings.push(`MFE ${mfe}t supera el TP fijo más lejano (${lim.maxTarget}t). Solo es coherente si la gestión real modificó/eliminó ese objetivo; de lo contrario revisa el dato.`);
+  if(warnings.length&&ask){return confirm(`Revisión MAE/MFE\n\n${warnings.join('\n\n')}\n\n¿Guardar igualmente porque refleja la gestión real ejecutada?`);}
+  return true;
+}
+function v302ExcursionCensorText(o,key){
+  if(dqMetricStatus(o,key)!=='measured')return '';
+  v301NormalizeOperationExcursions(o);const t=Number(o?.[`${key}Ticks`]);if(!Number.isFinite(t))return '';
+  const l=v302ExcursionLimits(o),eps=.01;
+  if(key==='mae'&&l.maxStop>0&&t>=l.maxStop-eps){return t>l.maxStop+eps?` · ⚠ sobre SL inicial ${l.maxStop}t`:` · censurado por SL ${l.maxStop}t`;}
+  if(key==='mfe'&&l.fixedTargets&&l.maxTarget>0&&t>=l.maxTarget-eps){return t>l.maxTarget+eps?` · ⚠ sobre TP inicial ${l.maxTarget}t`:` · censurado por TP ${l.maxTarget}t`;}
+  return '';
+}
+
+/* Formulario de operación: definición visible, labels inequívocos y actualización al cambiar gestión. */
+const operationFormV302Base=operationForm;
+operationForm=function(o,r,p){
+  let html=operationFormV302Base(o,r,p);
+  html=html.replace('<label>MFE (ticks)</label>','<label>MFE real (ticks)</label>').replace('<label>MAE (ticks)</label>','<label>MAE real (ticks)</label>');
+  html=html.replace("oninput=\"v301ExcursionInput('mfe')\"","oninput=\"v301ExcursionInput('mfe');v302RefreshExcursionDefinition()\"").replace("oninput=\"v301ExcursionInput('mae')\"","oninput=\"v301ExcursionInput('mae');v302RefreshExcursionDefinition()\"");
+  const marker='<div class="notice" style="margin-top:12px">La R mostrada aquí es bruta:';
+  const i=html.indexOf(marker);if(i>=0)html=html.slice(0,i)+v302DefinitionBox(r)+html.slice(i);
+  return html;
+};
+const applyRiskToOperationV302Base=applyRiskToOperation;
+applyRiskToOperation=function(force){const out=applyRiskToOperationV302Base(force);setTimeout(v302RefreshExcursionDefinition,0);return out;};
+const openOperationModalV302Base=openOperationModal;
+openOperationModal=function(id=null){openOperationModalV302Base(id);setTimeout(v302RefreshExcursionDefinition,0);};
+
+/* Workbench: misma definición para que la limpieza histórica use exactamente el mismo criterio. */
+const dqWorkbenchBodyV302Base=dqWorkbenchBody;
+dqWorkbenchBody=function(o,index,total){
+  let html=dqWorkbenchBodyV302Base(o,index,total);
+  html=html.replace('<span>MFE (ticks)</span>','<span>MFE real (ticks)</span>').replace('<span>MAE (ticks)</span>','<span>MAE real (ticks)</span>');
+  html=html.replace("oninput=\"v301WorkbenchExcursionInput('mfe'","oninput=\"v301WorkbenchExcursionInput('mfe'").replace("oninput=\"v301WorkbenchExcursionInput('mae'","oninput=\"v301WorkbenchExcursionInput('mae'");
+  const help='“Medido” permite guardar 0 ticks como cero real. La R se deriva del riesgo inicial de la operación.';
+  const wbAnchor=help+' “No aplicable / no recuperable” resuelve la cola de limpieza, aunque ese trade no contará como dato utilizable en Exit Lab.</div>';
+  html=html.replace(wbAnchor,wbAnchor+v302DefinitionBox(o,'dqWorkbenchExcursionDefinition'));
+  return html;
+};
+
+/* Guardado: nunca corrige silenciosamente un valor negativo y avisa de límites censurados/incoherentes. */
+const saveOperationFromFormV302Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const targetId=editingId||null,planId=state.currentPlanId,beforeIds=new Set(state.operations.filter(o=>o.tradingPlanId===planId).map(o=>o.id));
+  const mfeRaw=document.getElementById('f-mfeTicks')?.value??'',maeRaw=document.getElementById('f-maeTicks')?.value??'',mfeStatus=document.getElementById('dq-form-mfe-status')?.value||'missing',maeStatus=document.getElementById('dq-form-mae-status')?.value||'missing';
+  const risk=v302CurrentRisk(),resultTicks=document.getElementById('f-resultTicks')?.value,contracts=document.getElementById('f-contracts')?.value;
+  if(!v302ExcursionCheck({mfeStatus,maeStatus,mfeRaw,maeRaw,ctx:risk,resultTicks,contracts,ask:true}))return;
+  await saveOperationFromFormV302Base();
+  const op=targetId?state.operations.find(o=>o.id===targetId):state.operations.find(o=>o.tradingPlanId===planId&&!beforeIds.has(o.id));
+  if(op){op.excursionMeta={definition:V302_EXCURSION_DEFINITION,unit:'ticks',window:'entry_to_final_exit',source:'manual',updatedAt:new Date().toISOString()};persistV30Base();render();}
+};
+
+const dqSaveWorkbenchV302Base=dqSaveWorkbench;
+dqSaveWorkbench=async function(next=false){
+  const mfeEl=document.getElementById('dq-wb-mfeTicks'),maeEl=document.getElementById('dq-wb-maeTicks'),opId=mfeEl?.dataset.opId||maeEl?.dataset.opId||'',o=state.operations.find(x=>x.id===opId);
+  const mfeRaw=mfeEl?.value??'',maeRaw=maeEl?.value??'',mfeStatus=document.getElementById('dq-wb-mfe-status')?.value||'missing',maeStatus=document.getElementById('dq-wb-mae-status')?.value||'missing';
+  if(o&&!v302ExcursionCheck({mfeStatus,maeStatus,mfeRaw,maeRaw,ctx:o,ask:true}))return;
+  await dqSaveWorkbenchV302Base(next);
+  if(o){o.excursionMeta={definition:V302_EXCURSION_DEFINITION,unit:'ticks',window:'entry_to_final_exit',source:'workbench',updatedAt:new Date().toISOString()};persistV30Base();}
+};
+
+/* Ficha visual: deja claro el dato primario y si la salida ha censurado la observación. */
+const viewOperationV302Base=viewOperation;
+viewOperation=function(id){
+  viewOperationV302Base(id);const o=state.operations.find(x=>x.id===id);if(!o)return;
+  setTimeout(()=>{document.querySelectorAll('.modal-backdrop .trade-detail-kpis>div').forEach(d=>{const s=d.querySelector('span'),strong=d.querySelector('strong');if(!s||!strong)return;const label=s.textContent?.trim();if(label==='MFE'){s.textContent='MFE real';strong.textContent=dqMetricDisplay(o,'mfe')+v302ExcursionCensorText(o,'mfe');}if(label==='MAE'){s.textContent='MAE real';strong.textContent=dqMetricDisplay(o,'mae')+v302ExcursionCensorText(o,'mae');}});const sec=document.querySelector('.modal-backdrop .trade-detail-kpis');if(sec&&!document.querySelector('.modal-backdrop .excursion-scope-mini'))sec.insertAdjacentHTML('afterend','<div class="excursion-scope-mini">MAE/MFE estándar: medidos únicamente desde la entrada hasta la salida final real. No incluyen recorrido posterior al cierre.</div>');},0);
+};
+
+/* Data Quality: límites iniciales son avisos, no borrados ni correcciones automáticas. */
+const analyzeDataQualityV302Base=analyzeDataQuality;
+analyzeDataQuality=function(plan=getCurrentPlan(),ops=currentOps()){
+  const a=analyzeDataQualityV302Base(plan,ops),extra=[];
+  const maeBeyond=ops.filter(o=>{if(!dqMetricMeasured(o,'mae'))return false;v301NormalizeOperationExcursions(o);const l=v302ExcursionLimits(o);return l.maxStop>0&&Number(o.maeTicks)>l.maxStop+1e-9;});
+  const mfeBeyond=ops.filter(o=>{if(!dqMetricMeasured(o,'mfe'))return false;v301NormalizeOperationExcursions(o);const l=v302ExcursionLimits(o);return l.fixedTargets&&l.maxTarget>0&&Number(o.mfeTicks)>l.maxTarget+1e-9;});
+  if(maeBeyond.length)extra.push(dqIssue('maeBeyondInitialStop','warning','MAE supera el SL inicial','El MAE intratrade supera el stop inicial más amplio. Revisa si el stop fue modificado durante la gestión o si el dato es incorrecto.',maeBeyond));
+  if(mfeBeyond.length)extra.push(dqIssue('mfeBeyondInitialTarget','warning','MFE supera el TP fijo inicial','El MFE intratrade supera el TP fijo más lejano. Revisa si el objetivo fue modificado/eliminado o si el dato es incorrecto.',mfeBeyond));
+  if(extra.length){const ids=new Set(a.issues.map(i=>i.id));extra.forEach(i=>{if(!ids.has(i.id))a.issues.push(i);});a.errors=a.issues.filter(i=>i.severity==='error').reduce((s,i)=>s+i.opIds.length,0);a.warnings=a.issues.filter(i=>i.severity==='warning').reduce((s,i)=>s+i.opIds.length,0);a.infos=a.issues.filter(i=>i.severity==='info').reduce((s,i)=>s+i.opIds.length,0);a.penalty=Math.min(20,a.errors*2+a.warnings*.35);a.baseScore=a.coverage.reduce((s,c)=>s+(c.pct/100)*c.weight,0);a.score=Math.max(0,Math.min(100,a.baseScore-a.penalty));}
+  return a;
+};
+
+/* Exit Lab: definición y límite interpretativo visibles junto al análisis. */
+const exitLabPanelV302Base=exitLabPanel;
+exitLabPanel=function(ops){
+  let html=exitLabPanelV302Base(ops);
+  const note='<div class="lab-note excursion-method-note"><strong>Ventana MAE/MFE:</strong> entrada → salida final real. Si el stop o un TP fijo cierra la posición, la excursión queda censurada en ese límite. Este módulo puede estudiar ajuste/eficiencia dentro de lo observado; no usa recorrido post-salida para justificar un SL o TP más amplio.</div>';
+  const qualityPos=html.indexOf('<div class="exit-quality-grid">');if(qualityPos>=0)html=html.slice(0,qualityPos)+note+html.slice(qualityPos);else html=html.replace('</div><div class="exit-empty">','</div>'+note+'<div class="exit-empty">');
+  return html;
+};
+
+/* Glosario: definición formal única. */
+if(typeof CONTEXT_HELP!=='undefined'){
+  const hm=CONTEXT_HELP.find(x=>x.id==='mfe');if(hm)Object.assign(hm,{summary:'Máxima excursión favorable mientras la operación está realmente abierta.',body:'Trading Research registra el MFE real como magnitud positiva en ticks desde la entrada hasta la salida final real. No se prolonga después de cerrar. La equivalencia en R es derivada. Si un TP fijo cierra toda la posición, el MFE queda censurado por ese objetivo.',use:'Sirve para estudiar cuánto recorrido favorable estuvo disponible durante la operación y la eficiencia de la salida. Por sí solo no demuestra que un TP mayor habría funcionado fuera de la ventana observada.'});
+  const ha=CONTEXT_HELP.find(x=>x.id==='mae');if(ha)Object.assign(ha,{summary:'Máxima excursión adversa mientras la operación está realmente abierta.',body:'Trading Research registra el MAE real como magnitud positiva en ticks desde la entrada hasta la salida final real. No incluye caída/subida posterior al cierre. Si el stop cierra la posición, el MAE queda censurado por ese stop.',use:'Sirve especialmente para estudiar la tolerancia adversa de las operaciones y si un stop podría estrecharse. Por sí solo no demuestra que un stop más amplio habría salvado una operación.'});
+}
+
+/* Versión lateral. */
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V30.2</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V302_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. MAE/MFE estándar intratrade en ticks (entrada → salida final), R derivada, límites de censura visibles + Alerts Fix + Research Decision Center + Quality-Aware Analytics + Data Quality Workbench + Forward OOS + resto de módulos sobre la misma base estable.</div></div></div></div>`;};
+
+Object.assign(window,{v302RefreshExcursionDefinition,v302RefreshWorkbenchDefinition,saveOperationFromForm,dqSaveWorkbench,viewOperation});
+render();
+/* ===== END V30.2 PATCH ===== */

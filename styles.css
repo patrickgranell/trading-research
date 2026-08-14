@@ -658,3 +658,10 @@ html[data-theme="light"] .mode-card-toggle{color:var(--text)}html[data-theme="li
 .excursion-ticks-field,.dq-wb-excursions .field{position:relative}.excursion-equivalent{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.25}.excursion-ticks-field input[type="number"]{font-variant-numeric:tabular-nums}.dq-wb-excursions .excursion-equivalent{grid-column:1/-1}
 html[data-theme="light"] .excursion-equivalent{color:#64748b}
 /* ===== END V30.1 ===== */
+
+/* ===== V30.2 · MAE/MFE intratrade ===== */
+.excursion-definition-box{margin-top:12px;border:1px solid var(--border);background:rgba(110,168,254,.055);border-radius:12px;padding:12px 13px}.excursion-definition-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}.excursion-definition-title strong{font-size:12px}.excursion-definition-title span{font-size:10px;color:var(--muted);font-weight:700}.excursion-definition-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.excursion-definition-grid>div{border:1px solid var(--border);border-radius:9px;padding:8px 9px;background:rgba(8,18,32,.28);display:grid;gap:3px}.excursion-definition-grid b{font-size:10px}.excursion-definition-grid small{font-size:9px;color:var(--muted);line-height:1.35}.excursion-definition-box p{margin:9px 0 0;color:var(--muted);font-size:10px;line-height:1.45}.excursion-definition-box p strong{color:var(--text)}.excursion-scope-mini{margin:10px 0 0;padding:8px 10px;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-size:10px;background:rgba(110,168,254,.045)}.excursion-method-note{margin-bottom:12px}
+html[data-theme="light"] .excursion-definition-box,html[data-theme="light"] .excursion-definition-grid>div,html[data-theme="light"] .excursion-scope-mini{background:#f7faff}
+@media(max-width:900px){.excursion-definition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.excursion-definition-grid{grid-template-columns:1fr}.excursion-definition-title{align-items:flex-start;flex-direction:column;gap:3px}}
+/* ===== END V30.2 ===== */

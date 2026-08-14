@@ -129,3 +129,14 @@ El Laboratorio añade una capa de estrés sobre el Monte Carlo existente:
 - Nuevas definiciones en el glosario contextual para Block Bootstrap, deterioro del edge y capital bajo estrés.
 
 No requiere SQL nuevo ni cambios de infraestructura. Mantiene Supabase, Conflict Guard, snapshots y los seis archivos raíz.
+
+## V24 · Walk-Forward Validation
+- Nuevo módulo de validación temporal dentro del Laboratorio.
+- Holdout cronológico 60/40, 70/30 u 80/20.
+- Walk-forward anclado con train inicial 40/60/80/100 y validaciones de 10/20/30 trades.
+- Comparación Train vs Validación: expectancy, IC95, win rate, Profit Factor y drawdown.
+- Retención de expectancy, consistencia de signo y evidencia estadística del segmento de validación.
+- Agregado OOS y tabla de folds para la modalidad walk-forward.
+- Configuración incluida en Estudios Guardados.
+- Glosario ampliado con Walk-Forward y Out-of-sample.
+- Sin cambios SQL ni cambios en el motor cloud V9.2 Conflict Guard.

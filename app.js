@@ -4156,3 +4156,105 @@ shell=function(){
 Object.assign(window,{riskStressSetMethod,riskStressSetBlockSize,riskStressSetHorizon,riskStressSetIterations,riskStressSetShock,riskStressSetExtraCost,riskStressSetCapital,riskStressSetTolerance,riskStressSetThreshold});
 render();
 /* ===== END V23 PATCH ===== */
+
+/* ===== V24 PATCH · Validación Walk-Forward ===== */
+const V24_APP_LABEL='V24 · Walk-Forward Validation';
+
+let walkForwardState={mode:'holdout',splitPct:70,initialTrain:60,testSize:20};
+function normalizeWalkForwardState(v={}){
+  const out={...walkForwardState,...(v||{})};
+  out.mode=['holdout','anchored'].includes(out.mode)?out.mode:'holdout';
+  out.splitPct=[60,70,80].includes(Number(out.splitPct))?Number(out.splitPct):70;
+  out.initialTrain=[40,60,80,100].includes(Number(out.initialTrain))?Number(out.initialTrain):60;
+  out.testSize=[10,20,30].includes(Number(out.testSize))?Number(out.testSize):20;
+  return out;
+}
+function wfSetMode(v){walkForwardState.mode=v==='anchored'?'anchored':'holdout';render();}
+function wfSetSplit(v){walkForwardState.splitPct=[60,70,80].includes(Number(v))?Number(v):70;render();}
+function wfSetInitialTrain(v){walkForwardState.initialTrain=[40,60,80,100].includes(Number(v))?Number(v):60;render();}
+function wfSetTestSize(v){walkForwardState.testSize=[10,20,30].includes(Number(v))?Number(v):20;render();}
+function wfOrdered(ops){return [...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));}
+function wfMetric(v){return Number.isFinite(v)?metricStatText(v,labState.unit):'—';}
+function wfPf(v){return v===Infinity?'∞':Number.isFinite(v)?Number(v).toFixed(2):'—';}
+function wfCi(s){return s?.n>1&&Number.isFinite(s.ciLow95)&&Number.isFinite(s.ciHigh95)?`${wfMetric(s.ciLow95)} → ${wfMetric(s.ciHigh95)}`:'—';}
+function wfSignClass(v){return v>0?'positive':v<0?'negative':'';}
+function wfEvidenceLabel(s){
+  const e=confidenceEvidence(s||{});
+  return `<span class="wf-evidence ${e.key}">${esc(e.label)}</span>`;
+}
+function wfHoldout(ops){
+  const ordered=wfOrdered(ops),n=ordered.length;
+  if(n<4)return null;
+  let cut=Math.floor(n*(walkForwardState.splitPct/100));cut=Math.max(2,Math.min(n-2,cut));
+  const trainOps=ordered.slice(0,cut),testOps=ordered.slice(cut),train=calcMetricStats(trainOps,labState.unit,labState.basis),test=calcMetricStats(testOps,labState.unit,labState.basis);
+  const sameSign=(train.expectancy>0&&test.expectancy>0)||(train.expectancy<0&&test.expectancy<0)||(train.expectancy===0&&test.expectancy===0);
+  const retention=Math.abs(train.expectancy)>1e-12?test.expectancy/train.expectancy*100:NaN;
+  return {n,cut,trainOps,testOps,train,test,sameSign,retention};
+}
+function wfAnchored(ops){
+  const ordered=wfOrdered(ops),n=ordered.length,initial=Math.min(walkForwardState.initialTrain,Math.max(0,n-1)),testSize=walkForwardState.testSize;
+  if(n<initial+2||initial<2)return {n,initial,testSize,folds:[],oosOps:[],oos:null};
+  const folds=[],oosOps=[];
+  for(let trainEnd=initial,idx=1;trainEnd<n;trainEnd+=testSize,idx++){
+    const end=Math.min(n,trainEnd+testSize),testOps=ordered.slice(trainEnd,end);if(!testOps.length)break;
+    const trainOps=ordered.slice(0,trainEnd),train=calcMetricStats(trainOps,labState.unit,labState.basis),test=calcMetricStats(testOps,labState.unit,labState.basis);
+    folds.push({idx,trainOps,testOps,train,test,start:trainEnd+1,end});oosOps.push(...testOps);
+  }
+  const oos=oosOps.length?calcMetricStats(oosOps,labState.unit,labState.basis):null;
+  return {n,initial,testSize,folds,oosOps,oos};
+}
+function wfHoldoutPanel(data){
+  if(!data)return `<div class="empty">Se necesitan al menos 4 operaciones para separar entrenamiento y validación.</div>`;
+  const {train,test,sameSign,retention}=data;
+  return `<div class="wf-summary-grid">
+    <div class="wf-segment train"><div class="wf-segment-head"><span>Entrenamiento</span><strong>n=${train.n}</strong></div><div class="wf-metric"><span>Expectancy</span><strong class="${wfSignClass(train.expectancy)}">${wfMetric(train.expectancy)}</strong></div><div class="wf-metric"><span>IC 95%</span><strong>${wfCi(train)}</strong></div><div class="wf-metric"><span>Win rate</span><strong>${train.winRate.toFixed(1)}%</strong></div><div class="wf-metric"><span>PF</span><strong>${wfPf(train.pf)}</strong></div><div class="wf-metric"><span>Max DD</span><strong class="negative">${wfMetric(train.maxDD)}</strong></div></div>
+    <div class="wf-arrow">→</div>
+    <div class="wf-segment validation"><div class="wf-segment-head"><span>Validación cronológica</span><strong>n=${test.n}</strong></div><div class="wf-metric"><span>Expectancy</span><strong class="${wfSignClass(test.expectancy)}">${wfMetric(test.expectancy)}</strong></div><div class="wf-metric"><span>IC 95%</span><strong>${wfCi(test)}</strong></div><div class="wf-metric"><span>Win rate</span><strong>${test.winRate.toFixed(1)}%</strong></div><div class="wf-metric"><span>PF</span><strong>${wfPf(test.pf)}</strong></div><div class="wf-metric"><span>Max DD</span><strong class="negative">${wfMetric(test.maxDD)}</strong></div></div>
+  </div>
+  <div class="wf-kpis"><div><span>Consistencia de signo</span><strong class="${sameSign?'positive':'negative'}">${sameSign?'Consistente':'Cambio de signo'}</strong></div><div><span>Retención de expectancy</span><strong>${Number.isFinite(retention)?retention.toFixed(0)+'%':'—'}</strong><small>validación / entrenamiento</small></div><div><span>Evidencia en validación</span><strong>${wfEvidenceLabel(test)}</strong><small>clasificación basada en IC95 y n</small></div><div><span>Límite inferior 95%</span><strong class="${wfSignClass(test.ciLow95)}">${wfMetric(test.ciLow95)}</strong><small>solo segmento de validación</small></div></div>`;
+}
+function wfAnchoredPanel(data){
+  if(!data?.folds?.length)return `<div class="empty">Muestra insuficiente. Reduce el entrenamiento inicial o añade operaciones.</div>`;
+  const positive=data.folds.filter(f=>f.test.expectancy>0).length,ciPositive=data.folds.filter(f=>Number.isFinite(f.test.ciLow95)&&f.test.ciLow95>0).length,worst=data.folds.reduce((a,f)=>Math.min(a,f.test.expectancy),Infinity),oos=data.oos;
+  return `<div class="wf-kpis wf-kpis-anchored"><div><span>Validación OOS agregada</span><strong class="${wfSignClass(oos?.expectancy)}">${oos?wfMetric(oos.expectancy):'—'}</strong><small>n=${oos?.n||0}</small></div><div><span>Folds positivos</span><strong>${positive}/${data.folds.length}</strong><small>${(positive/data.folds.length*100).toFixed(0)}%</small></div><div><span>Folds con IC95 &gt; 0</span><strong>${ciPositive}/${data.folds.length}</strong><small>criterio conservador</small></div><div><span>Peor fold</span><strong class="${wfSignClass(worst)}">${wfMetric(worst)}</strong><small>expectancy de validación</small></div><div><span>IC95 OOS agregado</span><strong>${oos?wfCi(oos):'—'}</strong><small>todos los tramos de validación</small></div></div>
+  <div class="table-wrap wf-table-wrap"><table class="table compact-table wf-table"><thead><tr><th>Fold</th><th>Train</th><th>Validación</th><th>Exp. train</th><th>Exp. OOS</th><th>IC95 OOS</th><th>WR OOS</th><th>PF OOS</th><th>DD OOS</th></tr></thead><tbody>${data.folds.map(f=>`<tr><td><strong>#${f.idx}</strong></td><td>${f.train.n}</td><td>${f.test.n}</td><td class="${wfSignClass(f.train.expectancy)}">${wfMetric(f.train.expectancy)}</td><td class="${wfSignClass(f.test.expectancy)}">${wfMetric(f.test.expectancy)}</td><td>${wfCi(f.test)}</td><td>${f.test.winRate.toFixed(1)}%</td><td>${wfPf(f.test.pf)}</td><td class="negative">${wfMetric(f.test.maxDD)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function walkForwardModule(ops){
+  const mode=walkForwardState.mode,controls=`<div class="wf-controls"><label><span>Método</span><select class="select compact-select" onchange="wfSetMode(this.value)"><option value="holdout" ${mode==='holdout'?'selected':''}>Holdout cronológico</option><option value="anchored" ${mode==='anchored'?'selected':''}>Walk-forward anclado</option></select></label>${mode==='holdout'?`<label><span>Split train / validación</span><select class="select compact-select" onchange="wfSetSplit(this.value)">${[60,70,80].map(v=>`<option value="${v}" ${walkForwardState.splitPct===v?'selected':''}>${v}% / ${100-v}%</option>`).join('')}</select></label>`:`<label><span>Train inicial</span><select class="select compact-select" onchange="wfSetInitialTrain(this.value)">${[40,60,80,100].map(v=>`<option value="${v}" ${walkForwardState.initialTrain===v?'selected':''}>${v} trades</option>`).join('')}</select></label><label><span>Validación / fold</span><select class="select compact-select" onchange="wfSetTestSize(this.value)">${[10,20,30].map(v=>`<option value="${v}" ${walkForwardState.testSize===v?'selected':''}>${v} trades</option>`).join('')}</select></label>`}</div>`;
+  const body=mode==='holdout'?wfHoldoutPanel(wfHoldout(ops)):wfAnchoredPanel(wfAnchored(ops));
+  return `<section class="card panel lab-module lab-span-2 walkforward-module"><div class="panel-title"><div><h3>Validación temporal · Walk-Forward</h3><small>Separa cronológicamente descubrimiento y validación para comprobar si el edge sobrevive fuera del tramo inicial.</small></div></div>${controls}${body}<div class="lab-note warn"><strong>Lectura correcta:</strong> esta prueba reduce el autoengaño temporal, pero no convierte automáticamente una hipótesis en out-of-sample real. Si elegiste Setup, Contexto o filtros después de mirar toda la historia, el segmento de validación también ha influido indirectamente en la selección. La validación más fuerte empieza cuando congelas la hipótesis y esperas operaciones nuevas.</div></section>`;
+}
+
+// Los estudios guardados conservan también la configuración de validación temporal.
+const V24_WF_DEFAULT=clone(walkForwardState);
+function normalizeStudyWalkForward(v={}){return normalizeWalkForwardState({...clone(V24_WF_DEFAULT),...(v||{})});}
+const ensurePlanStudiesV24Base=ensurePlanStudies;
+ensurePlanStudies=function(p){const out=ensurePlanStudiesV24Base(p);if(out?.savedStudies)out.savedStudies=out.savedStudies.map(s=>({...s,walkForward:normalizeStudyWalkForward(s.walkForward)}));return out;};
+state.tradingPlans.forEach(ensurePlanStudies);
+const currentStudySnapshotV24Base=currentStudySnapshot;
+currentStudySnapshot=function(){return {...currentStudySnapshotV24Base(),walkForward:clone(walkForwardState)};};
+const studyComparableSnapshotV24Base=studyComparableSnapshot;
+studyComparableSnapshot=function(s){return {...studyComparableSnapshotV24Base(s),walkForward:normalizeStudyWalkForward(s?.walkForward)};};
+const applyStudySnapshotV24Base=applyStudySnapshot;
+applyStudySnapshot=function(s){applyStudySnapshotV24Base(s);walkForwardState=normalizeStudyWalkForward(s?.walkForward);};
+
+if(typeof CONTEXT_HELP!=='undefined'){
+  CONTEXT_HELP.push(
+    {id:'walkforward',terms:['walk forward','walk-forward','holdout cronológico','validación temporal'],title:'Validación Walk-Forward',summary:'Divide la muestra cronológicamente para comprobar si el rendimiento observado en un tramo se mantiene en datos posteriores.',body:'El holdout usa un bloque inicial como entrenamiento y reserva el tramo final como validación. El walk-forward anclado repite el proceso: entrena con toda la historia disponible hasta ese punto y valida el siguiente bloque de operaciones.',use:'Sirve para detectar edges que solo funcionan en el tramo donde fueron descubiertos. No elimina el sesgo si los filtros se eligieron después de observar toda la historia.'},
+    {id:'oos',terms:['out of sample','oos','fuera de muestra'],title:'Out-of-sample (OOS)',summary:'Datos que no deberían haber participado en la formulación o ajuste de la hipótesis.',body:'Una validación OOS genuina exige fijar previamente las reglas, filtros y criterios y evaluar después observaciones que no se utilizaron para diseñarlos.',use:'Cuanto más se ajusta una idea mirando el mismo histórico, más importante es reservar o acumular datos nuevos para comprobarla.'}
+  );
+}
+
+const analyticsLabV24Base=analyticsLab;
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: combinaciones, validación temporal, salidas, confianza, robustez, estrés, comportamiento, riesgo y estabilidad.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${savedStudiesPanel()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${confidencePanel(ops)}${walkForwardModule(ops)}${robustnessModule(ops)}${riskStressModule(ops)}${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV24Base=shell;
+shell=function(){
+  return shellV24Base().replace(V23_APP_LABEL,V24_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Risk & Stress Lab + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+Object.assign(window,{wfSetMode,wfSetSplit,wfSetInitialTrain,wfSetTestSize});
+render();
+/* ===== END V24 PATCH ===== */

@@ -2437,3 +2437,107 @@ shell=function(){
 Object.assign(window,{setResearchGridDim,swapResearchGridAxes,setResearchGridMetric,setResearchGridMinN,setResearchGridMaxCats,researchApplyCell,researchClearSelection,labClearGraphSelections,labReset});
 render();
 /* ===== END V12 PATCH ===== */
+
+/* ===== V13 PATCH · Exit Lab ===== */
+const V13_APP_LABEL='V13 · Exit Lab';
+
+let exitLabState={tpR:2,beTrigger:1};
+
+function setExitTpR(v){exitLabState.tpR=Math.max(.25,Number(v)||2);render();}
+function setExitBeTrigger(v){exitLabState.beTrigger=Math.max(.25,Number(v)||1);render();}
+function exitGrossR(o){return Number(o?.rMultiple)||0;}
+function exitMfe(o){return Number(o?.mfe)||0;}
+function exitMae(o){return Number(o?.mae)||0;}
+function exitHasMfe(o){
+  // En el modelo actual un campo vacío termina almacenado como 0. Para no confundir
+  // "sin registrar" con una excursión realmente nula, Exit Lab solo usa MFE > 0.
+  return Number.isFinite(Number(o?.mfe))&&Number(o?.mfe)>0;
+}
+function exitHasMae(o){return Number.isFinite(Number(o?.mae))&&Number(o?.mae)>0;}
+function exitAverage(arr){const a=arr.filter(Number.isFinite);return a.length?a.reduce((s,v)=>s+v,0)/a.length:0;}
+function exitCumulative(vals){let x=0;return vals.map(v=>(x+=Number(v)||0));}
+function exitStats(vals){
+  const a=vals.map(Number).filter(Number.isFinite),n=a.length,w=a.filter(v=>v>0),l=a.filter(v=>v<0),gain=w.reduce((s,v)=>s+v,0),lossAbs=Math.abs(l.reduce((s,v)=>s+v,0)),sum=a.reduce((s,v)=>s+v,0);
+  let eq=0,peak=0,maxDD=0;a.forEach(v=>{eq+=v;peak=Math.max(peak,eq);maxDD=Math.min(maxDD,eq-peak);});
+  return {n,sum,expectancy:n?sum/n:0,pf:lossAbs?gain/lossAbs:(gain?Infinity:0),maxDD};
+}
+function exitResultClass(v){return Number(v)>0?'positive':Number(v)<0?'negative':'';}
+function exitFmtR(v,{signed=true,dec=2}={}){v=Number(v)||0;return `${signed&&v>0?'+':''}${v.toFixed(dec)}R`;}
+function exitFmtPct(v){return `${Number(v||0).toFixed(1)}%`;}
+function exitPf(v){return Number.isFinite(v)?Number(v||0).toFixed(2):'∞';}
+function exitScenarioR(o,tpR){return exitMfe(o)>=tpR?tpR:exitGrossR(o);}
+function exitScenarioRows(valid){
+  return [.5,1,1.5,2,2.5,3].map(tp=>{
+    const vals=valid.map(o=>exitScenarioR(o,tp)),s=exitStats(vals),hits=valid.filter(o=>exitMfe(o)>=tp).length;
+    return {tp,hits,...s};
+  });
+}
+function exitThresholdRows(valid){
+  return [.5,1,1.5,2,2.5,3].map(t=>{
+    const reached=valid.filter(o=>exitMfe(o)>=t),neg=reached.filter(o=>exitGrossR(o)<0),avgFinal=exitAverage(reached.map(exitGrossR)),giveback=exitAverage(reached.map(o=>Math.max(0,exitMfe(o)-exitGrossR(o))));
+    return {t,n:reached.length,neg:neg.length,avgFinal,giveback};
+  });
+}
+function exitLabModule(ops){
+  const total=ops.length,valid=ops.filter(exitHasMfe),validMae=ops.filter(exitHasMae),coverage=total?valid.length/total*100:0;
+  const consistentWins=valid.filter(o=>{const r=exitGrossR(o),m=exitMfe(o);return r>0&&m>0&&r<=m+.05;});
+  const inconsistent=valid.filter(o=>exitGrossR(o)>exitMfe(o)+.05);
+  const capture=exitAverage(consistentWins.map(o=>exitGrossR(o)/exitMfe(o)*100));
+  const giveback=exitAverage(valid.map(o=>Math.max(0,exitMfe(o)-exitGrossR(o))));
+  const roundTrips=valid.filter(o=>exitMfe(o)>=1&&exitGrossR(o)<0);
+  const quality=`<div class="exit-quality-grid"><div><span>Trades filtrados</span><strong>${total}</strong><small>subconjunto actual</small></div><div><span>MFE utilizable</span><strong>${valid.length}</strong><small>${exitFmtPct(coverage)} cobertura</small></div><div><span>MAE registrado</span><strong>${validMae.length}</strong><small>MAE &gt; 0</small></div><div><span>Control de consistencia</span><strong>${inconsistent.length}</strong><small>MFE &lt; resultado final</small></div></div>`;
+  if(!valid.length){
+    return `<section class="card panel lab-module lab-span-2 exit-lab-module"><div class="panel-title"><div><h3>Exit Lab</h3><small>Eficiencia de salida, giveback y escenarios de TP fijo a partir de MFE</small></div><span class="stable-pill">R bruto · observado</span></div>${quality}<div class="exit-empty"><strong>Aún no hay MFE utilizable en este subconjunto.</strong><p>Las importaciones actuales guardan MFE/MAE como 0 cuando ese dato no viene informado. Para evitar conclusiones falsas, Exit Lab trata <strong>MFE = 0</strong> como “no distinguible de dato ausente” y no lo usa en simulaciones.</p><p>Puedes probarlo editando algunas operaciones ficticias y rellenando <strong>MFE (R)</strong> y <strong>MAE (R)</strong>.</p></div></section>`;
+  }
+
+  const tp=exitLabState.tpR,actualVals=valid.map(exitGrossR),scenarioVals=valid.map(o=>exitScenarioR(o,tp)),actual=exitStats(actualVals),scenario=exitStats(scenarioVals),delta=scenario.sum-actual.sum,hits=valid.filter(o=>exitMfe(o)>=tp).length;
+  const actualEq=exitCumulative(actualVals),scenarioEq=exitCumulative(scenarioVals);
+  const metricRow=(label,a,b,fmt=exitFmtR)=>{const d=Number(b)-Number(a);return `<tr><th>${label}</th><td class="${exitResultClass(a)}">${fmt(a)}</td><td class="${exitResultClass(b)}">${fmt(b)}</td><td class="${exitResultClass(d)}">${fmt(d)}</td></tr>`;};
+  const pfDelta=Number.isFinite(actual.pf)&&Number.isFinite(scenario.pf)?scenario.pf-actual.pf:null;
+  const pfRow=`<tr><th>Profit Factor</th><td>${exitPf(actual.pf)}</td><td>${exitPf(scenario.pf)}</td><td class="${pfDelta===null?'':exitResultClass(pfDelta)}">${pfDelta===null?'—':`${pfDelta>0?'+':''}${pfDelta.toFixed(2)}`}</td></tr>`;
+  const tpRows=exitScenarioRows(valid);
+  const thresholds=exitThresholdRows(valid);
+  const be=exitLabState.beTrigger,beTriggered=valid.filter(o=>exitMfe(o)>=be),beNeg=beTriggered.filter(o=>exitGrossR(o)<0),beFinalLoss=Math.abs(beNeg.reduce((s,o)=>s+Math.min(0,exitGrossR(o)),0));
+
+  return `<section class="card panel lab-module lab-span-2 exit-lab-module">
+    <div class="panel-title"><div><h3>Exit Lab</h3><small>MFE → captura del recorrido, cesión desde máximos y escenarios inferibles de salida</small></div><span class="stable-pill">R bruto · MFE observado</span></div>
+    ${quality}
+    <div class="exit-observed-grid">
+      <div class="exit-observed-card"><span>Captura media de ganadoras</span><strong>${consistentWins.length?exitFmtPct(capture):'—'}</strong><small>${consistentWins.length} ganadoras con MFE consistente</small></div>
+      <div class="exit-observed-card"><span>Cesión media desde MFE</span><strong>${exitFmtR(giveback,{signed:false})}</strong><small>MFE − resultado final</small></div>
+      <div class="exit-observed-card"><span>+1R alcanzado → cierre negativo</span><strong>${roundTrips.length}</strong><small>round trips observados</small></div>
+      <div class="exit-observed-card"><span>MFE medio utilizable</span><strong>${exitFmtR(exitAverage(valid.map(exitMfe)),{signed:false})}</strong><small>solo MFE &gt; 0</small></div>
+    </div>
+
+    <div class="exit-section-head"><div><h4>Escenario · TP fijo</h4><p>Si MFE alcanzó el objetivo, se asume salida completa en ese TP; si no lo alcanzó, se conserva la salida real.</p></div><label><span>TP hipotético</span><select class="select compact-select" onchange="setExitTpR(this.value)">${[.5,1,1.5,2,2.5,3].map(v=>`<option value="${v}" ${tp===v?'selected':''}>${v}R</option>`).join('')}</select></label></div>
+    <div class="exit-scenario-grid">
+      <div class="exit-equity-card"><div class="exit-legend"><span><i class="raw-dot"></i>Salida real</span><span><i class="managed-dot"></i>TP fijo ${tp}R</span></div><div class="dual-chart">${dualEquitySvg(actualEq,scenarioEq)}</div><small>${valid.length} operaciones con MFE utilizable · ${hits} alcanzaron ${tp}R</small></div>
+      <div class="exit-compare-table"><table><thead><tr><th>Métrica</th><th>Real</th><th>TP ${tp}R</th><th>Δ</th></tr></thead><tbody>${metricRow('Resultado',actual.sum,scenario.sum)}${metricRow('Expectancy',actual.expectancy,scenario.expectancy)}${pfRow}${metricRow('Max DD',actual.maxDD,scenario.maxDD)}</tbody></table><div class="exit-delta-callout"><span>Impacto acumulado del escenario</span><strong class="${exitResultClass(delta)}">${exitFmtR(delta)}</strong></div></div>
+    </div>
+
+    <div class="exit-two-tables">
+      <div><div class="exit-subtitle"><h4>Mapa de objetivos fijos</h4><small>Haz clic en una fila para usar ese TP en la curva.</small></div><div class="exit-table-wrap"><table class="exit-table"><thead><tr><th>TP</th><th>Alcanzado</th><th>Resultado</th><th>Exp.</th><th>PF</th></tr></thead><tbody>${tpRows.map(r=>`<tr class="${tp===r.tp?'active':''}" onclick="setExitTpR(${r.tp})"><th>${r.tp.toFixed(1)}R</th><td>${r.hits}/${valid.length}</td><td class="${exitResultClass(r.sum)}">${exitFmtR(r.sum)}</td><td class="${exitResultClass(r.expectancy)}">${exitFmtR(r.expectancy)}</td><td>${exitPf(r.pf)}</td></tr>`).join('')}</tbody></table></div></div>
+      <div><div class="exit-subtitle"><h4>Qué ocurre después de alcanzar R</h4><small>Datos observados, sin simular órdenes.</small></div><div class="exit-table-wrap"><table class="exit-table"><thead><tr><th>Nivel</th><th>Llegaron</th><th>Acabaron −</th><th>Cierre medio</th><th>Cesión</th></tr></thead><tbody>${thresholds.map(r=>`<tr><th>${r.t.toFixed(1)}R</th><td>${r.n}</td><td>${r.neg}</td><td class="${exitResultClass(r.avgFinal)}">${r.n?exitFmtR(r.avgFinal):'—'}</td><td>${r.n?exitFmtR(r.giveback,{signed:false}):'—'}</td></tr>`).join('')}</tbody></table></div></div>
+    </div>
+
+    <div class="exit-be-panel"><div class="exit-section-head"><div><h4>Diagnóstico Break Even</h4><p>Identifica casos observables; no inventa la secuencia intratrade.</p></div><label><span>Trigger BE</span><select class="select compact-select" onchange="setExitBeTrigger(this.value)">${[.5,.75,1,1.5,2].map(v=>`<option value="${v}" ${be===v?'selected':''}>+${v}R</option>`).join('')}</select></label></div><div class="exit-be-grid"><div><span>Alcanzaron trigger</span><strong>${beTriggered.length}</strong></div><div><span>Después cerraron negativos</span><strong>${beNeg.length}</strong></div><div><span>Pérdida final de esos casos</span><strong class="${beFinalLoss?'negative':''}">${beFinalLoss?`−${beFinalLoss.toFixed(2)}R`:'0.00R'}</strong></div><div><span>Secuencia no resoluble</span><strong>${Math.max(0,beTriggered.length-beNeg.length)}</strong></div></div><div class="lab-note warn">Un trade que alcanzó +${be}R y terminó negativo necesariamente devolvió el recorrido hacia la zona de entrada, salvo gaps/slippage. Aun así, <strong>no calculamos un resultado BE para todos los trades</strong>: con solo MAE/MFE no conocemos el orden exacto de los movimientos. Para backtestear BE, trailing stops o salidas parciales de forma completa necesitaremos secuencia intratrade.</div></div>
+
+    <div class="exit-method-note"><strong>Qué es observado y qué es inferido:</strong> captura, giveback y “alcanzó X R” proceden directamente de MFE + resultado final. El escenario TP fijo es inferible porque MFE ≥ TP confirma que ese nivel fue tocado durante la operación original, asumiendo una orden objetivo activa, sin gap/slippage y salida total. No se simulan trailing stops, parciales ni la trayectoria exacta.</div>
+  </section>`;
+}
+
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: combinaciones, salidas, comportamiento, riesgo y estabilidad.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV13Base=shell;
+shell=function(){
+  return shellV13Base()
+    .replace(V12_APP_LABEL,V13_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Research Grid multidimensional sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Research Grid + Exit Lab sobre la misma base estable.');
+};
+
+Object.assign(window,{setExitTpR,setExitBeTrigger});
+render();
+/* ===== END V13 PATCH ===== */

@@ -1852,3 +1852,51 @@ shell=function(){return shellV111Base().replace(V11_APP_LABEL,V111_APP_LABEL).re
 Object.assign(window,{savePlanItemToLibrary,deleteSavedLibraryItem,addSimpleLibraryItem});
 render();
 /* ===== END V11.1 PATCH ===== */
+
+/* ===== V11.2 PATCH · Legibilidad + color de signos existentes ===== */
+const V112_APP_LABEL='V11.2 · Legibilidad';
+
+/*
+  No formatea ni modifica cifras. Si un texto ya comienza por +, se pinta verde;
+  si ya comienza por - o −, se pinta rojo. Los números sin signo quedan intactos.
+*/
+function paintExistingSignedNumbers(root=document){
+  const elements=[];
+  if(root?.nodeType===1) elements.push(root);
+  if(root?.querySelectorAll) elements.push(...root.querySelectorAll('*'));
+  for(const el of elements){
+    if(!el || ['SCRIPT','STYLE','INPUT','TEXTAREA','SELECT','OPTION'].includes(el.tagName)) continue;
+    if(el.children?.length) continue;
+    const text=String(el.textContent||'').replace(/\u00a0/g,' ').trim();
+    if(!text || text.includes('→')) continue;
+    const matches=text.match(/[+\-−]\s*(?:[€$£]\s*)?\d/g)||[];
+    if(matches.length!==1) continue;
+    const m=text.match(/^([+\-−])\s*(?:[€$£]\s*)?\d/);
+    if(!m) continue;
+    el.classList.remove('signed-existing-positive','signed-existing-negative');
+    el.classList.add(m[1]==='+'?'signed-existing-positive':'signed-existing-negative');
+  }
+}
+
+const signedNumberObserver=new MutationObserver(mutations=>{
+  for(const mutation of mutations){
+    for(const node of mutation.addedNodes){
+      if(node.nodeType===1) paintExistingSignedNumbers(node);
+    }
+  }
+});
+signedNumberObserver.observe(document.body,{childList:true,subtree:true});
+
+const shellV112Base=shell;
+shell=function(){
+  return shellV112Base()
+    .replace(V111_APP_LABEL,V112_APP_LABEL)
+    .replace(
+      'Motor cloud V9.2 Conflict Guard intacto. Biblioteca reutilizable simple y Laboratorio trabajan encima de la misma base estable.',
+      'Motor cloud V9.2 Conflict Guard intacto. Biblioteca Simple + Laboratorio, con legibilidad mejorada y color de signos existentes.'
+    );
+};
+
+paintExistingSignedNumbers(document);
+render();
+/* ===== END V11.2 PATCH ===== */

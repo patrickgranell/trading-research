@@ -1,27 +1,41 @@
-# Trading Research V11.1 — Biblioteca Simple
+# Trading Research V11.2 — Legibilidad y color de signos
 
-Esta versión parte de V11/V10 y mantiene intacto el motor V9.2 Conflict Guard. Simplifica la reutilización de material entre Trading Plans.
+Esta versión parte directamente de **V11.1 Biblioteca Simple**. Mantiene intactos el motor **V9.2 Conflict Guard**, Supabase, snapshots, Biblioteca Simple y Laboratorio Analítico Avanzado.
 
-## Biblioteca simple
+## Legibilidad
 
-- Cada Setup, VD, Contexto, NR, Hipótesis, Estrategia de gestión, regla de gestión del riesgo y salida discrecional tiene un botón **Guardar** junto a sus acciones.
-- Al pulsar **Guardar**, se crea una copia independiente en **Configuración → Biblioteca**.
-- Si vuelves a guardar un elemento con el mismo nombre después de modificarlo, la aplicación pregunta si quieres reemplazar la copia guardada.
-- La Biblioteca muestra acciones simples: **Añadir al plan** y **Eliminar**.
-- Añadir una plantilla copia el contenido al Trading Plan activo; editarla después dentro del plan no modifica la plantilla guardada.
-- Eliminar una plantilla de Biblioteca no borra el elemento de ningún Trading Plan donde ya se haya usado.
-- Las imágenes de Setups, VD y Contextos se conservan mediante las referencias existentes y siguen participando en Supabase Storage.
+- Se aumenta de forma moderada la tipografía pequeña de tablas, filtros, ayudas, etiquetas, badges, fichas y gráficos.
+- Los títulos y KPIs grandes conservan su tamaño y jerarquía.
+- Se usan cifras tabulares en varias zonas para facilitar la comparación vertical.
 
-## Nube y seguridad
+## Regla de color numérico
 
-No requiere SQL nuevo. La Biblioteca sigue viajando dentro del payload sincronizado existente, protegida por Safe Sync, Conflict Guard y snapshots.
+Esta versión **no añade, elimina ni modifica signos numéricos**.
 
-## Laboratorio
+- Si un valor ya se muestra empezando por `+`, se pinta en verde.
+- Si un valor ya se muestra empezando por `-` o `−`, se pinta en rojo.
+- Si el valor no tiene signo, se deja exactamente como estaba.
 
-Se conserva completo el Laboratorio Analítico Avanzado de V10.
+Ejemplos:
+
+- `+1.84R` → mismo texto, verde.
+- `-1.16R` → mismo texto, rojo.
+- `2 contratos` → permanece `2 contratos` y no recibe un `+` artificial.
+- `40 ticks` → permanece sin cambios.
+
+La lógica se aplica también a contenido que aparece dinámicamente, como modales o paneles que se vuelven a renderizar.
+
+## Nube y datos
+
+No requiere SQL nuevo ni cambia el esquema de Supabase. No se modifica Safe Sync, Conflict Guard, snapshots ni la estructura de los datos.
 
 ## Despliegue
 
-Build: `npm run build`
+Los 6 archivos deben permanecer en la raíz del repositorio:
 
-Deploy: `npx wrangler deploy`
+- `index.html`
+- `app.js`
+- `styles.css`
+- `package.json`
+- `wrangler.jsonc`
+- `README.md`

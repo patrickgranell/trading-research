@@ -142,3 +142,60 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .master-lib-hero{margin-bottom:16px}.master-lib-toolbar,.page-head-actions{display:flex;gap:8px;flex-wrap:wrap}.master-lib-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 0}.master-lib-kpis>div{padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.02);display:flex;flex-direction:column;gap:4px}.master-lib-kpis span{font-size:12px;color:var(--muted)}.master-lib-kpis strong{font-size:20px}.master-lib-section{margin-top:16px}.master-lib-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.master-lib-card{border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(255,255,255,.018)}.master-lib-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.master-lib-head>div{display:flex;align-items:center;gap:8px;min-width:0}.master-lib-head strong{overflow:hidden;text-overflow:ellipsis}.master-lib-head>span,.master-lib-meta{font-size:12px;color:var(--muted)}.master-lib-meta{margin:10px 0 12px;line-height:1.45}.master-lib-actions{display:flex;gap:8px;flex-wrap:wrap}.library-picker{display:grid;gap:14px;margin-top:12px}.library-picker-group{border:1px solid var(--border);border-radius:12px;padding:12px}.library-picker-group h4{margin:0 0 9px}.library-check{display:flex;align-items:flex-start;gap:10px;padding:9px;border-radius:9px;cursor:pointer}.library-check:hover{background:rgba(255,255,255,.035)}.library-check.disabled{opacity:.55;cursor:not-allowed}.library-check input{margin-top:3px}.library-check span{display:flex;flex-direction:column;gap:2px}.library-check small{color:var(--muted)}.btn:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:900px){.master-lib-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* ===== END V11 ===== */
+
+/* ===== V11.2 · Legibilidad + color de signos existentes ===== */
+/*
+   Esta capa NO cambia valores ni añade signos. Solo mejora la lectura y
+   colorea números cuyo texto ya empieza por + o por -/−.
+*/
+
+/* Tipografía pequeña: incremento moderado, sin tocar títulos/KPIs grandes. */
+.brand small,.mini-label,.kpi .sub,.panel-title span,.panel-title small,
+.field label,.help,.config-meta,.block-range,.metric-row,.plan-banner span:last-child,
+.plan-card p,.plan-readonly span,.snapshot-row span,.lab-filter-foot,.lab-note,
+.master-lib-head>span,.master-lib-meta,.library-check small,.risk-excluded span,
+.gallery-card-foot small,.trade-facts span,.trade-detail-kpis span,.filter-hub-top p,
+.taxonomy-card p,.reference-gallery-card p,.cloud-copy,.cloud-mini-note,
+.integrity-kpis span,.cloud-user-row span,.cloud-sync-grid span{
+  font-size:12.5px!important;
+}
+
+.table th,.table td,.btn.small,.bar-row,.notice,.strategy-preview,.compact-input,
+.master-lib-kpis span,.penalty-row,.risk-sim-table th,.risk-sim-table td,
+.journal-table,.breakdown-row,.plan-switch .select{
+  font-size:13px!important;
+}
+
+.badge,.tag,.plan-switch label,.strategy-summary span,.plan-metrics span,
+.import-summary span,.raw-grid span,.filter-field>span,.metric-switch>span,
+.quick-row strong,.day-filter-row strong,.filter-chip,.seg-btn,.compact-select,
+.behavior-heat th,.heat-y-label,.heat-x-label,.risk-diagnostic span,
+.risk-diagnostic small,.r-marker-labels,.edge-matrix th,.risk-legend,
+.lab-scatter-svg .axis-text,.lab-scatter-svg .chart-label,
+.block-dates,.block-core-grid span,.gallery-card-head span,.compare-check,
+.gallery-metrics span,.compare-title span,.compare-trade>small,
+.trade-detail-hero span,.trade-detail-hero p,.trade-detail-result small,
+.reference-mini-card small,.modal-lock-note{
+  font-size:11px!important;
+}
+
+.filter-field .input,.filter-field .select{font-size:12.5px!important}
+.raw-grid strong,.block-core-grid strong,.trade-detail-kpis strong,.trade-facts strong{font-size:12px!important}
+.analytics-module .panel-title small{font-size:11.5px!important}
+.heat-table th{font-size:11px!important}.heat-table td strong{font-size:12px!important}.heat-table td small{font-size:10px!important}
+.break-label{font-size:12.5px!important}.breakdown-row strong{font-size:11.5px!important}.breakdown-row em,.breakdown-row>span:nth-of-type(3){font-size:10.5px!important}
+.behavior-heat td strong{font-size:16px}.behavior-heat td small{font-size:12px!important}
+.r-hist-bar b{font-size:10.5px!important}.r-hist-col small{font-size:10px!important}
+.edge-matrix td strong{font-size:13px!important}.edge-matrix td small{font-size:10.5px!important}
+
+/* Las cifras quedan mejor alineadas verticalmente en tablas y métricas. */
+.table td,.kpi .value,.block-core-grid strong,.block-detail-kpis strong,
+.trade-detail-result,.gallery-metrics b,.compare-stats b,.emotion-break-list em,
+.breakdown-row strong,.edge-matrix td strong{
+  font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* IMPORTANTE: estas clases solo se aplican cuando el signo YA existe en pantalla. */
+.signed-existing-positive{color:#7cf0c4!important}
+.signed-existing-negative{color:#ff8f9c!important}
+/* ===== END V11.2 ===== */

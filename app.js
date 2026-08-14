@@ -5546,3 +5546,71 @@ v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mo
 Object.assign(window,{v302RefreshExcursionDefinition,v302RefreshWorkbenchDefinition,saveOperationFromForm,dqSaveWorkbench,viewOperation});
 render();
 /* ===== END V30.2 PATCH ===== */
+
+/* ===== V30.3 PATCH · Data Quality semántico para MAE/MFE ===== */
+const V303_APP_LABEL='V30.3 · MAE/MFE + Data Quality semántico';
+
+/*
+  Tres estados deliberadamente distintos:
+  - missing  = pendiente: no sabemos todavía si existe/puede recuperarse el dato.
+  - measured = observado: entra en análisis MAE/MFE, incluso si vale exactamente 0 ticks.
+  - na       = revisado pero no utilizable: sale de la cola de limpieza, no entra en Exit Lab
+               y NO mejora el porcentaje utilizable ni el score de cobertura MAE/MFE.
+*/
+dqStatusOptions=function(current){
+  return `<option value="missing" ${current==='missing'?'selected':''}>No informado · pendiente</option>`+
+    `<option value="measured" ${current==='measured'?'selected':''}>Medido / dato real · utilizable</option>`+
+    `<option value="na" ${current==='na'?'selected':''}>No recuperable / no evaluable · revisado</option>`;
+};
+
+function v303MetricQualitySummary(ops,key){
+  const total=ops.length,measured=ops.filter(o=>dqMetricMeasured(o,key)).length,na=ops.filter(o=>dqMetricStatus(o,key)==='na').length,missing=Math.max(0,total-measured-na),resolved=measured+na;
+  return {total,measured,na,missing,resolved,usablePct:dqPct(measured,total),resolvedPct:dqPct(resolved,total)};
+}
+function v303QualityHelpHtml(){
+  return `<div class="dq-excursion-status-help"><strong>Qué significa este estado</strong><div class="dq-status-meaning-grid"><div><b>Medido</b><span>Dato real observado. Entra en estadísticas MAE/MFE; 0 ticks también es válido.</span></div><div><b>No informado</b><span>Pendiente de revisar o medir. Permanece en la cola de Data Quality.</span></div><div><b>No recuperable / no evaluable</b><span>Ya lo revisaste, pero no hay una medición fiable. Sale de la cola, aunque NO entra en las estadísticas ni aumenta la cobertura utilizable.</span></div></div><p><strong>Data Quality no juzga si el MAE/MFE es “bueno” o “malo”.</strong> Solo declara si conocemos el dato y si puede utilizarse estadísticamente.</p></div>`;
+}
+
+/* Formulario: convierte el bloque inferior en una declaración de disponibilidad del dato. */
+const operationFormV303Base=operationForm;
+operationForm=function(o,r,p){
+  let html=operationFormV303Base(o,r,p);
+  html=html.replace('<h4>Data Quality · estado MFE/MAE</h4>','<h4>Data Quality · disponibilidad de MAE/MFE</h4>');
+  html=html.replace(/<div class="help">MFE\/MAE se registran en ticks\.[\s\S]*?<\/div><\/div>/,v303QualityHelpHtml()+'</div>');
+  return html;
+};
+
+/* Workbench: exactamente la misma semántica que el editor de operación. */
+const dqWorkbenchBodyV303Base=dqWorkbenchBody;
+dqWorkbenchBody=function(o,index,total){
+  let html=dqWorkbenchBodyV303Base(o,index,total);
+  html=html.replace('<h4>MFE / MAE · estado explícito</h4>','<h4>MFE / MAE · disponibilidad del dato</h4>');
+  const anchor='<div class="help">“Medido” permite guardar 0 ticks como cero real. La R se deriva del riesgo inicial de la operación. “No aplicable / no recuperable” resuelve la cola de limpieza, aunque ese trade no contará como dato utilizable en Exit Lab.</div>';
+  html=html.replace(anchor,v303QualityHelpHtml());
+  return html;
+};
+
+/* Cobertura: una barra y score representan SOLO datos utilizables; revisión resuelta se muestra aparte. */
+const dqCoverageCardV303Base=dqCoverageCard;
+dqCoverageCard=function(c){
+  if(!['mfe','mae'].includes(c.id))return dqCoverageCardV303Base(c);
+  const usable=Number(c.ok||0),total=Number(c.total||0),na=c.naIds?.length||0,pending=c.missingIds?.length||0,resolved=usable+na,resolvedPct=dqPct(resolved,total),cls=c.pct>=95?'good':c.pct>=70?'mid':'low';
+  return `<article class="dq-coverage-card ${cls}"><div class="dq-cov-head"><span>${esc(c.label)}</span><strong>${c.pct.toFixed(0)}% utilizable</strong></div><div class="dq-cov-bar"><i style="width:${c.pct}%"></i></div><div class="dq-cov-meta"><span>${usable}/${total} medidos${na?` · ${na} no recuperables`:''}</span><small>Solo “Medido” entra en análisis y score.</small></div><div class="dq-resolution-meta"><span>Revisión resuelta</span><strong>${resolved}/${total} · ${resolvedPct.toFixed(0)}%</strong><small>${pending?`${pending} pendiente(s) de clasificar`:'sin pendientes de clasificación'}</small></div>${pending?`<button class="btn tiny ghost" onclick="dqSetFocus('missing:${c.id}')">Ver ${pending} pendiente(s)</button>`:'<span class="dq-complete">✓ Todo revisado</span>'}</article>`;
+};
+
+/* Data Quality: recordatorio metodológico inequívoco. */
+const dataQualityViewV303Base=dataQualityView;
+dataQualityView=function(){
+  let html=dataQualityViewV303Base();
+  const marker='<section class="card panel dq-coverage">';
+  const note='<div class="notice dq-usable-vs-resolved"><strong>MAE/MFE · dos porcentajes distintos:</strong> <b>cobertura utilizable</b> = operaciones realmente medidas que pueden entrar en Exit Lab; <b>revisión resuelta</b> = medidos + no recuperables/no evaluables. Marcar un dato como no recuperable limpia la cola, pero no mejora la cobertura utilizable ni el score MAE/MFE.</div>';
+  if(html.includes(marker))html=html.replace(marker,note+marker);
+  return html;
+};
+
+/* Versión visible + descripción compacta. */
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V30.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V303_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. MAE/MFE intratrade en ticks + estados Data Quality separados entre pendiente, medido utilizable y revisado no recuperable + censura SL/TP + Change Tracking + resto de research.</div></div></div></div>`;};
+
+Object.assign(window,{v303MetricQualitySummary});
+render();
+/* ===== END V30.3 PATCH ===== */

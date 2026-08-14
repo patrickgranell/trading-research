@@ -1,4 +1,22 @@
-# Trading Research V30.2 — MAE/MFE intratrade en ticks
+# Trading Research V30.3 — MAE/MFE + Data Quality semántico
+
+V30.3 parte de V30.2 y mantiene intactos Supabase, Conflict Guard V9.2 y todos los módulos existentes. Esta revisión no cambia la definición intratrade de MAE/MFE: aclara qué significa el estado de calidad de cada dato.
+
+## Data Quality MAE/MFE
+
+- **Medido / dato real**: observación utilizable en Exit Lab y estadísticas MAE/MFE. Un 0 ticks medido es un cero real.
+- **No informado**: dato pendiente de revisar/medir; permanece en la cola de limpieza.
+- **No recuperable / no evaluable**: la operación ya fue revisada, pero no existe una medición fiable. Sale de la cola, pero no entra en estadísticas MAE/MFE.
+- La **cobertura utilizable** usa únicamente operaciones medidas.
+- La **revisión resuelta** cuenta medidas + no recuperables/no evaluables.
+- Marcar N/A/no recuperable **no aumenta** la cobertura utilizable ni el score MAE/MFE.
+- Data Quality no valora si un MAE/MFE es bueno o malo; valora disponibilidad, recuperabilidad y coherencia del dato.
+
+## Caché / versión
+
+`index.html` carga `app.js` y `styles.css` con identificador V30.3 para evitar que el navegador reutilice una versión anterior tras desplegar. El cuadro lateral muestra V30.3.
+
+## Base metodológica heredada de V30.2
 
 V30.2 parte de V30.1 y conserva toda la base anterior: Supabase, Conflict Guard V9.2, snapshots, Dashboard configurable, Calendario, Research Grid, Exit Lab, Compliance, Estudios, Confianza estadística, Review & Notes, Objetivos, ayuda contextual, Monte Carlo, Risk & Stress Lab, Walk-Forward, Forward OOS, Data Quality Workbench, Quality-Aware Analytics, Research Decision Center y Change Tracking.
 

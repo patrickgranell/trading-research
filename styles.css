@@ -665,3 +665,19 @@ html[data-theme="light"] .excursion-definition-box,html[data-theme="light"] .exc
 @media(max-width:900px){.excursion-definition-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.excursion-definition-grid{grid-template-columns:1fr}.excursion-definition-title{align-items:flex-start;flex-direction:column;gap:3px}}
 /* ===== END V30.2 ===== */
+
+/* ===== V30.3 · Data Quality semántico MAE/MFE ===== */
+.dq-excursion-status-help{margin-top:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--soft);font-size:12px;line-height:1.45}
+.dq-excursion-status-help>strong{display:block;margin-bottom:8px}
+.dq-status-meaning-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dq-status-meaning-grid>div{padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.dq-status-meaning-grid b,.dq-status-meaning-grid span{display:block}
+.dq-status-meaning-grid span{margin-top:3px;color:var(--muted)}
+.dq-excursion-status-help p{margin:8px 0 0;color:var(--muted)}
+.dq-resolution-meta{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center}
+.dq-resolution-meta span{font-size:11px;color:var(--muted)}
+.dq-resolution-meta strong{font-size:12px}
+.dq-resolution-meta small{grid-column:1/-1;color:var(--muted)}
+.dq-usable-vs-resolved{margin-bottom:12px}
+@media(max-width:760px){.dq-status-meaning-grid{grid-template-columns:1fr}}
+/* ===== END V30.3 ===== */

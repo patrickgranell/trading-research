@@ -3864,3 +3864,127 @@ render=function(){renderV21Base();ensureContextHelpObserver();setTimeout(applyCo
 Object.assign(window,{openContextHelp,openGlossary,filterGlossary});
 render();
 /* ===== END V21 PATCH ===== */
+
+/* ===== V22 PATCH · Robustez / Monte Carlo ===== */
+const V22_APP_LABEL='V22 · Robustez Monte Carlo';
+let robustnessState={horizon:'sample',iterations:1000};
+const robustnessCache=new Map();
+
+function robustHash(str){
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  return h>>>0;
+}
+function robustRng(seed){
+  let a=seed>>>0;
+  return function(){
+    a|=0;a=(a+0x6D2B79F5)|0;
+    let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+function robustQuantile(sorted,p){
+  if(!sorted.length)return NaN;
+  const pos=(sorted.length-1)*Math.max(0,Math.min(1,p)),lo=Math.floor(pos),hi=Math.ceil(pos);
+  if(lo===hi)return sorted[lo];
+  const t=pos-lo;return sorted[lo]*(1-t)+sorted[hi]*t;
+}
+function robustMaxDrawdown(vals){
+  let eq=0,peak=0,worst=0;
+  for(const v of vals){eq+=v;if(eq>peak)peak=eq;const dd=eq-peak;if(dd<worst)worst=dd;}
+  return worst;
+}
+function robustMaxLosingStreak(vals){
+  let run=0,best=0;
+  for(const v of vals){if(v<0){run++;if(run>best)best=run;}else run=0;}
+  return best;
+}
+function robustHorizon(n){return robustnessState.horizon==='sample'?Math.max(1,n):Math.max(1,Number(robustnessState.horizon)||100);}
+function robustnessSetHorizon(v){robustnessState.horizon=v==='sample'?'sample':String([20,50,100,200].includes(Number(v))?Number(v):100);render();}
+function robustnessSetIterations(v){const n=Number(v);robustnessState.iterations=[500,1000,2500].includes(n)?n:1000;render();}
+function robustSimulation(ops){
+  const vals=ops.map(o=>opMetricValue(o,labState.unit,labState.basis)).filter(Number.isFinite),n=vals.length;
+  if(!n)return null;
+  const horizon=robustHorizon(n),iterations=robustnessState.iterations;
+  const signature=`${labState.unit}|${labState.basis}|${horizon}|${iterations}|${ops.map(o=>`${o.id}:${Number(opMetricValue(o,labState.unit,labState.basis)||0).toFixed(6)}`).join('|')}`;
+  const key=String(robustHash(signature));if(robustnessCache.has(key))return robustnessCache.get(key);
+  const rnd=robustRng(robustHash(signature+'|seed'));
+  const terminal=[],means=[],dds=[],streaks=[];
+  const fanCount=Math.min(horizon,60),steps=[];
+  for(let i=0;i<=fanCount;i++)steps.push(Math.round(i*horizon/fanCount));
+  const uniqueSteps=[...new Set(steps)],buckets=uniqueSteps.map(()=>[]);
+  for(let s=0;s<iterations;s++){
+    let cum=0,peak=0,worst=0,run=0,maxRun=0,cp=1;buckets[0].push(0);
+    for(let j=1;j<=horizon;j++){
+      const v=vals[Math.floor(rnd()*n)];cum+=v;
+      if(cum>peak)peak=cum;const dd=cum-peak;if(dd<worst)worst=dd;
+      if(v<0){run++;if(run>maxRun)maxRun=run;}else run=0;
+      if(cp<uniqueSteps.length&&j===uniqueSteps[cp]){buckets[cp].push(cum);cp++;}
+    }
+    terminal.push(cum);means.push(cum/horizon);dds.push(worst);streaks.push(maxRun);
+  }
+  terminal.sort((a,b)=>a-b);means.sort((a,b)=>a-b);dds.sort((a,b)=>a-b);streaks.sort((a,b)=>a-b);
+  const fan=uniqueSteps.map((step,i)=>{const b=buckets[i].sort((a,b)=>a-b);return {step,low:robustQuantile(b,.05),median:robustQuantile(b,.5),high:robustQuantile(b,.95)};});
+  const out={n,horizon,iterations,terminal,means,dds,streaks,fan,
+    positivePct:terminal.filter(v=>v>0).length/iterations*100,
+    negativePct:terminal.filter(v=>v<0).length/iterations*100,
+    finalP5:robustQuantile(terminal,.05),finalP50:robustQuantile(terminal,.5),finalP95:robustQuantile(terminal,.95),
+    expP5:robustQuantile(means,.05),expP50:robustQuantile(means,.5),expP95:robustQuantile(means,.95),
+    ddMedian:robustQuantile(dds,.5),ddTail:robustQuantile(dds,.05),streakP95:Math.round(robustQuantile(streaks,.95))
+  };
+  robustnessCache.set(key,out);if(robustnessCache.size>16)robustnessCache.delete(robustnessCache.keys().next().value);return out;
+}
+function robustText(v){return Number.isFinite(v)?metricStatText(v,labState.unit):'—';}
+function robustnessFanSvg(sim){
+  const w=920,h=260,padL=54,padR=18,padT=22,padB=38,all=sim.fan.flatMap(x=>[x.low,x.high,0]),min=Math.min(...all),max=Math.max(...all),span=max-min||1;
+  const x=v=>padL+(v/sim.horizon)*(w-padL-padR),y=v=>padT+(max-v)/span*(h-padT-padB);
+  const high=sim.fan.map(d=>`${x(d.step).toFixed(1)},${y(d.high).toFixed(1)}`).join(' L '),low=[...sim.fan].reverse().map(d=>`${x(d.step).toFixed(1)},${y(d.low).toFixed(1)}`).join(' L '),med=sim.fan.map(d=>`${x(d.step).toFixed(1)},${y(d.median).toFixed(1)}`).join(' L ');
+  const zero=y(0),mid=Math.round(sim.horizon/2);
+  return `<div class="robust-chart-wrap"><svg class="robust-fan-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Distribución bootstrap acumulada entre percentiles 5 y 95"><line x1="${padL}" y1="${zero}" x2="${w-padR}" y2="${zero}" class="robust-zero"/><path d="M ${high} L ${low} Z" class="robust-band"/><path d="M ${med}" class="robust-median"/><text x="${padL}" y="${h-12}" class="robust-axis">0</text><text x="${x(mid)}" y="${h-12}" text-anchor="middle" class="robust-axis">${mid}</text><text x="${w-padR}" y="${h-12}" text-anchor="end" class="robust-axis">${sim.horizon} trades</text><text x="${padL-8}" y="${y(max)+4}" text-anchor="end" class="robust-axis">${esc(robustText(max))}</text><text x="${padL-8}" y="${y(min)+4}" text-anchor="end" class="robust-axis">${esc(robustText(min))}</text></svg><div class="robust-legend"><span><i class="median"></i>Mediana</span><span><i class="band"></i>Percentiles 5–95</span></div></div>`;
+}
+function robustnessModule(ops){
+  const sim=robustSimulation(ops),n=ops.length;
+  const controls=`<div class="robust-controls"><label><span>Horizonte</span><select class="select compact-select" onchange="robustnessSetHorizon(this.value)"><option value="sample" ${robustnessState.horizon==='sample'?'selected':''}>Muestra actual (${n})</option>${[20,50,100,200].map(v=>`<option value="${v}" ${String(robustnessState.horizon)===String(v)?'selected':''}>${v} trades</option>`).join('')}</select></label><label><span>Simulaciones</span><select class="select compact-select" onchange="robustnessSetIterations(this.value)">${[500,1000,2500].map(v=>`<option value="${v}" ${robustnessState.iterations===v?'selected':''}>${v.toLocaleString('es-ES')}</option>`).join('')}</select></label></div>`;
+  if(!sim)return `<section class="card panel lab-module lab-span-2 robustness-module"><div class="panel-title"><div><h3>Robustez · Bootstrap / Monte Carlo</h3><small>Reordena y remuestrea la distribución observada para estudiar sensibilidad de secuencia.</small></div>${controls}</div><div class="empty">No hay operaciones en el subconjunto actual.</div></section>`;
+  const observed=calcMetricStats(ops,labState.unit,labState.basis),actualStreak=robustMaxLosingStreak(ops.map(o=>opMetricValue(o,labState.unit,labState.basis)).filter(Number.isFinite));
+  return `<section class="card panel lab-module lab-span-2 robustness-module">
+    <div class="panel-title"><div><h3>Robustez · Bootstrap / Monte Carlo</h3><small>${sim.iterations.toLocaleString('es-ES')} remuestreos con reemplazo sobre la distribución de ${sim.n} trades observados.</small></div>${controls}</div>
+    <div class="robust-kpis">
+      <div><span>Secuencias positivas</span><strong class="${sim.positivePct>=50?'positive':'negative'}">${sim.positivePct.toFixed(1)}%</strong><small>resultado final &gt; 0 en ${sim.horizon} trades</small></div>
+      <div><span>Resultado final · p5 → p95</span><strong>${robustText(sim.finalP5)} → ${robustText(sim.finalP95)}</strong><small>rango central del 90% simulado</small></div>
+      <div><span>Expectancy · p5 → p95</span><strong>${robustText(sim.expP5)} → ${robustText(sim.expP95)}</strong><small>bootstrap del promedio por trade</small></div>
+      <div><span>Max DD mediano</span><strong class="${sim.ddMedian<0?'negative':''}">${robustText(sim.ddMedian)}</strong><small>mediana del peor DD por secuencia</small></div>
+      <div><span>DD severo · peor 5%</span><strong class="negative">${robustText(sim.ddTail)}</strong><small>cola adversa de las simulaciones</small></div>
+      <div><span>Racha perdedora · p95</span><strong>${sim.streakP95}</strong><small>95% de secuencias no supera esta racha</small></div>
+    </div>
+    <div class="robust-layout"><div>${robustnessFanSvg(sim)}</div><div class="robust-readout">
+      <div><span>Mediana final</span><strong class="${sim.finalP50>0?'positive':sim.finalP50<0?'negative':''}">${robustText(sim.finalP50)}</strong></div>
+      <div><span>Expectancy mediana bootstrap</span><strong class="${sim.expP50>0?'positive':sim.expP50<0?'negative':''}">${robustText(sim.expP50)}</strong></div>
+      <div><span>DD observado · muestra actual</span><strong class="${observed.maxDD<0?'negative':''}">${robustText(observed.maxDD)}</strong></div>
+      <div><span>Racha perdedora observada</span><strong>${actualStreak}</strong></div>
+      <div><span>Riesgo de cierre negativo</span><strong class="${sim.negativePct>25?'negative':''}">${sim.negativePct.toFixed(1)}%</strong></div>
+    </div></div>
+    <div class="lab-note warn"><strong>Interpretación:</strong> esto es un análisis de robustez, no una predicción. El bootstrap supone que la distribución observada puede remuestrearse como si los trades fueran razonablemente intercambiables. No modela cambios de régimen, dependencia temporal, slippage futuro ni deterioro del edge. Úsalo para preguntar “¿qué tan sensible es mi resultado al orden y a la variabilidad de mi muestra?”, no “¿qué ganaré en los próximos ${sim.horizon} trades?”.</div>
+  </section>`;
+}
+
+if(typeof CONTEXT_HELP!=='undefined'){
+  CONTEXT_HELP.push(
+    {id:'montecarlo',terms:['robustez monte carlo','bootstrap monte carlo','secuencias positivas'],title:'Robustez · Bootstrap / Monte Carlo',summary:'Remuestrea los resultados observados muchas veces para estudiar cuánto puede cambiar el resultado por variabilidad y orden de la muestra.',body:'Cada secuencia se construye tomando operaciones de la distribución observada con reemplazo. Se calculan resultado final, expectancy, drawdown y rachas para muchas secuencias alternativas.',use:'Sirve para comprobar sensibilidad de secuencia y dimensionar escenarios adversos. No es una predicción del futuro y depende de que la muestra histórica sea representativa.'},
+    {id:'robustdd',terms:['dd severo','max dd mediano','racha perdedora p95'],title:'Riesgo de secuencia',summary:'Resume drawdowns y rachas que aparecen al cambiar el orden y remuestrear los trades.',body:'El DD severo representa la cola adversa de las simulaciones; la racha p95 indica un nivel que el 95% de las secuencias simuladas no supera.',use:'Ayuda a evitar diseñar límites de riesgo usando únicamente el drawdown histórico observado, que puede haber sido una secuencia especialmente favorable o desfavorable.'}
+  );
+}
+
+const analyticsLabV22Base=analyticsLab;
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: combinaciones, salidas, confianza, robustez, comportamiento, riesgo y estabilidad.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${savedStudiesPanel()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${confidencePanel(ops)}${robustnessModule(ops)}${researchGridModule(ops)}${exitLabModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV22Base=shell;
+shell=function(){
+  return shellV22Base().replace(V21_APP_LABEL,V22_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+Object.assign(window,{robustnessSetHorizon,robustnessSetIterations});
+render();
+/* ===== END V22 PATCH ===== */

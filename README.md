@@ -1,4 +1,4 @@
-# Trading Research V21 — Ayuda contextual + Glosario
+# Trading Research V22 — Robustez / Monte Carlo
 
 V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
@@ -95,3 +95,20 @@ La capa estadística utiliza la unidad/base activa del Laboratorio (R, ticks o U
 - Cobertura inicial: Expectancy, Win Rate, Profit Factor, Drawdown, R/Ticks/US$, Bruto/Neto, MFE/MAE, Equity, distribuciones, heatmaps, Research Grid, Exit Lab, confianza estadística, IC95, Compliance, Diario, Estudios, Reviews, Calendario, Objetivos, Conflict Guard y Snapshots.
 - Compatible con modo oscuro/claro y con interacción táctil mediante clic.
 - No modifica el dataset ni requiere cambios SQL.
+
+
+## V22 · Robustez / Monte Carlo
+
+El Laboratorio añade un módulo de robustez basado en bootstrap determinista sobre el subconjunto filtrado:
+
+- 500 / 1.000 / 2.500 simulaciones.
+- Horizonte igual a la muestra actual o 20 / 50 / 100 / 200 trades.
+- Probabilidad empírica de secuencia positiva.
+- Percentiles 5 / 50 / 95 de resultado final y expectancy.
+- Distribución de máximo drawdown y drawdown severo (cola 5%).
+- Percentil 95 de la racha perdedora máxima.
+- Fan chart de equity bootstrap con banda p5–p95 y mediana.
+- Comparación con drawdown y racha perdedora observados.
+- Funciona con R / ticks / US$ y Bruto / Neto.
+
+El módulo se presenta explícitamente como análisis de robustez y sensibilidad de secuencia, no como predicción. El remuestreo no modela cambios de régimen, dependencia temporal ni deterioro futuro del edge.

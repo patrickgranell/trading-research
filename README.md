@@ -53,7 +53,7 @@ El Laboratorio permite guardar, cargar, actualizar, duplicar, eliminar y compara
 
 Cuando una muestra no tiene operaciones perdedoras, el Profit Factor es infinito. La comparación de estudios conserva ahora `∞` en lugar de convertirlo erróneamente a `0.00`, y el delta muestra `+∞`, `-∞` o `—` según corresponda.
 
-## V18 · Confianza estadística
+## V19 · Review & Notes
 
 Se añade una capa de incertidumbre al Laboratorio para evitar sobreinterpretar muestras pequeñas:
 
@@ -68,3 +68,12 @@ Se añade una capa de incertidumbre al Laboratorio para evitar sobreinterpretar 
 - Aviso metodológico sobre independencia, cambios de régimen, data snooping y múltiples comparaciones.
 
 La capa estadística utiliza la unidad/base activa del Laboratorio (R, ticks o US$; bruto o neto). No requiere SQL nuevo.
+
+
+## V19 · Review & Notes
+- Archivo de reviews por operación, día, semana, mes, bloque, estudio o plan general.
+- Hallazgo/evidencia, decisión, tags, estado y horizonte de seguimiento.
+- Métricas actuales del contexto vinculado en R/ticks/US$ y bruto/neto.
+- Búsqueda y filtros por tipo, estado y tag.
+- Acceso rápido desde el calendario y widget opcional en el Dashboard personalizable.
+- Las reviews forman parte del Trading Plan y se sincronizan mediante la misma persistencia V9.2.

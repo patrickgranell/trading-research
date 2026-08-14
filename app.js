@@ -3409,3 +3409,197 @@ shell=function(){return shellV18Base().replace(V17_APP_LABEL,V18_APP_LABEL).repl
 Object.assign(window,{confidenceSetTarget});
 render();
 /* ===== END V18 PATCH ===== */
+
+/* ===== V19 PATCH · Review / Notas avanzadas ===== */
+const V19_APP_LABEL='V19 · Review & Notes';
+const REVIEW_TYPES=[
+  ['general','General'],['trade','Operación'],['day','Día'],['week','Semana'],['month','Mes'],['block','Bloque'],['study','Estudio']
+];
+const REVIEW_STATUSES=[
+  ['open','Abierta'],['monitoring','En seguimiento'],['validated','Validada'],['discarded','Descartada']
+];
+let reviewViewState={q:'',type:'',status:'',tag:'',unit:'r',basis:'net'};
+let editingReviewNoteId=null;
+
+function ensurePlanReviews(p){
+  if(!p)return p;
+  p.reviewNotes=Array.isArray(p.reviewNotes)?p.reviewNotes:[];
+  p.reviewNotes=p.reviewNotes.map(n=>({
+    id:n?.id||uid('REV'),
+    type:REVIEW_TYPES.some(x=>x[0]===n?.type)?n.type:'general',
+    status:REVIEW_STATUSES.some(x=>x[0]===n?.status)?n.status:'open',
+    title:String(n?.title||'Nota sin título'),
+    tags:Array.isArray(n?.tags)?uniq(n.tags.map(x=>String(x).trim()).filter(Boolean)):uniq(String(n?.tags||'').split(',').map(x=>x.trim()).filter(Boolean)),
+    finding:String(n?.finding||n?.content||''),
+    decision:String(n?.decision||''),
+    followUpN:Math.max(0,Number(n?.followUpN)||0),
+    target:String(n?.target||''),
+    operationId:String(n?.operationId||''),
+    studyId:String(n?.studyId||''),
+    createdAt:n?.createdAt||new Date().toISOString(),
+    updatedAt:n?.updatedAt||n?.createdAt||new Date().toISOString()
+  }));
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanReviews);
+const makeBlankPlanV19Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV19Base(meta);ensurePlanReviews(p);return p;};
+const normalizePlanV19Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV19Base(p,instruments);ensurePlanReviews(out);return out;};
+const normalizeStateV19Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV19Base(raw);(out.tradingPlans||[]).forEach(ensurePlanReviews);return out;};
+
+function reviewTypeLabel(v){return REVIEW_TYPES.find(x=>x[0]===v)?.[1]||'General';}
+function reviewStatusLabel(v){return REVIEW_STATUSES.find(x=>x[0]===v)?.[1]||'Abierta';}
+function reviewStatusClass(v){return v==='validated'?'win':v==='discarded'?'loss':v==='monitoring'?'warn':'';}
+function reviewIsoWeekKey(date){
+  const d=new Date(date);if(isNaN(d))return '';
+  const x=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()+4-day);
+  const y0=new Date(Date.UTC(x.getUTCFullYear(),0,1));
+  const w=Math.ceil((((x-y0)/86400000)+1)/7);
+  return `${x.getUTCFullYear()}-W${String(w).padStart(2,'0')}`;
+}
+function reviewDefaultTarget(type){
+  const ops=[...currentOps()].sort((a,b)=>new Date(b.entryDate)-new Date(a.entryDate));
+  if(type==='trade')return ops[0]?.id||'';
+  if(type==='day'||type==='week')return ops[0]?.entryDate?inputDateValue(new Date(ops[0].entryDate)):inputDateValue(new Date());
+  if(type==='month')return ops[0]?.entryDate?inputDateValue(new Date(ops[0].entryDate)).slice(0,7):inputDateValue(new Date()).slice(0,7);
+  if(type==='block')return String(Math.max(1,Math.ceil(ops.length/20)));
+  if(type==='study')return getCurrentPlan()?.savedStudies?.[0]?.id||'';
+  return '';
+}
+function reviewTargetHtml(type,value=''){
+  const p=getCurrentPlan(),v=value||reviewDefaultTarget(type);
+  if(type==='trade'){
+    const ops=[...currentOps()].sort((a,b)=>new Date(b.entryDate)-new Date(a.entryDate)).slice(0,300);
+    return `<div class="field span2"><label>Operación vinculada</label><select id="f-review-target" class="select"><option value="">Sin vincular</option>${ops.map(o=>`<option value="${esc(o.id)}" ${o.id===v?'selected':''}>${esc(fmtDate(o.entryDate))} · ${esc(o.setup||'—')} · ${esc(o.direction||'—')} · ${Number(o.rMultiple||0).toFixed(2)}R</option>`).join('')}</select></div>`;
+  }
+  if(type==='day'||type==='week')return `<div class="field span2"><label>${type==='day'?'Día':'Fecha dentro de la semana'}</label><input id="f-review-target" class="input" type="date" value="${esc(v)}"></div>`;
+  if(type==='month')return `<div class="field span2"><label>Mes</label><input id="f-review-target" class="input" type="month" value="${esc(v)}"></div>`;
+  if(type==='block'){
+    const n=Math.max(1,Math.ceil(currentOps().length/20));
+    return `<div class="field span2"><label>Bloque</label><select id="f-review-target" class="select">${Array.from({length:n},(_,i)=>i+1).map(x=>`<option value="${x}" ${String(x)===String(v)?'selected':''}>B${String(x).padStart(2,'0')}</option>`).join('')}</select></div>`;
+  }
+  if(type==='study'){
+    ensurePlanStudies(p);return `<div class="field span2"><label>Estudio guardado</label><select id="f-review-target" class="select"><option value="">Sin vincular</option>${(p?.savedStudies||[]).map(s=>`<option value="${esc(s.id)}" ${s.id===v?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>`;
+  }
+  return `<div class="field span2"><label>Referencia</label><div class="readonly-box">Nota general del Trading Plan</div><input id="f-review-target" type="hidden" value=""></div>`;
+}
+function reviewRefreshTarget(){
+  const type=document.getElementById('f-review-type')?.value||'general',box=document.getElementById('review-target-box');
+  if(box)box.innerHTML=reviewTargetHtml(type,'');
+}
+function openReviewNoteModal(id=null,type='',target=''){
+  const p=getCurrentPlan();if(!p)return;ensurePlanReviews(p);editingReviewNoteId=id;
+  const n=id?p.reviewNotes.find(x=>x.id===id):{type:type||'general',status:'open',title:'',tags:[],finding:'',decision:'',followUpN:0,target:target||'',operationId:'',studyId:''};
+  const currentTarget=n.type==='trade'?(n.operationId||n.target):n.type==='study'?(n.studyId||n.target):n.target;
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Contexto de la revisión</h4><div class="form-grid">${selectObjField('Tipo','review-type',REVIEW_TYPES.map(([value,label])=>({value,label})),n.type,`onchange="reviewRefreshTarget()"`)}${selectObjField('Estado','review-status',REVIEW_STATUSES.map(([value,label])=>({value,label})),n.status)}<div id="review-target-box" class="review-target-box">${reviewTargetHtml(n.type,currentTarget)}</div>${field('Título','review-title','text',esc(n.title||''),'span2')}${field('Tags separados por coma','review-tags','text',esc((n.tags||[]).join(', ')),'span2')}${field('Revisar tras N operaciones nuevas','review-followup','number',n.followUpN||0,'',`min="0" step="1"`)}</div></div><div class="form-section"><h4>Hallazgo / evidencia</h4>${field('Qué observaste, qué patrón aparece y qué datos lo sostienen','review-finding','textarea',esc(n.finding||''),'full')}</div><div class="form-section"><h4>Decisión / siguiente acción</h4>${field('Qué mantendrás, cambiarás, validarás o dejarás pendiente','review-decision','textarea',esc(n.decision||''),'full')}</div><div class="notice">Una review documenta una conclusión o hipótesis; no modifica operaciones, reglas ni estudios. Vincularla a un día, bloque, trade o estudio permite recuperar después el contexto y sus métricas actuales.</div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(id?'Editar review':'Nueva review',body,`<button class="btn" onclick="closeModal();editingReviewNoteId=null">Cancelar</button><button class="btn primary" onclick="saveReviewNote()">Guardar review</button>`));
+}
+function saveReviewNote(){
+  const p=getCurrentPlan(),g=n=>document.getElementById(`f-${n}`)?.value??'';if(!p)return;ensurePlanReviews(p);
+  const title=String(g('review-title')).trim();if(!title)return alert('Escribe un título para la review.');
+  const type=REVIEW_TYPES.some(x=>x[0]===g('review-type'))?g('review-type'):'general',status=REVIEW_STATUSES.some(x=>x[0]===g('review-status'))?g('review-status'):'open',rawTarget=String(g('review-target')||'');
+  const now=new Date().toISOString(),old=editingReviewNoteId?p.reviewNotes.find(x=>x.id===editingReviewNoteId):null;
+  const item={id:old?.id||uid('REV'),type,status,title,tags:uniq(String(g('review-tags')).split(',').map(x=>x.trim()).filter(Boolean)),finding:String(g('review-finding')).trim(),decision:String(g('review-decision')).trim(),followUpN:Math.max(0,Number(g('review-followup'))||0),target:type==='trade'||type==='study'?'':rawTarget,operationId:type==='trade'?rawTarget:'',studyId:type==='study'?rawTarget:'',createdAt:old?.createdAt||now,updatedAt:now};
+  const i=p.reviewNotes.findIndex(x=>x.id===item.id);if(i>=0)p.reviewNotes[i]=item;else p.reviewNotes.unshift(item);p.updatedAt=now;editingReviewNoteId=null;persist();closeModal();render();
+}
+function deleteReviewNote(id){const p=getCurrentPlan();if(!p)return;ensurePlanReviews(p);const n=p.reviewNotes.find(x=>x.id===id);if(!n)return;if(!confirm(`¿Eliminar la review “${n.title}”?`))return;p.reviewNotes=p.reviewNotes.filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();persist();render();}
+function setReviewNoteStatus(id,status){const p=getCurrentPlan(),n=p?.reviewNotes?.find(x=>x.id===id);if(!n||!REVIEW_STATUSES.some(x=>x[0]===status))return;n.status=status;n.updatedAt=new Date().toISOString();p.updatedAt=n.updatedAt;persist();render();}
+function duplicateReviewNote(id){const p=getCurrentPlan(),n=p?.reviewNotes?.find(x=>x.id===id);if(!p||!n)return;const c=clone(n);c.id=uid('REV');c.title=`${n.title} · copia`;c.status='open';c.createdAt=c.updatedAt=new Date().toISOString();p.reviewNotes.unshift(c);p.updatedAt=c.updatedAt;persist();render();}
+
+function reviewNoteScope(note){
+  const p=getCurrentPlan();
+  if(note.type==='trade'){
+    const o=state.operations.find(x=>x.id===note.operationId);return o?`${fmtDate(o.entryDate)} · ${o.setup||'—'} · ${o.direction||'—'}`:'Operación no disponible';
+  }
+  if(note.type==='day')return note.target?new Date(`${note.target}T12:00:00`).toLocaleDateString('es-ES'):'Día sin definir';
+  if(note.type==='week')return note.target?`Semana ${reviewIsoWeekKey(note.target)}`:'Semana sin definir';
+  if(note.type==='month'){
+    if(!note.target)return 'Mes sin definir';const [y,m]=note.target.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  }
+  if(note.type==='block')return `B${String(Number(note.target)||1).padStart(2,'0')}`;
+  if(note.type==='study'){const s=p?.savedStudies?.find(x=>x.id===note.studyId);return s?`Estudio · ${s.name}`:'Estudio no disponible';}
+  return planLabel(p);
+}
+function reviewLinkedOps(note){
+  const ops=currentOps();
+  if(note.type==='trade')return ops.filter(o=>o.id===note.operationId);
+  if(note.type==='day')return ops.filter(o=>inputDateValue(new Date(o.entryDate))===note.target);
+  if(note.type==='week'){const key=reviewIsoWeekKey(note.target);return ops.filter(o=>reviewIsoWeekKey(o.entryDate)===key);}
+  if(note.type==='month')return ops.filter(o=>inputDateValue(new Date(o.entryDate)).slice(0,7)===note.target);
+  if(note.type==='block'){const m=opBlockMap(),n=Number(note.target)||0;return ops.filter(o=>m.get(o.id)===n);}
+  if(note.type==='study'){
+    const s=getCurrentPlan()?.savedStudies?.find(x=>x.id===note.studyId);return s?labFilteredOpsForState(s.lab||{}):[];
+  }
+  return [];
+}
+function reviewNoteMetricStrip(note){
+  const ops=reviewLinkedOps(note);if(!ops.length)return '<span class="review-no-metrics">Sin muestra vinculada</span>';
+  const s=calcMetricStats(ops,reviewViewState.unit,reviewViewState.basis),pf=Number.isFinite(s.pf)?s.pf.toFixed(2):(s.pf===Infinity?'∞':'—');
+  return `<span>n=${s.n}</span><span class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">Exp ${metricStatText(s.expectancy,reviewViewState.unit)}</span><span>WR ${s.winRate.toFixed(0)}%</span><span>PF ${pf}</span>`;
+}
+function reviewFilteredNotes(){
+  const p=getCurrentPlan();ensurePlanReviews(p);const q=reviewViewState.q.trim().toLowerCase();
+  return [...p.reviewNotes].filter(n=>{
+    if(reviewViewState.type&&n.type!==reviewViewState.type)return false;if(reviewViewState.status&&n.status!==reviewViewState.status)return false;if(reviewViewState.tag&&!(n.tags||[]).includes(reviewViewState.tag))return false;
+    if(q&&!`${n.title} ${n.finding} ${n.decision} ${(n.tags||[]).join(' ')} ${reviewNoteScope(n)}`.toLowerCase().includes(q))return false;return true;
+  }).sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+}
+function reviewReadFilters(){reviewViewState.q=document.getElementById('reviewQ')?.value||'';reviewViewState.type=document.getElementById('reviewType')?.value||'';reviewViewState.status=document.getElementById('reviewStatus')?.value||'';reviewViewState.tag=document.getElementById('reviewTag')?.value||'';render();}
+function reviewResetFilters(){reviewViewState={...reviewViewState,q:'',type:'',status:'',tag:''};render();}
+function reviewSetUnit(v){reviewViewState.unit=['r','ticks','usd'].includes(v)?v:'r';render();}
+function reviewSetBasis(v){reviewViewState.basis=v==='gross'?'gross':'net';render();}
+function reviewOpenLinked(noteId){
+  const p=getCurrentPlan(),n=p?.reviewNotes?.find(x=>x.id===noteId);if(!n)return;
+  if(n.type==='trade'&&n.operationId)return viewOperation(n.operationId);
+  if(n.type==='study'&&n.studyId){labStudiesUi.selectedId=n.studyId;currentView='lab';loadSelectedStudy();return;}
+  if(n.type==='day'&&n.target){const d=new Date(`${n.target}T12:00:00`);calendarState.year=d.getFullYear();calendarState.month=d.getMonth();calendarState.selectedDate=n.target;currentView='calendar';render();return;}
+  if(n.type==='block'){const b=(Number(n.target)||1)-1;showBlock(b);return;}
+  if(n.type==='week'||n.type==='month'){
+    const d=n.type==='month'?new Date(`${n.target}-01T12:00:00`):new Date(`${n.target}T12:00:00`);calendarState.year=d.getFullYear();calendarState.month=d.getMonth();calendarState.selectedDate='';currentView='calendar';render();return;
+  }
+}
+function reviewNoteCard(n){
+  const canOpen=n.type!=='general';
+  return `<article class="review-card"><div class="review-card-head"><div><div class="review-badges"><span class="badge">${esc(reviewTypeLabel(n.type))}</span><span class="badge ${reviewStatusClass(n.status)}">${esc(reviewStatusLabel(n.status))}</span>${(n.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div><h3>${esc(n.title)}</h3><small>${esc(reviewNoteScope(n))} · actualizado ${esc(fmtDate(n.updatedAt))}</small></div><div class="review-actions"><button class="btn small" onclick="openReviewNoteModal('${n.id}')">Editar</button><button class="btn small ghost" onclick="duplicateReviewNote('${n.id}')">Duplicar</button>${canOpen?`<button class="btn small ghost" onclick="reviewOpenLinked('${n.id}')">Abrir contexto</button>`:''}<button class="btn small danger" onclick="deleteReviewNote('${n.id}')">Eliminar</button></div></div><div class="review-metrics">${reviewNoteMetricStrip(n)}</div><div class="review-body"><section><span>Hallazgo / evidencia</span><p>${esc(n.finding||'Sin hallazgo documentado.')}</p></section><section><span>Decisión / siguiente acción</span><p>${esc(n.decision||'Sin decisión documentada.')}</p></section></div><div class="review-card-foot"><label>Estado <select class="select compact-select" onchange="setReviewNoteStatus('${n.id}',this.value)">${REVIEW_STATUSES.map(([v,l])=>`<option value="${v}" ${n.status===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>${n.followUpN?`<span>Revisar tras <strong>${n.followUpN}</strong> operaciones nuevas</span>`:'<span>Sin horizonte de seguimiento</span>'}</div></article>`;
+}
+function reviewView(){
+  const p=getCurrentPlan();ensurePlanReviews(p);const notes=reviewFilteredNotes(),all=p.reviewNotes||[],tags=uniqueSorted(all.flatMap(n=>n.tags||[])),open=all.filter(n=>n.status==='open'||n.status==='monitoring').length,validated=all.filter(n=>n.status==='validated').length,withDecision=all.filter(n=>n.decision.trim()).length;
+  const controls=`<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reviewViewState.unit===v?'active':''}" onclick="reviewSetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reviewViewState.basis===v?'active':''}" onclick="reviewSetBasis('${v}')">${l}</button>`).join('')}</div><button class="btn primary" onclick="openReviewNoteModal()">+ Nueva review</button>`;
+  const filter=`<section class="card filter-hub review-filter"><div class="filter-hub-top"><div><h3>Archivo de investigación</h3><p>Busca conclusiones, decisiones e hipótesis sin perder el contexto que las originó.</p></div><button class="btn small ghost" onclick="reviewResetFilters()">Limpiar</button></div><div class="filter-grid"><label class="filter-field wide"><span>Buscar</span><input id="reviewQ" class="input" value="${esc(reviewViewState.q)}" placeholder="Título, hallazgo, decisión, tag…" onchange="reviewReadFilters()"></label><label class="filter-field"><span>Tipo</span><select id="reviewType" class="select" onchange="reviewReadFilters()"><option value="">Todos</option>${REVIEW_TYPES.map(([v,l])=>`<option value="${v}" ${reviewViewState.type===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="filter-field"><span>Estado</span><select id="reviewStatus" class="select" onchange="reviewReadFilters()"><option value="">Todos</option>${REVIEW_STATUSES.map(([v,l])=>`<option value="${v}" ${reviewViewState.status===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label><label class="filter-field"><span>Tag</span><select id="reviewTag" class="select" onchange="reviewReadFilters()"><option value="">Todos</option>${tags.map(t=>`<option value="${esc(t)}" ${reviewViewState.tag===t?'selected':''}>${esc(t)}</option>`).join('')}</select></label></div></section>`;
+  return `${pageHead('Review & Notes','Convierte observaciones en conocimiento acumulado: documenta hallazgos, decisiones y seguimiento por operación, día, semana, mes, bloque o estudio.',controls)}${activePlanBanner()}<div class="review-kpis">${kpi('Reviews',all.length,'archivo del plan')}${kpi('Abiertas / seguimiento',open,'pendientes de validar')}${kpi('Validadas',validated,'conclusiones consolidadas')}${kpi('Con decisión',withDecision,'acción documentada')}</div>${filter}<section class="review-list">${notes.length?notes.map(reviewNoteCard).join(''):'<div class="card empty">No hay reviews para esta selección. Crea una cuando un bloque, estudio o sesión produzca una conclusión que quieras recordar y volver a comprobar.</div>'}</section>${reviewViewState.unit==='ticks'?mixedInstrumentWarning(currentOps()):''}`;
+}
+
+/* Accesos rápidos desde Calendario y Bloques. */
+const calendarSelectedDetailV19Base=calendarSelectedDetail;
+calendarSelectedDetail=function(monthOps){
+  let html=calendarSelectedDetailV19Base(monthOps);if(!calendarState.selectedDate||!html)return html;
+  const button=`<button class="btn small" onclick="openReviewNoteModal(null,'day','${esc(calendarState.selectedDate)}')">+ Review del día</button>`;
+  return html.replace('<button class="btn small ghost" onclick="calendarSelectDate(',button+'<button class="btn small ghost" onclick="calendarSelectDate(');
+};
+
+/* Widget opcional para Dashboard personalizable. */
+if(!DASHBOARD_PANEL_DEFS.some(x=>x[0]==='reviews'))DASHBOARD_PANEL_DEFS.push(['reviews','Últimas reviews / decisiones']);
+function dashboardReviewsPanel(){
+  const p=getCurrentPlan();ensurePlanReviews(p);const rows=[...(p.reviewNotes||[])].sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).slice(0,5);
+  return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><div><h3>Últimas reviews</h3><small>Conclusiones y decisiones recientes</small></div><button class="btn tiny ghost" onclick="navigate('review')">Abrir</button></div><div class="dashboard-review-list">${rows.length?rows.map(n=>`<button onclick="openReviewNoteModal('${n.id}')"><span><strong>${esc(n.title)}</strong><small>${esc(reviewTypeLabel(n.type))} · ${esc(reviewNoteScope(n))}</small></span><em class="badge ${reviewStatusClass(n.status)}">${esc(reviewStatusLabel(n.status))}</em></button>`).join(''):'<div class="empty compact-empty">Sin reviews todavía.</div>'}</div></section>`;
+}
+const dashboardPanelHtmlV19Base=dashboardPanelHtml;
+dashboardPanelHtml=function(id,ctx){if(id==='reviews')return dashboardReviewsPanel();return dashboardPanelHtmlV19Base(id,ctx);};
+
+const shellV19Base=shell;
+shell=function(){
+  let html=shellV19Base(),galleryButton=navBtn('gallery','▧','Biblioteca visual');
+  html=html.replace(galleryButton,navBtn('review','✎','Review & Notes')+galleryButton);
+  return html.replace(V18_APP_LABEL,V19_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Confianza estadística + Estudios guardados + Plan Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Review & Notes + Confianza estadística + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');
+};
+render=function(){
+  document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');
+  view.innerHTML=currentView==='dashboard'?dashboard():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();
+  setTimeout(hydrateImageElements,0);
+};
+Object.assign(window,{reviewViewState,openReviewNoteModal,reviewRefreshTarget,saveReviewNote,deleteReviewNote,setReviewNoteStatus,duplicateReviewNote,reviewReadFilters,reviewResetFilters,reviewSetUnit,reviewSetBasis,reviewOpenLinked});
+render();
+/* ===== END V19 PATCH ===== */

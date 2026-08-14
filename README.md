@@ -1,4 +1,4 @@
-# Trading Research V23 — Risk & Stress Lab
+# Trading Research V27 — Data Quality Workbench
 
 V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
@@ -163,3 +163,17 @@ Nueva sección principal de calidad del dataset por Trading Plan:
 - Definición añadida al glosario contextual.
 
 No requiere SQL nuevo y mantiene Supabase, Conflict Guard, snapshots, Forward OOS y el resto de módulos sobre la misma base.
+
+## V27 · Data Quality Workbench
+
+- Cola de limpieza secuencial con `Anterior / Siguiente / Guardar y siguiente`.
+- Edición rápida de Setup, VD, NR, Contexto, Hipótesis, checklist, MFE/MAE e imágenes.
+- MFE y MAE distinguen explícitamente `Medido`, `No informado` y `No aplicable / no recuperable`; un 0 medido ya se conserva como cero real.
+- Marcado múltiple como N/A para MFE/MAE cuando sea necesario.
+- Colas rápidas: críticos, incompletos y anomalías.
+- Estándar mínimo configurable de research para score global, clasificación técnica, MFE, MAE, checklist y diario emocional.
+- Estado `Dataset listo / incompleto` sin bloquear el Laboratorio.
+- Aviso contextual de calidad dentro del Laboratorio según el subconjunto actualmente filtrado.
+- El editor completo de operaciones también conserva el estado explícito de MFE/MAE.
+- La cobertura objetivo de MFE usa el nuevo estado explícito.
+- No requiere SQL nuevo y mantiene Supabase / Conflict Guard / Forward OOS intactos.

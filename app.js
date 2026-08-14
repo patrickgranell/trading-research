@@ -4516,3 +4516,248 @@ render=function(){
 Object.assign(window,{dqSetFocus,dqOpenConfigAudit,dataQualityView});
 render();
 /* ===== END V26 PATCH ===== */
+
+/* ===== V27 PATCH · Data Quality Workbench ===== */
+const V27_APP_LABEL='V27 · Data Quality Workbench';
+
+function ensurePlanDataQualityV27(p){
+  if(!p)return p;
+  const d=p.dataQualitySettings&&typeof p.dataQualitySettings==='object'?p.dataQualitySettings:{};
+  p.dataQualitySettings={
+    minScore:Number.isFinite(Number(d.minScore))?Number(d.minScore):85,
+    core:Number.isFinite(Number(d.core))?Number(d.core):95,
+    mfe:Number.isFinite(Number(d.mfe))?Number(d.mfe):95,
+    mae:Number.isFinite(Number(d.mae))?Number(d.mae):95,
+    checklist:Number.isFinite(Number(d.checklist))?Number(d.checklist):90,
+    journal:Number.isFinite(Number(d.journal))?Number(d.journal):90,
+    warnInLab:d.warnInLab!==false
+  };
+  return p;
+}
+state.tradingPlans.forEach(ensurePlanDataQualityV27);
+
+function dqMetricStatus(o,key){
+  const raw=String(o?.dataQuality?.[`${key}Status`]||'').toLowerCase();
+  if(['measured','na','missing'].includes(raw))return raw;
+  return Number.isFinite(Number(o?.[key]))&&Number(o?.[key])>0?'measured':'missing';
+}
+function dqMetricMeasured(o,key){return dqMetricStatus(o,key)==='measured'&&Number.isFinite(Number(o?.[key]))&&Number(o?.[key])>=0;}
+function dqMetricResolved(o,key){return ['measured','na'].includes(dqMetricStatus(o,key));}
+function dqMetricDisplay(o,key){const s=dqMetricStatus(o,key);if(s==='na')return 'N/A';if(s!=='measured')return '—';const v=Number(o?.[key])||0;return `${v.toFixed(2)}R${v===0?' · real':''}`;}
+
+/* MFE/MAE ya pueden distinguir un cero real de un dato ausente. */
+exitHasMfe=function(o){return dqMetricMeasured(o,'mfe');};
+exitHasMae=function(o){return dqMetricMeasured(o,'mae');};
+
+const dqCoverageDefsV27Base=dqCoverageDefs;
+dqCoverageDefs=function(ops){
+  const defs=dqCoverageDefsV27Base(ops),total=ops.length;
+  for(const key of ['mfe','mae']){
+    const idx=defs.findIndex(x=>x.id===key);if(idx<0)continue;
+    const measured=ops.filter(o=>dqMetricMeasured(o,key)),na=ops.filter(o=>dqMetricStatus(o,key)==='na'),missing=ops.filter(o=>dqMetricStatus(o,key)==='missing');
+    defs[idx]={...defs[idx],ok:measured.length,total,pct:dqPct(measured.length,total),resolvedPct:dqPct(measured.length+na.length,total),naIds:na.map(o=>o.id),missingIds:missing.map(o=>o.id),note:`${key.toUpperCase()} registrado; un cero explícitamente medido cuenta como dato real.`};
+  }
+  return defs;
+};
+
+const analyzeDataQualityV27Base=analyzeDataQuality;
+analyzeDataQuality=function(plan=getCurrentPlan(),ops=currentOps()){
+  const a=analyzeDataQualityV27Base(plan,ops);
+  const extra=[];
+  const zeroWin=ops.filter(o=>dqMetricMeasured(o,'mfe')&&Number(o.mfe)===0&&Number(o.rMultiple)>0.02);
+  if(zeroWin.length)extra.push(dqIssue('mfeZeroWin','warning','MFE 0 incompatible con cierre ganador','La operación está marcada con MFE medido = 0, aunque terminó con resultado bruto positivo.',zeroWin));
+  const staleMfe=ops.filter(o=>dqMetricStatus(o,'mfe')!=='measured'&&Number(o.mfe)>0),staleMae=ops.filter(o=>dqMetricStatus(o,'mae')!=='measured'&&Number(o.mae)>0);
+  if(staleMfe.length)extra.push(dqIssue('mfeStatus','warning','Estado MFE incoherente','Existe un valor MFE positivo, pero su estado no figura como medido.',staleMfe));
+  if(staleMae.length)extra.push(dqIssue('maeStatus','warning','Estado MAE incoherente','Existe un valor MAE positivo, pero su estado no figura como medido.',staleMae));
+  if(extra.length){
+    const ids=new Set(a.issues.map(i=>i.id));extra.forEach(i=>{if(!ids.has(i.id))a.issues.push(i);});
+    a.errors=a.issues.filter(i=>i.severity==='error').reduce((s,i)=>s+i.opIds.length,0);
+    a.warnings=a.issues.filter(i=>i.severity==='warning').reduce((s,i)=>s+i.opIds.length,0);
+    a.infos=a.issues.filter(i=>i.severity==='info').reduce((s,i)=>s+i.opIds.length,0);
+    a.penalty=Math.min(20,a.errors*2+a.warnings*.35);
+    a.baseScore=a.coverage.reduce((s,c)=>s+(c.pct/100)*c.weight,0);
+    a.score=Math.max(0,Math.min(100,a.baseScore-a.penalty));
+  }
+  return a;
+};
+
+const dqCoverageCardV27Base=dqCoverageCard;
+dqCoverageCard=function(c){
+  if(!['mfe','mae'].includes(c.id))return dqCoverageCardV27Base(c);
+  const cls=c.pct>=95?'good':c.pct>=70?'mid':'low',na=c.naIds?.length||0,pending=c.missingIds?.length||0;
+  return `<article class="dq-coverage-card ${cls}"><div class="dq-cov-head"><span>${esc(c.label)}</span><strong>${c.pct.toFixed(0)}%</strong></div><div class="dq-cov-bar"><i style="width:${c.pct}%"></i></div><div class="dq-cov-meta"><span>${c.ok}/${c.total} utilizable${na?` · ${na} N/A`:''}</span><small>${esc(c.note)}</small></div>${pending?`<button class="btn tiny ghost" onclick="dqSetFocus('missing:${c.id}')">Ver ${pending} pendiente(s)</button>`:'<span class="dq-complete">✓ Sin pendientes</span>'}</article>`;
+};
+
+function dqFocusLabel(a,f=dataQualityState.focus||'all'){
+  if(f==='group:critical')return 'Errores críticos';
+  if(f==='group:incomplete')return 'Campos incompletos';
+  if(f==='group:anomalies')return 'Todas las anomalías';
+  if(f.startsWith('missing:'))return a.coverage.find(x=>x.id===f.slice(8))?.label||'Pendientes';
+  if(f.startsWith('issue:'))return a.issues.find(x=>x.id===f.slice(6))?.label||'Incidencias';
+  return 'Reparación dirigida';
+}
+const dqFocusOpsV27Base=dqFocusOps;
+dqFocusOps=function(a){
+  const f=dataQualityState.focus||'all';
+  if(f==='group:critical'){
+    const ids=new Set(a.issues.filter(i=>i.severity==='error').flatMap(i=>i.opIds));return a.ops.filter(o=>ids.has(o.id));
+  }
+  if(f==='group:anomalies'){
+    const ids=new Set(a.issues.flatMap(i=>i.opIds));return a.ops.filter(o=>ids.has(o.id));
+  }
+  if(f==='group:incomplete'){
+    const ids=new Set(a.coverage.flatMap(c=>c.missingIds||[]));return a.ops.filter(o=>ids.has(o.id));
+  }
+  return dqFocusOpsV27Base(a);
+};
+const dqSetFocusV27Base=dqSetFocus;
+dqSetFocus=function(f){dataQualityState.workIndex=0;dataQualityState.focus=f||'all';render();setTimeout(()=>document.getElementById('dq-repair')?.scrollIntoView({behavior:'smooth',block:'start'}),40);};
+
+function dqReadiness(ops=currentOps(),p=getCurrentPlan()){
+  ensurePlanDataQualityV27(p);const a=analyzeDataQuality(p,ops),s=p.dataQualitySettings||{},get=id=>a.coverage.find(c=>c.id===id)?.pct||0;
+  const coreIds=['setup','vd','nr','context','hypothesis','strategy'],core=coreIds.reduce((n,id)=>n+get(id),0)/coreIds.length;
+  const checks=[
+    {id:'score',label:'Score global',value:a.score,target:s.minScore,ok:a.score>=s.minScore},
+    {id:'core',label:'Clasificación técnica',value:core,target:s.core,ok:core>=s.core},
+    {id:'mfe',label:'MFE utilizable',value:get('mfe'),target:s.mfe,ok:get('mfe')>=s.mfe},
+    {id:'mae',label:'MAE utilizable',value:get('mae'),target:s.mae,ok:get('mae')>=s.mae},
+    {id:'checklist',label:'Checklist',value:get('checklist'),target:s.checklist,ok:get('checklist')>=s.checklist},
+    {id:'journal',label:'Diario emocional',value:get('journal'),target:s.journal,ok:get('journal')>=s.journal},
+    {id:'integrity',label:'Errores de integridad',value:a.errors,target:0,ok:a.errors===0,inverse:true}
+  ];
+  return {a,checks,ready:!!ops.length&&checks.every(x=>x.ok),core};
+}
+function dqReadinessPanel(){
+  const p=getCurrentPlan(),r=dqReadiness(currentOps(),p),failed=r.checks.filter(x=>!x.ok);
+  return `<section class="card panel dq-readiness ${r.ready?'ready':'pending'}"><div class="panel-title"><div><h3>${r.ready?'✓ Dataset listo para research':'⚠ Dataset incompleto para el estándar elegido'}</h3><small>El estándar no bloquea el Laboratorio; hace visibles las limitaciones de cobertura antes de interpretar resultados.</small></div><button class="btn small" onclick="dqOpenStandardsModal()">⚙ Estándar mínimo</button></div><div class="dq-readiness-grid">${r.checks.map(x=>`<div class="${x.ok?'ok':'fail'}"><span>${esc(x.label)}</span><strong>${x.inverse?x.value:`${x.value.toFixed(0)}%`}</strong><small>${x.inverse?'objetivo: 0 errores':`mínimo: ${Number(x.target).toFixed(0)}%`}</small></div>`).join('')}</div>${failed.length?`<div class="lab-note warn"><strong>Pendiente:</strong> ${failed.map(x=>x.label).join(' · ')}. Puedes limpiar el dataset por bloques sin modificar las operaciones que ya están correctas.</div>`:'<div class="integrity-ok">✓ El dataset cumple el estándar configurado.</div>'}<div class="dq-scope-actions"><span>Cola rápida:</span><button class="btn tiny" onclick="dqSetFocus('group:critical')">Solo críticos</button><button class="btn tiny" onclick="dqSetFocus('group:incomplete')">Solo incompletos</button><button class="btn tiny" onclick="dqSetFocus('group:anomalies')">Solo anomalías</button></div></section>`;
+}
+function dqOpenStandardsModal(){
+  const p=getCurrentPlan();ensurePlanDataQualityV27(p);const s=p.dataQualitySettings;
+  const body=`<form onsubmit="return false"><div class="form-section"><h4>Estándar mínimo de calidad</h4><div class="form-grid">${field('Score global mínimo','dq-minscore','number',s.minScore,'','min="0" max="100" step="1"')}${field('Clasificación técnica mínima %','dq-core','number',s.core,'','min="0" max="100" step="1"')}${field('MFE utilizable mínimo %','dq-mfe','number',s.mfe,'','min="0" max="100" step="1"')}${field('MAE utilizable mínimo %','dq-mae','number',s.mae,'','min="0" max="100" step="1"')}${field('Checklist mínimo %','dq-checklist','number',s.checklist,'','min="0" max="100" step="1"')}${field('Diario emocional mínimo %','dq-journal','number',s.journal,'','min="0" max="100" step="1"')}<label class="field"><span>Aviso dentro del Laboratorio</span><select id="f-dq-warnlab" class="select"><option value="1" ${s.warnInLab?'selected':''}>Sí</option><option value="0" ${!s.warnInLab?'selected':''}>No</option></select></label></div><div class="notice" style="margin-top:12px">Este estándar es una política de investigación, no una regla de trading. No bloquea operaciones ni modifica estadísticas; solo define cuándo consideras suficientemente documentada una muestra.</div></div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Estándar de Data Quality',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="dqSaveStandards()">Guardar estándar</button>`));
+}
+function dqSaveStandards(){
+  const p=getCurrentPlan();if(!p)return;ensurePlanDataQualityV27(p);const n=id=>Math.max(0,Math.min(100,Number(document.getElementById(`f-${id}`)?.value)||0));
+  p.dataQualitySettings={minScore:n('dq-minscore'),core:n('dq-core'),mfe:n('dq-mfe'),mae:n('dq-mae'),checklist:n('dq-checklist'),journal:n('dq-journal'),warnInLab:document.getElementById('f-dq-warnlab')?.value!=='0'};p.updatedAt=new Date().toISOString();persist();closeModal();render();
+}
+
+function dqStatusOptions(current){return `<option value="missing" ${current==='missing'?'selected':''}>No informado</option><option value="measured" ${current==='measured'?'selected':''}>Medido / dato real</option><option value="na" ${current==='na'?'selected':''}>No aplicable / no recuperable</option>`;}
+function dqSelectHtml(id,label,items,current){
+  const list=[...items];if(current&&!list.some(x=>String(x.value)===String(current)))list.unshift({value:current,label:`${current} (actual)`});
+  return `<label class="field"><span>${esc(label)}</span><select id="${id}" class="select"><option value="">— Sin informar —</option>${list.map(x=>`<option value="${esc(x.value)}" ${String(x.value)===String(current)?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label>`;
+}
+function dqWorkbenchChecklist(o,p){
+  const rules=operationChecklistRules(o,p),evaluated=!!o?.compliance?.evaluated;if(!rules.length)return `<div class="notice">Este Trading Plan no tiene reglas de checklist configuradas.</div>`;
+  return `<div class="dq-wb-check"><label class="field"><span>Checklist</span><select id="dq-wb-check-evaluated" class="select" onchange="document.getElementById('dq-wb-check-rules')?.classList.toggle('hidden',this.value!=='yes')"><option value="no" ${!evaluated?'selected':''}>No evaluado</option><option value="yes" ${evaluated?'selected':''}>Evaluado</option></select></label><div id="dq-wb-check-rules" class="operation-checklist-grid ${evaluated?'':'hidden'}">${rules.map(r=>`<label class="operation-check-item ${r.required?'required':''}"><input type="checkbox" data-dqw-check="1" data-id="${esc(r.id)}" data-name="${esc(r.name)}" data-category="${esc(r.category||'Otro')}" data-description="${esc(r.description||'')}" data-required="${r.required===false?'false':'true'}" ${r.checked?'checked':''}><span><strong>${esc(r.name)}</strong><small>${esc(r.category||'Otro')} · ${r.required===false?'Opcional':'Obligatoria'}</small></span></label>`).join('')}</div></div>`;
+}
+function dqReadWorkbenchCompliance(){
+  const el=document.getElementById('dq-wb-check-evaluated');if(!el)return null;if(el.value!=='yes')return {evaluated:false,responses:[],score:null,strict:null,evaluatedAt:new Date().toISOString()};
+  const responses=[...document.querySelectorAll('[data-dqw-check="1"]')].map(x=>({id:x.dataset.id||uid('CHK'),name:x.dataset.name||'Regla',category:x.dataset.category||'Otro',description:x.dataset.description||'',required:x.dataset.required!=='false',checked:!!x.checked})),req=responses.filter(r=>r.required),basis=req.length?req:responses;
+  return {evaluated:true,responses,score:responses.length?responses.filter(r=>r.checked).length/responses.length*100:100,strict:basis.every(r=>r.checked),evaluatedAt:new Date().toISOString()};
+}
+function dqWorkbenchBody(o,index,total){
+  const p=getCurrentPlan();ensurePlanCompliance(p);const setups=(p.setups||[]).map(x=>({value:x,label:x})),vds=(p.vd||[]).map(x=>({value:x,label:x})),nrs=(p.nr||[]).map(x=>({value:x,label:x})),contexts=(p.contextDefinitions||[]).map(x=>({value:x.key,label:x.key})),hyps=(p.hypotheses||[]).map(x=>({value:x.id||x.name,label:x.name||x.id}));
+  const mfeS=dqMetricStatus(o,'mfe'),maeS=dqMetricStatus(o,'mae'),label=dqFocusLabel(analyzeDataQuality(p,currentOps()));
+  return `<div class="dq-workbench"><div class="dq-wb-top"><div><span>Cola · ${esc(label)}</span><strong>${index+1} / ${total}</strong></div><div class="dq-wb-nav"><button class="btn tiny" onclick="dqWorkbenchNavigate(-1)" ${index<=0?'disabled':''}>← Anterior</button><button class="btn tiny" onclick="dqWorkbenchNavigate(1)" ${index>=total-1?'disabled':''}>Siguiente →</button></div></div><div class="trade-context-strip"><strong>${esc(fmtDate(o.entryDate))} · ${esc(o.contract||o.instrumentSnapshot?.symbol||'—')} · ${esc(o.direction||'—')}</strong><span>${esc(o.setup||'—')} · ${esc(o.vd||'—')} · ${esc(o.h4Context||'—')}</span><em class="${Number(o.rMultiple)>0?'positive':Number(o.rMultiple)<0?'negative':''}">${Number(o.rMultiple||0).toFixed(2)}R</em></div><div class="dq-wb-grid"><section class="form-section"><h4>Clasificación técnica rápida</h4><div class="form-grid">${dqSelectHtml('dq-wb-setup','Setup',setups,o.setup||'')}${dqSelectHtml('dq-wb-vd','VD',vds,o.vd||'')}${dqSelectHtml('dq-wb-nr','NR',nrs,o.nr||'')}${dqSelectHtml('dq-wb-context','Contexto',contexts,o.h4Context||'')}${dqSelectHtml('dq-wb-hypothesis','Hipótesis',hyps,o.hypothesis||'')}</div></section><section class="form-section"><h4>MFE / MAE · estado explícito</h4><div class="dq-wb-excursions"><label class="field"><span>Estado MFE</span><select id="dq-wb-mfe-status" class="select">${dqStatusOptions(mfeS)}</select></label><label class="field"><span>MFE (R)</span><input id="dq-wb-mfe" class="input" type="number" min="0" step="any" value="${mfeS==='measured'?esc(o.mfe??0):''}"></label><label class="field"><span>Estado MAE</span><select id="dq-wb-mae-status" class="select">${dqStatusOptions(maeS)}</select></label><label class="field"><span>MAE (R)</span><input id="dq-wb-mae" class="input" type="number" min="0" step="any" value="${maeS==='measured'?esc(o.mae??0):''}"></label></div><div class="help">“Medido” permite guardar 0.00R como cero real. “No aplicable / no recuperable” resuelve la cola de limpieza, aunque ese trade no contará como dato utilizable en Exit Lab.</div></section><section class="form-section"><h4>Checklist del plan</h4>${dqWorkbenchChecklist(o,p)}</section><section class="form-section"><div class="section-title-row"><div><h4>Diario e imagen</h4><div class="help">Puedes completar el diario en su editor especializado o adjuntar aquí una captura rápida.</div></div><button class="btn small" onclick="dqWorkbenchJournal('${o.id}')">Abrir diario</button></div><div class="form-grid"><label class="field span2"><span>Nueva captura</span><input id="dq-wb-screens" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple></label><label class="field"><span>Categoría</span><select id="dq-wb-screen-category" class="select">${imageLabelOptions('Contexto')}</select></label><label class="field"><span>Nota</span><input id="dq-wb-screen-caption" class="input" placeholder="Opcional"></label></div><div class="dq-wb-statusline"><span>Checklist: <strong>${o?.compliance?.evaluated?'evaluado':'pendiente'}</strong></span><span>Diario: <strong>${hasEmotionalEntry(o)?'completado':'pendiente'}</strong></span><span>Imágenes: <strong>${(o.images||[]).length}</strong></span></div></section></div><div class="notice"><strong>Campos que requieren recálculo:</strong> contrato, estrategia de riesgo, ticks, P&amp;L, R o timestamps se corrigen desde el editor completo para mantener todos los derivados coherentes.</div></div>`;
+}
+function dqOpenWorkbench(index=null){
+  const a=analyzeDataQuality(getCurrentPlan(),currentOps()),rows=dqFocusOps(a);if(!rows.length)return alert('No hay operaciones pendientes en esta selección.');
+  const i=Math.max(0,Math.min(rows.length-1,index===null?(dataQualityState.workIndex||0):Number(index)||0));dataQualityState.workIndex=i;const o=rows[i];
+  document.body.insertAdjacentHTML('beforeend',modalShell('Data Quality Workbench',dqWorkbenchBody(o,i,rows.length),`<button class="btn" onclick="dqWorkbenchFullEdit('${o.id}')">Editor completo</button><button class="btn" onclick="closeModal()">Cerrar</button><button class="btn primary" onclick="dqSaveWorkbench(false)">Guardar</button><button class="btn primary" onclick="dqSaveWorkbench(true)">Guardar y siguiente</button>`));
+}
+function dqWorkbenchNavigate(delta){const a=analyzeDataQuality(getCurrentPlan(),currentOps()),rows=dqFocusOps(a);if(!rows.length)return;const next=Math.max(0,Math.min(rows.length-1,(dataQualityState.workIndex||0)+Number(delta||0)));closeModal();dqOpenWorkbench(next);}
+function dqWorkbenchFullEdit(id){closeModal();editOperation(id);}
+function dqWorkbenchJournal(id){closeModal();openEmotionalEditor(id);}
+async function dqSaveWorkbench(next=false){
+  const p=getCurrentPlan(),a=analyzeDataQuality(p,currentOps()),rows=dqFocusOps(a),i=Math.max(0,Math.min(rows.length-1,dataQualityState.workIndex||0)),o=rows[i];if(!o)return;
+  const val=id=>document.getElementById(id)?.value??'';
+  const mfeS=val('dq-wb-mfe-status')||'missing',maeS=val('dq-wb-mae-status')||'missing',mfe=Number(val('dq-wb-mfe')||0),mae=Number(val('dq-wb-mae')||0);
+  if(mfeS==='measured'&&(!Number.isFinite(mfe)||mfe<0))return alert('MFE debe ser 0 o mayor cuando está marcado como medido.');
+  if(maeS==='measured'&&(!Number.isFinite(mae)||mae<0))return alert('MAE debe ser 0 o mayor cuando está marcado como medido.');
+  const comp=dqReadWorkbenchCompliance();if(comp?.evaluated){const failed=comp.responses.filter(r=>r.required&&!r.checked);if(failed.length&&!confirm(`Hay ${failed.length} regla(s) obligatoria(s) sin cumplir. ¿Guardar igualmente este snapshot de checklist?`))return;}
+  o.setup=val('dq-wb-setup');o.vd=val('dq-wb-vd');o.nr=val('dq-wb-nr');o.h4Context=val('dq-wb-context');o.hypothesis=val('dq-wb-hypothesis');
+  o.dataQuality={...(o.dataQuality||{}),mfeStatus:mfeS,maeStatus:maeS,reviewedAt:new Date().toISOString()};o.mfe=mfeS==='measured'?mfe:0;o.mae=maeS==='measured'?mae:0;if(comp)o.compliance=clone(comp);
+  const files=[...(document.getElementById('dq-wb-screens')?.files||[])],category=val('dq-wb-screen-category')||'Contexto',caption=String(val('dq-wb-screen-caption')||'').trim();o.images=clone(o.images||[]);
+  for(const file of files){const id=uid('IMG');await storeImageFile(file,id);o.images.push({id,label:category,caption:caption||file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()});}
+  o.updatedAt=new Date().toISOString();persist();closeModal();render();if(!next)return;
+  const after=dqFocusOps(analyzeDataQuality(p,currentOps()));if(!after.length){setTimeout(()=>alert('Selección completada: no quedan operaciones pendientes en esta cola.'),40);return;}
+  const still=after.findIndex(x=>x.id===o.id),target=still>=0?Math.min(after.length-1,still+1):Math.min(after.length-1,i);dataQualityState.workIndex=target;setTimeout(()=>dqOpenWorkbench(target),40);
+}
+function dqToggleRepairChecks(checked){document.querySelectorAll('[data-dq-row-check="1"]').forEach(x=>x.checked=!!checked);}
+function dqBatchMarkNA(key){
+  if(!['mfe','mae'].includes(key))return;const ids=[...document.querySelectorAll('[data-dq-row-check="1"]:checked')].map(x=>x.value);if(!ids.length)return alert('Selecciona al menos una operación.');
+  if(!confirm(`Marcar ${ids.length} operación(es) como ${key.toUpperCase()} no aplicable / no recuperable?\n\nDejarán de aparecer como pendientes, pero no contarán como datos utilizables.`))return;
+  ids.forEach(id=>{const o=state.operations.find(x=>x.id===id);if(!o)return;o.dataQuality={...(o.dataQuality||{}),[`${key}Status`]:'na',reviewedAt:new Date().toISOString()};o[key]=0;o.updatedAt=new Date().toISOString();});persist();render();
+}
+
+dqRepairTable=function(a){
+  const rows=dqFocusOps(a),f=dataQualityState.focus||'all';
+  if(f==='all')return `<section id="dq-repair" class="card panel dq-repair"><div class="panel-title"><div><h3>Data Quality Workbench</h3><small>Selecciona una cobertura, anomalía o una cola rápida para revisar operaciones secuencialmente.</small></div></div><div class="empty">No hay un problema seleccionado.</div></section>`;
+  const label=dqFocusLabel(a,f),bulkKey=f==='missing:mfe'?'mfe':f==='missing:mae'?'mae':'';
+  return `<section id="dq-repair" class="card panel dq-repair"><div class="panel-title"><div><h3>${esc(label)}</h3><small>${rows.length} operación(es) en la cola actual.</small></div><div class="dq-repair-actions"><button class="btn small primary" onclick="dqOpenWorkbench(0)" ${rows.length?'':'disabled'}>▶ Revisar secuencialmente</button>${bulkKey?`<button class="btn small" onclick="dqToggleRepairChecks(true)">Seleccionar visibles</button><button class="btn small" onclick="dqBatchMarkNA('${bulkKey}')">Marcar N/A</button>`:''}<button class="btn small ghost" onclick="dqSetFocus('all')">Cerrar selección</button></div></div>${rows.length?`<div class="dq-progress-strip"><span>Pendientes en esta cola</span><strong>${rows.length}</strong><i><b style="width:${Math.max(3,Math.min(100,100-rows.length/Math.max(1,a.ops.length)*100))}%"></b></i></div><div class="table-wrap"><table class="table compact-table"><thead><tr>${bulkKey?'<th>✓</th>':''}<th>Fecha</th><th>Contrato</th><th>Setup</th><th>VD</th><th>Contexto</th><th>Resultado</th><th>MFE</th><th>MAE</th><th>Acciones</th></tr></thead><tbody>${rows.slice(0,150).map(o=>`<tr>${bulkKey?`<td><input type="checkbox" data-dq-row-check="1" value="${o.id}"></td>`:''}<td>${esc(fmtDate(o.entryDate))}</td><td>${esc(o.contract||o.instrumentSnapshot?.symbol||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.h4Context||'—')}</td><td class="${Number(o.rMultiple)>0?'positive':Number(o.rMultiple)<0?'negative':''}">${Number(o.rMultiple||0).toFixed(2)}R</td><td>${esc(dqMetricDisplay(o,'mfe'))}</td><td>${esc(dqMetricDisplay(o,'mae'))}</td><td><button class="btn tiny" onclick="viewOperation('${o.id}')">Ver</button> <button class="btn tiny" onclick="editOperation('${o.id}')">Editar</button></td></tr>`).join('')}</tbody></table></div>${rows.length>150?`<div class="notice">Mostrando las primeras 150 operaciones de ${rows.length}.</div>`:''}`:'<div class="integrity-ok">✓ No quedan operaciones pendientes en esta selección.</div>'}</section>`;
+};
+
+const dataQualityViewV27Base=dataQualityView;
+dataQualityView=function(){
+  let html=dataQualityViewV27Base();const marker='<section class="card panel dq-coverage">';html=html.replace(marker,dqReadinessPanel()+marker);
+  html=html.replace(/<div class="lab-note warn"><strong>MFE \/ MAE:<\/strong>[\s\S]*?<\/div><\/section>/,`<div class="lab-note warn"><strong>MFE / MAE:</strong> V27 guarda un estado explícito: <em>Medido</em>, <em>No informado</em> o <em>No aplicable / no recuperable</em>. Un 0.00R marcado como medido ya se reconoce como cero real. Los N/A resuelven la cola de limpieza, aunque no cuentan como observaciones utilizables para análisis de excursiones.</div></section>`);
+  return html;
+};
+
+/* Estado MFE/MAE también disponible desde el editor completo de la operación. */
+const operationFormV27Base=operationForm;
+operationForm=function(o,r,p){
+  let html=operationFormV27Base(o,r,p),mfeS=dqMetricStatus(o||{},'mfe'),maeS=dqMetricStatus(o||{},'mae');
+  const section=`<div class="form-section dq-op-quality-status"><h4>Data Quality · estado MFE/MAE</h4><div class="form-grid"><label class="field"><span>Estado MFE</span><select id="dq-form-mfe-status" class="select">${dqStatusOptions(mfeS)}</select></label><label class="field"><span>Estado MAE</span><select id="dq-form-mae-status" class="select">${dqStatusOptions(maeS)}</select></label></div><div class="help">Si el valor real fue exactamente 0, selecciona “Medido / dato real”. Así deja de confundirse con un campo no informado.</div></div>`;
+  return html.replace('</form>',section+'</form>');
+};
+const saveOperationFromFormV27Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const targetId=editingId||null,planId=state.currentPlanId,beforeIds=new Set(state.operations.map(o=>o.id)),old=targetId?state.operations.find(o=>o.id===targetId):null,oldMeta=clone(old?.dataQuality||{}),mfeS=document.getElementById('dq-form-mfe-status')?.value||dqMetricStatus(old||{},'mfe'),maeS=document.getElementById('dq-form-mae-status')?.value||dqMetricStatus(old||{},'mae');
+  await saveOperationFromFormV27Base();
+  const op=targetId?state.operations.find(o=>o.id===targetId):state.operations.find(o=>o.tradingPlanId===planId&&!beforeIds.has(o.id));if(!op)return;
+  op.dataQuality={...oldMeta,mfeStatus:mfeS,maeStatus:maeS,reviewedAt:new Date().toISOString()};if(mfeS!=='measured')op.mfe=0;if(maeS!=='measured')op.mae=0;op.updatedAt=new Date().toISOString();persist();render();
+};
+
+/* La meta de cobertura MFE usa ahora estado explícito. */
+const goalEvalV27Base=goalEval;
+goalEval=function(goal){
+  const out=goalEvalV27Base(goal);if(goal?.metric!=='mfe')return out;const ops=out.ops,target=Number(goal.target)||0,done=ops.filter(o=>dqMetricMeasured(o,'mfe')).length,value=ops.length?done/ops.length*100:0;out.value=value;out.hasData=!!ops.length;out.display=out.hasData?`${value.toFixed(1)}%`:'—';out.targetDisplay=`${target.toFixed(1)}%`;out.met=out.hasData&&value>=target;out.progress=out.hasData?(target<=0?100:Math.max(0,Math.min(100,value/target*100))):0;return out;
+};
+
+/* Ficha visual: no volver a mostrar 0.00R cuando realmente significa ausente. */
+const viewOperationV27Base=viewOperation;
+viewOperation=function(id){
+  viewOperationV27Base(id);const o=state.operations.find(x=>x.id===id);if(!o)return;setTimeout(()=>{document.querySelectorAll('.modal-backdrop .trade-detail-kpis>div').forEach(d=>{const label=d.querySelector('span')?.textContent?.trim();if(label==='MFE')d.querySelector('strong').textContent=dqMetricDisplay(o,'mfe');if(label==='MAE')d.querySelector('strong').textContent=dqMetricDisplay(o,'mae');});},0);
+};
+
+function dqLabReadinessBanner(ops){
+  const p=getCurrentPlan();ensurePlanDataQualityV27(p);if(!p.dataQualitySettings.warnInLab)return '';const r=dqReadiness(ops,p),mfe=r.a.coverage.find(c=>c.id==='mfe')?.pct||0,mae=r.a.coverage.find(c=>c.id==='mae')?.pct||0,check=r.a.coverage.find(c=>c.id==='checklist')?.pct||0;
+  if(r.ready)return `<div class="lab-quality-banner good"><span>✓ Calidad del subconjunto</span><strong>${r.a.score.toFixed(0)}/100</strong><small>Cumple el estándar configurado.</small><button class="btn tiny" onclick="navigate('quality')">Ver calidad</button></div>`;
+  return `<div class="lab-quality-banner warn"><span>⚠ Calidad del subconjunto</span><strong>${r.a.score.toFixed(0)}/100</strong><small>MFE ${mfe.toFixed(0)}% · MAE ${mae.toFixed(0)}% · Checklist ${check.toFixed(0)}%. Los módulos siguen disponibles, pero interpreta cada uno según su cobertura real.</small><button class="btn tiny" onclick="navigate('quality')">Limpiar dataset</button></div>`;
+}
+const analyticsLabV27Base=analyticsLab;
+analyticsLab=function(){let html=analyticsLabV27Base(),banner=dqLabReadinessBanner(labFilteredOps());return html.replace('<div class="lab-grid">',banner+'<div class="lab-grid">');};
+
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push(
+  {id:'dataworkbench',terms:['data quality workbench','limpieza de datos','corregir y siguiente','no aplicable'],title:'Data Quality Workbench',summary:'Cola de revisión para completar o clasificar rápidamente operaciones con campos pendientes o anomalías.',body:'Permite revisar operaciones una a una, guardar MFE/MAE con estado explícito, completar clasificaciones y checklist, adjuntar imágenes y pasar automáticamente a la siguiente. MFE/MAE distinguen Medido, No informado y No aplicable/no recuperable.',use:'Reduce la fricción de limpiar muestras grandes y evita que un cero real de MFE/MAE se confunda con un dato ausente.'},
+  {id:'readiness',terms:['dataset listo','estándar mínimo','research readiness'],title:'Estándar mínimo de research',summary:'Umbrales de cobertura que decides exigir antes de considerar suficientemente documentada una muestra.',body:'Puedes fijar mínimos para score global, clasificación técnica, MFE, MAE, checklist y diario emocional. El estándar no bloquea el Laboratorio: genera una señal de calidad y advertencias contextuales.',use:'Hace explícito qué calidad de datos exiges antes de tomar en serio una conclusión estadística.'}
+);
+
+const shellV27Base=shell;
+shell=function(){return shellV27Base().replace(V26_APP_LABEL,V27_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Data Quality + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Data Quality Workbench + Forward OOS + Walk-Forward + Risk & Stress + Robustez Monte Carlo + Ayuda contextual + Objetivos + Review & Notes + Confianza + Estudios + Compliance + Dashboard + Calendario + Research Grid + Exit Lab sobre la misma base estable.');};
+
+Object.assign(window,{dqSetFocus,dqOpenWorkbench,dqWorkbenchNavigate,dqWorkbenchFullEdit,dqWorkbenchJournal,dqSaveWorkbench,dqToggleRepairChecks,dqBatchMarkNA,dqOpenStandardsModal,dqSaveStandards,dataQualityView,saveOperationFromForm,viewOperation});
+render();
+/* ===== END V27 PATCH ===== */
+
+/* V27.0.1 · textos de excursiones compatibles con estado explícito */
+const exitLabModuleV27TextBase=exitLabModule;
+exitLabModule=function(ops){
+  return exitLabModuleV27TextBase(ops)
+    .replaceAll('MAE &gt; 0','MAE marcado como medido')
+    .replaceAll('solo MFE &gt; 0','MFE marcado como medido')
+    .replaceAll('Las importaciones actuales guardan MFE/MAE como 0 cuando ese dato no viene informado. Para evitar conclusiones falsas, Exit Lab trata <strong>MFE = 0</strong> como “no distinguible de dato ausente” y no lo usa en simulaciones.','V27 distingue MFE/MAE medido, no informado y no aplicable. Un <strong>MFE = 0</strong> marcado como medido se trata como una excursión real de cero; los datos no informados o N/A quedan fuera de las simulaciones.');
+};
+Object.assign(window,{exitLabModule});
+render();

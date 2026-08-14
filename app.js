@@ -2214,3 +2214,226 @@ Object.assign(window,{setAppTheme});
 applyAppTheme(appTheme,{rerender:false});
 render();
 /* ===== END V11.5 PATCH ===== */
+
+/* ===== V12 PATCH · Research Grid / Pivot Analytics ===== */
+const V12_APP_LABEL='V12 · Research Grid';
+
+let researchGridState={
+  rowDim:'setup',
+  colDim:'context',
+  metric:'expectancy',
+  minN:1,
+  maxCats:12,
+  selection:null
+};
+
+const RESEARCH_DIMS=[
+  ['setup','Setup'],
+  ['context','Contexto'],
+  ['vd','VD'],
+  ['nr','NR'],
+  ['hypothesis','Hipótesis'],
+  ['strategy','Estrategia'],
+  ['direction','Dirección'],
+  ['hour','Hora'],
+  ['behavior','Comportamiento'],
+  ['emotion','Emoción'],
+  ['focus','Foco'],
+  ['stress','Estrés']
+];
+const RESEARCH_METRICS=[
+  ['expectancy','Expectancy'],
+  ['sum','Resultado total'],
+  ['winrate','Win rate'],
+  ['pf','Profit Factor'],
+  ['n','N.º operaciones'],
+  ['avgWin','Media ganadora'],
+  ['avgLoss','Media perdedora'],
+  ['maxDD','Max drawdown']
+];
+
+function researchDimLabel(dim){return RESEARCH_DIMS.find(x=>x[0]===dim)?.[1]||dim;}
+function researchDimValues(o,dim){
+  if(dim==='behavior')return [...new Set((o.emotional?.behaviors||[]).filter(Boolean).map(String))];
+  if(dim==='emotion')return [...new Set(labEmotionsOf(o).filter(Boolean).map(String))];
+  if(dim==='focus'){const v=o.emotional?.focus;return v===undefined||v===null||v===''?[]:[String(v)];}
+  if(dim==='stress'){const v=o.emotional?.stress;return v===undefined||v===null||v===''?[]:[String(v)];}
+  if(dim==='strategy'){
+    const name=String(o.riskStrategyName||'').trim();
+    if(name)return [name];
+    const p=getCurrentPlan(),r=(p?.riskStrategies||[]).find(x=>x.id===o.riskStrategyId);
+    return r?.name?[String(r.name)]:[];
+  }
+  return [String(edgeDimensionValues(o,dim)||'—')];
+}
+function researchDisplayValue(dim,val){
+  if(dim==='focus')return `Foco ${val}`;
+  if(dim==='stress')return `Estrés ${val}`;
+  return String(val);
+}
+function researchLabField(dim){
+  return ({setup:'setup',context:'context',vd:'vd',nr:'nr',hypothesis:'hypothesis',strategy:'risk',direction:'direction',hour:'hour',behavior:'behavior',emotion:'emotion',focus:'focus',stress:'stress'})[dim]||'';
+}
+function researchCurrentDimValue(dim){
+  if(dim==='strategy'){
+    const p=getCurrentPlan(),r=(p?.riskStrategies||[]).find(x=>x.id===labState.risk);
+    return r?.name||'';
+  }
+  const field=researchLabField(dim);return field?String(labState[field]??''):'';
+}
+function researchSetLabDim(dim,val){
+  const field=researchLabField(dim);if(!field)return false;
+  if(dim==='strategy'){
+    const p=getCurrentPlan(),r=(p?.riskStrategies||[]).find(x=>String(x.name)===String(val));
+    if(!r)return false;labState.risk=r.id;return true;
+  }
+  labState[field]=String(val);return true;
+}
+function researchRestoreSelectionInternal(){
+  const s=researchGridState.selection;if(!s)return;
+  const dims=[...new Set([s.rowDim,s.colDim])];
+  dims.forEach(dim=>{
+    const selected=dim===s.rowDim?s.rowVal:s.colVal;
+    if(String(researchCurrentDimValue(dim))!==String(selected))return;
+    const field=researchLabField(dim);if(field)labState[field]=s.previous?.[field]??'';
+  });
+  researchGridState.selection=null;
+}
+function researchSelectionStillApplied(){
+  const s=researchGridState.selection;if(!s)return false;
+  const ok=String(researchCurrentDimValue(s.rowDim))===String(s.rowVal)&&String(researchCurrentDimValue(s.colDim))===String(s.colVal);
+  if(!ok)researchGridState.selection=null;
+  return ok;
+}
+function researchApplyCell(rowDim,rowVal,colDim,colVal){
+  const s=researchGridState.selection;
+  if(s&&s.rowDim===rowDim&&s.colDim===colDim&&String(s.rowVal)===String(rowVal)&&String(s.colVal)===String(colVal)){
+    researchRestoreSelectionInternal();render();return;
+  }
+  researchRestoreSelectionInternal();
+  const previous={};
+  [...new Set([rowDim,colDim])].forEach(dim=>{const f=researchLabField(dim);if(f)previous[f]=labState[f]??'';});
+  if(!researchSetLabDim(rowDim,rowVal)||!researchSetLabDim(colDim,colVal)){
+    Object.entries(previous).forEach(([k,v])=>labState[k]=v);
+    researchGridState.selection=null;render();return;
+  }
+  researchGridState.selection={rowDim,rowVal:String(rowVal),colDim,colVal:String(colVal),previous};
+  render();
+}
+function researchClearSelection(){researchRestoreSelectionInternal();render();}
+function setResearchGridDim(axis,val){
+  researchRestoreSelectionInternal();
+  if(axis==='row'){
+    const old=researchGridState.rowDim;
+    if(val===researchGridState.colDim)researchGridState.colDim=old;
+    researchGridState.rowDim=val;
+  }else{
+    const old=researchGridState.colDim;
+    if(val===researchGridState.rowDim)researchGridState.rowDim=old;
+    researchGridState.colDim=val;
+  }
+  render();
+}
+function swapResearchGridAxes(){researchRestoreSelectionInternal();const x=researchGridState.rowDim;researchGridState.rowDim=researchGridState.colDim;researchGridState.colDim=x;render();}
+function setResearchGridMetric(v){researchGridState.metric=v;render();}
+function setResearchGridMinN(v){researchGridState.minN=Math.max(1,Number(v)||1);render();}
+function setResearchGridMaxCats(v){researchGridState.maxCats=Math.max(4,Number(v)||12);render();}
+
+function researchCategoryCounts(ops,dim){
+  const m=new Map();
+  ops.forEach(o=>[...new Set(researchDimValues(o,dim))].forEach(v=>m.set(v,(m.get(v)||0)+1)));
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0]),'es')).slice(0,researchGridState.maxCats).map(x=>x[0]);
+}
+function researchSubset(ops,rowDim,rowVal,colDim,colVal){
+  return ops.filter(o=>researchDimValues(o,rowDim).includes(String(rowVal))&&researchDimValues(o,colDim).includes(String(colVal)));
+}
+function researchMetricValue(stats,metric=researchGridState.metric){
+  if(metric==='sum')return stats.sum;
+  if(metric==='winrate')return stats.winRate;
+  if(metric==='pf')return stats.pf;
+  if(metric==='n')return stats.n;
+  if(metric==='avgWin')return stats.avgWin;
+  if(metric==='avgLoss')return stats.avgLoss;
+  if(metric==='maxDD')return stats.maxDD;
+  return stats.expectancy;
+}
+function researchMetricText(stats,metric=researchGridState.metric){
+  const v=researchMetricValue(stats,metric);
+  if(metric==='n')return String(stats.n);
+  if(metric==='winrate')return `${Number(v||0).toFixed(1)}%`;
+  if(metric==='pf')return Number.isFinite(v)?Number(v||0).toFixed(2):(stats.n?'∞':'—');
+  return metricStatText(v,labState.unit);
+}
+function researchColorScore(stats,metric=researchGridState.metric){
+  if(!stats.n)return null;
+  if(metric==='pf')return Number.isFinite(stats.pf)?stats.pf-1:2;
+  if(metric==='winrate'||metric==='n')return null;
+  return Number(researchMetricValue(stats,metric))||0;
+}
+function researchNeutralCellColor(v,max){
+  const ratio=Math.min(1,Math.max(0,Number(v||0))/(max||1));
+  const a=(appTheme==='light'?.05:.06)+ratio*(appTheme==='light'?.17:.20);
+  return `rgba(47,111,237,${a})`;
+}
+function researchCellColor(stats,maxScore,maxNeutral){
+  if(!stats.n)return '';
+  if(researchGridState.metric==='n')return researchNeutralCellColor(stats.n,maxNeutral);
+  if(researchGridState.metric==='winrate')return researchNeutralCellColor(stats.winRate,100);
+  const score=researchColorScore(stats);return labHeatColor(score,maxScore||1);
+}
+function researchGridModule(ops){
+  const rowDim=researchGridState.rowDim,colDim=researchGridState.colDim,metric=researchGridState.metric,minN=researchGridState.minN;
+  const active=researchSelectionStillApplied()?researchGridState.selection:null;
+  const rows=researchCategoryCounts(ops,rowDim),cols=researchCategoryCounts(ops,colDim);
+  const cells={},rowTotals={},colTotals={};let maxScore=0,maxNeutral=1;
+  rows.forEach(r=>{
+    const sub=ops.filter(o=>researchDimValues(o,rowDim).includes(String(r)));rowTotals[r]=calcMetricStats(sub,labState.unit,labState.basis);
+  });
+  cols.forEach(c=>{
+    const sub=ops.filter(o=>researchDimValues(o,colDim).includes(String(c)));colTotals[c]=calcMetricStats(sub,labState.unit,labState.basis);
+  });
+  rows.forEach(r=>cols.forEach(c=>{
+    const s=calcMetricStats(researchSubset(ops,rowDim,r,colDim,c),labState.unit,labState.basis);cells[`${r}|||${c}`]=s;
+    const score=researchColorScore(s);if(score!==null&&Number.isFinite(score))maxScore=Math.max(maxScore,Math.abs(score));maxNeutral=Math.max(maxNeutral,s.n);
+  }));
+  maxScore=maxScore||1;
+  const global=calcMetricStats(ops,labState.unit,labState.basis);
+  const dimOptions=RESEARCH_DIMS.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('');
+  const rowOptions=dimOptions.replace(`value="${rowDim}"`,`value="${rowDim}" selected`);
+  const colOptions=dimOptions.replace(`value="${colDim}"`,`value="${colDim}" selected`);
+  const metricOptions=RESEARCH_METRICS.map(([v,l])=>`<option value="${v}" ${metric===v?'selected':''}>${esc(l)}</option>`).join('');
+  const controls=`<div class="research-grid-controls"><label><span>Filas</span><select class="select compact-select" onchange="setResearchGridDim('row',this.value)">${rowOptions}</select></label><button class="btn small ghost research-swap" onclick="swapResearchGridAxes()" title="Intercambiar filas y columnas">⇄</button><label><span>Columnas</span><select class="select compact-select" onchange="setResearchGridDim('col',this.value)">${colOptions}</select></label><label><span>Métrica</span><select class="select compact-select" onchange="setResearchGridMetric(this.value)">${metricOptions}</select></label><label><span>Muestra mín.</span><select class="select compact-select" onchange="setResearchGridMinN(this.value)">${[1,3,5,10,20].map(v=>`<option value="${v}" ${minN===v?'selected':''}>n ≥ ${v}</option>`).join('')}</select></label><label><span>Máx. categorías</span><select class="select compact-select" onchange="setResearchGridMaxCats(this.value)">${[8,12,20].map(v=>`<option value="${v}" ${researchGridState.maxCats===v?'selected':''}>${v}</option>`).join('')}</select></label>${active?'<button class="btn small ghost chart-reset" onclick="researchClearSelection()">Restablecer selección</button>':''}</div>`;
+  if(!rows.length||!cols.length)return `<section class="card panel lab-module lab-span-2 research-grid-module"><div class="panel-title"><div><h3>Research Grid</h3><small>Tabla dinámica multidimensional del subconjunto actual</small></div></div>${controls}<div class="empty">No hay categorías suficientes para estos ejes. Prueba con Setup, Contexto, VD o Dirección.</div></section>`;
+  const head=cols.map(c=>`<th><span>${esc(researchDisplayValue(colDim,c))}</span><small>n=${colTotals[c]?.n||0}</small></th>`).join('');
+  const body=rows.map(r=>`<tr><th class="research-row-head"><span>${esc(researchDisplayValue(rowDim,r))}</span><small>n=${rowTotals[r]?.n||0}</small></th>${cols.map(c=>{
+    const s=cells[`${r}|||${c}`],low=s.n>0&&s.n<minN,selected=active&&active.rowDim===rowDim&&active.colDim===colDim&&String(active.rowVal)===String(r)&&String(active.colVal)===String(c),title=`${researchDimLabel(rowDim)}: ${researchDisplayValue(rowDim,r)} · ${researchDimLabel(colDim)}: ${researchDisplayValue(colDim,c)} · ${researchMetricText(s)} · n=${s.n}`;
+    return `<td class="research-cell ${low?'low-sample':''} ${selected?'lab-selected-cell':''} ${s.n?'':'empty-cell'}" style="${s.n?`background:${researchCellColor(s,maxScore,maxNeutral)}`:''}" onclick="${s.n?`researchApplyCell('${rowDim}',decodeURIComponent('${encodeURIComponent(r)}'),'${colDim}',decodeURIComponent('${encodeURIComponent(c)}'))`:''}" title="${esc(title)}"><strong>${s.n?researchMetricText(s):'—'}</strong><small>n=${s.n}${low?' · baja':''}</small></td>`;
+  }).join('')}<td class="research-total-cell"><strong>${researchMetricText(rowTotals[r])}</strong><small>Total fila</small></td></tr>`).join('');
+  const foot=`<tr class="research-total-row"><th>Total columna</th>${cols.map(c=>`<td class="research-total-cell"><strong>${researchMetricText(colTotals[c])}</strong><small>n=${colTotals[c].n}</small></td>`).join('')}<td class="research-grand-total"><strong>${researchMetricText(global)}</strong><small>n=${global.n}</small></td></tr>`;
+  const selectionNote=active?`<div class="research-selection-note"><strong>Selección activa:</strong> ${esc(researchDisplayValue(rowDim,active.rowVal))} × ${esc(researchDisplayValue(colDim,active.colVal))}. El resto del Laboratorio está calculado sobre esa combinación.</div>`:'';
+  const tagNote=['behavior','emotion'].includes(rowDim)||['behavior','emotion'].includes(colDim)?'<div class="lab-note warn">Comportamiento y Emoción son etiquetas múltiples: una misma operación puede pertenecer a más de una categoría, aunque dentro de cada celda solo se cuenta una vez.</div>':'';
+  return `<section class="card panel lab-module lab-span-2 research-grid-module"><div class="panel-title"><div><h3>Research Grid</h3><small>Pivot multidimensional · elige filas, columnas y métrica; usa la unidad/base global del Laboratorio</small></div><span>${ops.length} operaciones</span></div>${controls}${selectionNote}<div class="research-grid-wrap"><table class="research-grid-table"><thead><tr><th>${esc(researchDimLabel(rowDim))} \ ${esc(researchDimLabel(colDim))}</th>${head}<th>Total fila</th></tr></thead><tbody>${body}${foot}</tbody></table></div><div class="lab-note">Pulsa una celda para aislar esa combinación en todo el Laboratorio. Celdas con muestra inferior a <strong>n=${minN}</strong> se muestran atenuadas para evitar sobreinterpretarlas.</div>${tagNote}</section>`;
+}
+
+const labHasGraphSelectionV12Base=labHasGraphSelection;
+labHasGraphSelection=function(){return researchSelectionStillApplied()||labHasGraphSelectionV12Base();};
+const labClearGraphSelectionsV12Base=labClearGraphSelections;
+labClearGraphSelections=function(){researchRestoreSelectionInternal();labClearGraphSelectionsV12Base();};
+const labResetV12Base=labReset;
+labReset=function(){researchGridState.selection=null;labResetV12Base();};
+
+analyticsLab=function(){
+  const p=getCurrentPlan(),ops=labFilteredOps();
+  return `${pageHead('Laboratorio Analítico Avanzado',`Disecciona el edge de ${esc(planLabel(p))}: comportamiento, excursiones, riesgo, estabilidad y reglas de gestión.`,`<button class="btn" onclick="navigate('operations')">Ver registro</button>`)}${activePlanBanner()}${labFilterPanel()}${labKpis(ops)}${labState.unit==='ticks'?mixedInstrumentWarning(ops):''}<div class="lab-grid">${researchGridModule(ops)}${labFocusStressHeatmap(ops)}${labMaeMfeScatter(ops)}${labBehaviorPenalties(ops)}${labRiskHistogram(ops)}${labEdgeMatrix(ops)}${labStability(ops)}${labRiskSimulator(ops)}${labOperationsTable(ops)}</div>`;
+};
+
+const shellV12Base=shell;
+shell=function(){
+  return shellV12Base()
+    .replace(V115_APP_LABEL,V12_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Apariencia claro/oscuro local, sin tocar datos ni sincronización.','Motor cloud V9.2 Conflict Guard intacto. Research Grid multidimensional sobre la misma base estable.');
+};
+
+Object.assign(window,{setResearchGridDim,swapResearchGridAxes,setResearchGridMetric,setResearchGridMinN,setResearchGridMaxCats,researchApplyCell,researchClearSelection,labClearGraphSelections,labReset});
+render();
+/* ===== END V12 PATCH ===== */

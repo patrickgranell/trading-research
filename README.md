@@ -1,15 +1,19 @@
-# Trading Research V11.5 — Modo Claro / Oscuro
+# Trading Research V12 — Research Grid
 
-Esta versión parte de **V11.4** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, Laboratorio, unidades del Dashboard, resets gráficos y reglas de legibilidad/signos.
+Esta versión parte de **V11.5** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, Laboratorio Analítico, Dashboard R/ticks/US$, resets gráficos, legibilidad y modo Claro/Oscuro.
 
-## Nuevo
+## Nuevo: Research Grid
 
-- Selector visual **Oscuro / Claro** en la barra lateral.
-- El modo oscuro continúa siendo la apariencia predeterminada.
-- La preferencia se guarda **solo en el navegador/dispositivo** mediante `localStorage`; no modifica Trading Plans ni se sincroniza con Supabase.
-- El modo claro adapta paneles, tablas, formularios, modales, configuración, Biblioteca, Nube, Laboratorio y gráficos a fondos claros con contraste específico.
-- Verde/rojo mantiene su semántica financiera. No se añaden signos `+` ni `-` nuevos.
-- El color neutro de heatmaps/matrices se adapta automáticamente al tema.
+- Tabla dinámica/pivot dentro del Laboratorio Analítico.
+- Filas y columnas seleccionables: Setup, Contexto, VD, NR, Hipótesis, Estrategia, Dirección, Hora, Comportamiento, Emoción, Foco y Estrés.
+- Métrica seleccionable: Expectancy, resultado total, Win rate, Profit Factor, nº de operaciones, media ganadora, media perdedora y max drawdown.
+- Respeta la **unidad global R / ticks / US$** y la base **Bruto / Neto** del Laboratorio.
+- Totales por fila, por columna y total general.
+- Control de muestra mínima (`n`) para atenuar celdas con poca evidencia.
+- Límite de categorías configurable para mantener la matriz legible.
+- Un clic en una celda filtra todo el Laboratorio por esa combinación; un segundo clic o **Restablecer selección** recupera el estado anterior.
+- Los ejes pueden intercambiarse con un botón.
+- Comportamiento y Emoción admiten etiquetas múltiples sin duplicar una operación dentro de la misma celda.
 
 ## Infraestructura
 

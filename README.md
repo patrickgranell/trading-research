@@ -1,20 +1,25 @@
-# Trading Research V9.2 — Conflict Guard
+# Trading Research V10 — Advanced Analytics Lab
 
-## Novedades
+Esta versión mantiene intacta la infraestructura V9.2 Conflict Guard y añade una capa analítica no destructiva.
 
-- Conflict Guard por revisión remota usando `trading_workspace.updated_at`.
-- Bloqueo del auto-sync cuando otro dispositivo ha cambiado Supabase desde la última revisión conocida.
-- Reserva condicional de revisión antes de escribir para reducir carreras entre dispositivos.
-- Resolución manual explícita con `RESOLVER CON LOCAL`.
-- Descargas con cambios locales pendientes protegidas mediante `REEMPLAZAR LOCAL`.
-- Historial de hasta 3 snapshots locales automáticos antes de subidas/descargas importantes.
-- Restauración manual de snapshots con auto-sync desactivado por seguridad.
-- Indicadores de revisión base, cambios locales y estado del Conflict Guard.
+## Laboratorio Analítico Avanzado
 
-## SQL
+- Heatmap Foco × Estrés con Expectancy / WR / PF / resultado total y tamaño de muestra.
+- Scatter MAE/MFE frente a resultado económico en US$.
+- Penalizaciones conductuales por pérdida neta asociada.
+- Histograma de distribución de resultados en R con diagnóstico de stops alrededor de −1R.
+- Matriz de Edge configurable (Setup × Contexto por defecto).
+- Estabilidad del Edge mediante ventanas móviles de 20 / 40 / 100 operaciones.
+- Simulador de reglas de riesgo: señales brutas vs gestión del Trading Plan.
+- Tabla final del subconjunto analizado.
+- Filtros interactivos compartidos entre módulos.
 
-No requiere cambios de esquema respecto a V9/V9.1. Reutiliza el campo `updated_at` existente en `trading_workspace`.
+## Seguridad
+
+El motor Supabase, Safe Sync, Conflict Guard y snapshots de V9.2 no se modifica.
 
 ## Despliegue
 
-Sustituir los 6 archivos del repositorio y desplegar como las versiones anteriores.
+Build: `npm run build`
+
+Deploy: `npx wrangler deploy`

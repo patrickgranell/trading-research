@@ -1,4 +1,4 @@
-# Trading Research V22 — Robustez / Monte Carlo
+# Trading Research V23 — Risk & Stress Lab
 
 V17 parte de V15 Dashboard Personalizable y conserva toda la infraestructura anterior: Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, modo claro/oscuro, Dashboard configurable, Calendario, Research Grid y Exit Lab.
 
@@ -112,3 +112,20 @@ El Laboratorio añade un módulo de robustez basado en bootstrap determinista so
 - Funciona con R / ticks / US$ y Bruto / Neto.
 
 El módulo se presenta explícitamente como análisis de robustez y sensibilidad de secuencia, no como predicción. El remuestreo no modela cambios de régimen, dependencia temporal ni deterioro futuro del edge.
+
+## V23 · Risk & Stress Lab
+
+El Laboratorio añade una capa de estrés sobre el Monte Carlo existente:
+
+- Bootstrap independiente o `Block Bootstrap` con bloques consecutivos de 3, 5 o 10 trades.
+- Horizonte configurable de muestra actual / 20 / 50 / 100 / 200 operaciones.
+- 500 / 1.000 / 2.500 simulaciones.
+- Escenarios de deterioro de expectancy de 0% a 40%.
+- Coste/slippage extra configurable por operación en la unidad analítica activa.
+- DD p95 y p99, rachas perdedoras p95/p99 y tiempo bajo agua p95.
+- Probabilidad de superar tres umbrales de drawdown configurables.
+- Cálculo auxiliar en US$ para relacionar DD p95/p99 con capital y tolerancia porcentual de cuenta.
+- Estimación de capital mínimo p95/p99 como ejercicio de sensibilidad, no como recomendación.
+- Nuevas definiciones en el glosario contextual para Block Bootstrap, deterioro del edge y capital bajo estrés.
+
+No requiere SQL nuevo ni cambios de infraestructura. Mantiene Supabase, Conflict Guard, snapshots y los seis archivos raíz.

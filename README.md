@@ -1,24 +1,16 @@
-# Trading Research V11.4 — Unidades visibles + Reset de Laboratorio
+# Trading Research V11.5 — Modo Claro / Oscuro
 
-Esta versión parte de **V11.3** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, Laboratorio y las reglas de legibilidad/signos.
+Esta versión parte de **V11.4** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, Laboratorio, unidades del Dashboard, resets gráficos y reglas de legibilidad/signos.
 
-## Dashboard
+## Nuevo
 
-La unidad del Dashboard puede cambiarse entre `R`, `Ticks` y `US$`. El selector aparece tanto en la cabecera como dentro del propio panel de Equity. La curva, el título, el acumulado y la escala lateral se recalculan en la unidad elegida.
+- Selector visual **Oscuro / Claro** en la barra lateral.
+- El modo oscuro continúa siendo la apariencia predeterminada.
+- La preferencia se guarda **solo en el navegador/dispositivo** mediante `localStorage`; no modifica Trading Plans ni se sincroniza con Supabase.
+- El modo claro adapta paneles, tablas, formularios, modales, configuración, Biblioteca, Nube, Laboratorio y gráficos a fondos claros con contraste específico.
+- Verde/rojo mantiene su semántica financiera. No se añaden signos `+` ni `-` nuevos.
+- El color neutro de heatmaps/matrices se adapta automáticamente al tema.
 
-## Laboratorio
+## Infraestructura
 
-Las selecciones interactivas ya son reversibles en los módulos que filtran el estudio:
-
-- Heatmap Foco × Estrés
-- Penalizaciones conductuales
-- Histograma de distribución de riesgo
-- Matriz de Edge
-
-Al seleccionar aparece `Restablecer` en el propio gráfico. Volver a pulsar la misma selección también la desactiva. Cuando existe cualquier selección gráfica, arriba aparece `Restablecer selecciones de gráficos`.
-
-La Matriz de Edge admite además correctamente NR, Hipótesis y Hora como filtros interactivos.
-
-## Despliegue
-
-No requiere SQL nuevo ni cambios en Supabase. Mantén los 6 archivos en la raíz del repositorio.
+No requiere SQL nuevo ni cambios en Cloudflare/Supabase. Continúa usando los mismos seis archivos raíz del proyecto.

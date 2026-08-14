@@ -2174,3 +2174,43 @@ setLabEdgeAxis=function(axis,v){
 };
 Object.assign(window,{labReset,setLabHistBin,setLabEdgeAxis});
 /* fin hotfix interno V11.4 */
+
+/* ===== V11.5 PATCH · Apariencia Claro / Oscuro ===== */
+const V115_APP_LABEL='V11.5 · Claro / Oscuro';
+const TR_THEME_KEY='trading-research-ui-theme-v1';
+let appTheme='dark';
+try{appTheme=localStorage.getItem(TR_THEME_KEY)==='light'?'light':'dark';}catch{}
+
+function applyAppTheme(theme,{rerender=false}={}){
+  appTheme=theme==='light'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',appTheme);
+  document.documentElement.style.colorScheme=appTheme;
+  try{localStorage.setItem(TR_THEME_KEY,appTheme);}catch{}
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute('content',appTheme==='light'?'#f6f8fb':'#0b1020');
+  if(rerender)render();
+}
+function setAppTheme(theme){applyAppTheme(theme,{rerender:true});}
+function themeSwitchHtml(){
+  return `<div class="theme-switch"><div class="theme-switch-label">Apariencia</div><div class="theme-switch-buttons"><button class="theme-btn ${appTheme==='dark'?'active':''}" onclick="setAppTheme('dark')" title="Usar fondos oscuros"><span aria-hidden="true">◐</span> Oscuro</button><button class="theme-btn ${appTheme==='light'?'active':''}" onclick="setAppTheme('light')" title="Usar fondos claros"><span aria-hidden="true">☀</span> Claro</button></div></div>`;
+}
+
+/* El color neutro de las matrices se adapta al fondo; verde/rojo conservan significado. */
+labHeatColor=function(v,maxAbs){
+  if(!Number.isFinite(v)||v===0)return appTheme==='light'?'rgba(42,63,90,.045)':'rgba(255,255,255,.025)';
+  const a=Math.min(appTheme==='light'?.48:.72,(appTheme==='light'?.09:.12)+Math.abs(v)/(maxAbs||1)*(appTheme==='light'?.39:.6));
+  return v>0?`rgba(31,176,125,${a})`:`rgba(224,69,91,${a})`;
+};
+
+const shellV115Base=shell;
+shell=function(){
+  let html=shellV115Base()
+    .replace(V114_APP_LABEL,V115_APP_LABEL)
+    .replace('Motor cloud V9.2 Conflict Guard intacto. Dashboard con unidades visibles y Laboratorio con selecciones reversibles.','Motor cloud V9.2 Conflict Guard intacto. Apariencia claro/oscuro local, sin tocar datos ni sincronización.');
+  return html.replace('<nav class="nav">',themeSwitchHtml()+'<nav class="nav">');
+};
+
+Object.assign(window,{setAppTheme});
+applyAppTheme(appTheme,{rerender:false});
+render();
+/* ===== END V11.5 PATCH ===== */

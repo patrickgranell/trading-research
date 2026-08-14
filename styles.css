@@ -224,3 +224,164 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .lab-filter-foot{gap:10px;flex-wrap:wrap}
 @media(max-width:900px){.dashboard-equity-title{flex-direction:column}.dashboard-equity-title .panel-tools{justify-content:flex-start;width:100%}}
 /* ===== END V11.4 ===== */
+
+/* ===== V11.5 · Apariencia Claro / Oscuro ===== */
+/*
+   Oscuro sigue siendo el modo predeterminado y conserva la estética actual.
+   Claro es una capa puramente visual: no modifica datasets, Trading Plans,
+   sincronización, backups ni preferencias de investigación.
+*/
+.theme-switch{margin:0 4px 16px;padding:10px 11px;border:1px solid var(--border);border-radius:12px;background:var(--panel);display:grid;gap:7px}
+.theme-switch-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.theme-switch-buttons{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border-radius:9px;background:rgba(255,255,255,.035)}
+.theme-btn{border:1px solid transparent;background:transparent;color:var(--muted);border-radius:7px;padding:7px 8px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+.theme-btn:hover{color:var(--text);background:rgba(255,255,255,.045)}
+.theme-btn.active{background:#eaf1ff;color:#101728;border-color:#eaf1ff;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+
+html[data-theme="light"]{
+  color-scheme:light;
+  --bg:#f3f6fa;
+  --panel:#ffffff;
+  --panel2:#edf2f8;
+  --border:#d5dfeb;
+  --text:#172033;
+  --muted:#65758c;
+  --accent:#2f6fed;
+  --accent2:#0b9d78;
+  --danger:#d74355;
+  --warning:#a76f08;
+  --shadow:0 12px 32px rgba(44,62,89,.08);
+}
+html[data-theme="light"] body{background:linear-gradient(180deg,#f6f8fb 0%,#eef3f8 100%);color:var(--text)}
+html[data-theme="light"] .sidebar{background:#f9fbfd;border-right-color:var(--border)}
+html[data-theme="light"] .brand-dot{box-shadow:0 0 14px rgba(11,157,120,.28)}
+html[data-theme="light"] .nav button{color:#53647c}
+html[data-theme="light"] .nav button:hover,html[data-theme="light"] .nav button.active{background:#e8eef6;color:#152033}
+html[data-theme="light"] .card{background:rgba(255,255,255,.98)}
+html[data-theme="light"] .mini-card,html[data-theme="light"] .plan-switch,html[data-theme="light"] .theme-switch{background:#fff}
+html[data-theme="light"] .theme-switch-buttons{background:#edf2f7}
+html[data-theme="light"] .theme-btn:hover{background:#e1e8f1;color:#152033}
+html[data-theme="light"] .theme-btn.active{background:#243c63;color:#fff;border-color:#243c63;box-shadow:none}
+
+html[data-theme="light"] .btn{background:#fff;color:#1b2a40;border-color:#cfd9e6}
+html[data-theme="light"] .btn:hover{background:#eef3f8}
+html[data-theme="light"] .btn.primary{background:#243c63;color:#fff;border-color:#243c63}
+html[data-theme="light"] .btn.primary:hover{background:#1b3154}
+html[data-theme="light"] .btn.ghost{background:transparent}
+html[data-theme="light"] .btn.danger{color:#bd3347;border-color:rgba(189,51,71,.28)}
+html[data-theme="light"] .chart-reset{color:#36577f;border-color:#b8c8da}
+html[data-theme="light"] .chart-reset:hover{background:#e8eef6;border-color:#8da7c5}
+
+html[data-theme="light"] .input,html[data-theme="light"] .select,html[data-theme="light"] .textarea{background:#fff;color:#1b2a40;border-color:#cdd8e5}
+html[data-theme="light"] .input:focus,html[data-theme="light"] .select:focus,html[data-theme="light"] .textarea:focus{border-color:#6d91c4;box-shadow:0 0 0 2px rgba(47,111,237,.08)}
+html[data-theme="light"] .filter-field .select option{background:#fff;color:#172033}
+html[data-theme="light"] .readonly-box{background:#f7f9fc;color:#33455e}
+html[data-theme="light"] .form-section,html[data-theme="light"] .config-row,html[data-theme="light"] .lot-row{background:#f8fafc}
+html[data-theme="light"] .modal-backdrop{background:rgba(25,34,49,.48)}
+html[data-theme="light"] .modal{background:#fff;box-shadow:0 28px 80px rgba(30,48,72,.22)}
+html[data-theme="light"] .modal-lock-note{background:#f2f5f9;color:#65758c}
+
+html[data-theme="light"] .table th,html[data-theme="light"] .table td{border-bottom-color:#e0e7f0}
+html[data-theme="light"] .table th{color:#596b83;background:#f1f5f9}
+html[data-theme="light"] .table tr:hover td{background:#f6f9fc}
+html[data-theme="light"] .raw-expand td{background:#f2f5f9!important}
+html[data-theme="light"] .badge{background:#edf2f8;color:#425976;border-color:#d2dce8}
+html[data-theme="light"] .badge.win{color:#087453;background:rgba(20,154,112,.08);border-color:rgba(20,154,112,.20)}
+html[data-theme="light"] .badge.loss{color:#bd3347;background:rgba(205,66,84,.07);border-color:rgba(205,66,84,.18)}
+html[data-theme="light"] .tag{background:#edf2f8;color:#4f6380}
+html[data-theme="light"] .bar,html[data-theme="light"] .break-track{background:#e2e9f1}
+html[data-theme="light"] .metric-row{border-bottom-color:#dbe4ee}
+html[data-theme="light"] .notice{border-color:#bfd0e5;background:#edf5ff;color:#31557f}
+
+html[data-theme="light"] .strategy-summary,html[data-theme="light"] .strategy-preview,html[data-theme="light"] .plan-readonly{background:#f3f7fc;border-color:#c6d5e7;color:#2e4665}
+html[data-theme="light"] .plan-banner{background:linear-gradient(90deg,#edf4fc,#f7f9fc);border-color:#c5d5e7}
+html[data-theme="light"] .plan-metrics>div,html[data-theme="light"] .import-summary>div,html[data-theme="light"] .raw-grid>div,html[data-theme="light"] .block-core-grid>div{background:#f7f9fc;border-color:#d7e1ec}
+html[data-theme="light"] .raw-grid strong{color:#263b58}
+html[data-theme="light"] code{color:#315f9d}
+
+html[data-theme="light"] .metric-switch{background:#f7f9fc}
+html[data-theme="light"] .seg-btn{color:#5d6f87}
+html[data-theme="light"] .seg-btn:hover{background:#e7edf5;color:#1b2a40}
+html[data-theme="light"] .seg-btn.active{background:#243c63;color:#fff}
+html[data-theme="light"] .quick-row{border-color:#dce4ed}
+html[data-theme="light"] .filter-chip{background:#f6f8fb;border-color:#d1dce8;color:#52677f}
+html[data-theme="light"] .filter-chip:hover{border-color:#91aac7;color:#233a57}
+html[data-theme="light"] .filter-chip.active{background:#e3edf9;border-color:#7c9cc3;color:#23466e}
+html[data-theme="light"] .hist-bar{border-color:rgba(32,51,76,.08)}
+html[data-theme="light"] .heat-table td{border-color:#d5dfeb}
+html[data-theme="light"] .heat-table td small{color:#60738c}
+html[data-theme="light"] .breakdown-row:hover{background:#f1f5fa;border-color:#d1ddea}
+html[data-theme="light"] .breakdown-row em{color:#60738c}
+html[data-theme="light"] .block-spark{background:#f7f9fc;border-color:#d7e0ea}
+
+html[data-theme="light"] .emotion-break-list button:hover{background:#f1f5fa;border-color:#d3dfeb}
+html[data-theme="light"] .emotion-break-list i{background:#e2e8f0}
+html[data-theme="light"] .emotion-token{background:#eef3f8;border-color:#d2deea}
+html[data-theme="light"] .risk-rule-cards>div,html[data-theme="light"] .emotion-check-grid label{background:#f7f9fc;border-color:#d7e1ec}
+html[data-theme="light"] .trade-context-strip{background:#eff5fb;border-color:#c5d5e7}
+
+html[data-theme="light"] .config-tab{background:#f7f9fc;color:#1c2a3d}
+html[data-theme="light"] .config-tab:hover{background:#edf3f9;border-color:#aabed5}
+html[data-theme="light"] .config-tab.active{background:#dfeaf6;border-color:#7f9fc2;box-shadow:inset 0 0 0 1px rgba(72,112,161,.05)}
+html[data-theme="light"] .reference-config-card,html[data-theme="light"] .compare-trade,html[data-theme="light"] .trade-detail-kpis>div,html[data-theme="light"] .trade-facts>div,html[data-theme="light"] .reference-mini-card{background:#f7f9fc;border-color:#d6e0eb}
+html[data-theme="light"] .image-thumb-btn{background:#f4f7fa;color:#25354b;border-color:#d0dbe7}
+html[data-theme="light"] .image-thumb-btn img{background:#e9eef4}
+html[data-theme="light"] .lightbox-wrap{background:#e9eef4;border-color:#d0dae5}
+html[data-theme="light"] .gallery-metrics span{background:#eef3f8;border-color:#d2ddea}
+html[data-theme="light"] .trade-detail-hero{background:#eef5fb;border-color:#c7d7e8}
+html[data-theme="light"] .compare-stats span,html[data-theme="light"] .compare-stats b{border-color:#cedae6}
+
+html[data-theme="light"] .taxonomy-card,html[data-theme="light"] .reference-gallery-card{background:linear-gradient(180deg,#ffffff,#f7f9fc);border-color:#d1ddea}
+html[data-theme="light"] .mini-badge{background:#edf3fb;color:#385a82;border-color:#ccdaea}
+html[data-theme="light"] .taxonomy-card p,html[data-theme="light"] .reference-gallery-card p{color:#4f6480}
+html[data-theme="light"] .taxonomy-specs{background:#f4f7fa;border-color:#dbe3ec;color:#354a64}
+html[data-theme="light"] .taxonomy-media-grid small,html[data-theme="light"] .reference-showcase small{color:#607895}
+html[data-theme="light"] .mini-strip{background:#f7f9fc;border-color:#d6e0eb}
+html[data-theme="light"] .empty-strip{color:#70839a}
+
+html[data-theme="light"] .integrity-kpis>div,html[data-theme="light"] .integrity-row,html[data-theme="light"] .cloud-user-row,html[data-theme="light"] .cloud-sync-grid>div,html[data-theme="light"] .master-lib-kpis>div,html[data-theme="light"] .master-lib-card,html[data-theme="light"] .risk-diagnostic>div,html[data-theme="light"] .risk-excluded{background:#f7f9fc;border-color:#d8e1eb}
+html[data-theme="light"] .cloud-pill{background:#f3f6fa;color:#526984;border-color:#d3deea}
+html[data-theme="light"] .cloud-pill.ok{color:#087656;background:rgba(20,154,112,.08)}
+html[data-theme="light"] .cloud-pill.error{color:#bd3347;background:rgba(205,66,84,.07)}
+html[data-theme="light"] .cloud-pill.busy{color:#315f9d;background:rgba(47,111,237,.07)}
+html[data-theme="light"] .cloud-auto{color:#50647e}
+html[data-theme="light"] .cloud-entities span{background:#eef4fb;color:#496582;border-color:#d0ddea}
+html[data-theme="light"] .v92-revision-strip>div,html[data-theme="light"] .snapshot-row{background:#f5f8fb;border-color:#d3dfeb}
+html[data-theme="light"] .v92-revision-strip strong{color:#26374e}
+html[data-theme="light"] .snapshot-row span{color:#657b96}
+
+html[data-theme="light"] .lab-active-chip{background:#eaf1fb;color:#34587f;border-color:#c6d7ea}
+html[data-theme="light"] .lab-active-chip span,html[data-theme="light"] .lab-filter-foot,html[data-theme="light"] .lab-note{color:#607590}
+html[data-theme="light"] .behavior-heat td,html[data-theme="light"] .edge-matrix td{border-color:rgba(41,61,87,.10)}
+html[data-theme="light"] .behavior-heat th,html[data-theme="light"] .heat-y-label,html[data-theme="light"] .heat-x-label,html[data-theme="light"] .edge-matrix th{color:#617690}
+html[data-theme="light"] .behavior-heat td small,html[data-theme="light"] .edge-matrix td small{color:#536a86}
+html[data-theme="light"] .lab-scatter-svg .grid-line{stroke:rgba(44,64,90,.08)}
+html[data-theme="light"] .lab-scatter-svg .grid-zero{stroke:rgba(44,64,90,.28)}
+html[data-theme="light"] .lab-scatter-svg .axis-text{fill:#657a95}
+html[data-theme="light"] .lab-scatter-svg .chart-label{fill:#465f7c}
+html[data-theme="light"] .scatter-point{stroke:rgba(255,255,255,.85)}
+html[data-theme="light"] .scatter-point:hover{stroke:#24364d}
+html[data-theme="light"] .penalty-row:hover{background:#f2f5f9}
+html[data-theme="light"] .penalty-track{background:#e2e8ef}
+html[data-theme="light"] .penalty-row small,html[data-theme="light"] .risk-diagnostic span,html[data-theme="light"] .risk-diagnostic small,html[data-theme="light"] .r-marker-labels,html[data-theme="light"] .r-hist-col,html[data-theme="light"] .risk-legend,html[data-theme="light"] .risk-excluded span{color:#607590}
+html[data-theme="light"] .r-histogram{border-bottom-color:#d9e2ec}
+html[data-theme="light"] .dual-equity-svg .axis{stroke:rgba(44,64,90,.18)}
+html[data-theme="light"] .risk-sim-table th,html[data-theme="light"] .risk-sim-table td{border-bottom-color:#dde5ee}
+html[data-theme="light"] .library-check:hover{background:#f1f5f9}
+
+html[data-theme="light"] .axis{stroke:#cbd7e4}
+html[data-theme="light"] .area{fill:rgba(47,111,237,.07)}
+html[data-theme="light"] .dashboard-axis-text{fill:#657a95}
+html[data-theme="light"] .dashboard-equity-title .dashboard-unit-switch{background:#f4f7fa;border-color:#d5dfea}
+html[data-theme="light"] .lab-selected-cell{outline-color:#294f7b!important;box-shadow:inset 0 0 0 2px rgba(47,111,237,.28)}
+html[data-theme="light"] .lab-selected-row{outline-color:#294f7b;background:#e9f0f8!important}
+html[data-theme="light"] .lab-selected-bar{outline-color:#294f7b}
+html[data-theme="light"] .breakdown-row.chart-row-selected{background:#e8f0f9;border-color:#86a2c1}
+
+/* Mantener semántica financiera: solo se adapta el contraste, no el signo. */
+html[data-theme="light"] .positive,html[data-theme="light"] .signed-existing-positive{color:#087a58!important}
+html[data-theme="light"] .negative,html[data-theme="light"] .signed-existing-negative{color:#c13d50!important}
+html[data-theme="light"] .ok-text{color:#087a58!important}
+html[data-theme="light"] .warn-text{color:#8e6200!important}
+html[data-theme="light"] .danger-text{color:#c13d50!important}
+/* ===== END V11.5 ===== */

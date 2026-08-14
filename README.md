@@ -1,52 +1,24 @@
-# Trading Research V11.3 — Dashboard multiuidad y reset de gráficos
+# Trading Research V11.4 — Unidades visibles + Reset de Laboratorio
 
-Esta versión parte de **V11.2 Legibilidad corregida** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple y Laboratorio Analítico Avanzado.
+Esta versión parte de **V11.3** y mantiene intactos Supabase, V9.2 Conflict Guard, snapshots, Biblioteca Simple, Laboratorio y las reglas de legibilidad/signos.
 
 ## Dashboard
 
-El Dashboard incorpora un selector de unidad:
+La unidad del Dashboard puede cambiarse entre `R`, `Ticks` y `US$`. El selector aparece tanto en la cabecera como dentro del propio panel de Equity. La curva, el título, el acumulado y la escala lateral se recalculan en la unidad elegida.
 
-- `R`
-- `Ticks`
-- `US$`
+## Laboratorio
 
-El selector recalcula sin modificar datos:
+Las selecciones interactivas ya son reversibles en los módulos que filtran el estudio:
 
-- Expectancy
-- Drawdown
-- Equity acumulada y curva
-- MFE medio
-- MAE medio
-- Profit Factor sobre la unidad seleccionada
+- Heatmap Foco × Estrés
+- Penalizaciones conductuales
+- Histograma de distribución de riesgo
+- Matriz de Edge
 
-Operaciones, Win rate y Bloques siguen siendo conteos/porcentajes y no cambian de unidad.
+Al seleccionar aparece `Restablecer` en el propio gráfico. Volver a pulsar la misma selección también la desactiva. Cuando existe cualquier selección gráfica, arriba aparece `Restablecer selecciones de gráficos`.
 
-MFE y MAE se almacenan originalmente en R. Para mostrarlos en ticks o US$, la aplicación los convierte usando el riesgo registrado en cada operación (`riskTickExposure` / `riskUsd`).
+La Matriz de Edge admite además correctamente NR, Hipótesis y Hora como filtros interactivos.
 
-## Gráficos interactivos de Operaciones
+## Despliegue
 
-Las selecciones ya no quedan atrapadas:
-
-- En el mapa de calor Día × Hora, un clic aísla una celda.
-- Volver a pulsar la misma celda la desactiva.
-- Cuando existe una selección aparece `Restablecer selección`.
-- En Desglose interactivo ocurre lo mismo con Setup, VD, NR, Hipótesis, Estrategia, Dirección, Contrato, Origen, Resultado o Mes.
-- El botón de restablecimiento elimina solo la selección de ese gráfico y conserva el resto de filtros.
-- `Limpiar filtros` continúa disponible para borrar todos los filtros de Operaciones.
-
-## Legibilidad y signos
-
-Se conserva la regla de V11.2 corregida: la aplicación no inventa signos. Solo colorea de verde los valores cuyo texto ya comienza por `+` y de rojo los que ya comienzan por `-`/`−`.
-
-## Nube y despliegue
-
-No requiere SQL nuevo ni cambios en Supabase.
-
-Los 6 archivos deben permanecer en la raíz del repositorio:
-
-- `index.html`
-- `app.js`
-- `styles.css`
-- `package.json`
-- `wrangler.jsonc`
-- `README.md`
+No requiere SQL nuevo ni cambios en Supabase. Mantén los 6 archivos en la raíz del repositorio.

@@ -2011,3 +2011,166 @@ shell=function(){
 Object.assign(window,{setDashboardUnit,applyHeatCell,clearHeatSelection,applyDimensionFilter,clearDimensionSelection});
 render();
 /* ===== END V11.3 PATCH ===== */
+
+/* ===== V11.4 PATCH · Dashboard unidades visibles + reset Laboratorio ===== */
+const V114_APP_LABEL='V11.4 · Unidades + Reset Lab';
+window.__trDashboardUnit=window.__trDashboardUnit||dashboardViewState?.unit||'r';
+let labInteractionState={focusStress:null,behavior:null,rBin:null,edge:null};
+
+setDashboardUnit=function(unit){
+  const next=['r','ticks','usd'].includes(unit)?unit:'r';
+  window.__trDashboardUnit=next;
+  if(typeof dashboardViewState==='object'&&dashboardViewState) dashboardViewState.unit=next;
+  render();
+};
+
+function dashboardEquitySvgV114(values,unit,W=760,H=250){
+  if(!values.length)return '<div class="empty">Registra o importa la primera operación de este plan para ver la curva de equity.</div>';
+  const min=Math.min(...values,0),max=Math.max(...values,0),range=(max-min)||1,padL=54,padR=12,padT=16,padB=22;
+  const X=i=>padL+(i/Math.max(values.length-1,1))*(W-padL-padR);
+  const Y=v=>padT+(H-padT-padB)-((v-min)/range)*(H-padT-padB);
+  const coords=values.map((v,i)=>`${X(i)},${Y(v)}`).join(' '),zeroY=Y(0),area=`${padL},${H-padB} ${coords} ${W-padR},${H-padB}`;
+  const ticks=[max,(max+min)/2,min];
+  return `<svg class="equity-svg dashboard-equity-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line class="axis" x1="${padL}" y1="${zeroY}" x2="${W-padR}" y2="${zeroY}"/><polygon class="area" points="${area}"/><polyline class="line" points="${coords}"/>${ticks.map(v=>`<text class="dashboard-axis-text" x="${padL-8}" y="${Y(v)+4}" text-anchor="end">${esc(dashboardPlainMetric(v,unit))}</text>`).join('')}</svg>`;
+}
+
+dashboard=function(){
+  const ops=currentOps(),baseStats=calcStats(ops),unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r',metricStats=calcMetricStats(ops,unit,'gross'),bySetup={};
+  ops.forEach(o=>bySetup[o.setup]=(bySetup[o.setup]||0)+1);
+  const top=Object.entries(bySetup).sort((a,b)=>b[1]-a[1]).slice(0,6),maxCount=top[0]?.[1]||1;
+  const svg=dashboardEquitySvgV114(metricStats.equity,unit),pf=Number.isFinite(metricStats.pf)?metricStats.pf.toFixed(2):'∞',mfe=dashboardExcursionAverage(ops,'mfe',unit),mae=dashboardExcursionAverage(ops,'mae',unit),unitLabel=metricUnitLabel(unit);
+  const unitButtons=`<div class="metric-switch dashboard-unit-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${unit===v?'active':''}" type="button" onclick="window.setDashboardUnit('${v}')">${l}</button>`).join('')}</div>`;
+  const actions=`${unitButtons}<button class="btn primary" onclick="openOperationModal()">+ Nueva operación</button><button class="btn" onclick="openImportModal()">Importar Ankora</button>`;
+  return `${pageHead('Dashboard','Vista del Trading Plan seleccionado. Cambia R, ticks o US$ sin alterar el dataset.',actions)}${activePlanBanner()}<div class="kpis">${kpi('Operaciones',baseStats.n,'plan activo')}${kpi('Win rate',pct(baseStats.winRate),'resultado cerrado')}${kpi('Expectancy',dashboardSignedMetric(metricStats.expectancy,unit),`por operación · ${unitLabel}`)}${kpi('Profit Factor',pf,'ganancia / pérdida')}${kpi('Drawdown',dashboardPlainMetric(metricStats.maxDD,unit),`máximo · ${unitLabel}`)}${kpi('Bloques',Math.ceil(baseStats.n/20),'de 20 operaciones')}</div><div class="grid two"><section class="card panel"><div class="panel-title dashboard-equity-title"><div><h3>Equity en ${unitLabel}</h3><small>Curva acumulada expresada realmente en ${unitLabel}</small></div><div class="panel-tools">${unitButtons}<strong>${baseStats.n?`${dashboardSignedMetric(metricStats.sum,unit)} acumulado`:'sin datos'}</strong></div></div><div class="chart-wrap">${svg}</div></section><section class="card panel"><div class="panel-title"><h3>Operaciones por setup</h3><span>${esc(planLabel(getCurrentPlan()))}</span></div><div class="bar-list">${top.length?top.map(([k,v])=>`<div class="bar-row"><div>${esc(k||'Sin setup')}</div><div class="bar"><span style="width:${(v/maxCount)*100}%"></span></div><div class="value-right">${v}</div></div>`).join(''):'<div class="empty">Aún no hay operaciones.</div>'}</div></section></div><div class="grid three" style="margin-top:16px"><section class="card panel"><div class="panel-title"><h3>MFE medio</h3><span>${unitLabel}</span></div><div class="kpi value">${dashboardPlainMetric(mfe,unit)}</div><div class="help">Potencial favorable y salidas.</div></section><section class="card panel"><div class="panel-title"><h3>MAE medio</h3><span>${unitLabel}</span></div><div class="kpi value">${dashboardPlainMetric(mae,unit)}</div><div class="help">Excursión adversa y stops.</div></section><section class="card panel"><div class="panel-title"><h3>Bloque actual</h3><span>20 trades</span></div><div class="kpi value">${baseStats.n?Math.floor((baseStats.n-1)/20)+1:0}</div><div class="help">Agrupación cronológica dentro de este plan.</div></section></div>`;
+};
+
+if(!('nr' in labState))labState.nr='';
+if(!('hypothesis' in labState))labState.hypothesis='';
+if(!('hour' in labState))labState.hour='';
+
+function labDimStateValue(dim){
+  if(dim==='strategy'){
+    const p=getCurrentPlan(),r=(p?.riskStrategies||[]).find(x=>x.id===labState.risk);return r?.name||'';
+  }
+  return dim==='setup'?labState.setup||'':dim==='vd'?labState.vd||'':dim==='nr'?labState.nr||'':dim==='context'?labState.context||'':dim==='hypothesis'?labState.hypothesis||'':dim==='direction'?labState.direction||'':dim==='hour'?labState.hour||'':'';
+}
+function labSetDimState(dim,val){
+  if(dim==='setup')labState.setup=val;else if(dim==='vd')labState.vd=val;else if(dim==='nr')labState.nr=val;else if(dim==='context')labState.context=val;else if(dim==='hypothesis')labState.hypothesis=val;else if(dim==='direction')labState.direction=val;else if(dim==='hour')labState.hour=val;else if(dim==='strategy'){
+    const p=getCurrentPlan(),r=(p?.riskStrategies||[]).find(x=>x.name===val);labState.risk=r?.id||'';
+  }
+}
+function labClearDimState(dim,expected){
+  if(expected!==undefined&&String(labDimStateValue(dim))!==String(expected))return;
+  if(dim==='setup')labState.setup='';else if(dim==='vd')labState.vd='';else if(dim==='nr')labState.nr='';else if(dim==='context')labState.context='';else if(dim==='hypothesis')labState.hypothesis='';else if(dim==='direction')labState.direction='';else if(dim==='hour')labState.hour='';else if(dim==='strategy')labState.risk='';
+}
+function labClearFocusStress(){const s=labInteractionState.focusStress;if(s){if(String(labState.focus)===String(s.focus))labState.focus='';if(String(labState.stress)===String(s.stress))labState.stress='';}else{labState.focus='';labState.stress='';}labInteractionState.focusStress=null;render();}
+function labClearBehavior(){const v=labInteractionState.behavior;if(!v||String(labState.behavior)===String(v))labState.behavior='';labInteractionState.behavior=null;render();}
+function labClearRBin(){const s=labInteractionState.rBin;if(!s||(String(labState.rMin)===String(s.a)&&String(labState.rMax)===String(s.z))){labState.rMin='';labState.rMax='';}labInteractionState.rBin=null;render();}
+function labClearEdge(){const s=labInteractionState.edge;if(s){labClearDimState(s.xDim,s.xVal);labClearDimState(s.yDim,s.yVal);}labInteractionState.edge=null;render();}
+function labClearGraphSelections(){
+  const fs=labInteractionState.focusStress;if(fs){if(String(labState.focus)===String(fs.focus))labState.focus='';if(String(labState.stress)===String(fs.stress))labState.stress='';}
+  const b=labInteractionState.behavior;if(b&&String(labState.behavior)===String(b))labState.behavior='';
+  const rb=labInteractionState.rBin;if(rb&&String(labState.rMin)===String(rb.a)&&String(labState.rMax)===String(rb.z)){labState.rMin='';labState.rMax='';}
+  const e=labInteractionState.edge;if(e){labClearDimState(e.xDim,e.xVal);labClearDimState(e.yDim,e.yVal);}
+  labInteractionState={focusStress:null,behavior:null,rBin:null,edge:null};render();
+}
+function labHasGraphSelection(){return !!(labInteractionState.focusStress||labInteractionState.behavior||labInteractionState.rBin||labInteractionState.edge);}
+
+const labResetV114Base=labReset;
+labReset=function(){labInteractionState={focusStress:null,behavior:null,rBin:null,edge:null};labResetV114Base();labState.nr='';labState.hypothesis='';labState.hour='';};
+
+labFilteredOps=function(){
+  const f=labState;
+  return currentOps().filter(o=>{
+    const d=new Date(o.entryDate);if(isNaN(d))return false;const date=inputDateValue(d),hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'),hour=`${String(d.getHours()).padStart(2,'0')}:00`;
+    if(f.dateFrom&&date<f.dateFrom)return false;if(f.dateTo&&date>f.dateTo)return false;
+    if(f.timeFrom&&f.timeTo){if(f.timeFrom<=f.timeTo){if(hh<f.timeFrom||hh>f.timeTo)return false;}else if(hh<f.timeFrom&&hh>f.timeTo)return false;}
+    else if(f.timeFrom&&hh<f.timeFrom)return false;else if(f.timeTo&&hh>f.timeTo)return false;
+    if(f.direction&&edgeDimensionValues(o,'direction')!==f.direction)return false;
+    if(f.setup&&edgeDimensionValues(o,'setup')!==f.setup)return false;
+    if(f.vd&&edgeDimensionValues(o,'vd')!==f.vd)return false;
+    if(f.nr&&edgeDimensionValues(o,'nr')!==f.nr)return false;
+    if(f.context&&edgeDimensionValues(o,'context')!==f.context)return false;
+    if(f.hypothesis&&edgeDimensionValues(o,'hypothesis')!==f.hypothesis)return false;
+    if(f.hour&&hour!==f.hour)return false;
+    if(f.risk&&o.riskStrategyId!==f.risk)return false;if(f.result&&o.result!==f.result)return false;
+    if(f.behavior&&!(o.emotional?.behaviors||[]).includes(f.behavior))return false;if(f.emotion&&!labEmotionsOf(o).includes(f.emotion))return false;
+    if(f.focus&&String(o.emotional?.focus||'')!==String(f.focus))return false;if(f.stress&&String(o.emotional?.stress||'')!==String(f.stress))return false;
+    const rv=opMetricValue(o,'r',f.basis);if(f.rMin!==''&&rv<Number(f.rMin))return false;if(f.rMax!==''&&rv>Number(f.rMax))return false;
+    return true;
+  }).sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));
+};
+
+labApplyFocusStress=function(focus,stress){
+  const same=labInteractionState.focusStress&&String(labInteractionState.focusStress.focus)===String(focus)&&String(labInteractionState.focusStress.stress)===String(stress);
+  if(same)return labClearFocusStress();
+  labState.focus=String(focus);labState.stress=String(stress);labInteractionState.focusStress={focus:String(focus),stress:String(stress)};render();
+};
+labApplyBehavior=function(v){
+  if(labInteractionState.behavior&&String(labInteractionState.behavior)===String(v))return labClearBehavior();
+  labState.behavior=v;labInteractionState.behavior=v;render();
+};
+labApplyRBin=function(a,z){
+  if(labInteractionState.rBin&&String(labInteractionState.rBin.a)===String(a)&&String(labInteractionState.rBin.z)===String(z))return labClearRBin();
+  labState.rMin=String(a);labState.rMax=String(z);labInteractionState.rBin={a:String(a),z:String(z)};render();
+};
+labApplyEdge=function(xDim,xVal,yDim,yVal){
+  const s=labInteractionState.edge,same=s&&s.xDim===xDim&&s.yDim===yDim&&String(s.xVal)===String(xVal)&&String(s.yVal)===String(yVal);
+  if(same)return labClearEdge();
+  if(s){labClearDimState(s.xDim,s.xVal);labClearDimState(s.yDim,s.yVal);}
+  labSetDimState(xDim,xVal);labSetDimState(yDim,yVal);labInteractionState.edge={xDim,xVal,yDim,yVal};render();
+};
+
+labFocusStressHeatmap=function(ops){
+  const cells={};let maxAbs=0;for(let stress=1;stress<=5;stress++)for(let focus=1;focus<=5;focus++){const subset=ops.filter(o=>Number(o.emotional?.focus)===focus&&Number(o.emotional?.stress)===stress),v=labMetric(subset);cells[`${focus}-${stress}`]={subset,v};maxAbs=Math.max(maxAbs,Math.abs(v));}
+  const active=labInteractionState.focusStress;
+  return `<section class="card panel lab-module lab-span-2"><div class="panel-title"><div><h3>Heatmap · Foco × Estrés</h3><small>${active?'Selección aislada · pulsa de nuevo la celda o Restablecer':'Color = '+(labState.heatMetric==='expectancy'?'Expectancy promedio':labState.heatMetric==='winrate'?'Win rate':labState.heatMetric==='pf'?'Profit Factor':'Resultado total')+' · cada celda muestra n'}</small></div><div class="panel-tools"><select class="select compact-select" onchange="setLabHeatMetric(this.value)">${[['expectancy','Expectancy'],['winrate','Win rate'],['pf','Profit Factor'],['sum','Resultado total']].map(([v,l])=>`<option value="${v}" ${labState.heatMetric===v?'selected':''}>${l}</option>`).join('')}</select>${active?'<button class="btn small ghost chart-reset" onclick="labClearFocusStress()">Restablecer</button>':''}</div></div><div class="behavior-heat-layout"><div class="heat-y-label">Estrés ↑</div><table class="behavior-heat"><thead><tr><th></th>${[1,2,3,4,5].map(f=>`<th>Foco ${f}</th>`).join('')}</tr></thead><tbody>${[5,4,3,2,1].map(st=>`<tr><th>${st}</th>${[1,2,3,4,5].map(f=>{const c=cells[`${f}-${st}`],n=c.subset.length,sel=active&&String(active.focus)===String(f)&&String(active.stress)===String(st);return `<td class="${sel?'lab-selected-cell':''}" style="background:${labHeatColor(c.v,maxAbs)}" onclick="labApplyFocusStress(${f},${st})" title="Foco ${f} · Estrés ${st} · ${n} operaciones"><strong>${n?labMetricText(c.v):'—'}</strong><small>n=${n}</small></td>`}).join('')}</tr>`).join('')}</tbody></table><div class="heat-x-label">Nivel de foco →</div></div><div class="lab-note">Las celdas con pocas operaciones son exploratorias. El tamaño de muestra <strong>n</strong> evita interpretar un valor extremo basado en 1–2 trades.</div></section>`;
+};
+
+labBehaviorPenalties=function(ops){
+  const map=new Map();ops.forEach(o=>{const loss=Math.min(0,opMetricValue(o,'usd','net'));if(loss>=0)return;(o.emotional?.behaviors||[]).forEach(b=>{if(!map.has(b))map.set(b,{name:b,loss:0,n:0});const x=map.get(b);x.loss+=Math.abs(loss);x.n++;});});
+  const rows=[...map.values()].sort((a,b)=>b.loss-a.loss),max=rows[0]?.loss||1,active=labInteractionState.behavior;
+  return `<section class="card panel lab-module"><div class="panel-title"><div><h3>Penalizaciones conductuales</h3><small>Pérdida neta asociada en US$ · mayor → menor</small></div><div class="panel-tools"><span>${rows.length} conductas</span>${active?'<button class="btn small ghost chart-reset" onclick="labClearBehavior()">Restablecer</button>':''}</div></div>${rows.length?`<div class="penalty-bars">${rows.map(r=>`<button class="penalty-row ${active===r.name?'lab-selected-row':''}" onclick="labApplyBehavior(decodeURIComponent('${encodeURIComponent(r.name)}'))"><span class="penalty-name">${esc(r.name)}</span><span class="penalty-track"><i style="width:${Math.max(4,r.loss/max*100)}%"></i></span><strong>−${r.loss.toFixed(2)} US$</strong><small>${r.n} casos · −${(r.loss/r.n).toFixed(2)}/caso</small></button>`).join('')}</div>`:'<div class="empty">No hay operaciones perdedoras con comportamientos etiquetados.</div>'}<div class="lab-note warn">Esta cifra es <strong>pérdida asociada</strong>, no causalidad demostrada. Si un trade tiene varios comportamientos, su pérdida aparece en cada etiqueta.</div></section>`;
+};
+
+labRiskHistogram=function(ops){
+  const step=Number(labState.histBin)||.25,bins=histogramBinsR(ops,step),top=Math.max(...bins.map(b=>b.n),1),losses=ops.map(o=>opMetricValue(o,'r',labState.basis)).filter(v=>v<0),normal=losses.filter(v=>v>=-1.1&&v<=-.9).length,exceeded=losses.filter(v=>v<-1.1).length,early=losses.filter(v=>v>-.9&&v<0).length,active=labInteractionState.rBin;
+  const pctN=n=>losses.length?`${(n/losses.length*100).toFixed(1)}%`:'0.0%';
+  return `<section class="card panel lab-module"><div class="panel-title"><div><h3>Distribución de riesgo</h3><small>${active?'Rango aislado · pulsa de nuevo la barra o Restablecer':'Resultados agrupados en fracciones de R'}</small></div><div class="panel-tools"><select class="select compact-select" onchange="setLabHistBin(this.value)">${[.25,.5,1].map(v=>`<option value="${v}" ${step===v?'selected':''}>${v}R / bin</option>`).join('')}</select>${active?'<button class="btn small ghost chart-reset" onclick="labClearRBin()">Restablecer</button>':''}</div></div><div class="risk-diagnostic"><div><span>Stop ~1R</span><strong>${pctN(normal)}</strong><small>${normal}/${losses.length}</small></div><div><span>Stop excedido</span><strong class="negative">${pctN(exceeded)}</strong><small>&lt; −1.1R</small></div><div><span>Pérdida cortada antes</span><strong>${pctN(early)}</strong><small>−0.9R → 0R</small></div></div>${bins.length?`<div class="r-hist-wrap"><div class="r-marker-labels"><span>−1R</span><span>0R</span><span>+1R</span><span>+2R</span></div><div class="r-histogram">${bins.map(b=>{const sel=active&&String(active.a)===String(b.a)&&String(active.z)===String(b.z);return `<button class="r-hist-col ${b.z<=0?'neg':b.a>=0?'pos':'mix'} ${sel?'lab-selected-bar':''}" onclick="labApplyRBin(${b.a},${b.z})" title="${b.a.toFixed(2)}R → ${b.z.toFixed(2)}R · ${b.n} operaciones"><span class="r-hist-bar" style="height:${Math.max(3,b.n/top*100)}%"><b>${b.n||''}</b></span><small>${((b.a+b.z)/2).toFixed(2)}</small></button>`}).join('')}</div></div>`:'<div class="empty">Sin datos de R.</div>'}<div class="lab-note">Pulsa una barra para filtrar ese rango de R en todo el Laboratorio.</div></section>`;
+};
+
+labEdgeMatrix=function(ops){
+  const xD=labState.edgeX,yD=labState.edgeY,dimOpts=[['setup','Setup'],['context','Contexto'],['vd','VD'],['nr','NR'],['hypothesis','Hipótesis'],['strategy','Estrategia'],['direction','Dirección'],['hour','Hora']];
+  let xs=uniqueSorted(ops.map(o=>edgeDimensionValues(o,xD))),ys=uniqueSorted(ops.map(o=>edgeDimensionValues(o,yD)));if(xs.length>10)xs=xs.slice(0,10);if(ys.length>10)ys=ys.slice(0,10);let maxAbs=0;const cells={},active=labInteractionState.edge;ys.forEach(y=>xs.forEach(x=>{const sub=ops.filter(o=>edgeDimensionValues(o,xD)===x&&edgeDimensionValues(o,yD)===y),s=calcMetricStats(sub,labState.unit,labState.basis);cells[`${x}|||${y}`]=s;maxAbs=Math.max(maxAbs,Math.abs(s.expectancy));}));
+  return `<section class="card panel lab-module lab-span-2"><div class="panel-title"><div><h3>Matriz de Edge</h3><small>${active?'Combinación aislada · pulsa de nuevo la celda o Restablecer':'Expectancy por combinación · pulsa una celda para filtrar'}</small></div><div class="edge-controls"><select class="select compact-select" onchange="setLabEdgeAxis('x',this.value)">${dimOpts.map(([v,l])=>`<option value="${v}" ${xD===v?'selected':''}>X: ${l}</option>`).join('')}</select><select class="select compact-select" onchange="setLabEdgeAxis('y',this.value)">${dimOpts.map(([v,l])=>`<option value="${v}" ${yD===v?'selected':''}>Y: ${l}</option>`).join('')}</select>${active?'<button class="btn small ghost chart-reset" onclick="labClearEdge()">Restablecer</button>':''}</div></div>${xs.length&&ys.length?`<div class="edge-matrix-wrap"><table class="edge-matrix"><thead><tr><th>${esc(edgeDimLabel(yD))} \\ ${esc(edgeDimLabel(xD))}</th>${xs.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${ys.map(y=>`<tr><th>${esc(y)}</th>${xs.map(x=>{const s=cells[`${x}|||${y}`],sel=active&&active.xDim===xD&&active.yDim===yD&&String(active.xVal)===String(x)&&String(active.yVal)===String(y);return `<td class="${sel?'lab-selected-cell':''}" style="background:${labHeatColor(s.expectancy,maxAbs)}" onclick="labApplyEdge('${xD}',decodeURIComponent('${encodeURIComponent(x)}'),'${yD}',decodeURIComponent('${encodeURIComponent(y)}'))"><strong>${s.n?metricStatText(s.expectancy,labState.unit):'—'}</strong><small>n=${s.n}</small></td>`}).join('')}</tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay categorías suficientes para construir la matriz.</div>'}</section>`;
+};
+
+const labFilterPanelV114Base=labFilterPanel;
+labFilterPanel=function(){
+  let html=labFilterPanelV114Base();
+  if(labHasGraphSelection())html=html.replace('<button class="btn small" onclick="labReset()">Limpiar estudio</button>','<button class="btn small" onclick="labReset()">Limpiar estudio</button><button class="btn small ghost chart-reset" onclick="labClearGraphSelections()">Restablecer selecciones de gráficos</button>');
+  return html;
+};
+
+const shellV114Base=shell;
+shell=function(){return shellV114Base().replace(V113_APP_LABEL,V114_APP_LABEL).replace('Motor cloud V9.2 Conflict Guard intacto. Dashboard multiuidad y selecciones gráficas reversibles sobre la misma base estable.','Motor cloud V9.2 Conflict Guard intacto. Dashboard con unidades visibles y Laboratorio con selecciones reversibles.');};
+Object.assign(window,{setDashboardUnit,labApplyFocusStress,labApplyBehavior,labApplyRBin,labApplyEdge,labClearFocusStress,labClearBehavior,labClearRBin,labClearEdge,labClearGraphSelections,labReset});
+render();
+/* ===== END V11.4 PATCH ===== */
+
+/* V11.4 hotfix interno: reset y cambios de ejes/bin limpian la selección gráfica asociada antes de renderizar. */
+labReset=function(){
+  const keep={unit:labState.unit,basis:labState.basis,heatMetric:labState.heatMetric,scatterX:labState.scatterX,histBin:labState.histBin,edgeX:labState.edgeX,edgeY:labState.edgeY,rollingWindow:labState.rollingWindow,rollingMetric:labState.rollingMetric};
+  labState={...keep,dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',nr:'',context:'',hypothesis:'',hour:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',rMin:'',rMax:''};
+  labInteractionState={focusStress:null,behavior:null,rBin:null,edge:null};render();
+};
+setLabHistBin=function(v){
+  if(labInteractionState.rBin){labState.rMin='';labState.rMax='';labInteractionState.rBin=null;}
+  labState.histBin=Number(v)||0.25;render();
+};
+setLabEdgeAxis=function(axis,v){
+  const s=labInteractionState.edge;if(s){labClearDimState(s.xDim,s.xVal);labClearDimState(s.yDim,s.yVal);labInteractionState.edge=null;}
+  if(axis==='x')labState.edgeX=v;else labState.edgeY=v;render();
+};
+Object.assign(window,{labReset,setLabHistBin,setLabEdgeAxis});
+/* fin hotfix interno V11.4 */

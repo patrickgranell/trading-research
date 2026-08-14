@@ -210,3 +210,17 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .breakdown-row.chart-row-selected{background:#14223a;border-color:#6d8fbd;box-shadow:inset 3px 0 0 #7cf0c4}
 @media(max-width:900px){.dashboard-unit-switch{width:100%;justify-content:flex-end}.topbar .actions{justify-content:flex-end}}
 /* ===== END V11.3 ===== */
+
+/* ===== V11.4 · Dashboard unidades visibles + reset Laboratorio ===== */
+.dashboard-equity-title{align-items:flex-start;gap:14px}
+.dashboard-equity-title .panel-tools{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+.dashboard-equity-title .dashboard-unit-switch{padding:3px 5px;background:rgba(255,255,255,.025);border:1px solid #223554;border-radius:9px}
+.dashboard-equity-title .dashboard-unit-switch>span{font-size:12px}
+.dashboard-equity-svg{overflow:visible}
+.dashboard-axis-text{fill:#8fa6c8;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.lab-selected-cell{outline:2px solid #e4efff!important;outline-offset:-2px;box-shadow:inset 0 0 0 2px rgba(100,160,255,.38)}
+.lab-selected-row{outline:2px solid #e4efff;outline-offset:-2px;background:#12223a!important}
+.lab-selected-bar{outline:2px solid #e4efff;outline-offset:2px;border-radius:6px}
+.lab-filter-foot{gap:10px;flex-wrap:wrap}
+@media(max-width:900px){.dashboard-equity-title{flex-direction:column}.dashboard-equity-title .panel-tools{justify-content:flex-start;width:100%}}
+/* ===== END V11.4 ===== */

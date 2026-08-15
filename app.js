@@ -5622,7 +5622,7 @@ render();
 
 
 /* ===== V31.1 PATCH · Dashboard Profiles & Flexible Layout ===== */
-const V311_APP_LABEL='V31.1.4 · Dashboard Profiles · Runtime Fix';
+const V311_APP_LABEL='V31.1.5 · Dashboard Profiles · Create Fix';
 const dashboardConfigForPlanV311Base=dashboardConfigForPlan;
 let v311DashboardDrag=null;
 
@@ -5686,11 +5686,16 @@ function v311OpenNewDashboardProfile(){
   document.body.insertAdjacentHTML('beforeend',modalShell('Nuevo Dashboard',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="v311CreateDashboardProfile()">Crear</button>`));
 }
 function v311CreateDashboardProfile(){
-  const p=getCurrentPlan();if(!p)return;const profiles=v311EnsureDashboardProfiles(p),name=document.getElementById('v311-dashboard-name')?.value?.trim();if(!name)return alert('Escribe un nombre para el dashboard.');
+  const p=getCurrentPlan();if(!p)return;
+  const name=document.getElementById('v311-dashboard-name')?.value?.trim();if(!name)return alert('Escribe un nombre para el dashboard.');
+  const profiles=v311EnsureDashboardProfiles(p);
   if(profiles.some(x=>x.name.toLowerCase()===name.toLowerCase()))return alert('Ya existe un dashboard con ese nombre en este Trading Plan.');
-  const mode=document.getElementById('v311-dashboard-base')?.value||'current',active=v311ActiveDashboardProfile(p),baseConfig=mode==='default'?v311ProfileConfig(DASHBOARD_DEFAULT_CONFIG):clone(active?.config||DASHBOARD_DEFAULT_CONFIG),baseSizes=mode==='default'?v311NormalizeSizes(null):clone(active?.sizes||v311NormalizeSizes(null));
+  const mode=document.getElementById('v311-dashboard-base')?.value||'current';
+  const active=profiles.find(x=>x.id===p.activeDashboardProfileId)||profiles[0]||null;
+  const baseConfig=mode==='default'?v311ProfileConfig(DASHBOARD_DEFAULT_CONFIG):clone(active?.config||DASHBOARD_DEFAULT_CONFIG);
+  const baseSizes=mode==='default'?v311NormalizeSizes(null):clone(active?.sizes||v311NormalizeSizes(null));
   const profile={id:uid('DASH'),name,config:v311ProfileConfig(baseConfig),sizes:v311NormalizeSizes(baseSizes),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-  profiles.push(profile);p.activeDashboardProfileId=profile.id;p.dashboardConfig=clone(profile.config);p.updatedAt=new Date().toISOString();persist();closeModal();render();
+  p.dashboardProfiles=[...profiles,profile];p.activeDashboardProfileId=profile.id;p.dashboardConfig=clone(profile.config);p.updatedAt=new Date().toISOString();persist();closeModal();render();
 }
 function v311DuplicateDashboardProfile(id){
   const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p),src=profiles.find(x=>x.id===id);if(!src)return;
@@ -5760,11 +5765,11 @@ dashboard=function(){
   return `${pageHead('Dashboard',`Vista “${esc(profile?.name||'Principal')}” del Trading Plan. Puedes crear varias vistas con composición, orden y tamaño propios.`,actions)}${activePlanBanner()}${kpisHtml?`<div class="dashboard-flex-grid dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-flex-grid dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-flex-grid dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">Este Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
 };
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.4</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data queda pausado y fuera del runtime hasta completar la auditoría funcional; no se pierde ninguna operación ni dato del journal.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.5</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data queda pausado y fuera del runtime hasta completar la auditoría funcional; no se pierde ninguna operación ni dato del journal.</div></div></div></div>`;};
 if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'dashboardprofiles',terms:['dashboard profiles','dashboards con nombre','vistas dashboard','redimensionar widgets'],title:'Dashboards con nombre',summary:'Varias composiciones independientes del Dashboard dentro del mismo Trading Plan.',body:'Cada perfil guarda qué widgets están visibles, su orden y anchura. Todos leen exactamente el mismo dataset del Trading Plan: cambiar de Dashboard no filtra, duplica ni modifica operaciones.',use:'Úsalo para separar una vista de ejecución, otra de research, otra de revisión semanal o cualquier lectura recurrente sin reconstruir el Dashboard cada vez.'});
 Object.assign(window,{v311SwitchDashboardProfile,v311OpenNewDashboardProfile,v311CreateDashboardProfile,v311DuplicateDashboardProfile,v311OpenRenameDashboardProfile,v311RenameDashboardProfile,v311DeleteDashboardProfile,v311OpenDashboardManager,v311DashboardSetSize,v311DashboardDragStart,v311DashboardDragEnd,v311DashboardDrop});
 render();
 /* ===== END V31.1 PATCH ===== */
 
 /* ===== V31.1.3 DEPLOYMENT PATCH · single bundled index ===== */
-const V3114_DEPLOYMENT_MARKER='V31.1.4-RUNTIME-FIX';
+const V3115_DEPLOYMENT_MARKER='V31.1.5-DASHBOARD-CREATE-FIX';

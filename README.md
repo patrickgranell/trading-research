@@ -1,13 +1,13 @@
-# Trading Research V31.1.4 — Dashboard Profiles · Runtime Fix
+# Trading Research V31.1.5 — Dashboard Profiles · Create Fix
 
-V31.1.4 corrige el bloqueo de ejecución detectado después de V30. El parche V30.1 referenciaba `exitLabPanel`, pero el módulo real se denomina `exitLabModule`; esa excepción detenía la carga antes de V30.1/V30.2/V30.3/V31.1.
+V31.1.5 corrige la creación de nuevos dashboards con nombre. El problema era una referencia obsoleta al array de perfiles: durante la creación se volvía a normalizar `dashboardProfiles`, se sustituía el array interno y el nuevo perfil se añadía a la referencia anterior, por lo que no llegaba al Trading Plan.
 
 ## Corrección
-- La cadena V30.1/V30.2 envuelve ahora `exitLabModule` correctamente.
-- Se conserva la definición MAE/MFE intratrade en ticks y Data Quality semántico.
-- Se conservan Research Alerts, Decision Center y Conflict Guard V9.2.
-- Market Data sigue pausado hasta completar la auditoría funcional.
-- Dashboard Profiles permanece activo: varios dashboards con nombre, duplicar/renombrar/eliminar, orden por arrastre y tamaño de widgets por Trading Plan.
-- Build single-bundle: Cloudflare publica un único `dist/index.html`.
+- Crear Dashboard añade el perfil directamente a `p.dashboardProfiles` y activa inmediatamente la nueva vista.
+- El dashboard nuevo conserva la opción de copiar la vista actual o partir de la plantilla predeterminada.
+- Se mantienen renombrar, duplicar, eliminar, orden por arrastre y tamaños por widget.
+- Se conserva el Runtime Fix de V31.1.4 y el build single-bundle.
+- Market Data continúa pausado hasta completar la auditoría funcional.
+- Supabase y Conflict Guard V9.2 no se modifican.
 
 No requiere SQL nuevo.

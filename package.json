@@ -1,9 +1,9 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.1.0",
+  "version": "31.1.1",
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true});for(const f of ['index.html','app.js','styles.css'])fs.copyFileSync(f,'dist/'+f)\"",
+    "build": "node -e \"const fs=require('fs'),p=require('./package.json'),v=p.version;fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true});let h=fs.readFileSync('index.html','utf8');h=h.replace(/styles\\.css(?:\\?v=[^\\\"']+)?/g,'styles-'+v+'.css').replace(/app\\.js(?:\\?v=[^\\\"']+)?/g,'app-'+v+'.js');fs.writeFileSync('dist/index.html',h);fs.copyFileSync('app.js','dist/app-'+v+'.js');fs.copyFileSync('styles.css','dist/styles-'+v+'.css')\"",
     "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {

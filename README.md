@@ -1,62 +1,48 @@
-# Trading Research V30.3 — MAE/MFE + Data Quality semántico
+# Trading Research V31.1.1 — Dashboard Profiles + Asset Versioning Fix
 
-V30.3 parte de V30.2 y mantiene intactos Supabase, Conflict Guard V9.2 y todos los módulos existentes. Esta revisión no cambia la definición intratrade de MAE/MFE: aclara qué significa el estado de calidad de cada dato.
+V31.1.1 parte de V31.1 y mantiene intactos Supabase, Conflict Guard V9.2, Research Decision Center, Change Tracking, MAE/MFE intratrade en ticks, Data Quality, Market Data Foundation y el resto de módulos existentes.
 
-## Data Quality MAE/MFE
+## Corrección de despliegue
 
-- **Medido / dato real**: observación utilizable en Exit Lab y estadísticas MAE/MFE. Un 0 ticks medido es un cero real.
-- **No informado**: dato pendiente de revisar/medir; permanece en la cola de limpieza.
-- **No recuperable / no evaluable**: la operación ya fue revisada, pero no existe una medición fiable. Sale de la cola, pero no entra en estadísticas MAE/MFE.
-- La **cobertura utilizable** usa únicamente operaciones medidas.
-- La **revisión resuelta** cuenta medidas + no recuperables/no evaluables.
-- Marcar N/A/no recuperable **no aumenta** la cobertura utilizable ni el score MAE/MFE.
-- Data Quality no valora si un MAE/MFE es bueno o malo; valora disponibilidad, recuperabilidad y coherencia del dato.
+Esta revisión corrige una desincronización observada en Cloudflare Workers: `index.html` nuevo podía convivir con una resolución antigua de la ruta estable `/app.js`.
 
-## Caché / versión
+El build ya no depende de `app.js?v=...` ni `styles.css?v=...` como única forma de versionado. A partir de esta versión genera nombres físicos nuevos dentro de `dist` usando la versión de `package.json`:
 
-`index.html` carga `app.js` y `styles.css` con identificador V30.3 para evitar que el navegador reutilice una versión anterior tras desplegar. El cuadro lateral muestra V30.3.
+- `app-31.1.1.js`
+- `styles-31.1.1.css`
+- `index.html` referencia exactamente esos nombres.
 
-## Base metodológica heredada de V30.2
+En las siguientes versiones el mismo build generará automáticamente los nombres correspondientes a la nueva versión. Los seis archivos fuente del repositorio no cambian de estructura.
 
-V30.2 parte de V30.1 y conserva toda la base anterior: Supabase, Conflict Guard V9.2, snapshots, Dashboard configurable, Calendario, Research Grid, Exit Lab, Compliance, Estudios, Confianza estadística, Review & Notes, Objetivos, ayuda contextual, Monte Carlo, Risk & Stress Lab, Walk-Forward, Forward OOS, Data Quality Workbench, Quality-Aware Analytics, Research Decision Center y Change Tracking.
+## Dashboard Profiles
 
-## Definición formal de MAE / MFE
+- Varios dashboards con nombre por Trading Plan.
+- Crear desde plantilla o duplicar la vista actual.
+- Cambiar, renombrar, duplicar y eliminar perfiles.
+- Orden de widgets por arrastre y controles precisos de movimiento.
+- Tamaños de widgets sobre rejilla flexible.
+- Configuración persistente por perfil y por Trading Plan.
+- Migración de la configuración de Dashboard previa a un perfil `Principal`.
 
-Trading Research adopta una única definición para evitar mezclar excursiones reales con movimientos posteriores a la operación:
+## Market Data
 
-- **MFE real**: máxima excursión favorable del precio desde la entrada mientras todavía queda posición abierta.
-- **MAE real**: máxima excursión adversa del precio desde la entrada mientras todavía queda posición abierta.
-- La ventana de medición termina en la **salida final real** de la operación.
-- Nunca se continúa midiendo MAE/MFE después de que la posición se haya cerrado.
-- El dato primario se introduce como magnitud positiva en **ticks**.
-- La equivalencia en **R** se calcula automáticamente a partir del riesgo inicial registrado.
-- `0 ticks` marcado como `Medido` sigue siendo un dato real; `No informado` y `N/A` permanecen separados.
+Market Data Foundation V31 permanece instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional pendiente. No es requisito para validar Dashboard Profiles.
 
-## Censura por la propia gestión
+## MAE / MFE
 
-Un stop o un take profit pueden limitar lo que MAE/MFE llegan a observar:
+- Datos primarios en ticks.
+- Definición estándar intratrade: entrada → salida final real.
+- R derivada del riesgo inicial.
+- Estados separados: pendiente, medido utilizable y no recuperable/no evaluable.
+- `N/A` resuelve revisión, pero no aumenta la cobertura utilizable.
 
-- Si el stop cierra la posición, el MAE queda censurado por ese stop y no demuestra qué habría ocurrido con un stop más amplio.
-- Si un TP fijo cierra toda la posición, el MFE queda censurado por ese objetivo y no demuestra qué habría ocurrido con un TP mayor.
-- Esto no invalida MAE/MFE: mantiene su función estándar para estudiar el recorrido realmente soportado/capturado durante la operación.
-- El problema contrafactual de ampliar stop o TP queda deliberadamente fuera de MAE/MFE y se investigará en un módulo específico posterior.
+## Despliegue
 
-## Validaciones añadidas
+Cloudflare ejecuta `npm run build` y sirve `./dist` mediante Wrangler. El build genera tres assets desplegables con nombres versionados físicamente. No requiere SQL nuevo.
 
-- Se rechazan valores negativos en vez de corregirlos silenciosamente.
-- Si MAE supera el stop inicial más amplio, Trading Research avisa y permite guardar solo si refleja una modificación real de la gestión.
-- Si MFE supera el TP fijo más lejano, se genera el mismo tipo de aviso.
-- Data Quality detecta estos casos como posibles incoherencias de gestión/dato.
-- La ficha de operación indica cuándo la excursión queda censurada por el SL/TP inicial.
-- Exit Lab muestra explícitamente que trabaja con la ventana `entrada → salida final real` y que no usa recorrido post-salida para justificar objetivos o stops más amplios.
+## Archivos fuente
 
-## Change Tracking
-
-Se conserva el fix de V30.1 para Forward OOS: el alta de una operación compara el progreso antes/después y crea el evento correspondiente si el sistema general no lo hubiese registrado. `Cambios` mantiene también `Comprobar ahora` y `Actualizar referencia` como acciones distintas.
-
-## Archivos
-
-El paquete mantiene exactamente seis archivos en la raíz:
+El ZIP contiene exactamente seis archivos en la raíz:
 
 - `index.html`
 - `app.js`
@@ -64,34 +50,3 @@ El paquete mantiene exactamente seis archivos en la raíz:
 - `package.json`
 - `wrangler.jsonc`
 - `README.md`
-
-No requiere SQL nuevo.
-
-
-## V31 · Market Data Foundation
-
-- Nueva vista **Market Data** con biblioteca local de históricos.
-- Importador de exportaciones NinjaTrader `Tick`, `Tick Replay`, `Minute` y `Day` separadas por `;`.
-- Los timestamps de exportación NinjaTrader se interpretan como **UTC**.
-- Los históricos pesados se almacenan en **IndexedDB local** y no forman parte del payload de Supabase/Conflict Guard.
-- Mapeo del archivo a contrato/vencimiento de Trading Research.
-- Cobertura automática operación × histórico y clasificación de precisión.
-- Reconstrucción entrada → salida para MFE/MAE en ticks; la equivalencia en R se deriva del riesgo.
-- Aplicación automática a la operación únicamente cuando hay datos Tick/Tick Replay y timestamps de entrada/salida con segundos.
-- Datos de 1 minuto disponibles como diagnóstico, explícitamente no exactos por ambigüedad intrabar.
-- Los formularios `datetime-local` admiten segundos para mejorar futuros cálculos tick.
-- No altera Supabase ni el motor V9.2 Conflict Guard.
-
-
-## V31.1 · Dashboard Profiles
-
-- Se conserva V31 Market Data instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional.
-- Varios **Dashboards con nombre** por Trading Plan; todos leen el mismo dataset sin duplicar operaciones.
-- Selector rápido de Dashboard activo.
-- Crear desde la vista actual o desde la plantilla predeterminada.
-- Renombrar, duplicar y eliminar vistas (siempre queda al menos una).
-- Cada Dashboard guarda de forma independiente métricas, paneles y tarjetas visibles.
-- Orden de widgets mediante **drag & drop** dentro del personalizador, manteniendo también controles ↑ ↓.
-- Anchura configurable por widget sobre una rejilla responsive de 12 columnas.
-- Migración compatible: la antigua `dashboardConfig` se convierte en el perfil inicial **Principal** y se mantiene como espejo de compatibilidad.
-- No requiere SQL nuevo y no modifica el motor V9.2 Conflict Guard.

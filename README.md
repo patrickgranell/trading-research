@@ -1,13 +1,23 @@
-# Trading Research V31.1.5 — Dashboard Profiles · Create Fix
+# Trading Research V31.2 — Mistakes Analysis
 
-V31.1.5 corrige la creación de nuevos dashboards con nombre. El problema era una referencia obsoleta al array de perfiles: durante la creación se volvía a normalizar `dashboardProfiles`, se sustituía el array interno y el nuevo perfil se añadía a la referencia anterior, por lo que no llegaba al Trading Plan.
+V31.2 parte de V31.1.5 y mantiene intactos Supabase, Conflict Guard V9.2, Dashboard Profiles y todos los módulos previos. Market Data continúa pausado hasta completar la auditoría funcional.
 
-## Corrección
-- Crear Dashboard añade el perfil directamente a `p.dashboardProfiles` y activa inmediatamente la nueva vista.
-- El dashboard nuevo conserva la opción de copiar la vista actual o partir de la plantilla predeterminada.
-- Se mantienen renombrar, duplicar, eliminar, orden por arrastre y tamaños por widget.
-- Se conserva el Runtime Fix de V31.1.4 y el build single-bundle.
-- Market Data continúa pausado hasta completar la auditoría funcional.
-- Supabase y Conflict Guard V9.2 no se modifican.
+## Mistakes Analysis
 
-No requiere SQL nuevo.
+- Taxonomía de errores configurable por Trading Plan: nombre, categoría, criterio y activo/inactivo.
+- Evaluación explícita por operación. Un trade no evaluado nunca se considera “sin error”.
+- Snapshot histórico: si la taxonomía cambia, el pasado no se reescribe.
+- Para cada error, el grupo “sin error” solo usa operaciones donde esa definición existía realmente en el snapshot evaluado.
+- Frecuencia, expectancy con/sin error, delta, resultado asociado y relación con Disciplina.
+- Co-ocurrencia de errores, evolución últimas 20 vs 20 anteriores y hotspots error × setup × contexto.
+- Tabla de operaciones con errores y acceso directo al trade.
+- KPI y panel opcionales en Dashboard.
+- Definiciones reutilizables desde Biblioteca.
+
+## Criterio metodológico
+
+Checklist, disciplina, diario emocional y Mistakes son capas distintas. La aplicación no convierte automáticamente una regla incumplida o una emoción en error. Las diferencias de rendimiento muestran asociación histórica, no causalidad ni “coste causado” automáticamente.
+
+## Despliegue
+
+El ZIP contiene exactamente seis archivos raíz. `npm run build` genera un único `dist/index.html` con CSS y JavaScript embebidos para evitar desincronización de assets en Cloudflare. No requiere SQL nuevo.

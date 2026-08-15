@@ -5773,3 +5773,212 @@ render();
 
 /* ===== V31.1.3 DEPLOYMENT PATCH · single bundled index ===== */
 const V3115_DEPLOYMENT_MARKER='V31.1.5-DASHBOARD-CREATE-FIX';
+
+/* ===== V31.2 PATCH · Mistakes Analysis ===== */
+const V312_APP_LABEL='V31.2 · Mistakes Analysis';
+const MISTAKE_CATEGORIES=['Análisis','Contexto','Entrada','Ejecución','Gestión','Riesgo','Disciplina','Proceso','Otro'];
+let mistakesViewState={unit:'r',basis:'net',mistakeId:'',category:'',setup:'',context:'',result:''};
+let editingMistakeId=null;
+
+function v312EnsurePlanMistakes(p){
+  if(!p)return p;
+  p.mistakeTaxonomy=Array.isArray(p.mistakeTaxonomy)?p.mistakeTaxonomy:[];
+  p.mistakeTaxonomy=p.mistakeTaxonomy.map((m,i)=>({
+    id:m?.id||uid('MIST'),name:String(m?.name||m?.label||`Error ${i+1}`).trim()||`Error ${i+1}`,
+    category:MISTAKE_CATEGORIES.includes(m?.category)?m.category:'Otro',description:String(m?.description||''),
+    active:m?.active!==false,createdAt:m?.createdAt||new Date().toISOString(),updatedAt:m?.updatedAt||new Date().toISOString()
+  }));
+  return p;
+}
+(state.tradingPlans||[]).forEach(v312EnsurePlanMistakes);
+
+const makeBlankPlanV312Base=makeBlankPlan;
+makeBlankPlan=function(meta={}){const p=makeBlankPlanV312Base(meta);v312EnsurePlanMistakes(p);return p;};
+const normalizePlanV312Base=normalizePlan;
+normalizePlan=function(p,instruments){const out=normalizePlanV312Base(p,instruments);v312EnsurePlanMistakes(out);return out;};
+const normalizeStateV312Base=normalizeState;
+normalizeState=function(raw){const out=normalizeStateV312Base(raw);(out.tradingPlans||[]).forEach(v312EnsurePlanMistakes);return out;};
+
+function v312MistakeById(id,p=getCurrentPlan()){v312EnsurePlanMistakes(p);return p?.mistakeTaxonomy?.find(x=>x.id===id)||null;}
+function v312MistakeForm(m={}){
+  const cats=MISTAKE_CATEGORIES.map(x=>({value:x,label:x}));
+  return `<div class="form-section"><h4>Definición del error</h4><div class="form-grid">${field('Nombre / error observable','mistake-name','text',esc(m.name||''),'span2')}${selectObjField('Categoría','mistake-category',cats,m.category||'Ejecución')}${selectObjField('Estado','mistake-active',[{value:'true',label:'Activo'},{value:'false',label:'Inactivo'}],String(m.active!==false))}${field('Criterio / cuándo marcarlo','mistake-description','textarea',esc(m.description||''),'full')}</div><div class="notice" style="margin-top:12px"><strong>Objetivo:</strong> define errores observables y repetibles. Evita categorías que dependan únicamente del resultado del trade. Las operaciones evaluadas guardan un snapshot histórico de esta definición.</div></div>`;
+}
+function v312OpenMistakeModal(id=null){
+  const p=getCurrentPlan();if(!p)return;v312EnsurePlanMistakes(p);editingMistakeId=id;const m=id?v312MistakeById(id,p):{name:'',category:'Ejecución',description:'',active:true};
+  document.body.insertAdjacentHTML('beforeend',modalShell(id?'Editar error':'Nuevo error',v312MistakeForm(m),`<button class="btn" onclick="closeModal();editingMistakeId=null">Cancelar</button><button class="btn primary" onclick="v312SaveMistake()">Guardar</button>`));
+}
+function v312SaveMistake(){
+  const p=getCurrentPlan(),g=n=>document.getElementById(`f-${n}`)?.value||'';if(!p)return;v312EnsurePlanMistakes(p);const name=g('mistake-name').trim();if(!name)return alert('Escribe un nombre para el error.');
+  if(p.mistakeTaxonomy.some(x=>x.id!==editingMistakeId&&x.name.toLowerCase()===name.toLowerCase()))return alert('Ya existe un error con ese nombre en este Trading Plan.');
+  const old=editingMistakeId?v312MistakeById(editingMistakeId,p):null,now=new Date().toISOString(),item={id:old?.id||uid('MIST'),name,category:MISTAKE_CATEGORIES.includes(g('mistake-category'))?g('mistake-category'):'Otro',description:g('mistake-description').trim(),active:g('mistake-active')!=='false',createdAt:old?.createdAt||now,updatedAt:now};
+  const idx=p.mistakeTaxonomy.findIndex(x=>x.id===item.id);if(idx>=0)p.mistakeTaxonomy[idx]=item;else p.mistakeTaxonomy.push(item);p.updatedAt=now;editingMistakeId=null;persist();closeModal();render();
+}
+function v312DeleteMistake(id){
+  const p=getCurrentPlan(),m=v312MistakeById(id,p);if(!p||!m)return;if(!confirm(`¿Eliminar “${m.name}” de la taxonomía actual?\n\nLos trades ya evaluados conservarán su snapshot histórico.`))return;
+  p.mistakeTaxonomy=p.mistakeTaxonomy.filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();persist();render();
+}
+function v312MoveMistake(id,delta){
+  const p=getCurrentPlan();if(!p)return;v312EnsurePlanMistakes(p);const i=p.mistakeTaxonomy.findIndex(x=>x.id===id),j=i+Number(delta||0);if(i<0||j<0||j>=p.mistakeTaxonomy.length)return;[p.mistakeTaxonomy[i],p.mistakeTaxonomy[j]]=[p.mistakeTaxonomy[j],p.mistakeTaxonomy[i]];p.updatedAt=new Date().toISOString();persist();render();
+}
+function v312MistakeConfigPanel(p){
+  v312EnsurePlanMistakes(p);const rows=p.mistakeTaxonomy||[],active=rows.filter(x=>x.active).length;
+  return `<section class="card panel config-wide mistakes-config-hero"><div class="panel-title"><div><h3>Taxonomía de errores · ${esc(planLabel(p))}</h3><div class="help">Errores observables que quieres evaluar trade a trade. Se mantienen separados de Checklist, Disciplina y Diario emocional.</div></div><button class="btn primary small" onclick="v312OpenMistakeModal()">+ Nuevo error</button></div><div class="compliance-config-kpis"><div><span>Definiciones</span><strong>${rows.length}</strong></div><div><span>Activas</span><strong>${active}</strong></div><div><span>Categorías</span><strong>${new Set(rows.map(x=>x.category)).size}</strong></div></div><div class="notice"><strong>Capas separadas:</strong> una regla de checklist incumplida no se convierte automáticamente en error; una emoción o conducta tampoco. Mistakes Analysis solo usa errores que hayas evaluado explícitamente.</div></section><section class="card panel config-wide mistakes-config-list"><div class="panel-title"><div><h3>Errores del plan</h3><div class="help">El orden se conserva en el formulario de operación. Desactivar no reescribe el histórico.</div></div></div>${rows.length?rows.map((m,i)=>`<article class="compliance-rule-card ${m.active?'':'inactive'}"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${esc(m.category)}</span>${m.active?'':'<span class="badge">Inactivo</span>'}</div><strong>${esc(m.name)}</strong><p>${esc(m.description||'Sin criterio adicional.')}</p></div><div class="compliance-rule-actions"><button class="btn tiny ghost" onclick="v312MoveMistake('${m.id}',-1)" ${i===0?'disabled':''}>↑</button><button class="btn tiny ghost" onclick="v312MoveMistake('${m.id}',1)" ${i===rows.length-1?'disabled':''}>↓</button><button class="btn small" onclick="v312OpenMistakeModal('${m.id}')">Editar</button>${typeof simpleSaveButton==='function'?simpleSaveButton('mistakeRule',m.id):''}<button class="btn small danger" onclick="v312DeleteMistake('${m.id}')">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay errores definidos. Añade solo errores que puedas reconocer de forma consistente después de cada trade.</div>'}</section>`;
+}
+
+/* Biblioteca: las definiciones de error también pueden reutilizarse entre Trading Plans. */
+const libraryTypeLabelV312Base=libraryTypeLabel;
+libraryTypeLabel=function(type){return type==='mistakeRule'?'Definición de error':libraryTypeLabelV312Base(type);};
+const libraryTypeOrderV312Base=libraryTypeOrder;
+libraryTypeOrder=function(type){return type==='mistakeRule'?9:libraryTypeOrderV312Base(type);};
+const libraryPayloadComparableV312Base=libraryPayloadComparable;
+libraryPayloadComparable=function(type,payload){const p=libraryPayloadComparableV312Base(type,payload);if(type==='mistakeRule'&&p&&typeof p==='object'){delete p.id;delete p.createdAt;delete p.updatedAt;}return p;};
+const simpleTemplateDescriptorV312Base=simpleTemplateDescriptor;
+simpleTemplateDescriptor=function(type,ref,p=getCurrentPlan()){
+  if(type!=='mistakeRule')return simpleTemplateDescriptorV312Base(type,ref,p);v312EnsurePlanMistakes(p);const clean=decodeURIComponent(String(ref||'')),m=(p?.mistakeTaxonomy||[]).find(x=>x.id===clean||x.name===clean);return m?{type,name:m.name,payload:clone(m)}:null;
+};
+const planHasLibraryEquivalentV312Base=planHasLibraryEquivalent;
+planHasLibraryEquivalent=function(p,item){if(item?.type==='mistakeRule'){v312EnsurePlanMistakes(p);return (p?.mistakeTaxonomy||[]).some(x=>x.name===item.name);}return planHasLibraryEquivalentV312Base(p,item);};
+const applyLibraryItemToPlanV312Base=applyLibraryItemToPlan;
+applyLibraryItemToPlan=function(item,p){
+  if(item?.type!=='mistakeRule')return applyLibraryItemToPlanV312Base(item,p);v312EnsurePlanMistakes(p);if(planHasLibraryEquivalent(p,item))return {status:'exists'};const m=clone(item.payload||{});m.id=uid('MIST');m.name=item.name;m.createdAt=new Date().toISOString();m.updatedAt=m.createdAt;p.mistakeTaxonomy.push(m);addLibraryLink(p,item,item.name);p.updatedAt=new Date().toISOString();return {status:'added'};
+};
+const simpleLibrarySummaryV312Base=simpleLibrarySummary;
+simpleLibrarySummary=function(i){if(i?.type==='mistakeRule'){const p=i.payload||{};return `${p.category||'Otro'}${p.description?` · ${p.description}`:''}`;}return simpleLibrarySummaryV312Base(i);};
+const simpleLibraryPanelV312Base=simpleLibraryPanel;
+simpleLibraryPanel=function(){
+  const base=simpleLibraryPanelV312Base(),p=getCurrentPlan(),rows=simpleLibraryItems().filter(i=>i.type==='mistakeRule');if(!rows.length)return base;
+  const section=`<section class="card panel config-wide master-lib-section"><div class="panel-title"><div><h3>Definiciones de error</h3><div class="help">${rows.length} guardada(s)</div></div></div><div class="master-lib-grid">${rows.map(i=>{const exists=planHasLibraryEquivalent(p,i);return `<article class="master-lib-card"><div class="master-lib-head"><div><strong>${esc(i.name)}</strong></div></div><div class="master-lib-meta">${esc(simpleLibrarySummary(i))}${i.sourcePlanLabel?`<br>Guardado desde: ${esc(i.sourcePlanLabel)}`:''}</div><div class="master-lib-actions"><button class="btn small primary" onclick="addSimpleLibraryItem('${i.id}')" ${exists?'disabled':''}>${exists?'Ya está en este plan':'Añadir al plan'}</button><button class="btn small danger" onclick="deleteSavedLibraryItem('${i.id}')">Eliminar</button></div></article>`;}).join('')}</div></section>`;
+  return base+section;
+};
+
+const configTabsV312Base=configTabs;
+configTabs=function(p){
+  let html=configTabsV312Base(p);if(html.includes("setConfigTab('mistakes')"))return html;
+  const btn=`<button class="config-tab ${configTab==='mistakes'?'active':''}" onclick="setConfigTab('mistakes')"><strong>Errores</strong><span>Taxonomía y criterios</span></button>`;
+  return html.replace(/<\/div>\s*$/,btn+'</div>');
+};
+const configContentV312Base=configContent;
+configContent=function(p){if(configTab==='mistakes')return v312MistakeConfigPanel(p);return configContentV312Base(p);};
+
+function v312MistakeSnapshotItems(o,p){
+  if(o?.mistakes?.evaluated&&Array.isArray(o.mistakes.responses)&&o.mistakes.responses.length)return o.mistakes.responses.map(x=>({id:x.id||uid('MISTOLD'),name:x.name||'Error histórico',category:x.category||'Otro',description:x.description||'',active:true,occurred:!!x.occurred,historical:true}));
+  v312EnsurePlanMistakes(p);return (p?.mistakeTaxonomy||[]).filter(x=>x.active).map(x=>({...clone(x),occurred:false}));
+}
+function v312OperationMistakesSection(o,p){
+  const rows=v312MistakeSnapshotItems(o,p),evaluated=o?!!o?.mistakes?.evaluated:false,notes=o?.mistakes?.notes||'';
+  if(!rows.length)return `<div class="form-section operation-mistakes-section"><div class="section-title-row"><div><h4>Errores observados</h4><div class="help">Mistakes Analysis requiere una taxonomía explícita.</div></div><button class="btn small" type="button" onclick="closeModal();setConfigTab('mistakes');navigate('config')">Configurar errores</button></div><div class="notice">No se inferirá ningún error a partir del resultado, la disciplina, el checklist o el diario emocional.</div></div>`;
+  return `<div class="form-section operation-mistakes-section"><div class="section-title-row"><div><h4>Errores observados</h4><div class="help">Marca solo errores realmente identificados. Si está evaluado y no marcas ninguno, el trade se registra explícitamente como “sin errores”.</div></div></div><div class="form-grid"><label class="field"><span>Evaluación</span><select id="mistakes-evaluated" class="select" onchange="v312ToggleMistakeEvaluation()"><option value="no" ${!evaluated?'selected':''}>No evaluado</option><option value="yes" ${evaluated?'selected':''}>Evaluado</option></select></label><div class="field span2"><label>Resumen</label><div id="mistakes-summary" class="readonly-box">—</div></div></div><div id="mistakes-items" class="operation-mistakes-grid ${evaluated?'':'hidden'}">${rows.map(m=>`<label class="operation-mistake-item"><input type="checkbox" data-mistake-item="1" data-mistake-id="${esc(m.id)}" data-mistake-name="${esc(m.name)}" data-mistake-category="${esc(m.category)}" data-mistake-description="${esc(m.description||'')}" ${m.occurred?'checked':''} onchange="v312UpdateMistakePreview()"><span><strong>${esc(m.name)}</strong><small>${esc(m.category)}${m.historical?' · snapshot histórico':''}</small>${m.description?`<em>${esc(m.description)}</em>`:''}</span></label>`).join('')}</div><div id="mistakes-note-wrap" class="field full ${evaluated?'':'hidden'}"><label>Nota sobre errores (opcional)</label><textarea id="mistakes-notes" class="textarea" placeholder="Qué ocurrió, cómo se manifestó o qué revisar…">${esc(notes)}</textarea></div><div class="notice" style="margin-top:12px"><strong>No causalidad automática:</strong> marcar un error permite estudiar su asociación con resultado, contexto y recurrencia; no demuestra por sí solo cuánto dinero/R “causó” ese error.</div></div>`;
+}
+function v312ToggleMistakeEvaluation(){const yes=document.getElementById('mistakes-evaluated')?.value==='yes';document.getElementById('mistakes-items')?.classList.toggle('hidden',!yes);document.getElementById('mistakes-note-wrap')?.classList.toggle('hidden',!yes);v312UpdateMistakePreview();}
+function v312UpdateMistakePreview(){
+  const el=document.getElementById('mistakes-summary');if(!el)return;const evaluated=document.getElementById('mistakes-evaluated')?.value==='yes';if(!evaluated){el.textContent='No evaluado · no entra en Mistakes Analysis';return;}
+  const boxes=[...document.querySelectorAll('[data-mistake-item="1"]')],hits=boxes.filter(x=>x.checked);el.innerHTML=hits.length?`<strong>${hits.length}</strong> error(es) · ${hits.map(x=>esc(x.dataset.mistakeName||'')).join(', ')}`:'<strong>0 errores</strong> · trade evaluado explícitamente como limpio';
+}
+const operationFormV312Base=operationForm;
+operationForm=function(o,r,p){
+  let html=operationFormV312Base(o,r,p),section=v312OperationMistakesSection(o,p),anchor='<div class="form-section"><h4>Data Quality · disponibilidad de MAE/MFE</h4>';
+  if(html.includes(anchor))html=html.replace(anchor,section+anchor);else html=html.replace('</form>',section+'</form>');setTimeout(v312UpdateMistakePreview,0);return html;
+};
+const openOperationModalV312Base=openOperationModal;
+openOperationModal=function(id=null){openOperationModalV312Base(id);setTimeout(v312UpdateMistakePreview,0);};
+
+const saveOperationFromFormV312Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const planId=state.currentPlanId,targetId=editingId||null,beforeIds=new Set(state.operations.filter(o=>o.tradingPlanId===planId).map(o=>o.id));
+  const hasControl=!!document.getElementById('mistakes-evaluated'),evaluated=hasControl&&document.getElementById('mistakes-evaluated')?.value==='yes';
+  const responses=hasControl?[...document.querySelectorAll('[data-mistake-item="1"]')].map(x=>({id:x.dataset.mistakeId||uid('MISTSNAP'),name:x.dataset.mistakeName||'Error',category:x.dataset.mistakeCategory||'Otro',description:x.dataset.mistakeDescription||'',occurred:!!x.checked})):[];
+  const notes=hasControl?(document.getElementById('mistakes-notes')?.value||'').trim():'';
+  await saveOperationFromFormV312Base();
+  if(document.getElementById('operationForm'))return; // algún validador anterior impidió guardar
+  const op=targetId?state.operations.find(o=>o.id===targetId):state.operations.find(o=>o.tradingPlanId===planId&&!beforeIds.has(o.id));
+  if(op&&hasControl){op.mistakes={evaluated,responses:evaluated?responses:[],notes:evaluated?notes:'',updatedAt:new Date().toISOString()};op.updatedAt=new Date().toISOString();persist();render();}
+};
+
+function v312MistakeResponses(o){return Array.isArray(o?.mistakes?.responses)?o.mistakes.responses:[];}
+function v312MistakesEvaluated(o){return !!o?.mistakes?.evaluated;}
+function v312OccurredResponses(o){return v312MistakeResponses(o).filter(x=>x.occurred);}
+function v312HasAnyMistake(o){return v312MistakesEvaluated(o)&&v312OccurredResponses(o).length>0;}
+function v312MistakeKey(x){return String(x?.id||`name:${String(x?.name||'').toLowerCase()}`);}
+function v312Catalogue(p=getCurrentPlan(),ops=currentOps()){
+  v312EnsurePlanMistakes(p);const map=new Map();(p?.mistakeTaxonomy||[]).forEach(x=>map.set(v312MistakeKey(x),{...clone(x),key:v312MistakeKey(x),historical:false}));
+  ops.forEach(o=>v312MistakeResponses(o).forEach(x=>{const key=v312MistakeKey(x),cur=map.get(key);if(!cur)map.set(key,{id:x.id||key,key,name:x.name||'Error histórico',category:x.category||'Otro',description:x.description||'',active:false,historical:true});}));return [...map.values()];
+}
+function v312StructuralOps(){
+  const f=mistakesViewState;return currentOps().filter(o=>{if(f.setup&&o.setup!==f.setup)return false;if(f.context&&o.h4Context!==f.context)return false;if(f.result&&o.result!==f.result)return false;return true;});
+}
+function v312ResponseFor(o,key){return v312MistakeResponses(o).find(x=>v312MistakeKey(x)===key)||null;}
+function v312RuleStats(item,ops){
+  const eligible=ops.filter(o=>v312MistakesEvaluated(o)&&!!v312ResponseFor(o,item.key)),withOps=eligible.filter(o=>v312ResponseFor(o,item.key)?.occurred),withoutOps=eligible.filter(o=>!v312ResponseFor(o,item.key)?.occurred),withS=calcMetricStats(withOps,mistakesViewState.unit,mistakesViewState.basis),withoutS=calcMetricStats(withoutOps,mistakesViewState.unit,mistakesViewState.basis);
+  return {...item,eligible,withOps,withoutOps,n:withOps.length,rate:eligible.length?withOps.length/eligible.length*100:0,withS,withoutS,gap:withS.expectancy-withoutS.expectancy,disciplineFail:withOps.length?withOps.filter(o=>o.discipline===false).length/withOps.length*100:0};
+}
+function v312SetMistakeFilter(key,value){mistakesViewState[key]=value;render();}
+function v312ResetMistakeFilters(){const unit=mistakesViewState.unit,basis=mistakesViewState.basis;mistakesViewState={unit,basis,mistakeId:'',category:'',setup:'',context:'',result:''};render();}
+function v312MistakeMetricSwitch(){return `<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${mistakesViewState.unit===v?'active':''}" onclick="v312SetMistakeFilter('unit','${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${mistakesViewState.basis===v?'active':''}" onclick="v312SetMistakeFilter('basis','${v}')">${l}</button>`).join('')}</div>`;}
+function v312MistakeFilters(ops,catalogue){
+  const setups=uniqueSorted(ops.map(o=>o.setup).filter(Boolean)),contexts=uniqueSorted(ops.map(o=>o.h4Context).filter(Boolean)),cats=uniqueSorted(catalogue.map(x=>x.category).filter(Boolean));
+  return `<section class="card filter-hub mistakes-filter"><div class="filter-hub-top"><div><h3>Ámbito de análisis</h3><p>Setup/contexto/resultado restringen el universo. Error y categoría afinan el detalle sin convertir operaciones no evaluadas en “limpias”.</p></div><button class="btn small" onclick="v312ResetMistakeFilters()">Limpiar</button></div><div class="filter-grid"><label class="filter-field"><span>Setup</span><select class="select" onchange="v312SetMistakeFilter('setup',this.value)"><option value="">Todos</option>${setups.map(x=>`<option value="${esc(x)}" ${mistakesViewState.setup===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="filter-field"><span>Contexto</span><select class="select" onchange="v312SetMistakeFilter('context',this.value)"><option value="">Todos</option>${contexts.map(x=>`<option value="${esc(x)}" ${mistakesViewState.context===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="filter-field"><span>Resultado</span><select class="select" onchange="v312SetMistakeFilter('result',this.value)"><option value="">Todos</option><option value="win" ${mistakesViewState.result==='win'?'selected':''}>Ganadoras</option><option value="loss" ${mistakesViewState.result==='loss'?'selected':''}>Perdedoras</option><option value="pending" ${mistakesViewState.result==='pending'?'selected':''}>Pendientes</option></select></label><label class="filter-field"><span>Categoría de error</span><select class="select" onchange="v312SetMistakeFilter('category',this.value)"><option value="">Todas</option>${cats.map(x=>`<option value="${esc(x)}" ${mistakesViewState.category===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="filter-field wide"><span>Error concreto</span><select class="select" onchange="v312SetMistakeFilter('mistakeId',this.value)"><option value="">Todos</option>${catalogue.map(x=>`<option value="${esc(x.key)}" ${mistakesViewState.mistakeId===x.key?'selected':''}>${esc(x.name)} · ${esc(x.category)}</option>`).join('')}</select></label></div></section>`;
+}
+function v312RuleTable(stats){
+  const rows=stats.filter(r=>!mistakesViewState.category||r.category===mistakesViewState.category).filter(r=>!mistakesViewState.mistakeId||r.key===mistakesViewState.mistakeId).sort((a,b)=>b.n-a.n||a.gap-b.gap);
+  return `<section class="card panel mistakes-rules-panel"><div class="panel-title"><div><h3>Frecuencia e impacto asociado por error</h3><small>El denominador de cada error solo incluye trades donde esa definición estaba realmente en el snapshot evaluado.</small></div><span>${rows.length} definiciones</span></div><div class="table-wrap"><table class="table"><thead><tr><th>Error</th><th>Elegibles</th><th>Frecuencia</th><th>Exp. con error</th><th>Exp. sin error</th><th>Δ con − sin</th><th>Resultado asociado</th><th>Disciplina “No”</th></tr></thead><tbody>${rows.length?rows.map(r=>{const result=r.withS.sum;return `<tr class="mistake-stat-row" onclick="v312SetMistakeFilter('mistakeId','${esc(r.key)}')"><td><strong>${esc(r.name)}</strong><small>${esc(r.category)}${r.historical?' · histórico':''}</small></td><td>${r.eligible.length}</td><td><strong>${r.rate.toFixed(1)}%</strong><small>${r.n} ocurrencias</small></td><td class="${r.withS.expectancy>0?'positive':r.withS.expectancy<0?'negative':''}">${r.n?metricStatText(r.withS.expectancy,mistakesViewState.unit):'—'}</td><td class="${r.withoutS.expectancy>0?'positive':r.withoutS.expectancy<0?'negative':''}">${r.withoutOps.length?metricStatText(r.withoutS.expectancy,mistakesViewState.unit):'—'}</td><td class="${r.gap>0?'positive':r.gap<0?'negative':''}">${r.n&&r.withoutOps.length?metricStatText(r.gap,mistakesViewState.unit):'—'}</td><td class="${result>0?'positive':result<0?'negative':''}">${r.n?metricStatText(result,mistakesViewState.unit):'—'}</td><td>${r.n?r.disciplineFail.toFixed(1)+'%':'—'}</td></tr>`;}).join(''):'<tr><td colspan="8"><div class="empty">No hay errores evaluados para esta selección.</div></td></tr>'}</tbody></table></div><div class="notice mistakes-method-note"><strong>Lectura correcta:</strong> “resultado asociado” y Δ expectancy describen una asociación histórica. No son una estimación causal del dinero/R que el error “costó”.</div></section>`;
+}
+function v312CategoryPanel(ops){
+  const evaluated=ops.filter(v312MistakesEvaluated),counts=new Map();evaluated.forEach(o=>v312OccurredResponses(o).forEach(x=>counts.set(x.category||'Otro',(counts.get(x.category||'Otro')||0)+1)));const rows=[...counts.entries()].sort((a,b)=>b[1]-a[1]),max=Math.max(1,...rows.map(x=>x[1]));
+  return `<section class="card panel mistakes-category-panel"><div class="panel-title"><div><h3>Errores por categoría</h3><small>Incidencias, no número de trades: un trade puede contener varios errores.</small></div></div>${rows.length?`<div class="mistakes-bars">${rows.map(([name,n])=>`<button onclick="v312SetMistakeFilter('category','${esc(name)}')"><span><strong>${esc(name)}</strong><small>${n} incidencia(s)</small></span><i><b style="width:${(n/max*100).toFixed(1)}%"></b></i><em>${n}</em></button>`).join('')}</div>`:'<div class="empty">Todavía no hay incidencias registradas.</div>'}</section>`;
+}
+function v312PairPanel(ops,catalogue){
+  const names=new Map(catalogue.map(x=>[x.key,x.name])),map=new Map();ops.filter(v312MistakesEvaluated).forEach(o=>{const keys=[...new Set(v312OccurredResponses(o).map(v312MistakeKey))];for(let i=0;i<keys.length;i++)for(let j=i+1;j<keys.length;j++){const pair=[keys[i],keys[j]].sort(),k=pair.join('||');if(!map.has(k))map.set(k,{keys:pair,ops:[]});map.get(k).ops.push(o);}});const rows=[...map.values()].sort((a,b)=>b.ops.length-a.ops.length).slice(0,8);
+  return `<section class="card panel mistakes-pairs-panel"><div class="panel-title"><div><h3>Co-ocurrencia</h3><small>Errores que aparecen juntos en el mismo trade evaluado.</small></div></div>${rows.length?`<div class="mistake-pair-list">${rows.map(r=>{const s=calcMetricStats(r.ops,mistakesViewState.unit,mistakesViewState.basis);return `<div><span><strong>${esc(names.get(r.keys[0])||'Error')} + ${esc(names.get(r.keys[1])||'Error')}</strong><small>${r.ops.length} trade(s)</small></span><em class="${s.expectancy>0?'positive':s.expectancy<0?'negative':''}">${metricStatText(s.expectancy,mistakesViewState.unit)} exp.</em></div>`;}).join('')}</div>`:'<div class="empty">Aún no hay trades con dos o más errores simultáneos.</div>'}</section>`;
+}
+function v312TrendPanel(ops){
+  const evals=ops.filter(v312MistakesEvaluated).sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate)),recent=evals.slice(-20),prev=evals.slice(-40,-20),rate=x=>x.length?x.filter(v312HasAnyMistake).length/x.length*100:0,recentRate=rate(recent),prevRate=rate(prev),recentS=calcMetricStats(recent,mistakesViewState.unit,mistakesViewState.basis),prevS=calcMetricStats(prev,mistakesViewState.unit,mistakesViewState.basis),delta=recentRate-prevRate;
+  return `<section class="card panel mistakes-trend-panel"><div class="panel-title"><div><h3>Evolución reciente</h3><small>Últimas 20 operaciones evaluadas frente a las 20 evaluadas anteriores.</small></div></div><div class="mistake-trend-grid"><div><span>Tasa de error · últimas ${recent.length}</span><strong>${recent.length?recentRate.toFixed(1)+'%':'—'}</strong><small class="${delta<0?'positive':delta>0?'negative':''}">${prev.length?`${delta>0?'+':''}${delta.toFixed(1)} pp vs anteriores`:'sin bloque anterior suficiente'}</small></div><div><span>Expectancy reciente</span><strong class="${recentS.expectancy>0?'positive':recentS.expectancy<0?'negative':''}">${recent.length?metricStatText(recentS.expectancy,mistakesViewState.unit):'—'}</strong><small>${recent.length} evaluadas</small></div><div><span>Tasa anterior</span><strong>${prev.length?prevRate.toFixed(1)+'%':'—'}</strong><small>${prev.length} evaluadas</small></div><div><span>Expectancy anterior</span><strong class="${prevS.expectancy>0?'positive':prevS.expectancy<0?'negative':''}">${prev.length?metricStatText(prevS.expectancy,mistakesViewState.unit):'—'}</strong><small>${prev.length} evaluadas</small></div></div></section>`;
+}
+function v312Hotspots(stats){
+  const rows=[];stats.forEach(r=>{const groups=new Map();r.eligible.forEach(o=>{const key=`${o.setup||'—'}|||${o.h4Context||'—'}`;if(!groups.has(key))groups.set(key,{setup:o.setup||'—',context:o.h4Context||'—',eligible:[],withOps:[]});const g=groups.get(key);g.eligible.push(o);if(v312ResponseFor(o,r.key)?.occurred)g.withOps.push(o);});groups.forEach(g=>{if(!g.withOps.length)return;const s=calcMetricStats(g.withOps,mistakesViewState.unit,mistakesViewState.basis);rows.push({mistake:r.name,category:r.category,...g,rate:g.eligible.length?g.withOps.length/g.eligible.length*100:0,expectancy:s.expectancy});});});rows.sort((a,b)=>b.withOps.length-a.withOps.length||b.rate-a.rate);
+  return `<section class="card panel mistakes-hotspots-panel"><div class="panel-title"><div><h3>Hotspots · error × setup × contexto</h3><small>Dónde se concentran los errores dentro de los trades en los que esa definición era evaluable.</small></div></div><div class="table-wrap"><table class="table"><thead><tr><th>Error</th><th>Setup</th><th>Contexto</th><th>Ocurrencias</th><th>Tasa</th><th>Expectancy con error</th></tr></thead><tbody>${rows.length?rows.slice(0,10).map(x=>`<tr><td><strong>${esc(x.mistake)}</strong><small>${esc(x.category)}</small></td><td>${esc(x.setup)}</td><td>${esc(x.context)}</td><td>${x.withOps.length}/${x.eligible.length}</td><td>${x.rate.toFixed(1)}%</td><td class="${x.expectancy>0?'positive':x.expectancy<0?'negative':''}">${metricStatText(x.expectancy,mistakesViewState.unit)}</td></tr>`).join(''):'<tr><td colspan="6"><div class="empty">Sin hotspots todavía.</div></td></tr>'}</tbody></table></div></section>`;
+}
+function v312MistakeOpsTable(ops,catalogue){
+  const selected=mistakesViewState.mistakeId,category=mistakesViewState.category,rows=ops.filter(v312MistakesEvaluated).filter(o=>{const hits=v312OccurredResponses(o);if(selected)return hits.some(x=>v312MistakeKey(x)===selected);if(category)return hits.some(x=>(x.category||'Otro')===category);return hits.length>0;}).sort((a,b)=>new Date(b.entryDate)-new Date(a.entryDate));
+  return `<section class="card panel mistakes-ops-panel"><div class="panel-title"><div><h3>Operaciones con errores${selected?' · selección actual':''}</h3><small>Solo trades evaluados y con al menos una incidencia coincidente.</small></div><span>${rows.length} operaciones</span></div><div class="table-wrap"><table class="table"><thead><tr><th>Fecha</th><th>Setup</th><th>Contexto</th><th>Errores</th><th>Resultado</th><th>Disciplina</th><th></th></tr></thead><tbody>${rows.length?rows.map(o=>{const hits=v312OccurredResponses(o).filter(x=>(!selected||v312MistakeKey(x)===selected)&&(!category||(x.category||'Otro')===category)),v=opMetricValue(o,mistakesViewState.unit,mistakesViewState.basis);return `<tr><td>${fmtDateOnly(o.entryDate)}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.h4Context||'—')}</td><td><div class="mistake-badges">${hits.map(x=>`<span class="badge loss">${esc(x.name)}</span>`).join('')}</div></td><td class="${v>0?'positive':v<0?'negative':''}">${metricStatText(v,mistakesViewState.unit)}</td><td>${typeof o.discipline==='boolean'?(o.discipline?'Sí':'No'):'—'}</td><td><button class="btn tiny" onclick="viewOperation('${o.id}')">Ver</button></td></tr>`;}).join(''):'<tr><td colspan="7"><div class="empty">No hay operaciones con errores para esta selección.</div></td></tr>'}</tbody></table></div></section>`;
+}
+function mistakesView(){
+  const p=getCurrentPlan();v312EnsurePlanMistakes(p);const ops=v312StructuralOps(),catalogue=v312Catalogue(p,ops),evaluated=ops.filter(v312MistakesEvaluated),errored=evaluated.filter(v312HasAnyMistake),clean=evaluated.filter(o=>!v312HasAnyMistake(o)),coverage=ops.length?evaluated.length/ops.length*100:0,errorRate=evaluated.length?errored.length/evaluated.length*100:0,incidents=evaluated.reduce((s,o)=>s+v312OccurredResponses(o).length,0),errS=calcMetricStats(errored,mistakesViewState.unit,mistakesViewState.basis),cleanS=calcMetricStats(clean,mistakesViewState.unit,mistakesViewState.basis),gap=errS.expectancy-cleanS.expectancy,ruleStats=catalogue.map(x=>v312RuleStats(x,ops));
+  const controls=`${v312MistakeMetricSwitch()}<button class="btn" onclick="setConfigTab('mistakes');navigate('config')">⚙ Configurar errores</button>`;
+  const noTax=!(p?.mistakeTaxonomy||[]).length?`<div class="notice"><strong>Este Trading Plan todavía no tiene taxonomía de errores.</strong> Define errores observables; los trades antiguos permanecerán “no evaluados” hasta que los revises explícitamente.</div>`:'';
+  const kpis=`<div class="mistakes-kpis">${kpi('Cobertura de evaluación',`${coverage.toFixed(1)}%`,`${evaluated.length}/${ops.length} operaciones`)}${kpi('Trades con ≥1 error',evaluated.length?`${errorRate.toFixed(1)}%`:'—',`${errored.length}/${evaluated.length} evaluadas`)}${kpi('Incidencias',String(incidents),'un trade puede tener varias')}${kpi('Expectancy · con error',errored.length?metricStatText(errS.expectancy,mistakesViewState.unit):'—',`${errored.length} operaciones`)}${kpi('Expectancy · sin errores',clean.length?metricStatText(cleanS.expectancy,mistakesViewState.unit):'—',`${clean.length} operaciones`)}${kpi('Δ expectancy',errored.length&&clean.length?metricStatText(gap,mistakesViewState.unit):'—','con error − limpio')}</div>`;
+  return `${pageHead('Mistakes Analysis','Frecuencia, recurrencia y rendimiento asociado a errores explícitamente evaluados. Separado de checklist, disciplina y emociones.',controls)}${activePlanBanner()}${noTax}${v312MistakeFilters(currentOps(),v312Catalogue(p,currentOps()))}${kpis}<div class="mistakes-grid">${v312CategoryPanel(ops)}${v312TrendPanel(ops)}${v312PairPanel(ops,catalogue)}</div>${v312RuleTable(ruleStats)}${v312Hotspots(ruleStats)}${v312MistakeOpsTable(ops,catalogue)}<div class="notice mistakes-final-note"><strong>Criterio metodológico:</strong> una operación no evaluada nunca se clasifica como “sin error”. Para cada error concreto, el grupo “sin error” solo incluye trades cuyo snapshot contenía esa definición y fue evaluada. Esto evita contaminar la comparación cuando la taxonomía cambia con el tiempo.</div>${mistakesViewState.unit==='ticks'?mixedInstrumentWarning(ops):''}`;
+}
+
+/* Ficha de operación: resumen de errores explícitos. */
+const viewOperationV312Base=viewOperation;
+viewOperation=function(id){
+  viewOperationV312Base(id);const o=state.operations.find(x=>x.id===id);if(!o)return;setTimeout(()=>{const modal=document.querySelector('.modal-backdrop .modal-body');if(!modal||modal.querySelector('.trade-mistakes-detail'))return;const evaluated=v312MistakesEvaluated(o),hits=v312OccurredResponses(o),html=`<section class="trade-mistakes-detail"><h4>Errores evaluados</h4>${!evaluated?'<div class="notice">No evaluado · no entra en Mistakes Analysis.</div>':hits.length?`<div class="mistake-badges">${hits.map(x=>`<span class="badge loss">${esc(x.name)} · ${esc(x.category||'Otro')}</span>`).join('')}</div>`:'<div class="notice">Evaluado explícitamente · 0 errores registrados.</div>'}${o?.mistakes?.notes?`<p>${esc(o.mistakes.notes)}</p>`:''}</section>`;modal.insertAdjacentHTML('beforeend',html);},0);
+};
+
+/* Dashboard: KPI y panel opcionales, disponibles en Personalizar. */
+if(!DASHBOARD_KPI_DEFS.some(x=>x[0]==='mistakeRate'))DASHBOARD_KPI_DEFS.push(['mistakeRate','Tasa de errores']);
+if(!DASHBOARD_PANEL_DEFS.some(x=>x[0]==='mistakesTop'))DASHBOARD_PANEL_DEFS.push(['mistakesTop','Errores más frecuentes']);
+const dashboardKpiHtmlV312Base=dashboardKpiHtml;
+dashboardKpiHtml=function(id,ctx){if(id!=='mistakeRate')return dashboardKpiHtmlV312Base(id,ctx);const evals=ctx.ops.filter(v312MistakesEvaluated),bad=evals.filter(v312HasAnyMistake),rate=evals.length?bad.length/evals.length*100:0;return kpi('Tasa de errores',evals.length?`${rate.toFixed(1)}%`:'—',`${bad.length}/${evals.length} evaluadas`);};
+function v312DashboardMistakesPanel(ops){const p=getCurrentPlan(),catalogue=v312Catalogue(p,ops),stats=catalogue.map(x=>v312RuleStats(x,ops)).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,6),evals=ops.filter(v312MistakesEvaluated);return `<section class="card panel dashboard-custom-panel"><div class="panel-title"><div><h3>Errores más frecuentes</h3><small>${evals.length}/${ops.length} operaciones evaluadas</small></div><button class="btn tiny ghost" onclick="navigate('mistakes')">Abrir</button></div>${stats.length?`<div class="dashboard-mistakes-list">${stats.map(x=>`<div><span><strong>${esc(x.name)}</strong><small>${esc(x.category)} · ${x.n}/${x.eligible.length}</small></span><i><b style="width:${Math.min(100,x.rate)}%"></b></i><em>${x.rate.toFixed(0)}%</em></div>`).join('')}</div>`:'<div class="empty">Sin errores evaluados todavía.</div>'}</section>`;}
+const dashboardPanelHtmlV312Base=dashboardPanelHtml;
+dashboardPanelHtml=function(id,ctx){if(id==='mistakesTop')return v312DashboardMistakesPanel(ctx.ops);return dashboardPanelHtmlV312Base(id,ctx);};
+
+/* Navegación + render dedicado. */
+const shellV312Base=shell;
+shell=function(){let html=shellV312Base(),anchor=navBtn('compliance','✓','Cumplimiento');if(!html.includes('data-view="mistakes"'))html=html.replace(anchor,anchor+navBtn('mistakes','⚠','Errores'));return html;};
+const renderV312Base=render;
+render=function(){
+  if(currentView==='mistakes'){
+    document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=mistakesView();setTimeout(()=>{if(typeof hydrateImageElements==='function')hydrateImageElements();},0);return;
+  }
+  return renderV312Base();
+};
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.2</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V312_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Mistakes Analysis dedicado + Dashboards múltiples + MAE/MFE intratrade + Change Tracking + resto de research. Market Data continúa pausado hasta completar la auditoría funcional.</div></div></div></div>`;};
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'mistakesanalysis',terms:['mistakes analysis','errores','error operativo','taxonomía de errores'],title:'Mistakes Analysis',summary:'Analiza errores explícitamente evaluados sin convertir automáticamente checklist, disciplina o emociones en errores.',body:'Cada operación puede guardar un snapshot de la taxonomía vigente. Solo los trades evaluados pueden clasificarse como “con error” o “sin error”; los antiguos/no revisados quedan fuera de esas comparaciones.',use:'Úsalo para estudiar frecuencia, co-ocurrencia, evolución, hotspots por setup/contexto y expectancy con/sin cada error. Las diferencias muestran asociación histórica, no causalidad automática.'});
+Object.assign(window,{v312OpenMistakeModal,v312SaveMistake,v312DeleteMistake,v312MoveMistake,v312ToggleMistakeEvaluation,v312UpdateMistakePreview,v312SetMistakeFilter,v312ResetMistakeFilters,mistakesView,saveOperationFromForm,viewOperation});
+render();
+/* ===== END V31.2 PATCH ===== */

@@ -5315,8 +5315,8 @@ const dqMetricDisplayV301Base=dqMetricDisplay;
 dqMetricDisplay=function(o,key){const s=dqMetricStatus(o,key);if(s==='na')return 'N/A';if(s!=='measured')return '—';v301NormalizeOperationExcursions(o);const t=Number(o?.[`${key}Ticks`]||0),r=Number(o?.[key]||0);return `${t.toFixed(1)}t · ${r.toFixed(2)}R${t===0?' · real':''}`;};
 
 /* Exit Lab conserva R como lenguaje analítico; la captura se registra en ticks. */
-const exitLabPanelV301Base=exitLabPanel;
-exitLabPanel=function(ops){let html=exitLabPanelV301Base(ops);return html.replace(/rellenando <strong>MFE \(R\)<\/strong> y <strong>MAE \(R\)<\/strong>/g,'rellenando <strong>MFE (ticks)</strong> y <strong>MAE (ticks)</strong>').replace('MFE/MAE como 0 cuando ese dato no viene informado','MFE/MAE sin estado explícito cuando ese dato no viene informado');};
+const exitLabModuleV301Base=exitLabModule;
+exitLabModule=function(ops){let html=exitLabModuleV301Base(ops);return html.replace(/rellenando <strong>MFE \(R\)<\/strong> y <strong>MAE \(R\)<\/strong>/g,'rellenando <strong>MFE (ticks)</strong> y <strong>MAE (ticks)</strong>').replace('MFE/MAE como 0 cuando ese dato no viene informado','MFE/MAE sin estado explícito cuando ese dato no viene informado');};
 
 /* Change Tracking: reconciliación explícita tras alta de operación.
    V30 seguía dependiendo de persist(); V30.1 conserva esa vía y añade una comprobación de seguridad
@@ -5526,9 +5526,9 @@ analyzeDataQuality=function(plan=getCurrentPlan(),ops=currentOps()){
 };
 
 /* Exit Lab: definición y límite interpretativo visibles junto al análisis. */
-const exitLabPanelV302Base=exitLabPanel;
-exitLabPanel=function(ops){
-  let html=exitLabPanelV302Base(ops);
+const exitLabModuleV302Base=exitLabModule;
+exitLabModule=function(ops){
+  let html=exitLabModuleV302Base(ops);
   const note='<div class="lab-note excursion-method-note"><strong>Ventana MAE/MFE:</strong> entrada → salida final real. Si el stop o un TP fijo cierra la posición, la excursión queda censurada en ese límite. Este módulo puede estudiar ajuste/eficiencia dentro de lo observado; no usa recorrido post-salida para justificar un SL o TP más amplio.</div>';
   const qualityPos=html.indexOf('<div class="exit-quality-grid">');if(qualityPos>=0)html=html.slice(0,qualityPos)+note+html.slice(qualityPos);else html=html.replace('</div><div class="exit-empty">','</div>'+note+'<div class="exit-empty">');
   return html;
@@ -5622,7 +5622,7 @@ render();
 
 
 /* ===== V31.1 PATCH · Dashboard Profiles & Flexible Layout ===== */
-const V311_APP_LABEL='V31.1.3 · Dashboard Profiles · Stable Runtime';
+const V311_APP_LABEL='V31.1.4 · Dashboard Profiles · Runtime Fix';
 const dashboardConfigForPlanV311Base=dashboardConfigForPlan;
 let v311DashboardDrag=null;
 
@@ -5760,11 +5760,11 @@ dashboard=function(){
   return `${pageHead('Dashboard',`Vista “${esc(profile?.name||'Principal')}” del Trading Plan. Puedes crear varias vistas con composición, orden y tamaño propios.`,actions)}${activePlanBanner()}${kpisHtml?`<div class="dashboard-flex-grid dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-flex-grid dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-flex-grid dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">Este Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
 };
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data queda pausado y fuera del runtime hasta completar la auditoría funcional; no se pierde ninguna operación ni dato del journal.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.4</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data queda pausado y fuera del runtime hasta completar la auditoría funcional; no se pierde ninguna operación ni dato del journal.</div></div></div></div>`;};
 if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'dashboardprofiles',terms:['dashboard profiles','dashboards con nombre','vistas dashboard','redimensionar widgets'],title:'Dashboards con nombre',summary:'Varias composiciones independientes del Dashboard dentro del mismo Trading Plan.',body:'Cada perfil guarda qué widgets están visibles, su orden y anchura. Todos leen exactamente el mismo dataset del Trading Plan: cambiar de Dashboard no filtra, duplica ni modifica operaciones.',use:'Úsalo para separar una vista de ejecución, otra de research, otra de revisión semanal o cualquier lectura recurrente sin reconstruir el Dashboard cada vez.'});
 Object.assign(window,{v311SwitchDashboardProfile,v311OpenNewDashboardProfile,v311CreateDashboardProfile,v311DuplicateDashboardProfile,v311OpenRenameDashboardProfile,v311RenameDashboardProfile,v311DeleteDashboardProfile,v311OpenDashboardManager,v311DashboardSetSize,v311DashboardDragStart,v311DashboardDragEnd,v311DashboardDrop});
 render();
 /* ===== END V31.1 PATCH ===== */
 
 /* ===== V31.1.3 DEPLOYMENT PATCH · single bundled index ===== */
-const V3113_DEPLOYMENT_MARKER='V31.1.3-SINGLE-BUNDLE-STABLE';
+const V3114_DEPLOYMENT_MARKER='V31.1.4-RUNTIME-FIX';

@@ -5878,7 +5878,7 @@ render();
 /* ===== END V31 PATCH ===== */
 
 /* ===== V31.1 PATCH · Dashboard Profiles & Flexible Layout ===== */
-const V311_APP_LABEL='V31.1.1 · Dashboard Profiles · Asset Versioning Fix';
+const V311_APP_LABEL='V31.1.2 · Dashboard Profiles · Single-Bundle Deploy';
 const dashboardConfigForPlanV311Base=dashboardConfigForPlan;
 let v311DashboardDrag=null;
 
@@ -6016,11 +6016,11 @@ dashboard=function(){
   return `${pageHead('Dashboard',`Vista “${esc(profile?.name||'Principal')}” del Trading Plan. Puedes crear varias vistas con composición, orden y tamaño propios.`,actions)}${activePlanBanner()}${kpisHtml?`<div class="dashboard-flex-grid dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-flex-grid dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-flex-grid dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">Este Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
 };
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data V31 se conserva instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1.2</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data V31 se conserva instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional.</div></div></div></div>`;};
 if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'dashboardprofiles',terms:['dashboard profiles','dashboards con nombre','vistas dashboard','redimensionar widgets'],title:'Dashboards con nombre',summary:'Varias composiciones independientes del Dashboard dentro del mismo Trading Plan.',body:'Cada perfil guarda qué widgets están visibles, su orden y anchura. Todos leen exactamente el mismo dataset del Trading Plan: cambiar de Dashboard no filtra, duplica ni modifica operaciones.',use:'Úsalo para separar una vista de ejecución, otra de research, otra de revisión semanal o cualquier lectura recurrente sin reconstruir el Dashboard cada vez.'});
 Object.assign(window,{v311SwitchDashboardProfile,v311OpenNewDashboardProfile,v311CreateDashboardProfile,v311DuplicateDashboardProfile,v311OpenRenameDashboardProfile,v311RenameDashboardProfile,v311DeleteDashboardProfile,v311OpenDashboardManager,v311DashboardSetSize,v311DashboardDragStart,v311DashboardDragEnd,v311DashboardDrop});
 render();
 /* ===== END V31.1 PATCH ===== */
 
-/* ===== V31.1.1 DEPLOYMENT PATCH · physical versioned assets ===== */
-const V3111_DEPLOYMENT_MARKER='V31.1.1-PHYSICAL-ASSETS';
+/* ===== V31.1.2 DEPLOYMENT PATCH · single bundled index ===== */
+const V3112_DEPLOYMENT_MARKER='V31.1.2-SINGLE-BUNDLE';

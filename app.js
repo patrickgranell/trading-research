@@ -5982,3 +5982,181 @@ if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'mistakesanalysis',te
 Object.assign(window,{v312OpenMistakeModal,v312SaveMistake,v312DeleteMistake,v312MoveMistake,v312ToggleMistakeEvaluation,v312UpdateMistakePreview,v312SetMistakeFilter,v312ResetMistakeFilters,mistakesView,saveOperationFromForm,viewOperation});
 render();
 /* ===== END V31.2 PATCH ===== */
+
+/* ===== V31.3 PATCH · Report Builder + Advanced Trading Plan Comparison ===== */
+const V313_APP_LABEL='V31.3 · Report Builder & Plan Compare';
+
+let reportsViewState={
+  tab:'builder',unit:'r',basis:'net',scope:'full',dateFrom:'',dateTo:'',block:'1',studyId:'',
+  presetId:'',title:'',sections:{summary:true,confidence:true,process:true,quality:true,breakdowns:true,reviewsGoals:true},
+  compareA:'',compareB:'',compareWindow:'full'
+};
+
+function v313EnsureReportPresets(p=getCurrentPlan()){
+  if(!p)return p;
+  if(!Array.isArray(p.reportPresets))p.reportPresets=[];
+  p.reportPresets=p.reportPresets.map(x=>({
+    id:x.id||uid('RPT'),name:x.name||'Informe',createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||x.createdAt||new Date().toISOString(),
+    config:{unit:['r','ticks','usd'].includes(x.config?.unit)?x.config.unit:'r',basis:x.config?.basis==='gross'?'gross':'net',scope:x.config?.scope||'full',dateFrom:x.config?.dateFrom||'',dateTo:x.config?.dateTo||'',block:String(x.config?.block||'1'),studyId:x.config?.studyId||'',title:x.config?.title||'',sections:{summary:true,confidence:true,process:true,quality:true,breakdowns:true,reviewsGoals:true,...(x.config?.sections||{})}}
+  }));
+  return p;
+}
+function v313InitCompare(){
+  const ids=state.tradingPlans.map(p=>p.id);
+  if(!ids.includes(reportsViewState.compareA))reportsViewState.compareA=state.currentPlanId||ids[0]||'';
+  if(!ids.includes(reportsViewState.compareB)||reportsViewState.compareB===reportsViewState.compareA)reportsViewState.compareB=ids.find(id=>id!==reportsViewState.compareA)||reportsViewState.compareA||'';
+}
+function v313SetTab(v){reportsViewState.tab=v==='compare'?'compare':'builder';render();}
+function v313SetUnit(v){reportsViewState.unit=['r','ticks','usd'].includes(v)?v:'r';render();}
+function v313SetBasis(v){reportsViewState.basis=v==='gross'?'gross':'net';render();}
+function v313SetScope(v){reportsViewState.scope=v||'full';render();}
+function v313SetReportField(k,v){if(['dateFrom','dateTo','block','studyId','title'].includes(k))reportsViewState[k]=v||'';render();}
+function v313ToggleSection(k,checked){if(Object.prototype.hasOwnProperty.call(reportsViewState.sections,k))reportsViewState.sections[k]=!!checked;render();}
+function v313SetCompareField(k,v){if(k==='compareA'||k==='compareB')reportsViewState[k]=v||'';if(k==='compareWindow')reportsViewState.compareWindow=v==='overlap'?'overlap':'full';v313InitCompare();render();}
+
+function v313ReportScopeLabel(p=getCurrentPlan()){
+  const s=reportsViewState.scope;
+  if(s==='last20')return 'Últimas 20 operaciones';if(s==='last50')return 'Últimas 50 operaciones';if(s==='last100')return 'Últimas 100 operaciones';if(s==='month')return 'Mes actual';
+  if(s==='block')return `Bloque ${String(Number(reportsViewState.block)||1).padStart(2,'0')}`;
+  if(s==='study'){v313EnsureReportPresets(p);ensurePlanStudies(p);const st=p?.savedStudies?.find(x=>x.id===reportsViewState.studyId);return st?`Estudio · ${st.name}`:'Estudio guardado';}
+  if(s==='date')return `${reportsViewState.dateFrom||'inicio'} → ${reportsViewState.dateTo||'fin'}`;
+  return 'Trading Plan completo';
+}
+function v313ReportOps(){
+  const all=[...currentOps()].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate)),s=reportsViewState.scope;
+  if(s==='last20')return all.slice(-20);if(s==='last50')return all.slice(-50);if(s==='last100')return all.slice(-100);
+  if(s==='month'){const now=new Date(),y=now.getFullYear(),m=now.getMonth();return all.filter(o=>{const d=new Date(o.entryDate);return !isNaN(d)&&d.getFullYear()===y&&d.getMonth()===m;});}
+  if(s==='block'){const n=Math.max(1,Number(reportsViewState.block)||1);return all.slice((n-1)*20,n*20);}
+  if(s==='study'){
+    const p=getCurrentPlan();ensurePlanStudies(p);const st=p?.savedStudies?.find(x=>x.id===reportsViewState.studyId);return st?labFilteredOpsForState(st.lab||{}):[];
+  }
+  if(s==='date')return all.filter(o=>{const d=inputDateValue(new Date(o.entryDate));return (!reportsViewState.dateFrom||d>=reportsViewState.dateFrom)&&(!reportsViewState.dateTo||d<=reportsViewState.dateTo);});
+  return all;
+}
+function v313DateRangeText(ops){if(!ops.length)return 'Sin operaciones';const a=[...ops].sort((x,y)=>new Date(x.entryDate)-new Date(y.entryDate));return `${fmtDateOnly(a[0].entryDate)} → ${fmtDateOnly(a.at(-1).entryDate)}`;}
+function v313Pf(v){return v===Infinity?'∞':Number.isFinite(Number(v))?Number(v).toFixed(2):'—';}
+function v313Signed(v,unit){return Number.isFinite(Number(v))?metricStatText(Number(v),unit):'—';}
+function v313Pct(v){return Number.isFinite(Number(v))?`${Number(v).toFixed(1)}%`:'—';}
+function v313Measured(o,key){
+  if(typeof dqMetricStatus==='function')return dqMetricStatus(o,key)==='measured';
+  const status=o?.dataQuality?.[`${key}Status`]||o?.[`${key}Status`];return status==='measured'||(status!=='missing'&&status!=='na'&&Number.isFinite(Number(o?.[key])));
+}
+function v313ProcessSummary(plan,ops){
+  const comp=ops.filter(o=>o?.compliance?.evaluated),scores=comp.map(o=>complianceScore(o)).filter(Number.isFinite),strict=comp.map(o=>complianceIsStrict(o)).filter(v=>v!==null),mist=ops.filter(v312MistakesEvaluated),mistBad=mist.filter(v312HasAnyMistake),journal=ops.filter(o=>typeof hasEmotionalEntry==='function'?hasEmotionalEntry(o):!!o.emotional),disc=ops.filter(o=>typeof o.discipline==='boolean'),discOk=disc.filter(o=>o.discipline);
+  return {checkCoverage:ops.length?comp.length/ops.length*100:0,checkMean:scores.length?scores.reduce((a,b)=>a+b,0)/scores.length:NaN,strictRate:strict.length?strict.filter(Boolean).length/strict.length*100:NaN,mistCoverage:ops.length?mist.length/ops.length*100:0,mistRate:mist.length?mistBad.length/mist.length*100:NaN,journalCoverage:ops.length?journal.length/ops.length*100:0,disciplineRate:disc.length?discOk.length/disc.length*100:NaN,mfeCoverage:ops.length?ops.filter(o=>v313Measured(o,'mfe')).length/ops.length*100:0,maeCoverage:ops.length?ops.filter(o=>v313Measured(o,'mae')).length/ops.length*100:0};
+}
+function v313TopBreakdown(ops,key,unit,basis,limit=7){
+  const groups=new Map();ops.forEach(o=>{const k=String(o?.[key]||'Sin clasificar');if(!groups.has(k))groups.set(k,[]);groups.get(k).push(o);});
+  return [...groups.entries()].map(([name,rows])=>({name,rows,stats:calcMetricStats(rows,unit,basis)})).sort((a,b)=>b.rows.length-a.rows.length).slice(0,limit);
+}
+function v313MiniMetricTable(rows,unit){return `<div class="table-wrap"><table class="table compact-table"><thead><tr><th>Grupo</th><th>n</th><th>Expectancy</th><th>WR</th><th>PF</th></tr></thead><tbody>${rows.length?rows.map(x=>`<tr><td><strong>${esc(x.name)}</strong></td><td>${x.stats.n}</td><td class="${x.stats.expectancy>0?'positive':x.stats.expectancy<0?'negative':''}">${v313Signed(x.stats.expectancy,unit)}</td><td>${v313Pct(x.stats.winRate)}</td><td>${v313Pf(x.stats.pf)}</td></tr>`).join(''):'<tr><td colspan="5">Sin datos</td></tr>'}</tbody></table></div>`;}
+
+function v313ReportSummary(plan,ops,s){
+  const evidence=confidenceEvidence(s),maturity=confidenceMaturity(s.n);
+  return `<section class="card panel report-section report-summary"><div class="panel-title"><div><h3>Resumen ejecutivo</h3><small>${esc(v313ReportScopeLabel(plan))} · ${esc(v313DateRangeText(ops))}</small></div><span class="badge ${evidence.key==='positive'?'win':evidence.key==='negative'?'loss':''}">${esc(evidence.label)}</span></div><div class="report-kpis">${kpi('Operaciones',s.n,esc(maturity.label))}${kpi('Resultado',v313Signed(s.sum,reportsViewState.unit),reportsViewState.basis==='net'?'Neto':'Bruto')}${kpi('Expectancy',v313Signed(s.expectancy,reportsViewState.unit),'media por trade')}${kpi('Win rate',v313Pct(s.winRate),`${s.wins} ganadoras`)}${kpi('Profit Factor',v313Pf(s.pf),'ganancia / pérdida')}${kpi('Max DD',v313Signed(s.maxDD,reportsViewState.unit),'caída observada')}</div><div class="report-equity"><div class="panel-title"><h4>Equity del alcance</h4><span>${metricUnitLabel(reportsViewState.unit)}</span></div>${lineChartSvg(s.equity,900,210)}</div></section>`;
+}
+function v313ReportConfidence(ops,s){
+  const ev=confidenceEvidence(s),m=confidenceMaturity(s.n),split=confidenceSplit(ops,reportsViewState.unit,reportsViewState.basis);
+  return `<section class="card panel report-section"><div class="panel-title"><div><h3>Confianza & estabilidad</h3><small>Incertidumbre estadística de la muestra seleccionada.</small></div><span>${esc(m.label)}</span></div><div class="report-grid-3"><div><span>Evidencia</span><strong>${esc(ev.label)}</strong><small>${esc(ev.detail)}</small></div><div><span>IC95 expectancy</span><strong>${Number.isFinite(s.ciLow95)?`${v313Signed(s.ciLow95,reportsViewState.unit)} → ${v313Signed(s.ciHigh95,reportsViewState.unit)}`:'—'}</strong><small>aproximación t</small></div><div><span>Límite inferior 95%</span><strong class="${s.ciLow95>0?'positive':s.ciLow95<0?'negative':''}">${Number.isFinite(s.ciLow95)?v313Signed(s.ciLow95,reportsViewState.unit):'—'}</strong><small>lectura conservadora</small></div><div><span>WR · IC95</span><strong>${s.n?`${Number(s.winLow95).toFixed(1)}% → ${Number(s.winHigh95).toFixed(1)}%`:'—'}</strong><small>Wilson</small></div><div><span>Primera mitad</span><strong>${split.first?v313Signed(split.first.expectancy,reportsViewState.unit):'—'}</strong><small>${esc(split.label)}</small></div><div><span>Segunda mitad</span><strong>${split.second?v313Signed(split.second.expectancy,reportsViewState.unit):'—'}</strong><small>${esc(split.label)}</small></div></div></section>`;
+}
+function v313ReportProcess(plan,ops){
+  const q=v313ProcessSummary(plan,ops);
+  return `<section class="card panel report-section"><div class="panel-title"><div><h3>Proceso, cumplimiento & errores</h3><small>Solo usa registros explícitamente evaluados; los no evaluados no se consideran limpios.</small></div></div><div class="report-grid-3"><div><span>Cobertura checklist</span><strong>${v313Pct(q.checkCoverage)}</strong><small>operaciones evaluadas</small></div><div><span>Cumplimiento medio</span><strong>${v313Pct(q.checkMean)}</strong><small>sobre evaluadas</small></div><div><span>Cumplimiento estricto</span><strong>${v313Pct(q.strictRate)}</strong><small>todas las obligatorias</small></div><div><span>Cobertura errores</span><strong>${v313Pct(q.mistCoverage)}</strong><small>taxonomía evaluada</small></div><div><span>Trades con error</span><strong>${v313Pct(q.mistRate)}</strong><small>sobre evaluadas</small></div><div><span>Disciplina</span><strong>${v313Pct(q.disciplineRate)}</strong><small>cuando está informada</small></div></div></section>`;
+}
+function v313ReportQuality(plan,ops){
+  let a=null;try{a=analyzeDataQuality(plan,ops);}catch(e){}
+  const q=v313ProcessSummary(plan,ops),score=Number(a?.score);
+  return `<section class="card panel report-section"><div class="panel-title"><div><h3>Calidad del dataset</h3><small>Disponibilidad e integridad de los datos utilizados por el informe.</small></div><span class="badge">${Number.isFinite(score)?score.toFixed(0)+'/100':'—'}</span></div><div class="report-grid-3"><div><span>Score global</span><strong>${Number.isFinite(score)?score.toFixed(0)+'/100':'—'}</strong><small>calidad, no edge</small></div><div><span>MFE utilizable</span><strong>${v313Pct(q.mfeCoverage)}</strong><small>medido</small></div><div><span>MAE utilizable</span><strong>${v313Pct(q.maeCoverage)}</strong><small>medido</small></div><div><span>Checklist</span><strong>${v313Pct(q.checkCoverage)}</strong><small>evaluado</small></div><div><span>Diario emocional</span><strong>${v313Pct(q.journalCoverage)}</strong><small>completado</small></div><div><span>Integridad</span><strong>${a?`${a.issues.filter(x=>x.severity==='error').length} errores`:'—'}</strong><small>${a?`${a.issues.filter(x=>x.severity==='warning').length} avisos`:'sin analizar'}</small></div></div></section>`;
+}
+function v313ReportBreakdowns(ops){
+  const setup=v313TopBreakdown(ops,'setup',reportsViewState.unit,reportsViewState.basis),ctx=v313TopBreakdown(ops,'h4Context',reportsViewState.unit,reportsViewState.basis);
+  return `<section class="card panel report-section"><div class="panel-title"><div><h3>Desglose técnico</h3><small>Los grupos se ordenan por frecuencia de muestra, no por rentabilidad.</small></div></div><div class="report-two-col"><div><h4>Setup</h4>${v313MiniMetricTable(setup,reportsViewState.unit)}</div><div><h4>Contexto</h4>${v313MiniMetricTable(ctx,reportsViewState.unit)}</div></div></section>`;
+}
+function v313ReportReviewsGoals(plan){
+  if(typeof ensurePlanReviews==='function')ensurePlanReviews(plan);if(typeof ensurePlanGoals==='function')ensurePlanGoals(plan);
+  const rev=plan?.reviewNotes||[],open=rev.filter(x=>x.status==='open'||x.status==='monitoring'),valid=rev.filter(x=>x.status==='validated'),goals=(plan?.goals||[]).filter(g=>g.active),evaluated=goals.map(g=>({g,e:goalEval(g)})),met=evaluated.filter(x=>x.e.met);
+  return `<section class="card panel report-section"><div class="panel-title"><div><h3>Reviews & objetivos</h3><small>Decisiones documentadas y scorecard vigente del Trading Plan.</small></div></div><div class="report-grid-3"><div><span>Reviews abiertas</span><strong>${open.length}</strong><small>abiertas / seguimiento</small></div><div><span>Reviews validadas</span><strong>${valid.length}</strong><small>conclusiones consolidadas</small></div><div><span>Objetivos activos</span><strong>${goals.length}</strong><small>${met.length} cumplidos</small></div></div>${open.length?`<div class="report-note-list">${open.slice(0,5).map(x=>`<div><strong>${esc(x.title)}</strong><span>${esc(x.status)} · ${esc(x.decision||x.finding||'Sin decisión registrada')}</span></div>`).join('')}</div>`:''}</section>`;
+}
+function v313ReportDocument(){
+  const p=getCurrentPlan();v313EnsureReportPresets(p);const ops=v313ReportOps(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections,title=reportsViewState.title.trim()||`Informe · ${planLabel(p)}`;
+  return `<article class="report-document"><header class="report-doc-head"><div><small>Trading Research · informe dinámico</small><h2>${esc(title)}</h2><p>${esc(planLabel(p))} · ${esc(v313ReportScopeLabel(p))} · ${esc(v313DateRangeText(ops))}</p></div><div><strong>${metricUnitLabel(reportsViewState.unit)}</strong><span>${reportsViewState.basis==='net'?'Neto':'Bruto'}</span></div></header>${!ops.length?'<div class="card empty">El alcance seleccionado no contiene operaciones.</div>':''}${sec.summary?v313ReportSummary(p,ops,s):''}${sec.confidence?v313ReportConfidence(ops,s):''}${sec.process?v313ReportProcess(p,ops):''}${sec.quality?v313ReportQuality(p,ops):''}${sec.breakdowns?v313ReportBreakdowns(ops):''}${sec.reviewsGoals?v313ReportReviewsGoals(p):''}<div class="notice report-method"><strong>Lectura:</strong> este informe recalcula métricas sobre el dataset actual. Expectancy, diferencias entre grupos y asociaciones con errores describen la muestra; no demuestran causalidad ni garantizan rendimiento futuro.</div></article>`;
+}
+
+function v313ScopeControls(p){
+  ensurePlanStudies(p);const blocks=Math.max(1,Math.ceil(currentOps().length/20));
+  let extra='';if(reportsViewState.scope==='date')extra=`<label class="filter-field"><span>Desde</span><input class="input" type="date" value="${esc(reportsViewState.dateFrom)}" onchange="v313SetReportField('dateFrom',this.value)"></label><label class="filter-field"><span>Hasta</span><input class="input" type="date" value="${esc(reportsViewState.dateTo)}" onchange="v313SetReportField('dateTo',this.value)"></label>`;
+  if(reportsViewState.scope==='block')extra=`<label class="filter-field"><span>Bloque</span><select class="select" onchange="v313SetReportField('block',this.value)">${Array.from({length:blocks},(_,i)=>`<option value="${i+1}" ${String(i+1)===String(reportsViewState.block)?'selected':''}>B${String(i+1).padStart(2,'0')}</option>`).join('')}</select></label>`;
+  if(reportsViewState.scope==='study')extra=`<label class="filter-field wide"><span>Estudio guardado</span><select class="select" onchange="v313SetReportField('studyId',this.value)"><option value="">Seleccionar…</option>${(p.savedStudies||[]).map(s=>`<option value="${esc(s.id)}" ${s.id===reportsViewState.studyId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>`;
+  return `<div class="report-scope-grid"><label class="filter-field"><span>Alcance</span><select class="select" onchange="v313SetScope(this.value)">${[['full','Plan completo'],['last20','Últimas 20'],['last50','Últimas 50'],['last100','Últimas 100'],['month','Mes actual'],['block','Bloque'],['study','Estudio guardado'],['date','Rango de fechas']].map(([v,l])=>`<option value="${v}" ${reportsViewState.scope===v?'selected':''}>${l}</option>`).join('')}</select></label>${extra}</div>`;
+}
+function v313SectionsControls(){const labels={summary:'Resumen ejecutivo',confidence:'Confianza & estabilidad',process:'Proceso & errores',quality:'Calidad de datos',breakdowns:'Desglose técnico',reviewsGoals:'Reviews & objetivos'};return `<div class="report-section-picker">${Object.entries(labels).map(([k,l])=>`<label><input type="checkbox" ${reportsViewState.sections[k]?'checked':''} onchange="v313ToggleSection('${k}',this.checked)"><span>${esc(l)}</span></label>`).join('')}</div>`;}
+function v313PresetConfig(){return {unit:reportsViewState.unit,basis:reportsViewState.basis,scope:reportsViewState.scope,dateFrom:reportsViewState.dateFrom,dateTo:reportsViewState.dateTo,block:reportsViewState.block,studyId:reportsViewState.studyId,title:reportsViewState.title,sections:clone(reportsViewState.sections)};}
+function v313SavePresetPrompt(){const p=getCurrentPlan();v313EnsureReportPresets(p);const current=p.reportPresets.find(x=>x.id===reportsViewState.presetId),name=prompt('Nombre del informe / plantilla:',current?.name||reportsViewState.title||'Informe de research');if(!name?.trim())return;const now=new Date().toISOString();if(current){current.name=name.trim();current.config=v313PresetConfig();current.updatedAt=now;}else{const x={id:uid('RPT'),name:name.trim(),config:v313PresetConfig(),createdAt:now,updatedAt:now};p.reportPresets.unshift(x);reportsViewState.presetId=x.id;}p.updatedAt=now;persist();render();}
+function v313LoadPreset(id){const p=getCurrentPlan();v313EnsureReportPresets(p);const x=p.reportPresets.find(y=>y.id===id);if(!x)return;const c=x.config||{};reportsViewState={...reportsViewState,...clone(c),sections:{...reportsViewState.sections,...clone(c.sections||{})},presetId:x.id,tab:'builder'};render();}
+function v313DeletePreset(id){const p=getCurrentPlan();v313EnsureReportPresets(p);const x=p.reportPresets.find(y=>y.id===id);if(!x||!confirm(`¿Eliminar la plantilla "${x.name}"?`))return;p.reportPresets=p.reportPresets.filter(y=>y.id!==id);if(reportsViewState.presetId===id)reportsViewState.presetId='';p.updatedAt=new Date().toISOString();persist();render();}
+function v313PrintReport(){document.body.classList.add('printing-report');window.print();setTimeout(()=>document.body.classList.remove('printing-report'),300);}
+function v313BuilderView(){
+  const p=getCurrentPlan();v313EnsureReportPresets(p);const presets=p.reportPresets||[];
+  const toolbar=`<div class="report-builder-toolbar"><label class="filter-field wide"><span>Título del informe</span><input class="input" value="${esc(reportsViewState.title)}" placeholder="Informe · ${esc(planLabel(p))}" onchange="v313SetReportField('title',this.value)"></label>${v313ScopeControls(p)}<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.unit===v?'active':''}" onclick="v313SetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.basis===v?'active':''}" onclick="v313SetBasis('${v}')">${l}</button>`).join('')}</div>${v313SectionsControls()}<div class="report-actions"><button class="btn" onclick="v313SavePresetPrompt()">Guardar plantilla</button><button class="btn" onclick="v313PrintReport()">Imprimir / PDF</button></div></div>`;
+  const presetPanel=`<section class="card panel report-presets"><div class="panel-title"><div><h3>Plantillas guardadas</h3><small>Guardan la definición del informe, no congelan las operaciones.</small></div><span>${presets.length}</span></div>${presets.length?`<div class="report-preset-list">${presets.map(x=>`<div class="config-row"><div class="config-main"><strong>${esc(x.name)}</strong><small>${esc(x.config?.scope||'full')} · ${String(x.config?.unit||'r').toUpperCase()} · ${x.config?.basis==='gross'?'Bruto':'Neto'}</small></div><div><button class="btn small" onclick="v313LoadPreset('${x.id}')">Cargar</button> <button class="btn small danger" onclick="v313DeletePreset('${x.id}')">Eliminar</button></div></div>`).join('')}</div>`:'<div class="empty compact-empty">Todavía no hay plantillas guardadas.</div>'}</section>`;
+  return `${toolbar}${presetPanel}${v313ReportDocument()}`;
+}
+
+function v313PlanOps(id){return state.operations.filter(o=>o.tradingPlanId===id).sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));}
+function v313OverlapWindow(aOps,bOps){
+  if(!aOps.length||!bOps.length)return null;const aDates=aOps.map(o=>new Date(o.entryDate)).filter(d=>!isNaN(d)),bDates=bOps.map(o=>new Date(o.entryDate)).filter(d=>!isNaN(d));if(!aDates.length||!bDates.length)return null;
+  const start=new Date(Math.max(Math.min(...aDates),Math.min(...bDates))),end=new Date(Math.min(Math.max(...aDates),Math.max(...bDates)));if(start>end)return null;return {start,end};
+}
+function v313ComparisonOps(){
+  v313InitCompare();let a=v313PlanOps(reportsViewState.compareA),b=v313PlanOps(reportsViewState.compareB),win=null;if(reportsViewState.compareWindow==='overlap'){win=v313OverlapWindow(a,b);if(win){a=a.filter(o=>{const d=new Date(o.entryDate);return d>=win.start&&d<=win.end;});b=b.filter(o=>{const d=new Date(o.entryDate);return d>=win.start&&d<=win.end;});}else{a=[];b=[];}}
+  return {a,b,win};
+}
+function v313PlanQuality(plan,ops){let score=NaN,errors=NaN;try{const q=analyzeDataQuality(plan,ops);score=Number(q.score);errors=q.issues.filter(x=>x.severity==='error').length;}catch(e){}const p=v313ProcessSummary(plan,ops);return {...p,score,errors};}
+function v313RecentDriftForOps(ops,unit,basis){const arr=[...ops].sort((a,b)=>new Date(a.entryDate)-new Date(b.entryDate));if(arr.length<2)return {recent:NaN,prior:NaN};const n=Math.min(20,arr.length),recent=calcMetricStats(arr.slice(-n),unit,basis).expectancy,priorOps=arr.slice(0,-n),prior=priorOps.length?calcMetricStats(priorOps,unit,basis).expectancy:NaN;return {recent,prior};}
+function v313DeltaText(a,b,fmt=x=>String(x),inverse=false){if(!Number.isFinite(Number(a))||!Number.isFinite(Number(b)))return '—';const d=Number(b)-Number(a),good=inverse?d<0:d>0,cls=d===0?'':good?'positive':'negative';return `<span class="${cls}">${d>0?'+':''}${fmt(d)}</span>`;}
+function v313CompareMetricRows(A,B,qa,qb){
+  const u=reportsViewState.unit,rows=[
+    ['Operaciones',A.n,B.n,x=>String(Math.round(x)),false],['Resultado',A.sum,B.sum,x=>v313Signed(x,u),false],['Expectancy',A.expectancy,B.expectancy,x=>v313Signed(x,u),false],['Win rate',A.winRate,B.winRate,x=>`${Number(x).toFixed(1)} pp`,false],['Profit Factor',Number.isFinite(A.pf)?A.pf:NaN,Number.isFinite(B.pf)?B.pf:NaN,x=>Number(x).toFixed(2),false],['Max DD',A.maxDD,B.maxDD,x=>v313Signed(x,u),false],['Límite inferior IC95',A.ciLow95,B.ciLow95,x=>v313Signed(x,u),false],['Calidad dataset',qa.score,qb.score,x=>`${Number(x).toFixed(0)} pt`,false],['Cobertura checklist',qa.checkCoverage,qb.checkCoverage,x=>`${Number(x).toFixed(1)} pp`,false],['Cumplimiento medio',qa.checkMean,qb.checkMean,x=>`${Number(x).toFixed(1)} pp`,false],['Cobertura errores',qa.mistCoverage,qb.mistCoverage,x=>`${Number(x).toFixed(1)} pp`,false],['Tasa de errores',qa.mistRate,qb.mistRate,x=>`${Number(x).toFixed(1)} pp`,true],['Cobertura diario',qa.journalCoverage,qb.journalCoverage,x=>`${Number(x).toFixed(1)} pp`,false],['MFE medido',qa.mfeCoverage,qb.mfeCoverage,x=>`${Number(x).toFixed(1)} pp`,false],['MAE medido',qa.maeCoverage,qb.maeCoverage,x=>`${Number(x).toFixed(1)} pp`,false]
+  ];
+  const fmtVal=(label,v)=>{if(!Number.isFinite(Number(v)))return '—';if(label==='Operaciones')return String(Math.round(v));if(['Resultado','Expectancy','Max DD','Límite inferior IC95'].includes(label))return v313Signed(v,u);if(label==='Profit Factor')return Number(v).toFixed(2);if(label==='Calidad dataset')return `${Number(v).toFixed(0)}/100`;return `${Number(v).toFixed(1)}%`;};
+  return rows.map(([label,a,b,deltaFmt,inverse])=>`<tr><th>${label}</th><td>${fmtVal(label,a)}</td><td>${fmtVal(label,b)}</td><td>${v313DeltaText(a,b,deltaFmt,inverse)}</td></tr>`).join('');
+}
+function v313SharedBreakdown(aOps,bOps,key){
+  const names=[...new Set([...aOps.map(o=>String(o?.[key]||'Sin clasificar')),...bOps.map(o=>String(o?.[key]||'Sin clasificar'))])];
+  return names.map(name=>{const a=aOps.filter(o=>String(o?.[key]||'Sin clasificar')===name),b=bOps.filter(o=>String(o?.[key]||'Sin clasificar')===name),as=calcMetricStats(a,reportsViewState.unit,reportsViewState.basis),bs=calcMetricStats(b,reportsViewState.unit,reportsViewState.basis);return {name,a,b,as,bs};}).sort((x,y)=>(y.a.length+y.b.length)-(x.a.length+x.b.length)).slice(0,10);
+}
+function v313SharedTable(rows){return `<div class="table-wrap"><table class="table compact-table"><thead><tr><th>Grupo</th><th>n A</th><th>Exp A</th><th>n B</th><th>Exp B</th><th>Δ Exp B−A</th></tr></thead><tbody>${rows.map(x=>`<tr><td><strong>${esc(x.name)}</strong></td><td>${x.a.length||'—'}</td><td>${x.a.length?v313Signed(x.as.expectancy,reportsViewState.unit):'—'}</td><td>${x.b.length||'—'}</td><td>${x.b.length?v313Signed(x.bs.expectancy,reportsViewState.unit):'—'}</td><td>${x.a.length&&x.b.length?v313DeltaText(x.as.expectancy,x.bs.expectancy,v=>v313Signed(v,reportsViewState.unit)):'—'}</td></tr>`).join('')}</tbody></table></div>`;}
+function v313CompareView(){
+  v313InitCompare();const pa=getPlan(reportsViewState.compareA),pb=getPlan(reportsViewState.compareB),{a,b,win}=v313ComparisonOps(),A=calcMetricStats(a,reportsViewState.unit,reportsViewState.basis),B=calcMetricStats(b,reportsViewState.unit,reportsViewState.basis),qa=v313PlanQuality(pa,a),qb=v313PlanQuality(pb,b),da=v313RecentDriftForOps(a,reportsViewState.unit,reportsViewState.basis),db=v313RecentDriftForOps(b,reportsViewState.unit,reportsViewState.basis),setups=v313SharedBreakdown(a,b,'setup'),contexts=v313SharedBreakdown(a,b,'h4Context');
+  const options=state.tradingPlans.map(p=>`<option value="${esc(p.id)}">${esc(planLabel(p))}</option>`).join('');
+  const controls=`<section class="card panel compare-controls"><div class="compare-plan-pickers"><label><span>Plan A</span><select class="select" onchange="v313SetCompareField('compareA',this.value)">${options.replace(`value="${esc(pa?.id||'')}"`,`value="${esc(pa?.id||'')}" selected`)}</select></label><label><span>Plan B</span><select class="select" onchange="v313SetCompareField('compareB',this.value)">${options.replace(`value="${esc(pb?.id||'')}"`,`value="${esc(pb?.id||'')}" selected`)}</select></label><label><span>Ventana</span><select class="select" onchange="v313SetCompareField('compareWindow',this.value)"><option value="full" ${reportsViewState.compareWindow==='full'?'selected':''}>Todo cada plan</option><option value="overlap" ${reportsViewState.compareWindow==='overlap'?'selected':''}>Periodo calendario común</option></select></label></div><div class="metric-switch"><span>Unidad común</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.unit===v?'active':''}" onclick="v313SetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.basis===v?'active':''}" onclick="v313SetBasis('${v}')">${l}</button>`).join('')}</div></section>`;
+  const period=reportsViewState.compareWindow==='overlap'?(win?`${fmtDateOnly(win.start)} → ${fmtDateOnly(win.end)}`:'Sin periodo común'):'Histórico propio de cada plan';
+  const header=`<div class="compare-hero"><section class="card"><small>Plan A</small><h3>${esc(planLabel(pa))}</h3><strong>${A.n} trades · ${v313Signed(A.expectancy,reportsViewState.unit)}</strong><span>${esc(v313DateRangeText(a))}</span></section><section class="card compare-center"><small>Universo comparado</small><h3>${esc(period)}</h3><strong>${metricUnitLabel(reportsViewState.unit)} · ${reportsViewState.basis==='net'?'Neto':'Bruto'}</strong><span>Δ = Plan B − Plan A</span></section><section class="card"><small>Plan B</small><h3>${esc(planLabel(pb))}</h3><strong>${B.n} trades · ${v313Signed(B.expectancy,reportsViewState.unit)}</strong><span>${esc(v313DateRangeText(b))}</span></section></div>`;
+  const evA=confidenceEvidence(A),evB=confidenceEvidence(B);
+  return `${controls}${header}<section class="card panel compare-main"><div class="panel-title"><div><h3>Comparación multidimensional</h3><small>Rendimiento, incertidumbre, proceso y calidad en una misma escala.</small></div></div><div class="table-wrap"><table class="table compare-table"><thead><tr><th>Métrica</th><th>${esc(pa?.name||'Plan A')}</th><th>${esc(pb?.name||'Plan B')}</th><th>Δ B − A</th></tr></thead><tbody>${v313CompareMetricRows(A,B,qa,qb)}</tbody></table></div></section><div class="compare-grid"><section class="card panel"><div class="panel-title"><div><h3>Evidencia & drift reciente</h3><small>Lectura separada para cada muestra.</small></div></div><div class="compare-evidence"><div><span>${esc(pa?.name||'A')}</span><strong>${esc(evA.label)}</strong><small>IC95 ${Number.isFinite(A.ciLow95)?`${v313Signed(A.ciLow95,reportsViewState.unit)} → ${v313Signed(A.ciHigh95,reportsViewState.unit)}`:'—'}</small><em>Últimas 20: ${Number.isFinite(da.recent)?v313Signed(da.recent,reportsViewState.unit):'—'} · previo: ${Number.isFinite(da.prior)?v313Signed(da.prior,reportsViewState.unit):'—'}</em></div><div><span>${esc(pb?.name||'B')}</span><strong>${esc(evB.label)}</strong><small>IC95 ${Number.isFinite(B.ciLow95)?`${v313Signed(B.ciLow95,reportsViewState.unit)} → ${v313Signed(B.ciHigh95,reportsViewState.unit)}`:'—'}</small><em>Últimas 20: ${Number.isFinite(db.recent)?v313Signed(db.recent,reportsViewState.unit):'—'} · previo: ${Number.isFinite(db.prior)?v313Signed(db.prior,reportsViewState.unit):'—'}</em></div></div></section><section class="card panel"><div class="panel-title"><div><h3>Composición de muestra</h3><small>Las diferencias pueden deberse a universos distintos.</small></div></div><div class="compare-evidence"><div><span>${esc(pa?.name||'A')}</span><strong>${pa?.setups?.length||0} setups · ${pa?.riskStrategies?.length||0} gestiones</strong><small>${v313DateRangeText(a)}</small><em>Calidad ${Number.isFinite(qa.score)?qa.score.toFixed(0)+'/100':'—'} · Errores eval. ${v313Pct(qa.mistCoverage)}</em></div><div><span>${esc(pb?.name||'B')}</span><strong>${pb?.setups?.length||0} setups · ${pb?.riskStrategies?.length||0} gestiones</strong><small>${v313DateRangeText(b)}</small><em>Calidad ${Number.isFinite(qb.score)?qb.score.toFixed(0)+'/100':'—'} · Errores eval. ${v313Pct(qb.mistCoverage)}</em></div></div></section></div><section class="card panel compare-shared"><div class="panel-title"><div><h3>Desglose compartido · Setup</h3><small>Compara categorías homónimas; una etiqueta igual presupone que significa lo mismo en ambos planes.</small></div></div>${v313SharedTable(setups)}</section><section class="card panel compare-shared"><div class="panel-title"><div><h3>Desglose compartido · Contexto</h3><small>Solo es interpretable si la taxonomía es equivalente entre planes.</small></div></div>${v313SharedTable(contexts)}</section><div class="notice"><strong>Criterio:</strong> esta pantalla no declara un “plan ganador”. Un Δ favorable puede reflejar distinta muestra, periodo, taxonomía, cobertura o régimen de mercado. Usa IC95, tamaño de muestra y validación OOS antes de convertir diferencias históricas en decisiones.</div>${reportsViewState.unit==='ticks'?(mixedInstrumentWarning(a)+mixedInstrumentWarning(b)):''}`;
+}
+function reportsView(){
+  const tabs=`<div class="reports-tabs"><button class="${reportsViewState.tab==='builder'?'active':''}" onclick="v313SetTab('builder')"><strong>Report Builder</strong><span>Informe configurable del plan activo</span></button><button class="${reportsViewState.tab==='compare'?'active':''}" onclick="v313SetTab('compare')"><strong>Comparar Trading Plans</strong><span>Rendimiento, proceso, calidad y evidencia</span></button></div>`;
+  return `${pageHead('Informes & Comparación','Convierte el research existente en informes reproducibles y compara Trading Plans sin reducirlos a un único P&L.',`<button class="btn" onclick="navigate('plans')">Trading Plans</button>`)}${activePlanBanner()}${tabs}${reportsViewState.tab==='compare'?v313CompareView():v313BuilderView()}`;
+}
+
+/* Entrada directa desde Trading Plans. */
+const plansViewV313Base=plansView;
+plansView=function(){let html=plansViewV313Base();return html.replace('<h3>Comparación rápida de planes</h3>',`<h3>Comparación rápida de planes</h3><button class="btn small" onclick="reportsViewState.tab='compare';navigate('reports')">Comparación avanzada</button>`);};
+
+/* Navegación y runtime. */
+const shellV313Base=shell;
+shell=function(){let html=shellV313Base(),anchor=navBtn('mistakes','⚠','Errores');if(!html.includes('data-view="reports"'))html=html.replace(anchor,anchor+navBtn('reports','▣','Informes'));return html;};
+const renderV313Base=render;
+render=function(){
+  if(currentView==='reports'){
+    document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=reportsView();setTimeout(()=>{if(typeof hydrateImageElements==='function')hydrateImageElements();},0);return;
+  }
+  return renderV313Base();
+};
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V313_APP_LABEL)}</div><div class="help">Report Builder + comparación avanzada de Trading Plans + Mistakes Analysis + Dashboards múltiples. Market Data continúa pausado hasta cerrar la auditoría funcional.</div></div></div></div>`;};
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'reportbuilder',terms:['report builder','informes','comparación de planes','trading plans'],title:'Report Builder & Plan Compare',summary:'Genera informes dinámicos y compara Trading Plans en una escala común.',body:'Las plantillas guardan alcance, unidad, base y secciones; las métricas se recalculan sobre el dataset actual. La comparación añade rendimiento, IC95, calidad, checklist, errores y coberturas.',use:'Úsalo para reviews periódicas y para estudiar diferencias entre planes. Un delta histórico no demuestra que un plan sea superior ni elimina el efecto de muestras o regímenes distintos.'});
+Object.assign(window,{reportsViewState,v313SetTab,v313SetUnit,v313SetBasis,v313SetScope,v313SetReportField,v313ToggleSection,v313SetCompareField,v313SavePresetPrompt,v313LoadPreset,v313DeletePreset,v313PrintReport,reportsView});
+render();
+/* ===== END V31.3 PATCH ===== */

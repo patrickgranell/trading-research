@@ -1,23 +1,18 @@
-# Trading Research V31.2 — Mistakes Analysis
+# Trading Research V31.3 — Report Builder & Plan Compare
 
-V31.2 parte de V31.1.5 y mantiene intactos Supabase, Conflict Guard V9.2, Dashboard Profiles y todos los módulos previos. Market Data continúa pausado hasta completar la auditoría funcional.
+V31.3 parte de V31.2 y mantiene intactos Supabase, Conflict Guard V9.2, Dashboards múltiples, Mistakes Analysis, Data Quality, Forward OOS, Walk-Forward, Stress/Monte Carlo, Review & Notes, Objetivos, Calendario, Research Grid y Exit Lab.
 
-## Mistakes Analysis
+## Nuevo: Informes & Comparación
 
-- Taxonomía de errores configurable por Trading Plan: nombre, categoría, criterio y activo/inactivo.
-- Evaluación explícita por operación. Un trade no evaluado nunca se considera “sin error”.
-- Snapshot histórico: si la taxonomía cambia, el pasado no se reescribe.
-- Para cada error, el grupo “sin error” solo usa operaciones donde esa definición existía realmente en el snapshot evaluado.
-- Frecuencia, expectancy con/sin error, delta, resultado asociado y relación con Disciplina.
-- Co-ocurrencia de errores, evolución últimas 20 vs 20 anteriores y hotspots error × setup × contexto.
-- Tabla de operaciones con errores y acceso directo al trade.
-- KPI y panel opcionales en Dashboard.
-- Definiciones reutilizables desde Biblioteca.
+- **Report Builder** por Trading Plan con alcance configurable: plan completo, últimas 20/50/100, mes actual, bloque, estudio guardado o rango de fechas.
+- Unidad común **R / Ticks / US$** y base **Bruto / Neto**.
+- Secciones activables: resumen ejecutivo, confianza/estabilidad, proceso/errores, calidad de datos, desglose técnico y reviews/objetivos.
+- Plantillas guardadas por Trading Plan. Guardan la definición y se recalculan sobre el dataset actual.
+- Impresión / PDF mediante el diálogo del navegador.
+- **Comparación avanzada de Trading Plans**: rendimiento, IC95, DD, calidad, checklist, errores, diario, MFE/MAE, drift reciente y desglose por setup/contexto.
+- Opción de comparar el histórico propio de cada plan o restringir ambos al **periodo calendario común**.
+- La comparación no declara automáticamente un “plan ganador”; los deltas son descriptivos y deben leerse con muestra, calidad y validación OOS.
 
-## Criterio metodológico
+## Estado de la auditoría
 
-Checklist, disciplina, diario emocional y Mistakes son capas distintas. La aplicación no convierte automáticamente una regla incumplida o una emoción en error. Las diferencias de rendimiento muestran asociación histórica, no causalidad ni “coste causado” automáticamente.
-
-## Despliegue
-
-El ZIP contiene exactamente seis archivos raíz. `npm run build` genera un único `dist/index.html` con CSS y JavaScript embebidos para evitar desincronización de assets en Cloudflare. No requiere SQL nuevo.
+Dashboard configurable, Pivot/Grid, Calendario, Exit Efficiency, Checklists, Mistakes Analysis, Notes, Objetivos, Estudios guardados e Informes/Comparación quedan cubiertos. Market Data continúa pausado para la fase final, donde se abordarán Running P&L y Best Exit/What-if ampliado.

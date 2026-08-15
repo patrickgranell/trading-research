@@ -81,3 +81,17 @@ No requiere SQL nuevo.
 - Datos de 1 minuto disponibles como diagnóstico, explícitamente no exactos por ambigüedad intrabar.
 - Los formularios `datetime-local` admiten segundos para mejorar futuros cálculos tick.
 - No altera Supabase ni el motor V9.2 Conflict Guard.
+
+
+## V31.1 · Dashboard Profiles
+
+- Se conserva V31 Market Data instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional.
+- Varios **Dashboards con nombre** por Trading Plan; todos leen el mismo dataset sin duplicar operaciones.
+- Selector rápido de Dashboard activo.
+- Crear desde la vista actual o desde la plantilla predeterminada.
+- Renombrar, duplicar y eliminar vistas (siempre queda al menos una).
+- Cada Dashboard guarda de forma independiente métricas, paneles y tarjetas visibles.
+- Orden de widgets mediante **drag & drop** dentro del personalizador, manteniendo también controles ↑ ↓.
+- Anchura configurable por widget sobre una rejilla responsive de 12 columnas.
+- Migración compatible: la antigua `dashboardConfig` se convierte en el perfil inicial **Principal** y se mantiene como espejo de compatibilidad.
+- No requiere SQL nuevo y no modifica el motor V9.2 Conflict Guard.

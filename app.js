@@ -5876,3 +5876,148 @@ Object.assign(window,{v31SelectMarketFile,v31PrepareMarketImport,v31ConfirmMarke
 v31RefreshMarketCache(false);
 render();
 /* ===== END V31 PATCH ===== */
+
+/* ===== V31.1 PATCH · Dashboard Profiles & Flexible Layout ===== */
+const V311_APP_LABEL='V31.1 · Dashboard Profiles';
+const dashboardConfigForPlanV311Base=dashboardConfigForPlan;
+let v311DashboardDrag=null;
+
+function v311DefaultWidgetSize(group){return group==='kpis'?2:(group==='panels'?6:4);}
+function v311NormalizeWidgetSize(group,value){
+  const allowed=group==='kpis'?[2,3,4,6]:[4,6,8,12],n=Number(value);
+  return allowed.includes(n)?n:v311DefaultWidgetSize(group);
+}
+function v311NormalizeSizes(sizes){
+  const out={kpis:{},panels:{},secondary:{}};
+  for(const group of ['kpis','panels','secondary']){
+    const src=sizes?.[group]||{};
+    for(const [id,v] of Object.entries(src))out[group][id]=v311NormalizeWidgetSize(group,v);
+  }
+  return out;
+}
+function v311ProfileConfig(config){
+  const c=config||{};
+  return {
+    kpis:normalizeDashboardGroup(c.kpis,DASHBOARD_KPI_DEFS,DASHBOARD_DEFAULT_CONFIG.kpis),
+    panels:normalizeDashboardGroup(c.panels,DASHBOARD_PANEL_DEFS,DASHBOARD_DEFAULT_CONFIG.panels),
+    secondary:normalizeDashboardGroup(c.secondary,DASHBOARD_SECONDARY_DEFS,DASHBOARD_DEFAULT_CONFIG.secondary)
+  };
+}
+function v311EnsureDashboardProfiles(p=getCurrentPlan()){
+  if(!p)return [];
+  if(!Array.isArray(p.dashboardProfiles)||!p.dashboardProfiles.length){
+    const legacy=dashboardConfigForPlanV311Base(p);
+    p.dashboardProfiles=[{id:uid('DASH'),name:'Principal',config:v311ProfileConfig(legacy),sizes:v311NormalizeSizes(null),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}];
+  }
+  p.dashboardProfiles=p.dashboardProfiles.map((x,i)=>({
+    id:x?.id||uid('DASH'),name:String(x?.name||`Dashboard ${i+1}`).trim()||`Dashboard ${i+1}`,
+    config:v311ProfileConfig(x?.config||x),sizes:v311NormalizeSizes(x?.sizes),
+    createdAt:x?.createdAt||new Date().toISOString(),updatedAt:x?.updatedAt||new Date().toISOString()
+  }));
+  if(!p.activeDashboardProfileId||!p.dashboardProfiles.some(x=>x.id===p.activeDashboardProfileId))p.activeDashboardProfileId=p.dashboardProfiles[0].id;
+  return p.dashboardProfiles;
+}
+function v311ActiveDashboardProfile(p=getCurrentPlan()){
+  const list=v311EnsureDashboardProfiles(p);return list.find(x=>x.id===p?.activeDashboardProfileId)||list[0]||null;
+}
+dashboardConfigForPlan=function(p=getCurrentPlan()){
+  const profile=v311ActiveDashboardProfile(p);return profile?v311ProfileConfig(profile.config):v311ProfileConfig(DASHBOARD_DEFAULT_CONFIG);
+};
+function v311DashboardSize(profile,group,id){return v311NormalizeWidgetSize(group,profile?.sizes?.[group]?.[id]);}
+function v311DashboardWidget(group,id,html,profile){
+  if(!html)return '';const span=v311DashboardSize(profile,group,id);
+  return `<div class="dashboard-widget dashboard-widget-${group} dashboard-span-${span}" data-dashboard-widget="${esc(id)}">${html}</div>`;
+}
+function v311SwitchDashboardProfile(id){
+  const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p);if(!p||!profiles.some(x=>x.id===id))return;
+  p.activeDashboardProfileId=id;p.updatedAt=new Date().toISOString();persist();render();
+}
+function v311DashboardProfileSelector(p,profile){
+  const profiles=v311EnsureDashboardProfiles(p);
+  return `<div class="dashboard-profile-switch"><span>Dashboard</span><select class="select" onchange="v311SwitchDashboardProfile(this.value)">${profiles.map(x=>`<option value="${esc(x.id)}" ${x.id===profile?.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`;
+}
+function v311OpenNewDashboardProfile(){
+  const p=getCurrentPlan(),active=v311ActiveDashboardProfile(p);if(!p)return;
+  const body=`<form onsubmit="event.preventDefault();v311CreateDashboardProfile()"><div class="form-grid"><label class="field span2"><span>Nombre del dashboard</span><input id="v311-dashboard-name" class="input" maxlength="60" placeholder="Ej. Ejecución, Research, Revisión semanal" autofocus></label><label class="field span2"><span>Partir de</span><select id="v311-dashboard-base" class="select"><option value="current">Copiar ${esc(active?.name||'dashboard actual')}</option><option value="default">Plantilla predeterminada</option></select></label></div><div class="notice"><strong>Perfil del Trading Plan:</strong> cada dashboard guarda su propia selección, orden y tamaño de widgets. No duplica operaciones ni altera el dataset.</div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Nuevo Dashboard',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="v311CreateDashboardProfile()">Crear</button>`));
+}
+function v311CreateDashboardProfile(){
+  const p=getCurrentPlan();if(!p)return;const profiles=v311EnsureDashboardProfiles(p),name=document.getElementById('v311-dashboard-name')?.value?.trim();if(!name)return alert('Escribe un nombre para el dashboard.');
+  if(profiles.some(x=>x.name.toLowerCase()===name.toLowerCase()))return alert('Ya existe un dashboard con ese nombre en este Trading Plan.');
+  const mode=document.getElementById('v311-dashboard-base')?.value||'current',active=v311ActiveDashboardProfile(p),baseConfig=mode==='default'?v311ProfileConfig(DASHBOARD_DEFAULT_CONFIG):clone(active?.config||DASHBOARD_DEFAULT_CONFIG),baseSizes=mode==='default'?v311NormalizeSizes(null):clone(active?.sizes||v311NormalizeSizes(null));
+  const profile={id:uid('DASH'),name,config:v311ProfileConfig(baseConfig),sizes:v311NormalizeSizes(baseSizes),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  profiles.push(profile);p.activeDashboardProfileId=profile.id;p.dashboardConfig=clone(profile.config);p.updatedAt=new Date().toISOString();persist();closeModal();render();
+}
+function v311DuplicateDashboardProfile(id){
+  const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p),src=profiles.find(x=>x.id===id);if(!src)return;
+  let base=`${src.name} · copia`,name=base,n=2;while(profiles.some(x=>x.name.toLowerCase()===name.toLowerCase()))name=`${base} ${n++}`;
+  const copy={id:uid('DASH'),name,config:clone(src.config),sizes:clone(src.sizes),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};profiles.push(copy);p.activeDashboardProfileId=copy.id;p.dashboardConfig=clone(copy.config);p.updatedAt=new Date().toISOString();persist();closeModal();render();
+}
+function v311OpenRenameDashboardProfile(id){
+  const p=getCurrentPlan(),profile=v311EnsureDashboardProfiles(p).find(x=>x.id===id);if(!profile)return;
+  const body=`<form onsubmit="event.preventDefault();v311RenameDashboardProfile('${esc(id)}')"><label class="field"><span>Nombre</span><input id="v311-dashboard-rename" class="input" maxlength="60" value="${esc(profile.name)}" autofocus></label></form>`;
+  closeModal();document.body.insertAdjacentHTML('beforeend',modalShell('Renombrar Dashboard',body,`<button class="btn" onclick="closeModal()">Cancelar</button><button class="btn primary" onclick="v311RenameDashboardProfile('${esc(id)}')">Guardar</button>`));
+}
+function v311RenameDashboardProfile(id){
+  const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p),profile=profiles.find(x=>x.id===id),name=document.getElementById('v311-dashboard-rename')?.value?.trim();if(!profile||!name)return alert('Escribe un nombre.');
+  if(profiles.some(x=>x.id!==id&&x.name.toLowerCase()===name.toLowerCase()))return alert('Ya existe otro dashboard con ese nombre.');profile.name=name;profile.updatedAt=new Date().toISOString();p.updatedAt=new Date().toISOString();persist();closeModal();render();
+}
+function v311DeleteDashboardProfile(id){
+  const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p),profile=profiles.find(x=>x.id===id);if(!profile)return;if(profiles.length<=1)return alert('Debe quedar al menos un dashboard en el Trading Plan.');
+  if(!confirm(`Eliminar el dashboard “${profile.name}”?\n\nSolo se elimina su diseño. Las operaciones y estadísticas no se modifican.`))return;
+  p.dashboardProfiles=profiles.filter(x=>x.id!==id);if(p.activeDashboardProfileId===id)p.activeDashboardProfileId=p.dashboardProfiles[0].id;const active=v311ActiveDashboardProfile(p);p.dashboardConfig=clone(active?.config||DASHBOARD_DEFAULT_CONFIG);p.updatedAt=new Date().toISOString();persist();closeModal();render();
+}
+function v311OpenDashboardManager(){
+  const p=getCurrentPlan(),profiles=v311EnsureDashboardProfiles(p),active=v311ActiveDashboardProfile(p);if(!p)return;
+  const body=`<div class="notice"><strong>Dashboards con nombre.</strong> Son vistas del mismo Trading Plan: cambian qué widgets ves, su orden y tamaño; no crean una copia de los trades.</div><div class="dashboard-profile-list">${profiles.map(x=>`<div class="dashboard-profile-row ${x.id===active?.id?'active':''}"><div><strong>${esc(x.name)}</strong><small>${x.id===active?.id?'Activo · ':''}${(x.config.kpis?.length||0)+(x.config.panels?.length||0)+(x.config.secondary?.length||0)} widgets</small></div><div class="dashboard-profile-actions"><button class="btn tiny" onclick="v311SwitchDashboardProfile('${esc(x.id)}');closeModal()">Abrir</button><button class="btn tiny ghost" onclick="v311OpenRenameDashboardProfile('${esc(x.id)}')">Renombrar</button><button class="btn tiny ghost" onclick="v311DuplicateDashboardProfile('${esc(x.id)}')">Duplicar</button><button class="btn tiny danger" onclick="v311DeleteDashboardProfile('${esc(x.id)}')" ${profiles.length<=1?'disabled':''}>Eliminar</button></div></div>`).join('')}</div>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Gestionar Dashboards',body,`<button class="btn" onclick="closeModal()">Cerrar</button><button class="btn primary" onclick="closeModal();v311OpenNewDashboardProfile()">+ Nuevo Dashboard</button>`));
+}
+function v311SizeOptions(group,current){
+  const opts=group==='kpis'?[[2,'Compacta'],[3,'Media'],[4,'Ancha'],[6,'Media fila']]:[[4,'1/3'],[6,'1/2'],[8,'2/3'],[12,'Fila completa']];
+  return opts.map(([v,l])=>`<option value="${v}" ${Number(current)===v?'selected':''}>${l}</option>`).join('');
+}
+function v311DashboardSetSize(group,id,value){
+  if(!dashboardCustomizeDraft)return;dashboardCustomizeDraft.__sizes=dashboardCustomizeDraft.__sizes||v311NormalizeSizes(null);dashboardCustomizeDraft.__sizes[group]=dashboardCustomizeDraft.__sizes[group]||{};dashboardCustomizeDraft.__sizes[group][id]=v311NormalizeWidgetSize(group,value);dashboardRefreshCustomizer();
+}
+function v311DashboardDragStart(group,id,e){v311DashboardDrag={group,id};if(e?.dataTransfer){e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',`${group}:${id}`);}e?.currentTarget?.classList.add('dragging');}
+function v311DashboardDragEnd(e){e?.currentTarget?.classList.remove('dragging');v311DashboardDrag=null;}
+function v311DashboardDrop(group,targetId,e){
+  e?.preventDefault();const src=v311DashboardDrag;if(!src||src.group!==group||src.id===targetId||!dashboardCustomizeDraft)return;const arr=dashboardCustomizeDraft[group]||[],from=arr.indexOf(src.id),to=arr.indexOf(targetId);if(from<0||to<0)return;arr.splice(from,1);arr.splice(to,0,src.id);dashboardCustomizeDraft[group]=arr;v311DashboardDrag=null;dashboardRefreshCustomizer();
+}
+
+dashboardCustomizerRows=function(group,defs){
+  const active=dashboardCustomizeDraft?.[group]||[],sizes=dashboardCustomizeDraft?.__sizes||v311NormalizeSizes(null),map=new Map(defs),ordered=[...active,...defs.map(x=>x[0]).filter(id=>!active.includes(id))];
+  return `<div class="dashboard-config-list">${ordered.map(id=>{const enabled=active.includes(id),idx=active.indexOf(id),size=v311NormalizeWidgetSize(group,sizes?.[group]?.[id]);return `<div class="dashboard-config-row ${enabled?'enabled':'disabled'}" ${enabled?`draggable="true" ondragstart="v311DashboardDragStart('${group}','${id}',event)" ondragend="v311DashboardDragEnd(event)" ondragover="event.preventDefault()" ondrop="v311DashboardDrop('${group}','${id}',event)"`:''}><label><input type="checkbox" ${enabled?'checked':''} onchange="dashboardToggleDraft('${group}','${id}',this.checked)"><span>${enabled?'<b class="dashboard-drag-handle" title="Arrastrar">⋮⋮</b>':''}${esc(map.get(id)||id)}</span></label><div class="dashboard-config-order">${enabled?`<select class="select dashboard-size-select" onchange="v311DashboardSetSize('${group}','${id}',this.value)">${v311SizeOptions(group,size)}</select><button class="btn tiny ghost" type="button" onclick="dashboardMoveDraft('${group}','${id}',-1)" ${idx<=0?'disabled':''}>↑</button><button class="btn tiny ghost" type="button" onclick="dashboardMoveDraft('${group}','${id}',1)" ${idx>=active.length-1?'disabled':''}>↓</button>`:'<span>oculto</span>'}</div></div>`;}).join('')}</div>`;
+};
+dashboardCustomizerBody=function(){
+  const p=getCurrentPlan(),profile=v311ActiveDashboardProfile(p);
+  return `<div class="notice dashboard-config-note"><strong>${esc(profile?.name||'Dashboard')} · diseño independiente.</strong> Activa widgets, arrástralos para ordenar y elige su anchura. ↑ ↓ siguen disponibles para ajustes precisos. Todo se guarda dentro de este Trading Plan.</div><div class="dashboard-config-grid"><section><h4>Métricas superiores</h4><p>Tarjetas rápidas. Anchura configurable.</p>${dashboardCustomizerRows('kpis',DASHBOARD_KPI_DEFS)}</section><section><h4>Gráficos y paneles</h4><p>Paneles analíticos. De 1/3 a fila completa.</p>${dashboardCustomizerRows('panels',DASHBOARD_PANEL_DEFS)}</section><section><h4>Tarjetas secundarias</h4><p>Información complementaria.</p>${dashboardCustomizerRows('secondary',DASHBOARD_SECONDARY_DEFS)}</section></div>`;
+};
+openDashboardCustomizer=function(){
+  const profile=v311ActiveDashboardProfile();if(!profile)return;dashboardCustomizeDraft={...clone(v311ProfileConfig(profile.config)),__sizes:clone(profile.sizes),__profileId:profile.id};
+  document.body.insertAdjacentHTML('beforeend',modalShell(`Personalizar · ${esc(profile.name)}`,dashboardCustomizerBody(),`<button class="btn ghost" onclick="dashboardResetDraft()">Restaurar predeterminado</button><button class="btn" onclick="closeModal();dashboardCustomizeDraft=null">Cancelar</button><button class="btn primary" onclick="saveDashboardCustomization()">Guardar Dashboard</button>`));
+};
+dashboardResetDraft=function(){if(!dashboardCustomizeDraft)return;dashboardCustomizeDraft={...clone(v311ProfileConfig(DASHBOARD_DEFAULT_CONFIG)),__sizes:v311NormalizeSizes(null),__profileId:dashboardCustomizeDraft.__profileId};dashboardRefreshCustomizer();};
+saveDashboardCustomization=function(){
+  const p=getCurrentPlan();if(!p||!dashboardCustomizeDraft)return;const total=(dashboardCustomizeDraft.kpis?.length||0)+(dashboardCustomizeDraft.panels?.length||0)+(dashboardCustomizeDraft.secondary?.length||0);if(!total)return alert('Deja al menos una métrica o panel visible.');
+  const profiles=v311EnsureDashboardProfiles(p),profile=profiles.find(x=>x.id===dashboardCustomizeDraft.__profileId)||v311ActiveDashboardProfile(p);if(!profile)return;
+  profile.config=v311ProfileConfig(dashboardCustomizeDraft);profile.sizes=v311NormalizeSizes(dashboardCustomizeDraft.__sizes);profile.updatedAt=new Date().toISOString();p.activeDashboardProfileId=profile.id;p.dashboardConfig=clone(profile.config);p.updatedAt=new Date().toISOString();persist();dashboardCustomizeDraft=null;closeModal();render();
+};
+
+/* Dashboard V31.1: múltiples perfiles por plan + rejilla de 12 columnas. */
+dashboard=function(){
+  const p=getCurrentPlan(),profile=v311ActiveDashboardProfile(p),ops=currentOps(),baseStats=calcStats(ops),unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r',metricStats=calcMetricStats(ops,unit,'gross'),unitLabel=metricUnitLabel(unit),config=v311ProfileConfig(profile?.config);
+  const ctx={ops,baseStats,metricStats,unit,unitLabel};
+  const unitButtons=`<div class="metric-switch dashboard-unit-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${unit===v?'active':''}" type="button" onclick="window.setDashboardUnit('${v}')">${l}</button>`).join('')}</div>`;
+  const actions=`${v311DashboardProfileSelector(p,profile)}<button class="btn ghost" onclick="v311OpenDashboardManager()">Gestionar vistas</button>${unitButtons}<button class="btn" onclick="openDashboardCustomizer()">⚙ Personalizar</button><button class="btn primary" onclick="openOperationModal()">+ Nueva operación</button><button class="btn" onclick="openImportModal()">Importar Ankora</button>`;
+  const kpisHtml=config.kpis.map(id=>v311DashboardWidget('kpis',id,dashboardKpiHtml(id,ctx),profile)).filter(Boolean).join('');
+  const panelsHtml=config.panels.map(id=>v311DashboardWidget('panels',id,dashboardPanelHtml(id,ctx),profile)).filter(Boolean).join('');
+  const secondaryHtml=config.secondary.map(id=>v311DashboardWidget('secondary',id,dashboardSecondaryHtml(id,ctx),profile)).filter(Boolean).join('');
+  return `${pageHead('Dashboard',`Vista “${esc(profile?.name||'Principal')}” del Trading Plan. Puedes crear varias vistas con composición, orden y tamaño propios.`,actions)}${activePlanBanner()}${kpisHtml?`<div class="dashboard-flex-grid dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-flex-grid dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-flex-grid dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">Este Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
+};
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V311_APP_LABEL)}</div><div class="help">Motor cloud V9.2 Conflict Guard intacto. Dashboards múltiples con nombre, orden por arrastre y tamaño de widgets por Trading Plan. Market Data V31 se conserva instalado, pero su desarrollo queda congelado hasta completar la auditoría funcional.</div></div></div></div>`;};
+if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'dashboardprofiles',terms:['dashboard profiles','dashboards con nombre','vistas dashboard','redimensionar widgets'],title:'Dashboards con nombre',summary:'Varias composiciones independientes del Dashboard dentro del mismo Trading Plan.',body:'Cada perfil guarda qué widgets están visibles, su orden y anchura. Todos leen exactamente el mismo dataset del Trading Plan: cambiar de Dashboard no filtra, duplica ni modifica operaciones.',use:'Úsalo para separar una vista de ejecución, otra de research, otra de revisión semanal o cualquier lectura recurrente sin reconstruir el Dashboard cada vez.'});
+Object.assign(window,{v311SwitchDashboardProfile,v311OpenNewDashboardProfile,v311CreateDashboardProfile,v311DuplicateDashboardProfile,v311OpenRenameDashboardProfile,v311RenameDashboardProfile,v311DeleteDashboardProfile,v311OpenDashboardManager,v311DashboardSetSize,v311DashboardDragStart,v311DashboardDragEnd,v311DashboardDrop});
+render();
+/* ===== END V31.1 PATCH ===== */

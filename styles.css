@@ -741,3 +741,13 @@ html[data-theme="light"] .rp-chart-wrap,html[data-theme="light"] .rp-inspector,h
 .rp-entry-level{stroke:var(--accent);stroke-width:1.2;stroke-dasharray:6 5;opacity:.78}.rp-exit-level{stroke:#d89722;stroke-width:1.2;stroke-dasharray:4 5;opacity:.8}.rp-entry-fill{fill:var(--accent);stroke:var(--card);stroke-width:1.5}.rp-level-label{font-family:inherit;font-size:10px;font-weight:700;paint-order:stroke;stroke:var(--card2,#fff);stroke-width:3px;stroke-linejoin:round}.rp-level-label.entry{fill:var(--accent)}.rp-level-label.exit{fill:#d89722}.rp-legend i.candle-up,.rp-legend i.candle-down{width:8px;height:12px;border-radius:1px}.rp-legend i.candle-up{background:var(--positive,#1a9f75)}.rp-legend i.candle-down{background:var(--negative,#d94b5b)}.rp-legend i.entry{background:var(--accent);clip-path:polygon(50% 0,0 100%,100% 100%);border-radius:0}.rp-price-chart-wrap{padding-top:8px}
 @media(max-width:760px){.rp-chart-meta{align-items:flex-start;flex-direction:column;gap:3px}}
 /* ===== END V31.7 ===== */
+
+/* ===== V31.7.1 · Dark theme contrast fix for intratrade evidence ===== */
+html[data-theme="dark"] .rp-kpis>div,
+html[data-theme="dark"] .rp-inspector{
+  background:#0b1220;
+  color:var(--text);
+}
+html[data-theme="dark"] .rp-kpis strong,
+html[data-theme="dark"] .rp-inspector strong{color:var(--text)}
+/* ===== END V31.7.1 ===== */

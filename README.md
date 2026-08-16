@@ -1,4 +1,4 @@
-# Trading Research V31.7
+# Trading Research V31.7.1
 
 ## Intratrade Candlestick Price Evidence
 
@@ -33,3 +33,7 @@ V31.7 mantiene el aislamiento de entornos de V31.6.1 (Replay / Sim / Live) y red
 ```bash
 npm run build
 ```
+
+
+## V31.7.1
+Corrige el contraste de las tarjetas KPI y del inspector tick a tick en modo oscuro. El modo claro y el gráfico de velas no cambian.

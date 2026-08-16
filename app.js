@@ -6395,7 +6395,7 @@ setTimeout(()=>v316MigrateExecEnvironments(),60);
 /* ===== END V31.6.1 PATCH ===== */
 
 /* ===== V31.7 PATCH · Intratrade Candlestick Price Evidence ===== */
-const V317_APP_LABEL='V31.7 · Intratrade Candlestick Price Evidence';
+const V317_APP_LABEL='V31.7.1 · Intratrade Candlestick Price Evidence';
 const v317PnlChartBase=v315RenderChart;
 
 function v317ChooseCandleMs(durationMs){
@@ -6451,7 +6451,7 @@ v315RunningPanel=function(set,meta){
 };
 
 v316MarketTabs=function(){return `<div class="md-phase-tabs"><button class="${v316Ui.tab==='calibration'?'active':''}" onclick="v316SetTab('calibration')"><strong>1 · Calibración</strong><span>Fills + MFE/MAE</span></button><button class="${v316Ui.tab==='running'?'active':''}" onclick="v316SetTab('running')"><strong>2 · Recorrido</strong><span>Velas + fills</span></button><button class="${v316Ui.tab==='reconcile'?'active':''}" onclick="v316SetTab('reconcile')"><strong>3 · Vinculación</strong><span>Journal ↔ NinjaTrader</span></button></div>`;};
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.7</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V317_APP_LABEL)}</div><div class="help">Execution Evidence mantiene Replay/Sim/Live aislados. El recorrido intratrade usa ahora velas OHLC construidas con Last como vista principal; P&amp;L transformado queda como vista auxiliar.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.7.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V317_APP_LABEL)}</div><div class="help">Execution Evidence mantiene Replay/Sim/Live aislados. El recorrido intratrade usa ahora velas OHLC construidas con Last como vista principal; P&amp;L transformado queda como vista auxiliar.</div></div></div></div>`;};
 if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'intratradecandles',terms:['velas intratrade','recorrido precio','candlestick','ohlc'],title:'Recorrido de precio intratrade',summary:'Reconstruye la acción del precio real durante una operación con velas OHLC derivadas de Last.',body:'La vista principal ya no transforma un SHORT ganador en una curva ascendente. Agrega los ticks Last en velas con intervalo automático, superpone fills de entrada/salida y marca MFE/MAE. El P&L en ticks permanece disponible como vista auxiliar.',use:'Úsalo para leer la estructura del recorrido mientras la posición estuvo abierta y relacionar excursiones favorables/adversas con la acción real del precio.'});
 Object.assign(window,{v315RenderChart,v315RunningPanel,v316MarketTabs});
 render();

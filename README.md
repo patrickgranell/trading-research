@@ -1,22 +1,21 @@
 # Trading Research V31.6 — Execution Reconciliation
 
-V31.6 parte de V31.5 y formaliza la separación entre **Research/Backtest** y **evidencia de ejecución**.
+V31.6 parte de V31.5 y mantiene todo el motor existente, incluido Market Data calibrado, Running P&L intratrade, Report Builder, Mistakes Analysis, Supabase y Conflict Guard V9.2.
 
-## NinjaTrader ↔ Journal
+## Separación de capas
 
-- Ankora continúa siendo una fuente de backtesting y nunca entra automáticamente en el matching de ejecuciones.
-- El Grid de NinjaTrader se clasifica explícitamente como Replay, Simulado o Live.
-- Una operación manual del Journal puede prepararse antes de operar y después vincularse a su ejecución.
-- El matching usa contrato, dirección, proximidad temporal y, cuando existe, precio de entrada. Siempre requiere confirmación.
-- Al vincular, NinjaTrader autorellena timestamps de entrada/salida, contrato, cantidad, precio, resultado, P&L/comisión y MFE/MAE cuando existe Market Data calibrado.
-- Setup, VD, NR, hipótesis, contexto, checklist, Mistakes, diario emocional, notas e imágenes no se sobrescriben.
-- Si no existe operación previa, puede crearse un borrador desde NinjaTrader con los campos cualitativos pendientes.
-- El enlace guarda procedencia y puede abrir directamente el Running P&L local cuando el Grid/histórico están disponibles.
+- **Ankora**: backtest/research. Nunca es candidata automática a una ejecución NinjaTrader.
+- **Trading Research**: contexto cualitativo, hipótesis, checklist, errores, diario, notas y capturas.
+- **NinjaTrader + histórico Tick**: fills, precios, timestamps, cantidad, resultado y evidencia de mercado.
 
-## Seguridad metodológica
+## Execution Reconciliation
 
-La reconciliación no transforma una operación Ankora en una ejecución real. Los históricos Tick y Grids permanecen en IndexedDB; la operación vinculada guarda únicamente la evidencia resumida necesaria en el Journal. Conflict Guard V9.2 y Supabase continúan intactos.
+Una operación manual debe marcarse explícitamente como `Pendiente NinjaTrader`, `Replay`, `Sim` o `Live` para aparecer como candidata. El Grid de NinjaTrader propone matches por contrato, dirección, tiempo y precio, pero exige confirmación manual.
 
-## Build
+Al vincular, Trading Research autorellena únicamente campos objetivos de ejecución: entrada/salida exactas, precio, cantidad, resultado, P&L y, cuando existe Market Data, MFE/MAE. Los campos cualitativos no se sobrescriben.
 
-El despliegue mantiene el sistema single-bundle: `npm run build` genera un único `dist/index.html`.
+La operación conserva una referencia de Execution Evidence y puede desvincularse restaurando los campos de ejecución anteriores al enlace.
+
+## Deployment
+
+El ZIP contiene exactamente los seis archivos raíz habituales. `npm run build` genera un único `dist/index.html` (single-bundle) para Cloudflare Workers. No requiere SQL nuevo.

@@ -1,4 +1,4 @@
-# Trading Research V31.9.2
+# Trading Research V31.9.3
 
 ## NinjaTrader Grid → Operaciones
 
@@ -49,5 +49,18 @@ No requiere cambios SQL.
 - Las operaciones Ankora ya existentes se corrigen automáticamente al arrancar; no hace falta reimportar el TXT.
 - Al editar tick value o comisión de un contrato, las operaciones importadas de Ankora y las filas autoimportadas de NinjaTrader se resincronizan.
 - Las operaciones manuales permanecen fuera de esta resincronización automática.
+
+No requiere cambios SQL.
+
+
+## V31.9.3 · Equity cronológica
+
+- La curva de equity del Dashboard deja de usar el orden de inserción/importación del array de operaciones.
+- Ankora, NinjaTrader y operaciones manuales se mezclan por la fecha/hora real del fill de entrada (`entryDate`; en NinjaTrader se prioriza `Execution Evidence.entryDate`).
+- Si dos operaciones tienen la misma entrada, se desempata por salida y luego por ID estable.
+- La curva arranca visualmente en 0 antes del primer trade.
+- El drawdown del Dashboard se calcula sobre esa misma secuencia cronológica.
+- El registro de Operaciones puede seguir mostrándose de más reciente a más antiguo: eso es solo presentación y no altera la secuencia de la equity.
+- Mantiene el backfill de comisiones/tick value de V31.9.2 para Ankora y NinjaTrader.
 
 No requiere cambios SQL.

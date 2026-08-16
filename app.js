@@ -6796,3 +6796,54 @@ v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mo
 Object.assign(window,{v3192SyncAnkoraEconomics});
 render();
 /* ===== END V31.9.2 PATCH ===== */
+
+
+/* ===== V31.9.3 PATCH · Equity cronológica por fill de entrada ===== */
+const V3193_APP_LABEL='V31.9.3 · Equity cronológica';
+
+function v3193EntryTimeMs(o){
+  const candidates=[o?.executionEvidence?.entryDate,o?.entryDate];
+  for(const value of candidates){const t=new Date(value||'').getTime();if(Number.isFinite(t))return t;}
+  return Number.POSITIVE_INFINITY;
+}
+function v3193ExitTimeMs(o){
+  const candidates=[o?.executionEvidence?.exitDate,o?.exitDate];
+  for(const value of candidates){const t=new Date(value||'').getTime();if(Number.isFinite(t))return t;}
+  return Number.POSITIVE_INFINITY;
+}
+function v3193ChronologicalOps(ops){
+  return [...(ops||[])].sort((a,b)=>{
+    const entryDiff=v3193EntryTimeMs(a)-v3193EntryTimeMs(b);if(entryDiff)return entryDiff;
+    const exitDiff=v3193ExitTimeMs(a)-v3193ExitTimeMs(b);if(exitDiff)return exitDiff;
+    return String(a?.id||'').localeCompare(String(b?.id||''));
+  });
+}
+
+/* The Dashboard used state insertion order. Imports from Ankora followed by a NinjaTrader Grid therefore distorted the equity path.
+   From here on every path-dependent Dashboard metric uses the actual entry-fill chronology. */
+const dashboardPanelHtmlV3193Base=dashboardPanelHtml;
+dashboardPanelHtml=function(id,ctx){
+  if(id==='equity'){
+    const values=ctx.metricStats.equity.length?[0,...ctx.metricStats.equity]:[];
+    const svg=dashboardEquitySvgV114(values,ctx.unit);
+    return `<section class="card panel dashboard-custom-panel"><div class="panel-title dashboard-equity-title"><div><h3>Equity en ${esc(ctx.unitLabel)}</h3><small>Orden cronológico por fecha/hora del fill de entrada</small></div><strong>${ctx.ops.length?`${dashboardMetricValueText(ctx.metricStats.sum,ctx.unit)} acumulado`:'sin datos'}</strong></div><div class="chart-wrap">${svg}</div></section>`;
+  }
+  return dashboardPanelHtmlV3193Base(id,ctx);
+};
+
+/* Rebuild Dashboard context with chronological operations before equity / drawdown are calculated. */
+dashboard=function(){
+  const ops=v3193ChronologicalOps(currentOps()),baseStats=calcStats(ops),unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r',metricStats=calcMetricStats(ops,unit,'gross'),unitLabel=metricUnitLabel(unit),config=dashboardConfigForPlan();
+  const ctx={ops,baseStats,metricStats,unit,unitLabel};
+  const unitButtons=`<div class="metric-switch dashboard-unit-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${unit===v?'active':''}" type="button" onclick="window.setDashboardUnit('${v}')">${l}</button>`).join('')}</div>`;
+  const actions=`${unitButtons}<button class="btn" onclick="openDashboardCustomizer()">⚙ Personalizar</button><button class="btn primary" onclick="openOperationModal()">+ Nueva operación</button><button class="btn" onclick="openImportModal()">Importar Ankora</button>`;
+  const kpisHtml=config.kpis.map(id=>dashboardKpiHtml(id,ctx)).filter(Boolean).join('');
+  const panelsHtml=config.panels.map(id=>dashboardPanelHtml(id,ctx)).filter(Boolean).join('');
+  const secondaryHtml=config.secondary.map(id=>dashboardSecondaryHtml(id,ctx)).filter(Boolean).join('');
+  return `${pageHead('Dashboard','Tu panel de control del Trading Plan. Unidad local; composición personalizada y guardada por plan.',actions)}${activePlanBanner()}${kpisHtml?`<div class="kpis dashboard-kpis-custom">${kpisHtml}</div>`:''}${panelsHtml?`<div class="dashboard-panel-grid">${panelsHtml}</div>`:''}${secondaryHtml?`<div class="dashboard-secondary-grid">${secondaryHtml}</div>`:''}${!kpisHtml&&!panelsHtml&&!secondaryHtml?'<div class="empty">El Dashboard no tiene módulos visibles. Pulsa Personalizar para añadirlos.</div>':''}`;
+};
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.9.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V3193_APP_LABEL)}</div><div class="help">La curva de equity, el drawdown y cualquier lectura acumulativa del Dashboard se calculan por la hora real de entrada de cada operación, mezclando correctamente Ankora, NinjaTrader y manuales. La curva arranca en 0 antes del primer trade. Incluye los fixes V31.9.2 de economía de contratos.</div></div></div></div>`;};
+Object.assign(window,{v3193ChronologicalOps});
+render();
+/* ===== END V31.9.3 PATCH ===== */

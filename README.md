@@ -1,4 +1,4 @@
-# Trading Research V31.10
+# Trading Research V31.10.1
 
 ## NinjaTrader Grid → Operaciones
 
@@ -86,3 +86,12 @@ No requiere cambios SQL.
 - El «máximo cotizable» se presenta explícitamente como benchmark hindsight, no como una regla operativa.
 
 No requiere cambios SQL.
+
+
+## V31.10.1 · Ajuste microestructural Best Exit
+
+- Corrige los escenarios no ejecutados para que `null` no se renderice como 0t / `undefined`.
+- Separa explícitamente el máximo **marketable** (Bid/Ask) del fill real pasivo.
+- Un TP límite resting puede considerarse observado si Last negoció el nivel; la cola no se modela y se etiqueta como tal.
+- El mapa lateral sigue siendo estrictamente marketable (Bid/Ask).
+- Evita porcentajes >100% engañosos cuando un fill pasivo supera el mejor cierre marketable observado.

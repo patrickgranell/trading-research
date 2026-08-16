@@ -1,4 +1,4 @@
-# Trading Research V31.9.1
+# Trading Research V31.9.2
 
 ## NinjaTrader Grid → Operaciones
 
@@ -37,5 +37,17 @@ npm run build
 - El P&L neto se recalcula como P&L bruto menos comisión.
 - Las operaciones NinjaTrader ya creadas en V31.9 se corrigen automáticamente al arrancar mediante la sincronización existente; no hace falta reimportar el Grid.
 - Al editar los campos cualitativos de una operación NinjaTrader, la sincronización vuelve a imponer los datos objetivos del fill y su comisión para que no se pierdan.
+
+No requiere cambios SQL.
+
+
+## V31.9.2 · Ankora usa la misma biblioteca de contratos
+
+- Las operaciones importadas desde Ankora resuelven el símbolo raíz del contrato contra `Configuración → Contratos` (por ejemplo `MCL 08-26` → `MCL`).
+- La biblioteca global pasa a ser la fuente de `tick value` y comisión round-turn también para Ankora.
+- Se recalculan P&L bruto, comisión y P&L neto usando cantidad × comisión por contrato.
+- Las operaciones Ankora ya existentes se corrigen automáticamente al arrancar; no hace falta reimportar el TXT.
+- Al editar tick value o comisión de un contrato, las operaciones importadas de Ankora y las filas autoimportadas de NinjaTrader se resincronizan.
+- Las operaciones manuales permanecen fuera de esta resincronización automática.
 
 No requiere cambios SQL.

@@ -6705,3 +6705,94 @@ Object.assign(window,{v319SyncExecutionSetsToOperations,v316LinkedOpFor,v316Reco
 render();
 setTimeout(()=>v319SyncExecutionSetsToOperations({assignLegacyPlan:true}),180);
 /* ===== END V31.9 PATCH ===== */
+
+
+/* ===== V31.9.2 PATCH · Ankora → Global Contract Economics ===== */
+const V3192_APP_LABEL='V31.9.2 · Comisión Ankora desde contratos';
+
+function v3192ContractRoot(value){
+  return String(value||'').trim().toUpperCase().split(/\s+/)[0]||'';
+}
+function v3192InstrumentForOperation(o){
+  const root=v3192ContractRoot(o?.contract||o?.instrumentSnapshot?.symbol||'');
+  if(!root)return null;
+  return (state.settings?.instruments||[]).find(i=>String(i.symbol||'').trim().toUpperCase()===root)||null;
+}
+function v3192OperationQuantity(o){
+  const direct=Number(o?.contracts);
+  if(Number.isFinite(direct)&&direct>0)return direct;
+  const raw=o?.raw?.columns||{};
+  const total=Number(String(raw.TotQuantity??'').replace(',','.'));
+  if(Number.isFinite(total)&&total>0)return total;
+  const lots=(o?.lots||[]).reduce((sum,l)=>sum+(Number(l?.quantity)||0),0);
+  return lots>0?lots:1;
+}
+function v3192ApplyConfiguredEconomicsToAnkora(o){
+  if(o?.raw?.source!=='ankora')return false;
+  const inst=v3192InstrumentForOperation(o);if(!inst)return false;
+  const qty=v3192OperationQuantity(o),ticks=Number(o.resultTicks)||0,tickValue=Number(inst.tickValue)||0;
+  const commission=(Number(inst.commission)||0)*qty,gross=ticks*tickValue,net=gross-commission;
+  const riskTicks=Number(o.riskTickExposure)||0,riskUsd=riskTicks*tickValue;
+  const nextSnap=instrumentSnapshot(inst);
+  const changed=
+    o.instrumentId!==inst.id||JSON.stringify(o.instrumentSnapshot||null)!==JSON.stringify(nextSnap)||
+    Number(o.contracts)!==qty||Number(o.commission)!==commission||Number(o.pnlGross)!==gross||Number(o.pnlNet)!==net||
+    (riskTicks>0&&Number(o.riskUsd)!==riskUsd);
+  o.instrumentId=inst.id;o.instrumentSnapshot=nextSnap;o.contracts=qty;o.commission=commission;o.pnlGross=gross;o.pnlNet=net;
+  if(riskTicks>0)o.riskUsd=riskUsd;
+  if(riskTicks>0)o.rMultiple=ticks/riskTicks;
+  o.contractEconomics={source:'global_contract_library',symbol:inst.symbol,commissionRoundTurn:Number(inst.commission)||0,tickValue,quantity:qty,updatedAt:new Date().toISOString()};
+  if(changed)o.updatedAt=new Date().toISOString();
+  return changed;
+}
+function v3192SyncAnkoraEconomics({renderAfter=false}={}){
+  let updated=0,unmatched=0;
+  for(const o of state.operations||[]){
+    if(o?.raw?.source!=='ankora')continue;
+    if(!v3192InstrumentForOperation(o)){unmatched++;continue;}
+    if(v3192ApplyConfiguredEconomicsToAnkora(o))updated++;
+  }
+  if(updated)persist();
+  if(renderAfter&&updated)render();
+  return {updated,unmatched};
+}
+
+/* Existing Ankora rows are backfilled from Configuración → Contratos. */
+setTimeout(()=>v3192SyncAnkoraEconomics({renderAfter:['operations','dashboard','blocks','calendar'].includes(currentView)}),260);
+
+/* New Ankora imports also receive the current contract economics immediately. */
+const confirmImportPreviewV3192Base=confirmImportPreview;
+confirmImportPreview=function(){
+  const hadPreview=!!pendingImportPreview;
+  confirmImportPreviewV3192Base();
+  if(hadPreview&&!pendingImportPreview)v3192SyncAnkoraEconomics({renderAfter:false});
+};
+window.confirmImportPreview=confirmImportPreview;
+
+/* Editing a contract makes the library the source of truth for imported rows. */
+const saveInstrumentV3192Base=saveInstrument;
+saveInstrument=function(){
+  saveInstrumentV3192Base();
+  if(document.getElementById('f-ins-symbol'))return; // validation failed; modal is still open
+  v3192SyncAnkoraEconomics({renderAfter:false});
+  if(typeof v319SyncExecutionSetsToOperations==='function')v319SyncExecutionSetsToOperations({assignLegacyPlan:true});
+  render();
+};
+window.saveInstrument=saveInstrument;
+
+/* Keep the contract editor copy consistent with the imported-data behavior. */
+const openInstrumentModalV3192Base=openInstrumentModal;
+openInstrumentModal=function(id=null){
+  openInstrumentModalV3192Base(id);
+  const modal=document.querySelector('.modal-backdrop .modal');
+  if(!modal)return;
+  const notices=[...modal.querySelectorAll('.notice')];
+  const note=notices.find(x=>x.textContent.includes('Cada operación conserva un snapshot'));
+  if(note)note.innerHTML='La comisión en ticks se calcula como comisión por contrato ÷ valor del tick. Para operaciones importadas de <b>Ankora</b> y <b>NinjaTrader</b>, esta biblioteca global es la fuente de tick value y comisión: al reconocer el símbolo raíz (por ejemplo MCL 08-26 → MCL), recalcula P&amp;L bruto, comisión y P&amp;L neto.';
+};
+window.openInstrumentModal=openInstrumentModal;
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.9.2</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V3192_APP_LABEL)}</div><div class="help">Ankora y NinjaTrader resuelven el contrato por símbolo raíz contra Configuración → Contratos. Las operaciones importadas usan el tick value y la comisión round-turn configurados allí para recalcular P&amp;L bruto, comisión y P&amp;L neto. Market Data mantiene su aislamiento Replay/Sim/Live.</div></div></div></div>`;};
+Object.assign(window,{v3192SyncAnkoraEconomics});
+render();
+/* ===== END V31.9.2 PATCH ===== */

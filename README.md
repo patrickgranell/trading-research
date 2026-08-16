@@ -1,39 +1,53 @@
-# Trading Research V31.7.1
+# Trading Research V31.8
 
-## Intratrade Candlestick Price Evidence
+## Sidebar organizada
 
-V31.7 mantiene el aislamiento de entornos de V31.6.1 (Replay / Sim / Live) y rediseña la pestaña 2 de Market Data para que la vista principal represente **precio real**, no P&L transformado.
+V31.8 reorganiza el menú lateral sin cambiar rutas, datos ni comportamiento de los módulos.
 
-### Cambios principales
+### Nueva arquitectura
 
-- `2 · Recorrido` sustituye la lectura principal de Running P&L.
-- Vista predeterminada: **velas OHLC construidas con ticks Last** dentro de la ventana exacta fill de entrada → fill de salida.
-- Intervalo de vela automático para mantener una densidad legible (~90 barras objetivo).
-- Superposición de:
-  - fill real de entrada;
-  - fill real de salida;
-  - MFE;
-  - MAE;
-  - cursor/inspector tick a tick.
-- Un SHORT ganador ya se visualiza como caída de precio; un LONG ganador, como subida de precio.
-- La antigua curva de `P&L · ticks` se conserva como **vista auxiliar**, claramente separada de la acción del precio.
-- No se utiliza información posterior al cierre de la operación.
+- **Dashboard** permanece como acceso directo.
+- **Operativa**
+  - Operaciones
+  - Calendario
+  - Diario emocional
+- **Investigación**
+  - Centro Research
+  - Cambios
+  - Laboratorio
+  - Review & Notes
+  - Biblioteca visual
+- **Control y seguimiento**
+  - Objetivos
+  - Cumplimiento
+  - Errores
+  - Bloques
+  - Informes
+- **Datos y ejecución**
+  - Calidad datos
+  - Market Data
+- **Plan y sistema**
+  - Trading Plans
+  - Configuración
+
+### Comportamiento
+
+- Los grupos funcionan como desplegables y reducen la altura ocupada por el menú.
+- Al cambiar de módulo se abre automáticamente el grupo al que pertenece la vista actual.
+- El grupo abierto se recuerda localmente.
+- El contador de **Cambios** se conserva y también aparece en el encabezado de **Investigación** cuando el grupo está cerrado.
+- El modo claro/oscuro y la tarjeta de versión se mantienen.
 - No requiere cambios SQL.
 
-## Comprobaciones recomendadas
+### Herencia V31.7.1
 
-1. Abrir Market Data → `2 · Recorrido`.
-2. Seleccionar la operación SHORT `73.92 → 73.72`.
-3. Confirmar que la vista predeterminada es `Velas · precio` y que el recorrido refleja una caída del mercado.
-4. Confirmar que Entrada, Salida, MFE y MAE están correctamente superpuestos.
-5. Cambiar a `P&L auxiliar · ticks` y verificar que la curva anterior sigue disponible solo como métrica secundaria.
+- Aislamiento Replay / Sim / Live.
+- Recorrido intratrade con velas OHLC de Last.
+- P&L en ticks como vista auxiliar.
+- Contraste corregido en modo oscuro.
 
 ## Build
 
 ```bash
 npm run build
 ```
-
-
-## V31.7.1
-Corrige el contraste de las tarjetas KPI y del inspector tick a tick en modo oscuro. El modo claro y el gráfico de velas no cambian.

@@ -6456,3 +6456,70 @@ if(typeof CONTEXT_HELP!=='undefined')CONTEXT_HELP.push({id:'intratradecandles',t
 Object.assign(window,{v315RenderChart,v315RunningPanel,v316MarketTabs});
 render();
 /* ===== END V31.7 PATCH ===== */
+
+/* ===== V31.8 PATCH · Sidebar Information Architecture ===== */
+const V318_APP_LABEL='V31.8 · Sidebar organizada';
+const V318_NAV_KEY='tr:v318:sidebar-group';
+const V318_NAV_GROUPS=[
+  {id:'operativa',label:'Operativa',icon:'▤',items:[
+    ['operations','▤','Operaciones'],
+    ['calendar','▣','Calendario'],
+    ['journal','♡','Diario emocional']
+  ]},
+  {id:'research',label:'Investigación',icon:'⌾',items:[
+    ['decision','⌾','Centro Research'],
+    ['changes','◉','Cambios'],
+    ['lab','⌁','Laboratorio'],
+    ['review','✎','Review & Notes'],
+    ['gallery','▧','Biblioteca visual']
+  ]},
+  {id:'control',label:'Control y seguimiento',icon:'✓',items:[
+    ['goals','◎','Objetivos'],
+    ['compliance','✓','Cumplimiento'],
+    ['mistakes','⚠','Errores'],
+    ['blocks','▦','Bloques'],
+    ['reports','▣','Informes']
+  ]},
+  {id:'data',label:'Datos y ejecución',icon:'◇',items:[
+    ['quality','◇','Calidad datos'],
+    ['market','⌁','Market Data']
+  ]},
+  {id:'system',label:'Plan y sistema',icon:'◫',items:[
+    ['plans','◫','Trading Plans'],
+    ['config','⚙','Configuración']
+  ]}
+];
+function v318GroupForView(view=currentView){return V318_NAV_GROUPS.find(g=>g.items.some(i=>i[0]===view))?.id||'';}
+let v318OpenGroup='';
+try{v318OpenGroup=localStorage.getItem(V318_NAV_KEY)||v318GroupForView(currentView)||'operativa';}catch(_){v318OpenGroup=v318GroupForView(currentView)||'operativa';}
+let v318LastView=currentView;
+function v318SaveOpenGroup(){try{localStorage.setItem(V318_NAV_KEY,v318OpenGroup||'');}catch(_){}}
+function v318ToggleNavGroup(id){
+  v318OpenGroup=v318OpenGroup===id?'':id;v318SaveOpenGroup();
+  document.querySelectorAll('.nav-group').forEach(el=>{
+    const open=el.dataset.navGroup===v318OpenGroup;
+    el.classList.toggle('open',open);
+    const btn=el.querySelector(':scope > .nav-group-toggle');
+    if(btn){btn.setAttribute('aria-expanded',open?'true':'false');const arrow=btn.querySelector('.nav-group-arrow');if(arrow)arrow.textContent=open?'▾':'▸';}
+  });
+}
+function v318ChildButton(id,icon,label){
+  const unread=id==='changes'&&typeof researchUnreadCount==='function'?researchUnreadCount():0;
+  return `<button class="nav-child ${currentView===id?'active':''}" data-view="${id}" onclick="navigate('${id}')"><span class="icon">${icon}</span><span class="nav-child-label">${label}</span>${unread?`<b class="nav-alert-count">${unread>99?'99+':unread}</b>`:''}</button>`;
+}
+function v318GroupHtml(group){
+  const open=v318OpenGroup===group.id,active=group.items.some(i=>i[0]===currentView);
+  const unread=group.id==='research'&&typeof researchUnreadCount==='function'?researchUnreadCount():0;
+  return `<section class="nav-group ${open?'open':''} ${active?'has-active':''}" data-nav-group="${group.id}"><button type="button" class="nav-group-toggle" onclick="v318ToggleNavGroup('${group.id}')" aria-expanded="${open?'true':'false'}"><span class="icon">${group.icon}</span><span class="nav-group-label">${group.label}</span>${unread?`<b class="nav-alert-count nav-group-count">${unread>99?'99+':unread}</b>`:''}<span class="nav-group-arrow">${open?'▾':'▸'}</span></button><div class="nav-group-items">${group.items.map(i=>v318ChildButton(...i)).join('')}</div></section>`;
+}
+function v318SidebarNav(){return `<nav class="nav nav-organized">${navBtn('dashboard','◈','Dashboard')}<div class="nav-divider"></div>${V318_NAV_GROUPS.map(v318GroupHtml).join('')}</nav>`;}
+const shellV318Base=shell;
+shell=function(){
+  if(currentView!==v318LastView){const g=v318GroupForView(currentView);if(g){v318OpenGroup=g;v318SaveOpenGroup();}v318LastView=currentView;}
+  const p=getCurrentPlan();
+  return `<div class="shell"><aside class="sidebar"><div class="brand"><div class="brand-dot"></div><div><h1>Trading Research</h1><small>Backtest &amp; Trade Lab</small></div></div><div class="plan-switch"><label>Trading plan activo</label><select class="select" onchange="switchPlan(this.value)">${state.tradingPlans.filter(x=>x.status!=='archived'||x.id===p?.id).map(x=>`<option value="${esc(x.id)}" ${x.id===p?.id?'selected':''}>${esc(planLabel(x))}</option>`).join('')}</select></div>${typeof themeSwitchHtml==='function'?themeSwitchHtml():''}${v318SidebarNav()}${typeof v30ModeCard==='function'?v30ModeCard():''}</aside><main class="main"><div id="view"></div></main></div>`;
+};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.8</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V318_APP_LABEL)}</div><div class="help">Menú lateral reorganizado en desplegables semánticos. Dashboard queda como acceso directo; Operativa, Investigación, Control, Datos y Plan/Sistema agrupan el resto sin cambiar rutas ni datos.</div></div></div></div>`;};
+Object.assign(window,{v318ToggleNavGroup});
+render();
+/* ===== END V31.8 PATCH ===== */

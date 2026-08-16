@@ -1,4 +1,4 @@
-# Trading Research V31.9.4
+# Trading Research V31.10
 
 ## NinjaTrader Grid → Operaciones
 
@@ -73,3 +73,16 @@ No requiere cambios SQL.
 - Equity de Dashboard, Operaciones, Bloques e Informes parte visualmente de 0.
 - Simulador de gestión y Exit Lab conservan el emparejamiento operación a operación en el mismo orden temporal.
 - Heatmaps, histogramas, distribuciones y recorrido intratrade no se fuerzan a una secuencia artificial porque su eje ya representa otra magnitud.
+
+## V31.10 · Best Exit / What-if intratrade
+
+- Market Data añade una cuarta fase: **Best Exit / What-if**.
+- Reutiliza exactamente la misma ventana calibrada entrada → salida real; no usa datos post-cierre.
+- El recorrido de precio sigue siendo Last. Para analizar una salida hipotética se usa el lado marketable del quote: **Bid para cerrar un LONG y Ask para cerrar un SHORT**.
+- Muestra fill real, máximo y peor quote de salida observado, gap/giveback, captura del máximo, tiempo hasta el máximo y tiempo posterior hasta el cierre.
+- Incluye salidas por tiempo (25/50/75 % de la duración real), TP fijo parametrizable y una regla de giveback/trailing parametrizable.
+- El TP solo se considera alcanzado si el quote de salida cruza el nivel y presupone una orden límite resting.
+- Las salidas por tiempo y giveback son benchmarks a Bid/Ask y no modelan slippage, latencia, cola ni parciales.
+- El «máximo cotizable» se presenta explícitamente como benchmark hindsight, no como una regla operativa.
+
+No requiere cambios SQL.

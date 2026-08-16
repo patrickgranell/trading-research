@@ -1,4 +1,4 @@
-# Trading Research V31.9.3
+# Trading Research V31.9.4
 
 ## NinjaTrader Grid → Operaciones
 
@@ -64,3 +64,12 @@ No requiere cambios SQL.
 - Mantiene el backfill de comisiones/tick value de V31.9.2 para Ankora y NinjaTrader.
 
 No requiere cambios SQL.
+
+
+## V31.9.4 · Cronología canónica de gráficos
+- Toda curva acumulativa y todo MDD/MDU se calcula en el orden real del fill de entrada.
+- Execution Evidence tiene prioridad temporal sobre el orden de creación/importación.
+- Bloques de 20 trades se forman cronológicamente.
+- Equity de Dashboard, Operaciones, Bloques e Informes parte visualmente de 0.
+- Simulador de gestión y Exit Lab conservan el emparejamiento operación a operación en el mismo orden temporal.
+- Heatmaps, histogramas, distribuciones y recorrido intratrade no se fuerzan a una secuencia artificial porque su eje ya representa otra magnitud.

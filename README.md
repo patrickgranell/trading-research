@@ -1,43 +1,28 @@
-# Trading Research V31.8
+# Trading Research V31.8.1
 
-## Sidebar organizada
+## Sidebar compacta
 
-V31.8 reorganiza el menú lateral sin cambiar rutas, datos ni comportamiento de los módulos.
+Ajuste visual y de interacción sobre V31.8. No modifica rutas, datos ni módulos.
 
-### Nueva arquitectura
+### Cambios
 
-- **Dashboard** permanece como acceso directo.
-- **Operativa**
-  - Operaciones
-  - Calendario
-  - Diario emocional
-- **Investigación**
-  - Centro Research
-  - Cambios
-  - Laboratorio
-  - Review & Notes
-  - Biblioteca visual
-- **Control y seguimiento**
-  - Objetivos
-  - Cumplimiento
-  - Errores
-  - Bloques
-  - Informes
-- **Datos y ejecución**
-  - Calidad datos
-  - Market Data
-- **Plan y sistema**
-  - Trading Plans
-  - Configuración
+- El menú se apila desde arriba: las filas ya no se estiran para rellenar toda la altura disponible.
+- Dashboard y encabezados de grupo usan rectángulos más compactos.
+- Los elementos internos de cada desplegable también reducen altura y padding.
+- El espacio sobrante queda libre en la parte inferior, en lugar de repartirse entre opciones.
+- Los cinco grupos pueden permanecer abiertos simultáneamente; abrir uno ya no cierra los demás.
+- El conjunto de grupos abiertos se recuerda localmente.
+- Al navegar a una sección, su grupo se abre automáticamente sin cerrar los que ya estuvieran abiertos.
+- Si todo el menú está desplegado y supera la altura disponible, el lateral conserva su scroll propio.
 
-### Comportamiento
+### Arquitectura heredada
 
-- Los grupos funcionan como desplegables y reducen la altura ocupada por el menú.
-- Al cambiar de módulo se abre automáticamente el grupo al que pertenece la vista actual.
-- El grupo abierto se recuerda localmente.
-- El contador de **Cambios** se conserva y también aparece en el encabezado de **Investigación** cuando el grupo está cerrado.
-- El modo claro/oscuro y la tarjeta de versión se mantienen.
-- No requiere cambios SQL.
+- Dashboard
+- Operativa
+- Investigación
+- Control y seguimiento
+- Datos y ejecución
+- Plan y sistema
 
 ### Herencia V31.7.1
 
@@ -45,6 +30,8 @@ V31.8 reorganiza el menú lateral sin cambiar rutas, datos ni comportamiento de 
 - Recorrido intratrade con velas OHLC de Last.
 - P&L en ticks como vista auxiliar.
 - Contraste corregido en modo oscuro.
+
+No requiere cambios SQL.
 
 ## Build
 

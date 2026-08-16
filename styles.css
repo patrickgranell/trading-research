@@ -778,3 +778,6 @@ html[data-theme="light"] .nav-group-toggle{color:#53647c}
 html[data-theme="light"] .nav-group-toggle:hover,html[data-theme="light"] .nav-group.has-active>.nav-group-toggle{background:#eef3f8;color:#152033}
 @media(max-height:760px){.nav-organized>button{padding-top:7px;padding-bottom:7px}.nav-group-toggle{padding-top:6px;padding-bottom:6px}.nav-organized .nav-child{padding-top:6px;padding-bottom:6px}}
 /* ===== END V31.8.1 ===== */
+
+/* V31.9 · NinjaTrader Journal Sync */
+.analytics-table .v319-missing{display:block;margin-top:4px;max-width:210px;color:var(--muted);font-size:10px;line-height:1.3;white-space:normal}

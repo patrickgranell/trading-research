@@ -1,35 +1,24 @@
-# Trading Research V31.8.1
+# Trading Research V31.9
 
-## Sidebar compacta
+## NinjaTrader Grid → Operaciones
 
-Ajuste visual y de interacción sobre V31.8. No modifica rutas, datos ni módulos.
+Esta versión mantiene la sidebar compacta V31.8.1 y conecta de forma explícita la capa de ejecución de NinjaTrader con el registro normal de Operaciones.
 
 ### Cambios
 
-- El menú se apila desde arriba: las filas ya no se estiran para rellenar toda la altura disponible.
-- Dashboard y encabezados de grupo usan rectángulos más compactos.
-- Los elementos internos de cada desplegable también reducen altura y padding.
-- El espacio sobrante queda libre en la parte inferior, en lugar de repartirse entre opciones.
-- Los cinco grupos pueden permanecer abiertos simultáneamente; abrir uno ya no cierra los demás.
-- El conjunto de grupos abiertos se recuerda localmente.
-- Al navegar a una sección, su grupo se abre automáticamente sin cerrar los que ya estuvieran abiertos.
-- Si todo el menú está desplegado y supera la altura disponible, el lateral conserva su scroll propio.
+- Cada trade cerrado de un Grid NinjaTrader importado crea una operación normal en el Trading Plan activo.
+- La operación nace con los datos objetivos disponibles: fecha/hora, contrato, dirección, cantidad, precio de entrada/salida, resultado en ticks y, si existe histórico Tick asociado, MFE/MAE.
+- Setup, VD, NR, hipótesis, contexto H4 y régimen de gestión quedan vacíos y marcados como pendientes para completar manualmente.
+- El origen se muestra como NinjaTrader · Replay / Sim / Live.
+- Replay, Sim y Live continúan aislados en Market Data. Una operación Ankora o manual que no exista en el Grid no aparece por arte de magia en Market Data.
+- Los Grids ya importados en V31.8.1 se migran al arrancar y crean sus filas faltantes sin obligar a reimportar el CSV.
+- Se usa una huella estable de ejecuciones para evitar duplicar operaciones si se vuelve a importar el mismo Grid.
+- Si ya existe una operación preparada como Pendiente NinjaTrader con un match muy alto, no se crea un duplicado: se conserva el flujo de revisión/vinculación.
+- Al editar una operación creada desde NinjaTrader se conserva su Execution Evidence.
 
-### Arquitectura heredada
+### Nota de métricas
 
-- Dashboard
-- Operativa
-- Investigación
-- Control y seguimiento
-- Datos y ejecución
-- Plan y sistema
-
-### Herencia V31.7.1
-
-- Aislamiento Replay / Sim / Live.
-- Recorrido intratrade con velas OHLC de Last.
-- P&L en ticks como vista auxiliar.
-- Contraste corregido en modo oscuro.
+Mientras una operación NinjaTrader no tenga régimen/riesgo inicial asignado, su columna R se muestra como «—» en el registro. Los ticks y los fills sí son evidencia objetiva desde el momento de la importación.
 
 No requiere cambios SQL.
 

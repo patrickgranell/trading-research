@@ -6534,3 +6534,169 @@ v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mo
 Object.assign(window,{v318ToggleNavGroup});
 render();
 /* ===== END V31.8.1 PATCH ===== */
+
+/* ===== V31.9 PATCH · NinjaTrader Grid → Journal Sync ===== */
+const V319_APP_LABEL='V31.9 · NinjaTrader Journal Sync';
+
+function v319ExecutionFingerprint(trade,environment=''){
+  if(!trade)return '';
+  const entries=(trade.entryRows||[]).map(r=>String(r.executionId||'').trim()).filter(Boolean);
+  const exits=(trade.exitRows||[]).map(r=>String(r.executionId||'').trim()).filter(Boolean);
+  if(entries.length||exits.length)return `${environment}|id:${entries.join(',')}|${exits.join(',')}`;
+  return [environment,v314NormInstrument(trade.instrument),String(trade.direction||'').toUpperCase(),Number(trade.entryWallMs)||0,Number(trade.exitWallMs)||0,Number(trade.entryPrice)||0,Number(trade.exitPrice)||0,Number(trade.quantity)||0].join('|');
+}
+function v319EvidenceFingerprint(e){
+  if(!e)return '';
+  if(e.executionFingerprint)return e.executionFingerprint;
+  const entries=[e.entryExecutionId].filter(Boolean),exits=(e.exitExecutionIds||[]).filter(Boolean);
+  if(entries.length||exits.length)return `${e.environment||''}|id:${entries.join(',')}|${exits.join(',')}`;
+  return '';
+}
+function v319SourceLabel(o){
+  const src=o?.raw?.source||'manual';
+  if(src==='ankora')return 'Ankora';
+  if(src==='ninjatrader'){
+    const env=o?.executionEvidence?.environment||o?.executionIntent||o?.raw?.environment||'';
+    return `NinjaTrader${env?` · ${env==='replay'?'Replay':env==='sim'?'Sim':env==='live'?'Live':env}`:''}`;
+  }
+  return 'Manual';
+}
+function v319MissingJournalFields(o){
+  if(o?.raw?.source!=='ninjatrader')return [];
+  const missing=[];
+  if(!String(o.setup||'').trim())missing.push('Setup');
+  if(!String(o.vd||'').trim())missing.push('VD');
+  if(!String(o.nr||'').trim())missing.push('NR');
+  if(!String(o.hypothesis||'').trim())missing.push('Hipótesis');
+  if(!String(o.h4Context||'').trim())missing.push('Contexto');
+  if(!String(o.riskStrategyId||'').trim())missing.push('Régimen');
+  return missing;
+}
+function v319InstrumentForTrade(trade){
+  const root=v314NormInstrument(trade?.instrument).split(' ')[0];
+  return (state.settings?.instruments||[]).find(x=>String(x.symbol||'').toUpperCase()===root)||null;
+}
+function v319OperationEvidence(set,trade,res,meta,fingerprint){
+  const env=v316EnvForSet(set),tick=Number(meta?.tickSize)||v316InstrumentTickSize(trade.instrument),agg=v316AggregateTicks(trade,tick);
+  return {
+    linkedAt:new Date().toISOString(),environment:env,executionKey:v316ExecKey(set,trade),executionFingerprint:fingerprint,
+    execSetId:set.id,tradeId:trade.id,sourceFile:set.sourceFile,marketDatasetId:set.marketDatasetId||'',marketSourceFile:meta?.sourceFile||'',
+    entryExecutionId:trade.entryRows?.[0]?.executionId||'',exitExecutionIds:(trade.exitRows||[]).map(x=>x.executionId).filter(Boolean),
+    entryPrice:Number(trade.entryPrice),exitPrice:Number(trade.exitPrice),entryDate:v316WallInput(trade.entryWallMs),exitDate:v316WallInput(trade.exitWallMs),
+    quantity:Math.max(1,Number(trade.quantity)||1),exitName:trade.exitName||'',aggregateTicks:agg,
+    fillRealizedTicks:Number.isFinite(Number(res?.realizedTicks))?Number(res.realizedTicks):agg,
+    mfeTicks:Number.isFinite(Number(res?.mfeTicks))?Number(res.mfeTicks):null,maeTicks:Number.isFinite(Number(res?.maeTicks))?Number(res.maeTicks):null,
+    matchQuality:res?.quality?.label||'',offsetHours:Number(set.offsetHours)||0,autoImported:true
+  };
+}
+function v319ApplyObjectiveExecution(op,set,trade,res,meta){
+  const env=v316EnvForSet(set),tick=Number(meta?.tickSize)||v316InstrumentTickSize(trade.instrument),qty=Math.max(1,Number(trade.quantity)||1),agg=v316AggregateTicks(trade,tick),inst=v319InstrumentForTrade(trade),tv=Number(inst?.tickValue)||Number(op?.instrumentSnapshot?.tickValue)||0;
+  const commission=env==='live'?(Number(inst?.commission)||Number(op?.instrumentSnapshot?.commission)||0)*qty:0;
+  op.entryDate=v316WallInput(trade.entryWallMs);op.exitDate=v316WallInput(trade.exitWallMs);op.contract=trade.instrument;op.direction=trade.direction;op.contracts=qty;op.entryPrice=Number(trade.entryPrice);op.resultTicks=agg;op.pnlGross=agg*tv;op.commission=commission;op.pnlNet=op.pnlGross-commission;op.result=agg>0?'win':agg<0?'loss':'pending';
+  if(inst?.id){op.instrumentId=inst.id;op.instrumentSnapshot=instrumentSnapshot(inst);}
+  if(Number.isFinite(Number(res?.mfeTicks))&&Number.isFinite(Number(res?.maeTicks))){
+    op.mfeTicks=Math.max(0,Number(res.mfeTicks));op.maeTicks=Math.max(0,Number(res.maeTicks));
+    op.dataQuality={...(op.dataQuality||{}),mfeStatus:'measured',maeStatus:'measured',reviewedAt:new Date().toISOString()};
+    op.excursionMeta={definition:typeof V302_EXCURSION_DEFINITION!=='undefined'?V302_EXCURSION_DEFINITION:'entry_to_final_exit',unit:'ticks',window:'entry_to_final_exit',source:'ninjatrader_market_data',updatedAt:new Date().toISOString()};
+    if(Number(op.riskTickExposure)>0){op.mfe=v301ExcursionRFromTicks(op.mfeTicks,op);op.mae=v301ExcursionRFromTicks(op.maeTicks,op);}
+  }
+  op.executionIntent=env;
+}
+function v319CreateOperationFromTrade(set,trade,res,meta,fingerprint){
+  const p=getPlan(set.tradingPlanId)||getCurrentPlan(),inst=v319InstrumentForTrade(trade),now=new Date().toISOString();
+  if(!p)return null;
+  const op={
+    id:uid('op'),tradingPlanId:p.id,tradingPlanName:p.name,tradingPlanVersion:p.version,tradingPlanSnapshot:planSnapshot(p),
+    entryDate:'',exitDate:'',sample:'',riskStrategyId:'',riskStrategyName:'',strategyPlanSnapshot:null,instrumentId:inst?.id||'',instrumentSnapshot:instrumentSnapshot(inst),
+    atr:null,hypothesis:'',h4Context:'',h4Phase:'',setup:'',vd:'',nr:'',tradeType:'',direction:'',timeframe:'',dtPrice:null,notes:'',contract:'',contracts:0,entryType:'',entryPrice:null,
+    resultTicks:0,riskTickExposure:null,riskUsd:null,pnlGross:0,commission:0,pnlNet:0,mfe:0,mae:0,mfeTicks:null,maeTicks:null,discipline:null,disciplineReason:'',result:'pending',rMultiple:null,
+    emotional:{},images:[],raw:{source:'ninjatrader',environment:v316EnvForSet(set),sourceFile:set.sourceFile,executionFingerprint:fingerprint,importedAt:now},updatedAt:now
+  };
+  v319ApplyObjectiveExecution(op,set,trade,res,meta);
+  op.executionEvidence=v319OperationEvidence(set,trade,res,meta,fingerprint);
+  op.journalCompletion={status:'pending',missing:v319MissingJournalFields(op),updatedAt:now};
+  return op;
+}
+async function v319SyncExecutionSetsToOperations({assignLegacyPlan=true}={}){
+  try{
+    const sets=await v314StoreAll('execSets'),metas=await v314StoreAll('marketMeta');let changed=false,added=0,updated=0,storeChanged=false;
+    for(const set of sets){
+      if(!set.tradingPlanId&&assignLegacyPlan&&state.currentPlanId){set.tradingPlanId=state.currentPlanId;set.planAssignedAt=new Date().toISOString();await v314StorePut('execSets',set);storeChanged=true;}
+      const planId=set.tradingPlanId||state.currentPlanId;if(!planId)continue;
+      const env=v316EnvForSet(set);if(!['replay','sim','live'].includes(env))continue;
+      const meta=metas.find(x=>x.id===set.marketDatasetId)||null,rows=(set.results?.length?set.results:set.trades)||[];
+      for(const trade of rows){
+        const fingerprint=v319ExecutionFingerprint(trade,env);if(!fingerprint)continue;
+        let op=state.operations.find(o=>o.tradingPlanId===planId&&v319EvidenceFingerprint(o.executionEvidence)===fingerprint)||state.operations.find(o=>o.tradingPlanId===planId&&o.raw?.executionFingerprint===fingerprint);
+        const res=(set.results||[]).find(x=>x.id===trade.id)||trade;
+        if(!op){
+          const candidate=v316BestCandidate(set,trade,meta);
+          if(candidate&&candidate.score<=8)continue; // Ya existe una fila Journal preparada con match muy alto: no duplicarla; se revisa en Vinculación.
+          op=v319CreateOperationFromTrade(set,trade,res,meta,fingerprint);if(!op)continue;state.operations.push(op);added++;changed=true;
+        }else if(op.raw?.source==='ninjatrader'){
+          v319ApplyObjectiveExecution(op,set,trade,res,meta);op.executionEvidence={...(op.executionEvidence||{}),...v319OperationEvidence(set,trade,res,meta,fingerprint),linkedAt:op.executionEvidence?.linkedAt||new Date().toISOString()};op.raw={...(op.raw||{}),source:'ninjatrader',environment:env,sourceFile:set.sourceFile,executionFingerprint:fingerprint};op.journalCompletion={status:v319MissingJournalFields(op).length?'pending':'complete',missing:v319MissingJournalFields(op),updatedAt:new Date().toISOString()};op.updatedAt=new Date().toISOString();updated++;changed=true;
+        }
+      }
+    }
+    if(changed)persist();
+    if(storeChanged)await v314RefreshMarketDataState();
+    if((added||updated)&&['operations','dashboard','calendar','blocks','market'].includes(currentView))render();
+    return {added,updated};
+  }catch(e){console.warn('V31.9 NinjaTrader → Journal sync',e);return {added:0,updated:0,error:e};}
+}
+
+/* New imports inherit the active Trading Plan and create/update their Journal rows immediately. */
+const v314ImportExecFileV319Base=v314ImportExecFile;
+v314ImportExecFile=async function(file){
+  const planId=state.currentPlanId;await v314ImportExecFileV319Base(file);
+  const set=await v314StoreGet('execSets',v314MarketUi.activeExecId);if(set&&planId&&!set.tradingPlanId){set.tradingPlanId=planId;set.planAssignedAt=new Date().toISOString();await v314StorePut('execSets',set);await v314RefreshMarketDataState();}
+  const result=await v319SyncExecutionSetsToOperations({assignLegacyPlan:true});
+  if(file&&!result.error)v314MarketUi.status=`${v314MarketUi.status||'Grid importado'} · Journal: ${result.added} nueva(s), ${result.updated} actualizada(s).`;
+  render();
+};
+window.v314ImportExecFile=v314ImportExecFile;
+
+/* A reimport of the same fills remains linked through a stable execution fingerprint. */
+const v316LinkedOpForV319Base=v316LinkedOpFor;
+v316LinkedOpFor=function(set,trade){
+  const direct=v316LinkedOpForV319Base(set,trade);if(direct)return direct;
+  const fp=v319ExecutionFingerprint(trade,v316EnvForSet(set));return fp?state.operations.find(o=>o.tradingPlanId===(set.tradingPlanId||state.currentPlanId)&&v319EvidenceFingerprint(o.executionEvidence)===fp)||null:null;
+};
+
+/* Preserve Execution Evidence when an auto-imported Journal row is enriched manually. */
+const saveOperationFromFormV319Base=saveOperationFromForm;
+saveOperationFromForm=async function(){
+  const targetId=editingId||null,old=targetId?state.operations.find(o=>o.id===targetId):null,oldEvidence=clone(old?.executionEvidence||null),oldRaw=clone(old?.raw||null),oldIntent=old?.executionIntent||null;
+  await saveOperationFromFormV319Base();if(document.getElementById('operationForm'))return;
+  const op=targetId?state.operations.find(o=>o.id===targetId):null;if(!op)return;
+  if(oldEvidence?.linkedAt){op.executionEvidence=oldEvidence;op.executionIntent=oldIntent||oldEvidence.environment||op.executionIntent;if(oldRaw?.source==='ninjatrader')op.raw=oldRaw;}
+  if(op.raw?.source==='ninjatrader'){const missing=v319MissingJournalFields(op);op.journalCompletion={status:missing.length?'pending':'complete',missing,updatedAt:new Date().toISOString()};}
+  op.updatedAt=new Date().toISOString();persist();render();
+};
+window.saveOperationFromForm=saveOperationFromForm;
+
+/* Operations UI: expose NinjaTrader as a first-class origin and show incomplete Journal context explicitly. */
+const dimensionItemV319Base=dimensionItem;
+dimensionItem=function(o,dim){if(dim==='source'){const key=o.raw?.source==='ankora'?'ankora':o.raw?.source==='ninjatrader'?'ninjatrader':'manual';return {key,label:key==='ankora'?'Ankora':key==='ninjatrader'?'NinjaTrader':'Manual'};}return dimensionItemV319Base(o,dim);};
+const operationsFilterPanelV319Base=operationsFilterPanel;
+operationsFilterPanel=function(){let html=operationsFilterPanelV319Base();if(!html.includes('value="ninjatrader"'))html=html.replace(/(<select id="filterSource"[\s\S]*?<option value="ankora"[^>]*>Ankora<\/option>)/,`$1<option value="ninjatrader" ${opsViewState.source==='ninjatrader'?'selected':''}>NinjaTrader</option>`);return html;};
+opsTable=function(ops,unit=opsViewState.unit,basis=opsViewState.basis){
+  const blocks=opBlockMap();
+  return `<div class="table-wrap"><table class="table analytics-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Día</th><th>Bloque</th><th>Símbolo</th><th>Dirección</th><th>Setup</th><th>VD</th><th>NR</th><th>Hipótesis</th><th>Régimen</th><th>Origen</th><th>Resultado</th><th>${metricUnitLabel(unit)} ${basis==='net'?'neto':'bruto'}</th><th>Ticks</th><th>P&amp;L neto</th><th>Comisión</th><th>Acciones</th></tr></thead><tbody>${ops.map(o=>{const d=new Date(o.entryDate),metric=opMetricValue(o,unit,basis),missing=v319MissingJournalFields(o),unknownR=unit==='r'&&o.raw?.source==='ninjatrader'&&!(Number(o.riskTickExposure)>0);return `<tr><td>${fmtDateOnly(o.entryDate)}</td><td>${isNaN(d)?'—':d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</td><td>${isNaN(d)?'—':DOW_LABELS[d.getDay()]}</td><td>B${String(blocks.get(o.id)||'—').padStart(2,'0')}</td><td>${esc(o.contract||o.instrumentSnapshot?.symbol||'—')}</td><td>${esc(o.direction||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.nr||'—')}</td><td>${esc(o.hypothesis||'—')}</td><td>${esc(o.riskStrategyName||o.riskStrategyId||'—')}</td><td><span class="badge">${esc(v319SourceLabel(o))}</span>${missing.length?`<small class="v319-missing">Pendiente: ${esc(missing.join(', '))}</small>`:''}</td><td><span class="badge ${resultClass(o)}">${o.result==='win'?'Ganadora':o.result==='loss'?'Perdedora':'Pendiente'}</span></td><td class="${!unknownR?(metric>=0?'positive':'negative'):''}"><strong>${unknownR?'—':metricStatText(metric,unit)}</strong></td><td>${Number(o.resultTicks||0)>=0?'+':''}${Number(o.resultTicks||0).toFixed(1)}t</td><td>${money(o.pnlNet||0,o.instrumentSnapshot?.currency||'USD')}</td><td>${money(o.commission||0,o.instrumentSnapshot?.currency||'USD')}</td><td><button class="btn small" onclick="viewOperation('${o.id}')">Ver</button> <button class="btn small" onclick="editOperation('${o.id}')">Editar</button></td></tr>`}).join('')}</tbody></table></div>`;
+};
+
+
+/* In reconciliation, "eligible" means still pending, not already linked. */
+const v316EligibleOpV319Base=v316EligibleOp;
+v316EligibleOp=function(o){return v316EligibleOpV319Base(o)&&!o?.executionEvidence?.linkedAt;};
+window.v316EligibleOp=v316EligibleOp;
+
+/* Reconciliation copy now reflects that a Grid import can instantiate an incomplete Journal row. */
+const v316ReconcileViewV319Base=v316ReconcileView;
+v316ReconcileView=function(){return v316ReconcileViewV319Base().replace('Une contexto cualitativo del Journal con evidencia objetiva de ejecución NinjaTrader.','El Grid de NinjaTrader crea la operación objetiva en el Journal; después completas contexto, clasificación y revisión sin perder la evidencia del fill.').replace('Una operación Ankora nunca se convierte en ejecución por coincidencia temporal.','Una operación Ankora nunca se convierte en ejecución por coincidencia temporal. Las filas creadas desde NinjaTrader quedan en Operaciones con los campos cualitativos pendientes de completar.');};
+
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.9</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V319_APP_LABEL)}</div><div class="help">Los Grids Replay/Sim/Live siguen aislados en Market Data y, además, cada trade cerrado importado crea o actualiza su operación normal del Journal con los fills objetivos. Setup, VD, NR, hipótesis, contexto y régimen quedan pendientes hasta que los completes.</div></div></div></div>`;};
+Object.assign(window,{v319SyncExecutionSetsToOperations,v316LinkedOpFor,v316ReconcileView});
+render();
+setTimeout(()=>v319SyncExecutionSetsToOperations({assignLegacyPlan:true}),180);
+/* ===== END V31.9 PATCH ===== */

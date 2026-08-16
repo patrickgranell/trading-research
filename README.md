@@ -1,31 +1,35 @@
-# Trading Research V31.6.1 — Environment Isolation Fix
+# Trading Research V31.7
 
-V31.6.1 parte de V31.6 y mantiene todo el motor existente. Esta revisión corrige el aislamiento Replay / Sim / Live en Execution Reconciliation.
+## Intratrade Candlestick Price Evidence
 
-## Separación de capas
+V31.7 mantiene el aislamiento de entornos de V31.6.1 (Replay / Sim / Live) y rediseña la pestaña 2 de Market Data para que la vista principal represente **precio real**, no P&L transformado.
 
-- **Ankora**: backtest/research. Nunca es candidata automática a una ejecución NinjaTrader.
-- **Trading Research**: contexto cualitativo, hipótesis, checklist, errores, diario, notas y capturas.
-- **NinjaTrader + histórico Tick**: fills, precios, timestamps, cantidad, resultado y evidencia de mercado.
+### Cambios principales
 
+- `2 · Recorrido` sustituye la lectura principal de Running P&L.
+- Vista predeterminada: **velas OHLC construidas con ticks Last** dentro de la ventana exacta fill de entrada → fill de salida.
+- Intervalo de vela automático para mantener una densidad legible (~90 barras objetivo).
+- Superposición de:
+  - fill real de entrada;
+  - fill real de salida;
+  - MFE;
+  - MAE;
+  - cursor/inspector tick a tick.
+- Un SHORT ganador ya se visualiza como caída de precio; un LONG ganador, como subida de precio.
+- La antigua curva de `P&L · ticks` se conserva como **vista auxiliar**, claramente separada de la acción del precio.
+- No se utiliza información posterior al cierre de la operación.
+- No requiere cambios SQL.
 
-## Fix V31.6.1 · Replay / Sim / Live
+## Comprobaciones recomendadas
 
-- El selector de entorno de **Vinculación** ahora es un filtro de vista; ya no modifica el entorno almacenado del Grid.
-- El entorno del Grid se detecta al importar desde las columnas **Cuenta** y **Conexión** de NinjaTrader (`Playback101/Reproducción` → Replay, `Sim101`/simulación → Sim, resto identificado → Live).
-- Si un CSV mezcla entornos o no permite determinar el entorno, la importación se bloquea para evitar contaminación.
-- Los Grids anteriores a V31.6.1 se migran como Replay, porque el importador V31.4/V31.5 estaba definido exclusivamente para Playback y no conservaba Cuenta/Conexión.
-- Replay, Sim y Live quedan aislados en candidatos, contadores y vinculación. `Pendiente NinjaTrader` sigue siendo genérico y adopta el entorno del fill al confirmar el enlace.
-- La vinculación incorpora una segunda validación defensiva: una operación ya marcada Replay/Sim/Live no puede enlazarse con otro entorno aunque la UI quedara desactualizada.
+1. Abrir Market Data → `2 · Recorrido`.
+2. Seleccionar la operación SHORT `73.92 → 73.72`.
+3. Confirmar que la vista predeterminada es `Velas · precio` y que el recorrido refleja una caída del mercado.
+4. Confirmar que Entrada, Salida, MFE y MAE están correctamente superpuestos.
+5. Cambiar a `P&L auxiliar · ticks` y verificar que la curva anterior sigue disponible solo como métrica secundaria.
 
-## Execution Reconciliation
+## Build
 
-Una operación manual debe marcarse explícitamente como `Pendiente NinjaTrader`, `Replay`, `Sim` o `Live` para aparecer como candidata. El Grid de NinjaTrader propone matches por contrato, dirección, tiempo y precio, pero exige confirmación manual.
-
-Al vincular, Trading Research autorellena únicamente campos objetivos de ejecución: entrada/salida exactas, precio, cantidad, resultado, P&L y, cuando existe Market Data, MFE/MAE. Los campos cualitativos no se sobrescriben.
-
-La operación conserva una referencia de Execution Evidence y puede desvincularse restaurando los campos de ejecución anteriores al enlace.
-
-## Deployment
-
-El ZIP contiene exactamente los seis archivos raíz habituales. `npm run build` genera un único `dist/index.html` (single-bundle) para Cloudflare Workers. No requiere SQL nuevo.
+```bash
+npm run build
+```

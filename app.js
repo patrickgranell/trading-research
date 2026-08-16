@@ -6591,7 +6591,7 @@ function v319OperationEvidence(set,trade,res,meta,fingerprint){
 }
 function v319ApplyObjectiveExecution(op,set,trade,res,meta){
   const env=v316EnvForSet(set),tick=Number(meta?.tickSize)||v316InstrumentTickSize(trade.instrument),qty=Math.max(1,Number(trade.quantity)||1),agg=v316AggregateTicks(trade,tick),inst=v319InstrumentForTrade(trade),tv=Number(inst?.tickValue)||Number(op?.instrumentSnapshot?.tickValue)||0;
-  const commission=env==='live'?(Number(inst?.commission)||Number(op?.instrumentSnapshot?.commission)||0)*qty:0;
+  const commission=(inst?Number(inst.commission)||0:Number(op?.instrumentSnapshot?.commission)||0)*qty;
   op.entryDate=v316WallInput(trade.entryWallMs);op.exitDate=v316WallInput(trade.exitWallMs);op.contract=trade.instrument;op.direction=trade.direction;op.contracts=qty;op.entryPrice=Number(trade.entryPrice);op.resultTicks=agg;op.pnlGross=agg*tv;op.commission=commission;op.pnlNet=op.pnlGross-commission;op.result=agg>0?'win':agg<0?'loss':'pending';
   if(inst?.id){op.instrumentId=inst.id;op.instrumentSnapshot=instrumentSnapshot(inst);}
   if(Number.isFinite(Number(res?.mfeTicks))&&Number.isFinite(Number(res?.maeTicks))){
@@ -6670,7 +6670,12 @@ saveOperationFromForm=async function(){
   await saveOperationFromFormV319Base();if(document.getElementById('operationForm'))return;
   const op=targetId?state.operations.find(o=>o.id===targetId):null;if(!op)return;
   if(oldEvidence?.linkedAt){op.executionEvidence=oldEvidence;op.executionIntent=oldIntent||oldEvidence.environment||op.executionIntent;if(oldRaw?.source==='ninjatrader')op.raw=oldRaw;}
-  if(op.raw?.source==='ninjatrader'){const missing=v319MissingJournalFields(op);op.journalCompletion={status:missing.length?'pending':'complete',missing,updatedAt:new Date().toISOString()};}
+  if(op.raw?.source==='ninjatrader'){
+    const missing=v319MissingJournalFields(op);op.journalCompletion={status:missing.length?'pending':'complete',missing,updatedAt:new Date().toISOString()};
+    op.updatedAt=new Date().toISOString();persist();
+    await v319SyncExecutionSetsToOperations({assignLegacyPlan:true});
+    return render();
+  }
   op.updatedAt=new Date().toISOString();persist();render();
 };
 window.saveOperationFromForm=saveOperationFromForm;
@@ -6695,7 +6700,7 @@ window.v316EligibleOp=v316EligibleOp;
 const v316ReconcileViewV319Base=v316ReconcileView;
 v316ReconcileView=function(){return v316ReconcileViewV319Base().replace('Une contexto cualitativo del Journal con evidencia objetiva de ejecución NinjaTrader.','El Grid de NinjaTrader crea la operación objetiva en el Journal; después completas contexto, clasificación y revisión sin perder la evidencia del fill.').replace('Una operación Ankora nunca se convierte en ejecución por coincidencia temporal.','Una operación Ankora nunca se convierte en ejecución por coincidencia temporal. Las filas creadas desde NinjaTrader quedan en Operaciones con los campos cualitativos pendientes de completar.');};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.9</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V319_APP_LABEL)}</div><div class="help">Los Grids Replay/Sim/Live siguen aislados en Market Data y, además, cada trade cerrado importado crea o actualiza su operación normal del Journal con los fills objetivos. Setup, VD, NR, hipótesis, contexto y régimen quedan pendientes hasta que los completes.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.9.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V319_APP_LABEL)}</div><div class="help">Los Grids Replay/Sim/Live siguen aislados en Market Data. Cada trade cerrado importado crea o actualiza su operación del Journal y toma tick value y comisión round-turn desde el contrato configurado (por ejemplo MCL 08-26 → MCL), también en Replay y Sim. Setup, VD, NR, hipótesis, contexto y régimen quedan pendientes hasta que los completes.</div></div></div></div>`;};
 Object.assign(window,{v319SyncExecutionSetsToOperations,v316LinkedOpFor,v316ReconcileView});
 render();
 setTimeout(()=>v319SyncExecutionSetsToOperations({assignLegacyPlan:true}),180);

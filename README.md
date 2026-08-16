@@ -1,4 +1,4 @@
-# Trading Research V31.9
+# Trading Research V31.9.1
 
 ## NinjaTrader Grid → Operaciones
 
@@ -27,3 +27,15 @@ No requiere cambios SQL.
 ```bash
 npm run build
 ```
+
+
+## V31.9.1 · Comisión desde la biblioteca de contratos
+
+- Las operaciones NinjaTrader usan la comisión round-turn configurada en `Configuración → Contratos`, aunque el CSV no incluya una comisión útil.
+- El contrato se resuelve por símbolo raíz: por ejemplo `MCL 08-26` coincide con `MCL`.
+- La comisión se aplica a Replay, Sim y Live y se multiplica por la cantidad ejecutada.
+- El P&L neto se recalcula como P&L bruto menos comisión.
+- Las operaciones NinjaTrader ya creadas en V31.9 se corrigen automáticamente al arrancar mediante la sincronización existente; no hace falta reimportar el Grid.
+- Al editar los campos cualitativos de una operación NinjaTrader, la sincronización vuelve a imponer los datos objetivos del fill y su comisión para que no se pierdan.
+
+No requiere cambios SQL.

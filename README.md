@@ -1,26 +1,22 @@
-# Trading Research V31.5 — Running P&L Intratrade
+# Trading Research V31.6 — Execution Reconciliation
 
-V31.5 parte de V31.4 y mantiene intacta la calibración Market Data ya validada.
+V31.6 parte de V31.5 y formaliza la separación entre **Research/Backtest** y **evidencia de ejecución**.
 
-## Running P&L
+## NinjaTrader ↔ Journal
 
-- Nueva segunda fase dentro de `Market Data`: **Running P&L**.
-- Reconstruye cada operación calibrada tick a tick usando `Last` exclusivamente entre el fill de entrada localizado y el fill final de salida.
-- Permite ver el recorrido como **P&L en ticks** o como **precio Last**.
-- Conserva por separado el resultado real del fill: la curva Last no se fuerza artificialmente a terminar en el precio de ejecución.
-- Marca MFE, MAE, último Last y fill de salida.
-- Incluye inspector temporal con hora Grid, tiempo transcurrido, Last, Bid/Ask y P&L Last en cualquier punto del recorrido.
-- Muestra duración, número de observaciones, resultado realizado, MFE/MAE y diferencia entre Last de cierre y fill real.
-- Desde la tabla de calibración se puede abrir directamente el recorrido de cualquiera de las operaciones reconstruidas.
+- Ankora continúa siendo una fuente de backtesting y nunca entra automáticamente en el matching de ejecuciones.
+- El Grid de NinjaTrader se clasifica explícitamente como Replay, Simulado o Live.
+- Una operación manual del Journal puede prepararse antes de operar y después vincularse a su ejecución.
+- El matching usa contrato, dirección, proximidad temporal y, cuando existe, precio de entrada. Siempre requiere confirmación.
+- Al vincular, NinjaTrader autorellena timestamps de entrada/salida, contrato, cantidad, precio, resultado, P&L/comisión y MFE/MAE cuando existe Market Data calibrado.
+- Setup, VD, NR, hipótesis, contexto, checklist, Mistakes, diario emocional, notas e imágenes no se sobrescriben.
+- Si no existe operación previa, puede crearse un borrador desde NinjaTrader con los campos cualitativos pendientes.
+- El enlace guarda procedencia y puede abrir directamente el Running P&L local cuando el Grid/histórico están disponibles.
 
-La definición permanece estrictamente intratrade. No se analiza todavía el mercado posterior al cierre, no se simulan stops/targets alternativos y esto no es un Market Replay.
+## Seguridad metodológica
 
-## Market Data local
+La reconciliación no transforma una operación Ankora en una ejecución real. Los históricos Tick y Grids permanecen en IndexedDB; la operación vinculada guarda únicamente la evidencia resumida necesaria en el Journal. Conflict Guard V9.2 y Supabase continúan intactos.
 
-Los históricos Tick y los Grids de ejecución continúan guardándose únicamente en IndexedDB del navegador. No se suben a Supabase, no entran en Conflict Guard y no modifican el Trading Plan.
+## Build
 
-## Base conservada
-
-Incluye V31.4 Market Data Calibration, Report Builder, comparación avanzada de Trading Plans, Mistakes Analysis, Dashboard Profiles, Data Quality, Exit Lab, Research Grid, Walk-Forward, Forward OOS, Monte Carlo, Stress Lab, Change Tracking, Conflict Guard V9.2 y el resto de módulos previos.
-
-No requiere SQL nuevo.
+El despliegue mantiene el sistema single-bundle: `npm run build` genera un único `dist/index.html`.

@@ -1,4 +1,4 @@
-# Trading Research V31.10.1
+# Trading Research V31.10.2
 
 ## NinjaTrader Grid → Operaciones
 
@@ -95,3 +95,13 @@ No requiere cambios SQL.
 - Un TP límite resting puede considerarse observado si Last negoció el nivel; la cola no se modela y se etiqueta como tal.
 - El mapa lateral sigue siendo estrictamente marketable (Bid/Ask).
 - Evita porcentajes >100% engañosos cuando un fill pasivo supera el mejor cierre marketable observado.
+
+
+## V31.10.2 · Semántica del delta de salida
+
+- Corrige el signo del KPI que compara el fill ejecutado con el mejor cierre marketable.
+- El KPI pasa a llamarse **Δ fill vs marketable** y se calcula como `fill real - máximo marketable`.
+- Un valor positivo significa que el fill real fue mejor que el benchmark Bid/Ask; un valor negativo significa que quedó por debajo.
+- Homogeneiza la terminología visual a **máximo marketable** en el gráfico y la ayuda contextual.
+
+No requiere cambios SQL.

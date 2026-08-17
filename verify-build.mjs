@@ -45,13 +45,13 @@ else{
 if(!fs.existsSync('dist/app-global-prune-inventory.json'))failures.push('dist/app-global-prune-inventory.json missing');
 else{
   const inv=JSON.parse(fs.readFileSync('dist/app-global-prune-inventory.json','utf8'));
-  if(String(inv.version)!=='31.23.9')failures.push(`App global prune version unexpected: ${inv.version}`);
-  if(Number(inv.touchedBlocks)!==15)failures.push(`App global prune touched blocks changed: ${inv.touchedBlocks}`);
-  if(Number(inv.removedBlocks)!==5)failures.push(`App global prune removed blocks changed: ${inv.removedBlocks}`);
-  if(Number(inv.removedEntries)!==28)failures.push(`App global prune removed entries changed: ${inv.removedEntries}`);
-  if(Number(inv.before?.objectAssignBlocks)!==51||Number(inv.after?.objectAssignBlocks)!==46)failures.push(`App global prune block inventory unexpected: ${inv.before?.objectAssignBlocks} -> ${inv.after?.objectAssignBlocks}`);
-  if(Number(inv.before?.objectAssignEntries)!==375||Number(inv.after?.objectAssignEntries)!==347)failures.push(`App global prune entry inventory unexpected: ${inv.before?.objectAssignEntries} -> ${inv.after?.objectAssignEntries}`);
-  if(Number(inv.before?.objectAssignUnique)!==332||Number(inv.after?.objectAssignUnique)!==306)failures.push(`App global prune unique inventory unexpected: ${inv.before?.objectAssignUnique} -> ${inv.after?.objectAssignUnique}`);
+  if(String(inv.version)!=='31.23.10')failures.push(`App global prune version unexpected: ${inv.version}`);
+  if(Number(inv.touchedBlocks)!==26)failures.push(`App global prune touched blocks changed: ${inv.touchedBlocks}`);
+  if(Number(inv.removedBlocks)!==7)failures.push(`App global prune removed blocks changed: ${inv.removedBlocks}`);
+  if(Number(inv.removedEntries)!==50)failures.push(`App global prune removed entries changed: ${inv.removedEntries}`);
+  if(Number(inv.before?.objectAssignBlocks)!==51||Number(inv.after?.objectAssignBlocks)!==44)failures.push(`App global prune block inventory unexpected: ${inv.before?.objectAssignBlocks} -> ${inv.after?.objectAssignBlocks}`);
+  if(Number(inv.before?.objectAssignEntries)!==375||Number(inv.after?.objectAssignEntries)!==325)failures.push(`App global prune entry inventory unexpected: ${inv.before?.objectAssignEntries} -> ${inv.after?.objectAssignEntries}`);
+  if(Number(inv.before?.objectAssignUnique)!==332||Number(inv.after?.objectAssignUnique)!==286)failures.push(`App global prune unique inventory unexpected: ${inv.before?.objectAssignUnique} -> ${inv.after?.objectAssignUnique}`);
   if(Number(inv.dynamicActionGuard?.dynamicHandlerSlots)!==4)failures.push(`Dynamic Action Guard slot inventory changed: ${inv.dynamicActionGuard?.dynamicHandlerSlots}`);
   if(Number(inv.dynamicActionGuard?.protectedDynamicGlobals)!==3)failures.push(`Dynamic Action Guard protected globals changed: ${inv.dynamicActionGuard?.protectedDynamicGlobals}`);
 }
@@ -63,6 +63,16 @@ else{
   if(Number(inv.protectedDynamicGlobals)!==3)failures.push(`dynamic-action-inventory protected globals changed: ${inv.protectedDynamicGlobals}`);
   for(const name of ['v311DashboardDragEnd','v311DashboardDragStart','v311DashboardDrop'])if(!inv.names?.protectedDynamicGlobals?.includes(name))failures.push(`dynamic-action-inventory missing protected root: ${name}`);
 }
+if(!fs.existsSync('dist/prune-candidate-inventory.json'))failures.push('dist/prune-candidate-inventory.json missing');
+else{
+  const inv=JSON.parse(fs.readFileSync('dist/prune-candidate-inventory.json','utf8'));
+  if(String(inv.version)!==String(v))failures.push(`prune-candidate manifest build version unexpected: ${inv.version}`);
+  if(String(inv.version)!==String(v))failures.push(`prune-candidate manifest version mismatch: ${inv.version}`);
+  if(Number(inv.safeCandidateCount)!==0)failures.push(`contract-safe explicit prune candidates remain: ${inv.safeCandidateCount}`);
+  if((inv.safeCandidates||[]).length!==0)failures.push(`contract-safe candidate list is not empty: ${(inv.safeCandidates||[]).join(', ')}`);
+  if(Number(inv.guards?.stateTargets)!==61)failures.push(`prune candidate state target guard changed: ${inv.guards?.stateTargets}`);
+  if(Number(inv.guards?.dynamicProtected)!==3)failures.push(`prune candidate dynamic guard changed: ${inv.guards?.dynamicProtected}`);
+}
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
   const legacyBundled=(appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length;
@@ -70,9 +80,9 @@ if(appBlock){
   if(legacyBundled!==0)failures.push(`bundled app still contains ${legacyBundled} render=function assignments`);
   if(aliasesBundled!==0)failures.push(`bundled app still contains ${aliasesBundled} dead renderV*Base aliases`);
   const globals=globalSurfaceInventory(appBlock[2]);
-  if(globals.objectAssignBlocks!==46)failures.push(`bundled app explicit Object.assign blocks: ${globals.objectAssignBlocks}, expected 46`);
-  if(globals.objectAssignEntries!==347)failures.push(`bundled app explicit entries: ${globals.objectAssignEntries}, expected 347`);
-  if(globals.objectAssignUnique!==306)failures.push(`bundled app explicit unique exports: ${globals.objectAssignUnique}, expected 306`);
+  if(globals.objectAssignBlocks!==44)failures.push(`bundled app explicit Object.assign blocks: ${globals.objectAssignBlocks}, expected 44`);
+  if(globals.objectAssignEntries!==325)failures.push(`bundled app explicit entries: ${globals.objectAssignEntries}, expected 325`);
+  if(globals.objectAssignUnique!==286)failures.push(`bundled app explicit unique exports: ${globals.objectAssignUnique}, expected 286`);
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES)if(globals.names.objectAssign.includes(name))failures.push(`bundled app still explicitly exports pruned name: ${name}`);
 }
 const stateBlock=scripts.find(m=>/data-tr-state-runtime=/.test(m[1]));
@@ -101,7 +111,8 @@ console.log(' - Legacy render reassignments in bundled app: 0');
 console.log(' - Dead renderV*Base aliases in bundled app: 0');
 console.log(' - Bundled destructive root writes: 1 bootstrap write');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
-console.log(' - App explicit window export pruning: 51 -> 46 blocks; 375 -> 347 entries; 332 -> 306 unique exports');
+console.log(' - App explicit window export pruning: 51 -> 44 blocks; 375 -> 325 entries; 332 -> 286 unique exports');
+console.log(' - Contract-safe explicit prune candidates remaining: 0');
 console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');

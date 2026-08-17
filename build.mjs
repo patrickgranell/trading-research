@@ -9,6 +9,7 @@ const css=fs.readFileSync('styles.css','utf8');
 const safeScript=s=>s.replace(/<\/script/gi,'<\\/script');
 const replacements=[
   ['app.js','data-tr-build',safeScript(fs.readFileSync('app.js','utf8'))],
+  ['reports-purity-runtime.js','data-tr-reports-purity-runtime',safeScript(fs.readFileSync('reports-purity-runtime.js','utf8'))],
   ['structural-runtime.js','data-tr-structural-runtime',safeScript(fs.readFileSync('structural-runtime.js','utf8'))],
   ['state-runtime.js','data-tr-state-runtime',safeScript(fs.readFileSync('state-runtime.js','utf8'))],
   ['security-runtime.js','data-tr-security-runtime',safeScript(fs.readFileSync('security-runtime.js','utf8'))],
@@ -17,7 +18,7 @@ const replacements=[
   ['style-runtime.js','data-tr-style-runtime',safeScript(fs.readFileSync('style-runtime.js','utf8'))],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','index.html'];
+const styleSourceFiles=['app.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;

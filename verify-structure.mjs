@@ -3,15 +3,16 @@ import crypto from 'node:crypto';
 const app=fs.readFileSync('app.js','utf8');
 const runtime=fs.readFileSync('structural-runtime.js','utf8');
 const stateRuntime=fs.readFileSync('state-runtime.js','utf8');
+const securityRuntime=fs.readFileSync('security-runtime.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const baseline=JSON.parse(fs.readFileSync('financial-regression-baseline.json','utf8'));
 const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-const frozenAppSha='659a3a43664d2162eae5b60e1cd16f2830759e3ba49735d901f1216e48ef8d80';
-if(sha(app)!==frozenAppSha)fail.push(`app.js dejó de ser byte-idéntico a V31.12.1 (${sha(app).slice(0,10)} != ${frozenAppSha.slice(0,10)}).`);
+const expectedAppSha='13ab56573904a535d61f02c200fac8384bb36423ae9cc2bca4f9eddd51d6dac1';
+if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el delta de seguridad V31.18 validado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.17.1')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.18.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("function persist(){return trCorePersistStateBridge('persist');}"))fail.push('persist() no usa el bridge durable.');
 if(/localStorage\.setItem\(STORAGE_KEY/.test(app))fail.push('Queda una escritura directa del estado a localStorage.');
@@ -57,13 +58,17 @@ if(!stateRuntime.includes("navigate=function(view){return TRUIStore.navigate(vie
 if(!stateRuntime.includes("['v316SetTab','market.phase']"))fail.push('Market Data no está instrumentado por UIStore.');
 if(!stateRuntime.includes("['setOpsUnit','operations.unit']"))fail.push('Operaciones no está instrumentado por UIStore.');
 if(!index.includes('<script src="state-runtime.js"></script>'))fail.push('index.html no carga state-runtime.js.');
+if(!index.includes('<script src="security-runtime.js"></script>'))fail.push('index.html no carga security-runtime.js.');
+if(!securityRuntime.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"))fail.push('Falta Security Runtime V31.18.');
+if(!securityRuntime.includes('function trSecurityProbeModalTitle(')||!securityRuntime.includes('function trSecurityProbeFormData('))fail.push('Faltan sondas de seguridad de render/FormData.');
 if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(stateRuntime))fail.push('State Runtime contiene un render global.');
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got.slice(0,10)} != ${want.slice(0,10)}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: byte-identical to V31.12.1');
+console.log(' - app.js: V31.18 security delta hash validated');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');
+console.log(' - Security runtime: modal-title text sink + safe inline tokens + FormData diagnostics');
 console.log(' - Direct state localStorage writes: 0');
 console.log(` - Financial regions unchanged vs ${baseline.sourceVersion}: ${Object.keys(baseline.hashes).length}/${Object.keys(baseline.hashes).length}`);

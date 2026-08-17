@@ -1,3 +1,25 @@
+# Trading Research V31.18 · Security Foundation I · User Content Boundary
+
+Esta fase aborda la primera parte de la auditoría de seguridad de renderizado y formularios sin modificar las fórmulas financieras. A diferencia de las fases estructurales anteriores, V31.18 introduce un **delta mínimo y deliberado en `app.js`** para cerrar sinks concretos y dar nombres semánticos a los controles que ahora se leen con `FormData`.
+
+## Cambios de seguridad
+
+- `modalShell()` trata el título como **texto**, escapándolo en el propio sink. Esto cierra el caso concreto del título/caption del lightbox que antes podía llegar al HTML después de `decodeURIComponent()`.
+- Los valores dinámicos que todavía se transportan dentro de handlers inline pasan por `inlineUriToken()`, que además codifica el apóstrofo. Esto evita usar `encodeURIComponent()` como si fuese un escape de JavaScript, cosa que no es cierta por defecto.
+- Los editores principales de **Operaciones, Trading Plans, Contratos, Gestión de riesgo, Diario emocional, Reviews y Referencias visuales** leen sus campos mediante `FormData`. Los helpers `field/selectField/selectObjField` publican `name` además de `id`.
+- Se añaden sondas locales de escaping, títulos de modal, tokens inline y FormData en `Configuración → Datos y seguridad`.
+- `verify-security.mjs` hace obligatorias estas invariantes durante `npm run build`.
+
+## Alcance explícito
+
+Esta versión **no afirma haber eliminado todos los handlers inline**. El código histórico todavía contiene `onclick/onchange/oninput`; se mantienen por compatibilidad y aparecen como deuda explícita en el diagnóstico. La migración a delegación de eventos y una CSP estricta se hará por módulos en una fase posterior, en lugar de aplicar una sustitución global con riesgo de romper la UI. Tampoco se añade `DOMPurify`: los campos de usuario de esta aplicación no necesitan HTML enriquecido y la política preferida es renderizarlos como texto escapado.
+
+## Guardia de regresión
+
+Las 7 regiones financieras congeladas desde V31.10.4 permanecen byte-equivalentes según sus hashes. IndexedDB, Domain/UI Store, render parcial, borradores de sesión e imports atómicos siguen activos.
+
+---
+
 # Trading Research V31.17.1 · Structural Foundation III-B3.1a · Import Schema Closure
 
 V31.17 detectó correctamente dos anomalías durante la primera validación real de Ankora: tras confirmar el lote quedaban mutaciones sin persistir en `setupDefinitions`/`vdDefinitions`, y al abrir Dashboard un plan reciente podía intentar crear `dashboardProfiles` durante el render. Además, el boundary no impedía que un `TRDomainStore.commit()` explícito anidado dentro de un comando mayor publicase una revisión intermedia.

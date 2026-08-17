@@ -1,11 +1,11 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.19.1",
+  "version": "31.20.0",
   "scripts": {
-    "build": "node build.mjs && node verify-build.mjs",
+    "build": "node build.mjs && node verify-build.mjs && node verify-csp-build.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "prebuild": "node --check app.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node --check event-runtime.js && node verify-security.mjs && node verify-events.mjs && node verify-structure.mjs"
+    "prebuild": "node --check app.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node --check event-runtime.js && node --check csp-runtime.js && node verify-security.mjs && node verify-events.mjs && node verify-csp.mjs && node verify-structure.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"

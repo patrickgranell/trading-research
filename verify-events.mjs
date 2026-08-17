@@ -9,7 +9,7 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const fail=[];const need=(x,m)=>{if(!x)fail.push(m);};
 const executableAttr=/\s(?:onclick|onchange|oninput|onsubmit)\s*=/g;
 const delegatedAttr=/\sdata-tr-on(?:click|change|input|submit)\s*=/g;
-need(pkg.version==='31.19.1',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.20.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
 need(index.indexOf('event-runtime.js')>index.indexOf('security-runtime.js'),'event-runtime.js debe cargar después de security-runtime.js.');
 for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security]]){
@@ -34,3 +34,4 @@ console.log(' - Executable onclick/onchange/oninput/onsubmit attributes in sourc
 console.log(' - Delegated document listeners: click/change/input/submit');
 console.log(' - Dynamic execution (eval/new Function): 0');
 console.log(' - Legacy lexical UI assignments routed through explicit command boundary');
+console.log(' - CSP enforcement: verified separately by verify-csp');

@@ -472,3 +472,14 @@ Corrige la instrumentación de DomainStore: los normalizadores históricos que r
 
 ## V31.19.1 · Build Integrity Hotfix
 Corrige el bundler estático: las sustituciones de CSS/JS ahora usan callbacks de `String.replace`, evitando que secuencias válidas de JavaScript como `$\`` y `$'` sean interpretadas como tokens de reemplazo y dupliquen/corrompan `dist/index.html`. `verify-build.mjs` bloquea futuros despliegues si el HTML se duplica, si `app.js` aparece más de una vez o si alguno de los cinco bloques JS embebidos deja de parsear. La lógica funcional de V31.19 no cambia.
+
+## V31.20 · Security Foundation III · CSP Enforcement
+
+- Cloudflare Static Assets recibe `dist/_headers` generado en build con `Content-Security-Policy` y cabeceras defensivas adicionales.
+- `default-src 'none'`, `script-src-attr 'none'`, `object-src 'none'`, `base-uri 'none'` y `frame-ancestors 'none'` quedan activos por respuesta HTTP.
+- Los seis bloques JavaScript propios embebidos en el HTML solo pueden ejecutarse si coinciden con sus hashes SHA-256 calculados durante el build; no se habilitan `unsafe-inline` ni `unsafe-eval` para scripts.
+- El SDK CDN de Supabase deja de flotar en `@2` y queda fijado a `2.112.3/dist/umd/supabase.js`; la CSP solo autoriza esa ruta del paquete.
+- `connect-src` queda limitado al mismo origen y a `*.supabase.co`; `img-src` permite imágenes locales/blob y Storage de Supabase.
+- La única excepción `unsafe-inline` restante está limitada a `style-src-attr`, porque la interfaz histórica usa porcentajes, posiciones y colores dinámicos en atributos `style`. Esta deuda queda visible en Datos y seguridad y no habilita JavaScript inline.
+- El runtime V31.20 comprueba la cabecera CSP real del despliegue mediante una petición HEAD al mismo documento y muestra el resultado en Datos y seguridad.
+- `app.js` y las regiones financieras permanecen sin cambios respecto a V31.19.1.

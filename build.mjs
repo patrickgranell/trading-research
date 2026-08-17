@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 fs.rmSync('dist',{recursive:true,force:true});
@@ -12,7 +13,9 @@ const replacements=[
   ['state-runtime.js','data-tr-state-runtime',safeScript(fs.readFileSync('state-runtime.js','utf8'))],
   ['security-runtime.js','data-tr-security-runtime',safeScript(fs.readFileSync('security-runtime.js','utf8'))],
   ['event-runtime.js','data-tr-event-runtime',safeScript(fs.readFileSync('event-runtime.js','utf8'))],
+  ['csp-runtime.js','data-tr-csp-runtime',safeScript(fs.readFileSync('csp-runtime.js','utf8'))],
 ];
+const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
 // IMPORTANT: use replacer callbacks. Passing source code as a replacement string makes
 // String.replace interpret $`, $' and $& inside JavaScript as replacement tokens,
 // which can splice/duplicate the whole HTML document and corrupt the deployed bundle.
@@ -22,6 +25,35 @@ for(const [file,attr,src] of replacements){
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
   h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
-h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n</head>`);
+h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n  <meta name="trading-research-csp-version" content="${v}" />\n</head>`);
 fs.writeFileSync('dist/index.html',h);
+
+const scriptHashes=replacements.map(([, ,src])=>sha256(src));
+const styleHash=sha256(css);
+const supabasePath='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/';
+const csp=[
+  "default-src 'none'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'none'",
+  `script-src-elem ${scriptHashes.join(' ')} ${supabasePath}`,
+  "script-src-attr 'none'",
+  "style-src 'none'",
+  `style-src-elem ${styleHash}`,
+  "style-src-attr 'unsafe-inline'",
+  "img-src 'self' blob: https://*.supabase.co",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "font-src 'self'",
+  "media-src 'none'",
+  "frame-src 'none'",
+  "worker-src 'none'",
+  "manifest-src 'self'",
+  "upgrade-insecure-requests"
+].join('; ')+ ';';
+const headers=`/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()\n`;
+fs.writeFileSync('dist/_headers',headers);
+fs.writeFileSync('dist/csp-manifest.json',JSON.stringify({version:v,scriptHashes,styleHash,supabasePath,csp},null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
+console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);

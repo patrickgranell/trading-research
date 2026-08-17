@@ -1,6 +1,6 @@
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
 
-export const TR_STATE_REGISTRY_MIGRATION_VERSION='31.23.16';
+export const TR_STATE_REGISTRY_MIGRATION_VERSION='31.23.17';
 export const TR_STATE_REGISTRY_MIGRATION_BATCH_1=Object.freeze([
   'setOpsUnit','setOpsBasis','toggleOpsDay','toggleOpsModule','resetOpsFilters','setOpsQuickPeriod','setOpsDimension','applyHeatCell'
 ]);
@@ -16,22 +16,26 @@ export const TR_STATE_REGISTRY_MIGRATION_BATCH_4=Object.freeze([
 export const TR_STATE_REGISTRY_MIGRATION_BATCH_5=Object.freeze([
   'v3110SetTargetTicks','v3110SetTrailGiveback','v3110SetTrailTrigger','v312DeleteMistake','v312MoveMistake','v312SaveMistake','v315OpenRunning','v315SetCursor'
 ]);
+export const TR_STATE_REGISTRY_MIGRATION_BATCH_6=Object.freeze([
+  'deleteVisualReference','dqSaveWorkbench','saveImportedRowEdit','v315SetRunningMode','v315SetRunningTrade','v316ApplyLink','v316SetExecEnvironment','v316SetTab'
+]);
 export const TR_STATE_REGISTRY_MIGRATION_NAMES=Object.freeze([
   ...TR_STATE_REGISTRY_MIGRATION_BATCH_1,
   ...TR_STATE_REGISTRY_MIGRATION_BATCH_2,
   ...TR_STATE_REGISTRY_MIGRATION_BATCH_3,
   ...TR_STATE_REGISTRY_MIGRATION_BATCH_4,
-  ...TR_STATE_REGISTRY_MIGRATION_BATCH_5
+  ...TR_STATE_REGISTRY_MIGRATION_BATCH_5,
+  ...TR_STATE_REGISTRY_MIGRATION_BATCH_6
 ]);
 
 const SIMPLE_ASSIGN=/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g;
-const PRELUDE="const trAppActionRegistryV316=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));\n";
+const PRELUDE="const trAppActionRegistryV317=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));\n";
 
 export function migrateStateActionsToRegistry(source){
   const input=String(source),before=globalSurfaceInventory(input),targets=new Set(TR_STATE_REGISTRY_MIGRATION_NAMES);
-  const batch1=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_1),batch2=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_2),batch3=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_3),batch4=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_4),batch5=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_5);
+  const batch1=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_1),batch2=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_2),batch3=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_3),batch4=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_4),batch5=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_5),batch6=new Set(TR_STATE_REGISTRY_MIGRATION_BATCH_6);
   const occurrences=Object.fromEntries(TR_STATE_REGISTRY_MIGRATION_NAMES.map(n=>[n,0]));
-  let touchedBlocks=0,registryEntries=0,batch1Entries=0,batch2Entries=0,batch3Entries=0,batch4Entries=0,batch5Entries=0;
+  let touchedBlocks=0,registryEntries=0,batch1Entries=0,batch2Entries=0,batch3Entries=0,batch4Entries=0,batch5Entries=0,batch6Entries=0;
   const body=input.replace(SIMPLE_ASSIGN,(full,list)=>{
     const props=list.split(',').map(x=>x.trim()).filter(Boolean),moved=props.filter(n=>targets.has(n));
     if(!moved.length)return full;
@@ -43,11 +47,12 @@ export function migrateStateActionsToRegistry(source){
       if(batch3.has(name))batch3Entries++;
       if(batch4.has(name))batch4Entries++;
       if(batch5.has(name))batch5Entries++;
+      if(batch6.has(name))batch6Entries++;
     }
     const remaining=props.filter(n=>!targets.has(n));
     const windowPart=remaining.length?`Object.assign(window,{${remaining.join(',')}});`:'';
-    const registryPart=`Object.assign(trAppActionRegistryV316,{${moved.join(',')}});`;
-    return `${windowPart}${registryPart}/* V31.23.16 State registry migration: ${moved.join(', ')} */`;
+    const registryPart=`Object.assign(trAppActionRegistryV317,{${moved.join(',')}});`;
+    return `${windowPart}${registryPart}/* V31.23.17 State registry migration: ${moved.join(', ')} */`;
   });
   for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){
     if(!occurrences[name])throw new Error(`State Registry Migration: ${name} no apareció en ningún Object.assign(window,...).`);
@@ -61,8 +66,8 @@ export function migrateStateActionsToRegistry(source){
   return {source:out,inventory:{
     version:TR_STATE_REGISTRY_MIGRATION_VERSION,
     names:[...TR_STATE_REGISTRY_MIGRATION_NAMES],
-    batches:{batch1:[...TR_STATE_REGISTRY_MIGRATION_BATCH_1],batch2:[...TR_STATE_REGISTRY_MIGRATION_BATCH_2],batch3:[...TR_STATE_REGISTRY_MIGRATION_BATCH_3],batch4:[...TR_STATE_REGISTRY_MIGRATION_BATCH_4],batch5:[...TR_STATE_REGISTRY_MIGRATION_BATCH_5]},
-    touchedBlocks,registryEntries,batch1Entries,batch2Entries,batch3Entries,batch4Entries,batch5Entries,occurrences,
+    batches:{batch1:[...TR_STATE_REGISTRY_MIGRATION_BATCH_1],batch2:[...TR_STATE_REGISTRY_MIGRATION_BATCH_2],batch3:[...TR_STATE_REGISTRY_MIGRATION_BATCH_3],batch4:[...TR_STATE_REGISTRY_MIGRATION_BATCH_4],batch5:[...TR_STATE_REGISTRY_MIGRATION_BATCH_5],batch6:[...TR_STATE_REGISTRY_MIGRATION_BATCH_6]},
+    touchedBlocks,registryEntries,batch1Entries,batch2Entries,batch3Entries,batch4Entries,batch5Entries,batch6Entries,occurrences,
     before:{blocks:before.objectAssignBlocks,entries:before.objectAssignEntries,unique:before.objectAssignUnique},
     after:{blocks:after.objectAssignBlocks,entries:after.objectAssignEntries,unique:after.objectAssignUnique}
   }};

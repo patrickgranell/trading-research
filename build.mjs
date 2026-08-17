@@ -19,9 +19,10 @@ const replacements=[
   ['event-runtime.js','data-tr-event-runtime',bundledScript('event-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledScript('csp-runtime.js')],
   ['style-runtime.js','data-tr-style-runtime',bundledScript('style-runtime.js')],
+  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledScript('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','index.html'];
+const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;
@@ -35,6 +36,15 @@ for(const file of styleSourceFiles){
   }
   for(const m of src.matchAll(/\.style\.([A-Za-z_$][\w$]*)\s*=/g))styleProperties[m[1]]=(styleProperties[m[1]]||0)+1;
 }
+const appSource=fs.readFileSync('app.js','utf8');
+const renderInventory={
+  version:v,
+  legacyAssignments:(appSource.match(/\brender\s*=\s*function\s*\(/g)||[]).length,
+  legacyDeclarations:(appSource.match(/\bfunction\s+render\s*\(/g)||[]).length,
+  destructiveRootWrites:(appSource.match(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/g)||[]).length,
+  closureRuntime:'render-closure-runtime.js',
+  canonicalChain:['structural-runtime.js','state-runtime.js','render-closure-runtime.js']
+};
 
 // IMPORTANT: use replacer callbacks. Passing source code as a replacement string makes
 // String.replace interpret $`, $' and $& inside JavaScript as replacement tokens,
@@ -76,7 +86,9 @@ const headers=`/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: 
 fs.writeFileSync('dist/_headers',headers);
 fs.writeFileSync('dist/csp-manifest.json',JSON.stringify({version:v,scriptHashes,styleHash,supabasePath,csp},null,2)+'\n');
 fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
+fs.writeFileSync('dist/render-inventory.json',JSON.stringify(renderInventory,null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs transformed; ${effectiveInlineAttributes} effective inline attrs`);
 console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain allowed by the strict attribute policy`);
+console.log(`Render inventory -> ${renderInventory.legacyAssignments} legacy assignments + ${renderInventory.legacyDeclarations} declaration; canonical closure bundled`);

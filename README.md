@@ -1,4 +1,4 @@
-# Trading Research V31.10.2
+# Trading Research V31.10.3
 
 ## NinjaTrader Grid → Operaciones
 
@@ -103,5 +103,16 @@ No requiere cambios SQL.
 - El KPI pasa a llamarse **Δ fill vs marketable** y se calcula como `fill real - máximo marketable`.
 - Un valor positivo significa que el fill real fue mejor que el benchmark Bid/Ask; un valor negativo significa que quedó por debajo.
 - Homogeneiza la terminología visual a **máximo marketable** en el gráfico y la ayuda contextual.
+
+No requiere cambios SQL.
+
+
+## V31.10.3 · Escala útil y retención del máximo
+
+- El TP hipotético no fuerza ya la escala vertical del gráfico cuando no fue alcanzado. Una operación que solo se movió entre, por ejemplo, -10t y +8t deja de quedar comprimida por un TP +20t ajeno al recorrido observado.
+- Si el TP está fuera del rango observado se indica en la cabecera del gráfico como `no observado; fuera de escala`; el escenario sigue disponible en la tabla inferior.
+- `Eficiencia de salida` pasa a `Retención del máximo`: si hubo MFE marketable positivo y la operación termina en pérdida, muestra 0% en vez de porcentajes negativos difíciles de interpretar.
+- Si nunca existió beneficio marketable positivo, la retención se muestra como `—` porque no hay máximo favorable que capturar.
+- Si un fill pasivo supera al mejor cierre marketable, se conserva la lectura en ticks de ventaja frente al benchmark Bid/Ask.
 
 No requiere cambios SQL.

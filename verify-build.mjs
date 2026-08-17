@@ -72,6 +72,18 @@ else{
   if(Number(inv.guards?.stateTargets)!==61)failures.push(`prune candidate state target guard changed: ${inv.guards?.stateTargets}`);
   if(Number(inv.guards?.dynamicProtected)!==3)failures.push(`prune candidate dynamic guard changed: ${inv.guards?.dynamicProtected}`);
 }
+if(!fs.existsSync('dist/remaining-global-contract-map.json'))failures.push('dist/remaining-global-contract-map.json missing');
+else{
+  const inv=JSON.parse(fs.readFileSync('dist/remaining-global-contract-map.json','utf8'));
+  if(String(inv.version)!=='31.23.11')failures.push(`remaining global contract map version unexpected: ${inv.version}`);
+  if(Number(inv.remainingUnique)!==286||Number(inv.classified)!==286||Number(inv.unclassified)!==0)failures.push(`remaining contract coverage unexpected: remaining ${inv.remainingUnique}, classified ${inv.classified}, unclassified ${inv.unclassified}`);
+  if(Number(inv.multiContract)!==61)failures.push(`remaining contract overlap changed: ${inv.multiContract}`);
+  if(Number(inv.byPrimary?.['state-action'])!==60||Number(inv.byPrimary?.['ui-handler'])!==223||Number(inv.byPrimary?.['dynamic-action'])!==3)failures.push(`remaining primary contract counts unexpected: state ${inv.byPrimary?.['state-action']}, handler ${inv.byPrimary?.['ui-handler']}, dynamic ${inv.byPrimary?.['dynamic-action']}`);
+  if(Number(inv.coverage?.crossRuntimeRead)!==0)failures.push(`remaining map leaves ${inv.coverage?.crossRuntimeRead} cross-runtime direct reads`);
+  if(Number(inv.names?.migrationFrontiers?.stateOnly?.length)!==56)failures.push(`state migration frontier changed: ${inv.names?.migrationFrontiers?.stateOnly?.length}`);
+  if(Number(inv.names?.migrationFrontiers?.handlerOnly?.length)!==221)failures.push(`handler-only migration frontier changed: ${inv.names?.migrationFrontiers?.handlerOnly?.length}`);
+  if(Number(inv.names?.migrationFrontiers?.crossRuntime?.length)!==0)failures.push(`cross-runtime migration frontier reopened: ${inv.names?.migrationFrontiers?.crossRuntime?.length}`);
+}
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
   const legacyBundled=(appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length;
@@ -112,6 +124,8 @@ console.log(' - Bundled destructive root writes: 1 bootstrap write');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - App explicit window export pruning: 51 -> 44 blocks; 375 -> 325 entries; 332 -> 286 unique exports');
 console.log(' - Contract-safe explicit prune candidates remaining: 0');
+console.log(' - Remaining Global Contract Map: 286/286 classified; primary State 60 / handler 223 / dynamic 3; cross-runtime 0');
+console.log(' - Migration frontiers: State 56 / handler-only 221 / cross-runtime 0');
 console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');

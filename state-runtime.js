@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.14.1';
-const TR_STATE_APP_LABEL='V31.14.1 · Structural Foundation III-A1 · Semantic Mutation Boundary';
+const TR_STATE_RUNTIME_VERSION='31.14.2';
+const TR_STATE_APP_LABEL='V31.14.2 · Structural Foundation III-A2 · Eager Schema Boundary';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -32,6 +32,12 @@ let trDomainLastError='';
 let trDomainActiveLabel='';
 let trDomainExclusiveChain=Promise.resolve();
 let trDomainExclusiveBusy=false;
+let trDomainSchemaNormalizeCount=0;
+let trDomainSchemaNormalizeLastAt='';
+let trDomainSchemaNormalizeLastMutations=0;
+let trDomainRenderSideEffects=0;
+let trDomainLastRenderSideEffect='';
+const trDomainSchemaNormalizedRoots=new WeakSet();
 const trDomainSubscribers=new Set();
 
 function trStateIsObject(v){return !!v&&typeof v==='object';}
@@ -74,7 +80,48 @@ function trStateProxy(value,path='$'){
   });
   trDomainProxyCache.set(value,proxy);trDomainRawByProxy.set(proxy,value);return proxy;
 }
+
+function trDomainNormalizePlanSchema(p){
+  if(!p)return p;
+  const fns=[
+    typeof ensurePlanV8Structure==='function'?ensurePlanV8Structure:null,
+    typeof ensurePlanCompliance==='function'?ensurePlanCompliance:null,
+    typeof ensurePlanStudies==='function'?ensurePlanStudies:null,
+    typeof ensurePlanConfidence==='function'?ensurePlanConfidence:null,
+    typeof ensurePlanReviews==='function'?ensurePlanReviews:null,
+    typeof ensurePlanGoals==='function'?ensurePlanGoals:null,
+    typeof ensurePlanForwardTests==='function'?ensurePlanForwardTests:null,
+    typeof ensurePlanDataQualityV27==='function'?ensurePlanDataQualityV27:null,
+    typeof ensurePlanResearchChanges==='function'?ensurePlanResearchChanges:null
+  ].filter(Boolean);
+  for(const fn of fns)fn(p);
+  return p;
+}
+function trDomainNormalizeHydratedSchema(reason='render'){
+  if(typeof trCoreHydrated==='undefined'||!trCoreHydrated||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;
+  const root=trDomainRootTarget;
+  trDomainSchemaNormalizedRoots.add(root);
+  const previous=trDomainActiveLabel,beforeMutations=trDomainMutationCount,beforeCommits=trDomainCommitCount;
+  trDomainActiveLabel='schema.normalize';
+  try{
+    const plans=Array.isArray(state?.tradingPlans)?state.tradingPlans:[];
+    for(const plan of plans)trDomainNormalizePlanSchema(plan);
+    if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();
+    if(trDomainPendingMutationCount)trDomainFlush('schema.normalize','controlled');
+    if(trDomainCommitCount>beforeCommits&&typeof trDomainPersistBridgeBase==='function')trDomainPersistBridgeBase(`schema-normalize:${reason}`);
+    trDomainSchemaNormalizeCount++;
+    trDomainSchemaNormalizeLastAt=new Date().toISOString();
+    trDomainSchemaNormalizeLastMutations=Math.max(0,trDomainMutationCount-beforeMutations);
+    return true;
+  }catch(e){
+    trDomainSchemaNormalizedRoots.delete(root);
+    trDomainLastError=`schema.normalize: ${e?.message||String(e)}`;
+    console.error('[Trading Research · schema normalize]',e);
+    return false;
+  }finally{trDomainActiveLabel=previous;}
+}
 function trDomainPublish(batch){for(const fn of [...trDomainSubscribers]){try{fn(batch);}catch(e){console.warn('[Trading Research · DomainStore subscriber]',e);}}}
+
 function trDomainCallerLabel(reason='persist'){
   if(trDomainActiveLabel)return trDomainActiveLabel;
   try{
@@ -135,7 +182,7 @@ function trDomainExclusive(label,task){
   trDomainExclusiveChain=trDomainExclusiveChain.catch(()=>{}).then(run);return trDomainExclusiveChain;
 }
 function trDomainSnapshot(){trStateEnsureAttached('snapshot');return typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state));}
-function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
+function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],schemaNormalizations:trDomainSchemaNormalizeCount,schemaNormalizeLastAt:trDomainSchemaNormalizeLastAt,schemaNormalizeLastMutations:trDomainSchemaNormalizeLastMutations,renderSideEffects:trDomainRenderSideEffects,lastRenderSideEffect:trDomainLastRenderSideEffect,lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
 const TRDomainStore=Object.freeze({
   getState:()=>{trStateEnsureAttached('get');return state;},snapshot:trDomainSnapshot,commit:trDomainCommit,flush:(label='manual.flush')=>trDomainFlush(label,'controlled'),subscribe(fn){if(typeof fn!=='function')return()=>{};trDomainSubscribers.add(fn);return()=>trDomainSubscribers.delete(fn);},diagnostics:trDomainDiagnostics,ensureAttached:trStateEnsureAttached,exclusive:trDomainExclusive
 });
@@ -151,10 +198,10 @@ trCorePersistNow=async function(reason='persist'){
 };
 
 /* First explicitly migrated durable command: active Trading Plan selection. */
-switchPlan=function(id){if(!getPlan(id))return;return TRDomainStore.commit('plan.switch',()=>{state.currentPlanId=id;},{persist:true,render:true});};
+switchPlan=function(id){if(!getPlan(id))return;return TRDomainStore.commit('plan.switch',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(getPlan(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();},{persist:true,render:true});};
 window.switchPlan=switchPlan;
 if(typeof switchPlanAndOpen==='function'){
-  switchPlanAndOpen=function(id){if(!getPlan(id))return;return TRDomainStore.commit('plan.switch-open',()=>{state.currentPlanId=id;currentView='dashboard';},{persist:true,render:true});};
+  switchPlanAndOpen=function(id){if(!getPlan(id))return;return TRDomainStore.commit('plan.switch-open',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(getPlan(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();currentView='dashboard';},{persist:true,render:true});};
   window.switchPlanAndOpen=switchPlanAndOpen;
 }
 
@@ -244,22 +291,35 @@ function trUiWrapGlobal(name,label){
 /* Render is also a reconciliation point for legacy UI setters not yet migrated. */
 const trStateRenderBase=render;
 render=function(...args){
-  trStateEnsureAttached('render');trUiCapture(trUiActiveAction||'legacy.render.before');
-  const out=trStateRenderBase.apply(this,args);trUiCapture(trUiActiveAction||'legacy.render.after');return out;
+  trStateEnsureAttached('render');
+  trDomainNormalizeHydratedSchema('render');
+  const commitsBefore=trDomainCommitCount,pendingBefore=trDomainPendingMutationCount;
+  trUiCapture(trUiActiveAction||'legacy.render.before');
+  const out=trStateRenderBase.apply(this,args);
+  const commitDelta=trDomainCommitCount-commitsBefore,pendingDelta=trDomainPendingMutationCount-pendingBefore;
+  if(commitDelta>0||pendingDelta>0){
+    trDomainRenderSideEffects++;
+    trDomainLastRenderSideEffect=`${currentView||'view'} · commits +${commitDelta} · pending +${Math.max(0,pendingDelta)} · ${new Date().toISOString()}`;
+    if(trDomainPendingMutationCount){
+      trDomainFlush('render.side-effect','legacy');
+      if(typeof trDomainPersistBridgeBase==='function')trDomainPersistBridgeBase('render-side-effect');
+    }
+  }
+  trUiCapture(trUiActiveAction||'legacy.render.after');return out;
 };
 window.render=render;
 
 /* ---------- Diagnostics / integration ---------- */
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
-  const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.14.1 separa el workspace durable del estado efímero de interfaz y distingue mutaciones reales de normalizaciones semánticamente idénticas. El Proxy ya no marca como dirty una asignación de arrays/objetos que conserva exactamente el mismo contenido.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.14.1 · boundary semántico:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Escrituras no-op suprimidas: <strong>${d.suppressedNoopWrites||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.14.2 normaliza el esquema durable una sola vez antes del primer render de cada workspace y mantiene la proyección UI separada. Las vistas ya no deberían inicializar campos del dominio al navegar.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.14.2 · boundary de esquema:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · escrituras no-op suprimidas: <strong>${d.suppressedNoopWrites||0}</strong> · efectos laterales detectados dentro de render: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Una vista ha intentado modificar el dominio durante su composición.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.14.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3A1: DomainStore con comparación semántica + UIStore separado. IndexedDB, shell persistente, borradores y Partial DOM permanecen activos. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.14.2</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3A2: normalización eager del esquema + DomainStore/UIStore separados. IndexedDB, shell persistente, borradores y Partial DOM permanecen activos. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});

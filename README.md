@@ -1,3 +1,23 @@
+# Trading Research V31.14.2 · Structural Foundation III-A2
+
+Esta versión corrige la última anomalía detectada durante la validación de V31.14.1: algunas vistas todavía podían inicializar campos de esquema durable al navegar, haciendo crecer `Domain revision` durante acciones puramente de UI.
+
+## Cambios estructurales
+
+- Normalización **eager** del esquema durable una vez por workspace hidratado, antes del primer render.
+- Normalización de planes: taxonomías V8, checklist, estudios, confianza, reviews, objetivos, forward tests, calidad de datos y change tracking.
+- La baseline de Research Changes deja de inicializarse perezosamente durante una navegación normal.
+- Cambio de Trading Plan normaliza el plan destino dentro del commit controlado antes de renderizarlo.
+- Detector explícito de **render side-effects**: `render()` debe ser una proyección de solo lectura. Si una vista intenta mutar el dominio durante su composición, Datos y seguridad pasa a `Revisar`.
+- Persistencia del schema normalization usa el bridge durable directamente para no activar artificialmente el wrapper histórico de change tracking.
+- Sin cambios en fórmulas financieras ni en `app.js`.
+
+## Prueba de aceptación
+
+Tras estabilizar la carga: `Mutaciones pendientes = 0` y `efectos laterales de render = 0`. Después de guardar una operación, Domain revision puede crecer. Al cambiar únicamente filtros, pestañas o parámetros What-if, debe crecer `UI revision` sin crecer `Domain revision`.
+
+---
+
 # Trading Research V31.14.1 · Structural Foundation III-A
 
 Esta versión inicia la separación formal entre **estado durable de dominio** y **estado efímero de interfaz** sin modificar `app.js` ni las fórmulas financieras.

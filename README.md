@@ -1,3 +1,21 @@
+# Trading Research V31.17.1 · Structural Foundation III-B3.1a · Import Schema Closure
+
+V31.17 detectó correctamente dos anomalías durante la primera validación real de Ankora: tras confirmar el lote quedaban mutaciones sin persistir en `setupDefinitions`/`vdDefinitions`, y al abrir Dashboard un plan reciente podía intentar crear `dashboardProfiles` durante el render. Además, el boundary no impedía que un `TRDomainStore.commit()` explícito anidado dentro de un comando mayor publicase una revisión intermedia.
+
+## Corrección
+
+- Toda importación durable (`Ankora` y `NinjaTrader Grid`) ejecuta la normalización de esquema **antes de cerrar el mismo `TRDomainStore.command()`**. Los Setup/VD detectados durante el import actualizan también sus definiciones enriquecidas dentro del único commit.
+- `v311EnsureDashboardProfiles()` forma parte de la normalización durable, de modo que Dashboard deja de inicializar esos campos durante render.
+- Un `TRDomainStore.commit()` llamado dentro de otro command boundary ya no puede publicar un segundo commit: participa en la transacción exterior.
+- El histórico Tick sigue con `persist:false`, por lo que no normaliza ni modifica el dominio y debe mantener `Domain revision` sin cambios.
+- No se modifica `app.js` ni ninguna fórmula financiera.
+
+## Invariante de aceptación Ankora
+
+Partiendo de un estado estable, confirmar un lote debe producir `Domain revision +1`, `Controlados +1`, `Legacy` sin aumento, `Mutaciones pendientes = 0`, `Estado = OK` y `efectos laterales de render = 0`. El último commit debe ser `import.ankora.commit`.
+
+---
+
 # Trading Research V31.17 · Structural Foundation III-B3.1 · Atomic Import Boundary
 
 V31.16.1 corrige la anomalía observada al validar `contract.update`: el handler histórico V31.9.2 lanzaba `v319SyncExecutionSetsToOperations()` sin `await`, de modo que la sincronización objetiva de filas NinjaTrader podía reanudarse después de cerrar el command boundary y publicar un segundo commit legacy.

@@ -1,4 +1,4 @@
-/* ===== V31.17 STATE RUNTIME · Structural Foundation III-B3.1 =====
+/* ===== V31.17.1 STATE RUNTIME · Structural Foundation III-B3.1a =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
  * - persistence boundaries publish atomic mutation batches
@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.17';
-const TR_STATE_APP_LABEL='V31.17 · Structural Foundation III-B3.1 · Atomic Import Boundary';
+const TR_STATE_RUNTIME_VERSION='31.17.1';
+const TR_STATE_APP_LABEL='V31.17.1 · Structural Foundation III-B3.1a · Import Schema Closure';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -187,10 +187,17 @@ function trDomainNormalizePlanSchema(p){
     typeof ensurePlanGoals==='function'?ensurePlanGoals:null,
     typeof ensurePlanForwardTests==='function'?ensurePlanForwardTests:null,
     typeof ensurePlanDataQualityV27==='function'?ensurePlanDataQualityV27:null,
-    typeof ensurePlanResearchChanges==='function'?ensurePlanResearchChanges:null
+    typeof ensurePlanResearchChanges==='function'?ensurePlanResearchChanges:null,
+    typeof v311EnsureDashboardProfiles==='function'?v311EnsureDashboardProfiles:null
   ].filter(Boolean);
   for(const fn of fns)fn(p);
   return p;
+}
+function trDomainNormalizeAllPlanSchemas(){
+  const plans=Array.isArray(state?.tradingPlans)?state.tradingPlans:[];
+  for(const plan of plans)trDomainNormalizePlanSchema(plan);
+  if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();
+  return plans.length;
 }
 function trDomainNormalizeHydratedSchema(reason='render'){
   if(typeof trCoreHydrated==='undefined'||!trCoreHydrated||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;
@@ -199,9 +206,7 @@ function trDomainNormalizeHydratedSchema(reason='render'){
   const previous=trDomainActiveLabel,beforeMutations=trDomainMutationCount,beforeCommits=trDomainCommitCount;
   trDomainActiveLabel='schema.normalize';
   try{
-    const plans=Array.isArray(state?.tradingPlans)?state.tradingPlans:[];
-    for(const plan of plans)trDomainNormalizePlanSchema(plan);
-    if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();
+    trDomainNormalizeAllPlanSchemas();
     if(trDomainPendingMutationCount)trDomainFlush('schema.normalize','controlled');
     if(trDomainCommitCount>beforeCommits&&typeof trDomainPersistBridgeBase==='function')trDomainPersistBridgeBase(`schema-normalize:${reason}`);
     trDomainSchemaNormalizeCount++;
@@ -253,6 +258,9 @@ function trStateEnsureAttached(reason='runtime'){
 }
 function trDomainCommit(label,mutator,options={}){
   trStateEnsureAttached('commit');
+  /* An explicit commit invoked from inside a larger command must join the outer
+   * transaction instead of flushing a second controlled revision mid-command. */
+  if(trDomainCommandDepth)return mutator?.(state);
   const previous=trDomainActiveLabel;trDomainActiveLabel=String(label||'domain.commit');
   const finish=()=>{
     let batch=null;
@@ -661,8 +669,15 @@ async function trRunAtomicImport(label,task,{stageMarketData=false,persist=true,
     const before=typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state));let stageCtx=null;trImportTransactions++;trImportMark(label,'running',0,'');
     try{
       const value=await TRDomainStore.command(label,async()=>{
-        if(stageMarketData){const staged=await trWithV314Staging(task);stageCtx=staged.ctx;return staged.value;}
-        return await task();
+        let out;
+        if(stageMarketData){const staged=await trWithV314Staging(task);stageCtx=staged.ctx;out=staged.value;}
+        else out=await task();
+        /* Ankora/Grid imports can extend legacy taxonomies (setups/vd/nr) or touch a
+         * recently-created plan. Close the durable schema inside the SAME command so
+         * setupDefinitions/vdDefinitions/dashboardProfiles never leak out as pending
+         * mutations on the next view/render. Pure tick-history imports stay domain-free. */
+        if(persist)trDomainNormalizeAllPlanSchemas();
+        return out;
       },{persist,render:true});
       if(persist&&typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('No se pudo confirmar el snapshot durable del import.');
       const writes=stageCtx?.writeCount||0;trImportCommitted++;trImportExternalWrites+=writes;trImportMark(label,'committed',writes,'');return value;
@@ -741,15 +756,15 @@ window.render=render;
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
   const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects&&!d.importRollbackFailures,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.17 añade un boundary transaccional a las importaciones masivas. Ankora publica el lote completo como un único commit; NinjaTrader Grid agrupa la creación/actualización del Journal y sus escrituras de Market Data; el histórico Tick publica metadata + ticks en una sola transacción IndexedDB. Los parsers y cálculos históricos permanecen intactos.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.17 · Atomic Import Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong> · import tx: <strong>${d.importCommitted||0}</strong> OK / <strong class="${d.importRollbackFailures?'negative':''}">${d.importRolledBack||0}</strong> rollback · escrituras Market Data agrupadas: <strong>${d.importExternalWrites||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}${d.importLastLabel?` · última importación: ${esc(d.importLastLabel)} [${esc(d.importLastStatus||'—')}; ${d.importLastExternalWrites||0} ext.]`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.17.1 cierra el esquema durable dentro del mismo boundary de importación y absorbe commits explícitos anidados. Ankora publica el lote completo como un único commit; NinjaTrader Grid agrupa la creación/actualización del Journal y sus escrituras de Market Data; el histórico Tick publica metadata + ticks en una sola transacción IndexedDB. Los parsers y cálculos históricos permanecen intactos.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.17.1 · Import Schema Closure:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong> · import tx: <strong>${d.importCommitted||0}</strong> OK / <strong class="${d.importRollbackFailures?'negative':''}">${d.importRolledBack||0}</strong> rollback · escrituras Market Data agrupadas: <strong>${d.importExternalWrites||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}${d.importLastLabel?` · última importación: ${esc(d.importLastLabel)} [${esc(d.importLastStatus||'—')}; ${d.importLastExternalWrites||0} ext.]`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.17</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B3.1: Imports pasa a un boundary transaccional. Ankora confirma/elimina lotes en un único commit; NinjaTrader Grid agrupa Market Data + sincronización del Journal y el histórico Tick escribe metadata + ticks de forma atómica. Restore y Cloud quedan para las siguientes subfases. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.17.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B3.1a: Imports mantiene el boundary transaccional y ahora normaliza taxonomías/perfiles durables antes de publicar el único commit. Ankora confirma/elimina lotes en un único commit; NinjaTrader Grid agrupa Market Data + sincronización del Journal y el histórico Tick escribe metadata + ticks de forma atómica. Restore y Cloud quedan para las siguientes subfases. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
-/* ===== END V31.17 STATE RUNTIME ===== */
+/* ===== END V31.17.1 STATE RUNTIME ===== */

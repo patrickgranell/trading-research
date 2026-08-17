@@ -25,11 +25,18 @@ need(stateRuntime.includes('const trStateRenderBase=render;'),'State Runtime ya 
 need(stateRuntime.includes('trDomainRenderGuardBegin()')&&stateRuntime.includes('trDomainRenderGuardEnd()'),'State Runtime perdió el boundary read-only de render.');
 need(stateRuntime.includes('window.render=render;'),'State Runtime no publica el render protegido.');
 need(closure.includes("const TR_RENDER_CLOSURE_VERSION='31.23.5'"),'Render closure tiene versión inesperada.');
+need(closure.includes("const TR_SOURCE_CONSOLIDATION_PHASE='31.23.7'"),'La tarjeta visible no identifica V31.23.7.');
+need(closure.includes("First App Global Export Prune"),'Falta la etiqueta visible de la primera poda de app.js.');
+need(closure.includes('function trSourceConsolidationDiagnostics()'),'Falta diagnóstico runtime de Source Consolidation.');
+need(closure.includes('function trSourceConsolidationPanel()'),'Falta panel runtime de Source Consolidation.');
+need(closure.includes('trading-research-app-global-source-blocks')&&closure.includes('trading-research-app-global-bundled-blocks'),'Source Consolidation no consume el inventario generado por build.');
+need(closure.includes('sourceConsolidation:trSourceConsolidationDiagnostics'),'TradingResearchRender no expone el diagnóstico namespaced de consolidación.');
 need(closure.includes('const trRenderClosureBase=window.render;'),'Render closure no captura el entry point final previo.');
 need(closure.includes('function trCanonicalRenderEntry('),'Falta el entry point canónico.');
 need(closure.includes('window.render=trCanonicalRenderEntry;'),'El entry point canónico no se publica globalmente.');
 need(closure.includes('window.TradingResearchRender=TradingResearchRender;'),'Falta API TradingResearchRender.');
 need(!closure.includes('Object.assign(window,{trRenderClosureDiagnostics,trRenderClosurePanel})'),'Render Closure vuelve a publicar aliases diagnósticos duplicados.');
+need(!closure.includes('Object.assign(window,{trSourceConsolidationDiagnostics,trSourceConsolidationPanel})'),'Source Consolidation no debe añadir aliases diagnósticos globales.');
 need(!closure.includes("document.getElementById('app').innerHTML=shell()"),'Render closure no debe volver a introducir un render destructivo propio.');
 need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');
 need(index.indexOf('render-closure-runtime.js')>index.indexOf('style-runtime.js'),'render-closure-runtime.js debe cargar el último entre los runtimes locales.');
@@ -40,3 +47,4 @@ console.log(` - Source legacy render assignments: ${sourceDebt.assignments}; bun
 console.log(` - Source renderV*Base aliases: ${sourceDebt.baseAliases}; bundled: ${bundledDebt.baseAliases}`);
 console.log(` - Bundled destructive root writes: ${bundledDebt.destructiveRootWrites}`);
 console.log(' - Render diagnostics exposed only through TradingResearchRender');
+console.log(' - Visible consolidation phase: V31.23.7 + namespaced Source Consolidation diagnostics');

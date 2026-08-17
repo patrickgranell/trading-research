@@ -82,6 +82,16 @@ export function handlerRootInventory(source){
   return {handlers:handlers.length,roots:Object.fromEntries([...roots].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))};
 }
 
+export function windowReadInventory(source){
+  const reads=[];
+  for(const m of source.matchAll(/\b(?:window|globalThis)\.([A-Za-z_$][\w$]*)/g)){
+    const tail=source.slice(m.index+m[0].length);
+    if(/^\s*=\s*(?!=)/.test(tail))continue;
+    reads.push(m[1]);
+  }
+  return {count:reads.length,unique:[...new Set(reads)].sort()};
+}
+
 export function globalSurfaceInventory(source){
   const blocks=objectAssignWindowBlocks(source);
   const assignNames=blocks.flatMap(x=>x.props);
@@ -90,6 +100,7 @@ export function globalSurfaceInventory(source){
   const uniqueDirect=[...new Set(direct)].sort();
   const uniqueAll=[...new Set([...assignNames,...direct])].sort();
   const handlers=handlerRootInventory(source);
+  const reads=windowReadInventory(source);
   const eventRoots=Object.keys(handlers.roots);
   const eventBacked=eventRoots.filter(x=>uniqueAll.includes(x));
   const exportedNotSeenInHandlers=uniqueAll.filter(x=>!eventRoots.includes(x));
@@ -100,10 +111,12 @@ export function globalSurfaceInventory(source){
     directWindowAssignments:direct.length,
     directWindowUnique:uniqueDirect.length,
     totalUniqueGlobals:uniqueAll.length,
+    windowReads:reads.count,
+    windowReadUnique:reads.unique.length,
     handlerDeclarations:handlers.handlers,
     handlerRootCalls:eventRoots.length,
     handlerBackedGlobals:eventBacked.length,
-    names:{objectAssign:uniqueAssign,direct:uniqueDirect,all:uniqueAll,handlerRoots:eventRoots,eventBacked,eventUnmatched:eventRoots.filter(x=>!uniqueAll.includes(x)),exportedNotSeenInHandlers},
+    names:{objectAssign:uniqueAssign,direct:uniqueDirect,all:uniqueAll,windowReads:reads.unique,handlerRoots:eventRoots,eventBacked,eventUnmatched:eventRoots.filter(x=>!uniqueAll.includes(x)),exportedNotSeenInHandlers},
     handlerRootUsage:handlers.roots
   };
 }
@@ -131,7 +144,11 @@ if(import.meta.url===`file://${process.argv[1]}`){
   console.log(` - Explicit globals not called by declarative handlers: ${d.names.exportedNotSeenInHandlers.length}`);
   for(const file of files){
     const x=report.perFile[file];
-    if(x.objectAssignBlocks||x.directWindowAssignments)console.log(`   · ${file}: assign blocks ${x.objectAssignBlocks}, entries ${x.objectAssignEntries}/${x.objectAssignUnique} unique, direct ${x.directWindowAssignments}/${x.directWindowUnique} unique`);
+    if(x.objectAssignBlocks||x.directWindowAssignments||x.windowReads)console.log(`   · ${file}: assign blocks ${x.objectAssignBlocks}, entries ${x.objectAssignEntries}/${x.objectAssignUnique} unique, direct ${x.directWindowAssignments}/${x.directWindowUnique} unique, window reads ${x.windowReads}/${x.windowReadUnique} unique`);
   }
+  const appExports=new Set(report.perFile['app.js']?.names?.all||[]),runtimeReads=new Set();
+  for(const file of files){if(file==='app.js')continue;for(const name of report.perFile[file]?.names?.windowReads||[])if(appExports.has(name))runtimeReads.add(name);}
+  console.log(` - Cross-runtime window reads that depend on app exports: ${runtimeReads.size}`);
+  console.log(` - Cross-runtime app globals read through window: ${[...runtimeReads].sort().join(', ')||'none'}`);
   console.log(` - First non-handler explicit globals: ${d.names.exportedNotSeenInHandlers.slice(0,80).join(', ')||'none'}`);
 }

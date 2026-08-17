@@ -22,9 +22,10 @@ need(transformed?.source.includes("actions:trStateActionRegistry"),'TradingResea
 for(const name of ['saveOperationFromForm','openOperationModal','editOperation','saveInstrument','confirmImportPreview','deleteImportBatch','v314ImportMarketFile','v314ImportExecFile','v319SyncExecutionSetsToOperations']){
   need(transformed?.source.includes(`trStateActionResolve('${name}')`),`Falta resolución registry-aware de ${name}.`);
 }
-for(const name of ['navigate','setConfigTab','saveOperationFromForm','openOperationModal','editOperation','saveInstrument','confirmImportPreview','deleteImportBatch','v314ImportMarketFile','v314ImportExecFile']){
+for(const name of ['navigate','setConfigTab','saveOperationFromForm','openOperationModal','editOperation','confirmImportPreview','deleteImportBatch','v314ImportMarketFile','v314ImportExecFile']){
   need(transformed?.source.includes(`trStateActionPublish('${name}'`),`Falta publicación registry-aware de ${name}.`);
 }
+need(transformed?.source.includes("trAssignDomainWrappedGlobal('saveInstrument',commandAware);"),'saveInstrument no vuelve a publicarse mediante el helper registry-aware.');
 need(events.includes("const trActionRegistry=(window.TradingResearchActions"),'Event Runtime no reutiliza el mismo TradingResearchActions.');
 need(events.includes("Object.prototype.hasOwnProperty.call(trActionRegistry,name)"),'Event Runtime no resuelve registry-first.');
 need(build.includes("transformStateActions(stateSource)"),'build.mjs no aplica el State Action Bridge.');

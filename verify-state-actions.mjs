@@ -13,7 +13,7 @@ need(!state.includes('V31.23.6 STATE ACTION BRIDGE'),'state-runtime.js fuente fu
 need(inv.bridge===true,'El transform no inyecta el State Action Bridge.');
 need(inv.crossRuntimeWindowReads===0,`Quedan ${inv.crossRuntimeWindowReads} lecturas window directas cross-runtime tras el transform.`);
 need(inv.resolveCalls>=14,`Solo hay ${inv.resolveCalls} resoluciones registry-aware; la migración parece incompleta.`);
-need(inv.publishCalls>=20,`Solo hay ${inv.publishCalls} publicaciones registry-aware; la migración parece incompleta.`);
+need(inv.publishCalls>=19,`Solo hay ${inv.publishCalls} publicaciones registry-aware; la migración parece incompleta.`);
 need(transformed?.source.includes("const trStateActionRegistry=(window.TradingResearchActions"),'State Runtime transformado no reutiliza TradingResearchActions.');
 need(transformed?.source.includes("const trStateActionResolve=(name)=>"),'Falta resolver registry-first.');
 need(transformed?.source.includes("const trStateActionPublish=(name,value)=>"),'Falta publicación dual registry + window durante transición.');

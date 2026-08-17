@@ -1,4 +1,41 @@
-# Trading Research V31.10.4
+# Trading Research V31.11
+
+## Structural Foundation I · Persistencia durable
+
+Esta versión inicia la refactorización estructural sin añadir ni modificar lógica financiera. El objetivo de V31.11 es sacar el workspace principal y los snapshots grandes de `localStorage` y convertir IndexedDB en la persistencia primaria.
+
+### Qué cambia
+
+- `state` se migra automáticamente a IndexedDB (`tradingResearchCoreV1`).
+- Los snapshots locales de seguridad pasan al mismo motor durable, en un store separado.
+- Las escrituras se serializan en una cola para evitar carreras entre guardados consecutivos.
+- `localStorage` deja de almacenar el workspace completo tras confirmar la migración; se conserva para configuración pequeña y como fallback explícito si IndexedDB no puede inicializarse antes de migrar.
+- Si una escritura falla, la aplicación muestra un aviso persistente y un `alert` una sola vez por sesión: no puede aparentar que el guardado fue correcto.
+- Si el navegador ya fue migrado pero IndexedDB no puede abrirse, la aplicación entra en modo de protección y no presenta un workspace vacío como si fuese real.
+- La primera carga después de instalar V31.11 puede mostrar brevemente `Cargando workspace…` mientras se confirma la migración.
+- `Configuración → Datos y seguridad` muestra el motor activo, último guardado, snapshots y estado de persistencia.
+
+### Guardia de regresión
+
+`npm run build` ejecuta primero una verificación estructural. El build falla si:
+
+- reaparece una escritura directa de `state` a `localStorage`;
+- desaparece el bootstrap IndexedDB;
+- cambia cualquiera de 7 regiones financieras críticas congeladas respecto a V31.10.4 (`riskCalc`, calibración Market Data, recorrido intratrade, cronología y Best Exit).
+
+Esto no sustituye las pruebas visuales/manuales, pero impide que esta fase de almacenamiento modifique accidentalmente los cálculos que ya estaban validados.
+
+### Prueba recomendada tras desplegar
+
+1. Abrir V31.11 y comprobar que siguen presentes los planes, las 10 operaciones y los datos de Market Data.
+2. Recargar la página completamente. Todo debe seguir idéntico; esta segunda carga ya debe venir desde IndexedDB.
+3. Ir a `Configuración → Datos y seguridad` y comprobar `IndexedDB · durable` y `Estado OK`.
+4. Editar un campo cualitativo de una operación, guardar y recargar para verificar persistencia.
+5. Revisar Dashboard, Bloques y dos operaciones de Best Exit para confirmar que métricas y curvas no han cambiado.
+
+No requiere SQL nuevo.
+
+---
 
 ## NinjaTrader Grid → Operaciones
 

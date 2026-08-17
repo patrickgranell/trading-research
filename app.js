@@ -3,6 +3,155 @@ const LEGACY_V3_KEY = 'tradingResearchState_v3';
 const LEGACY_V2_KEY = 'tradingResearchState_v2';
 const LEGACY_V1_KEY = 'tradingResearchState_v1';
 
+
+/* ===== V31.11 CORE · persistencia durable IndexedDB ===== */
+document.documentElement.classList.add('tr-core-loading');
+const TR_CORE_DB_NAME='tradingResearchCoreV1';
+const TR_CORE_DB_VERSION=1;
+const TR_CORE_STATE_STORE='coreState';
+const TR_CORE_SNAPSHOT_STORE='snapshots';
+const TR_CORE_META_STORE='meta';
+const TR_CORE_STATE_ID='workspace';
+const TR_CORE_MIGRATION_KEY='tradingResearchIndexedDbState_v1';
+const TR_CORE_APP_VERSION='31.11.0';
+let trCoreDbPromise=null;
+let trCoreHydrated=false;
+let trCoreMode='booting';
+let trCoreWriteChain=Promise.resolve();
+let trCorePendingState=null;
+let trCoreSnapshotCache=[];
+let trCoreLastSavedAt='';
+let trCoreLastError='';
+let trCoreErrorAlerted=false;
+let trCoreFatal=false;
+const trCoreBootHadMarker=(()=>{try{return !!localStorage.getItem(TR_CORE_MIGRATION_KEY);}catch{return false;}})();
+
+function trCoreSafeLocalSet(key,value,context='localStorage'){
+  try{localStorage.setItem(key,value);return true;}
+  catch(e){trCoreReportPersistenceError(e,context);return false;}
+}
+function trCoreSafeLocalRemove(key){try{localStorage.removeItem(key);}catch{}}
+function trCoreShowStorageWarning(message){
+  const paint=()=>{
+    let el=document.getElementById('tr-core-storage-warning');
+    if(!el){el=document.createElement('div');el.id='tr-core-storage-warning';el.className='tr-core-storage-warning';document.body.appendChild(el);}
+    el.textContent=message;
+  };
+  if(document.body)paint();else addEventListener('DOMContentLoaded',paint,{once:true});
+}
+function trCoreReportPersistenceError(error,context='persistencia'){
+  const name=error?.name||'',quota=name==='QuotaExceededError'||name==='NS_ERROR_DOM_QUOTA_REACHED',detail=error?.message||String(error||'Error desconocido');
+  trCoreLastError=`${context}: ${detail}`;
+  console.error('[Trading Research · persistencia]',context,error);
+  const msg=quota?'No se ha podido guardar: el almacenamiento local del navegador no tiene cuota suficiente. No cierres esta pestaña hasta exportar una copia de seguridad.':`No se ha podido guardar de forma durable (${context}). No cierres la pestaña hasta revisar Datos y seguridad o exportar una copia.`;
+  trCoreShowStorageWarning(msg);
+  if(!trCoreErrorAlerted){trCoreErrorAlerted=true;setTimeout(()=>alert(msg),0);}
+}
+function trCoreOpenDb(){
+  if(trCoreDbPromise)return trCoreDbPromise;
+  trCoreDbPromise=new Promise((resolve,reject)=>{
+    if(typeof indexedDB==='undefined')return reject(new Error('IndexedDB no está disponible en este navegador.'));
+    const req=indexedDB.open(TR_CORE_DB_NAME,TR_CORE_DB_VERSION);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(TR_CORE_STATE_STORE))db.createObjectStore(TR_CORE_STATE_STORE,{keyPath:'id'});
+      if(!db.objectStoreNames.contains(TR_CORE_SNAPSHOT_STORE))db.createObjectStore(TR_CORE_SNAPSHOT_STORE,{keyPath:'id'});
+      if(!db.objectStoreNames.contains(TR_CORE_META_STORE))db.createObjectStore(TR_CORE_META_STORE,{keyPath:'id'});
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error||new Error('No se pudo abrir IndexedDB.'));
+    req.onblocked=()=>reject(new Error('IndexedDB está bloqueada por otra pestaña de Trading Research.'));
+  });
+  return trCoreDbPromise;
+}
+async function trCoreGet(store,id){
+  const db=await trCoreOpenDb();return new Promise((resolve,reject)=>{const tx=db.transaction(store,'readonly'),req=tx.objectStore(store).get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error||tx.error);});
+}
+async function trCoreGetAll(store){
+  const db=await trCoreOpenDb();return new Promise((resolve,reject)=>{const tx=db.transaction(store,'readonly'),req=tx.objectStore(store).getAll();req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error||tx.error);});
+}
+async function trCorePut(store,value){
+  const db=await trCoreOpenDb();return new Promise((resolve,reject)=>{const tx=db.transaction(store,'readwrite');tx.objectStore(store).put(value);tx.oncomplete=()=>resolve(value);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Transacción IndexedDB abortada.'));});
+}
+async function trCoreReplaceSnapshots(items){
+  const db=await trCoreOpenDb();return new Promise((resolve,reject)=>{const tx=db.transaction(TR_CORE_SNAPSHOT_STORE,'readwrite'),store=tx.objectStore(TR_CORE_SNAPSHOT_STORE);store.clear();for(const item of items||[])store.put(item);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('No se pudieron guardar los snapshots.'));});
+}
+function trCoreStateRecord(payload,reason='persist'){
+  return {id:TR_CORE_STATE_ID,payload:clone(payload),savedAt:new Date().toISOString(),reason,appVersion:TR_CORE_APP_VERSION};
+}
+async function trCorePersistNow(reason='persist'){
+  const snapshot=clone(state);
+  if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return false;}
+  if(trCoreMode==='indexeddb'){
+    try{const rec=trCoreStateRecord(snapshot,reason);await trCorePut(TR_CORE_STATE_STORE,rec);trCoreLastSavedAt=rec.savedAt;trCoreLastError='';return true;}
+    catch(e){trCoreReportPersistenceError(e,reason);return false;}
+  }
+  const ok=trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason);if(ok)trCoreLastSavedAt=new Date().toISOString();return ok;
+}
+function trCoreQueueStateWrite(reason='persist'){
+  const snapshot=clone(state);
+  if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return Promise.resolve(false);}
+  if(trCoreMode!=='indexeddb')return Promise.resolve(trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason));
+  trCoreWriteChain=trCoreWriteChain.catch(()=>{}).then(async()=>{
+    try{const rec=trCoreStateRecord(snapshot,reason);await trCorePut(TR_CORE_STATE_STORE,rec);trCoreLastSavedAt=rec.savedAt;trCoreLastError='';return true;}
+    catch(e){trCoreReportPersistenceError(e,reason);return false;}
+  });
+  return trCoreWriteChain;
+}
+function trCorePersistStateBridge(reason='persist'){trCoreQueueStateWrite(reason);return true;}
+async function trCoreFlush(){try{await trCoreWriteChain;return !trCoreLastError;}catch{return false;}}
+function trCoreQueueSnapshotHistory(items){
+  trCoreSnapshotCache=clone(items||[]).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
+  if(!trCoreHydrated){if(!trCoreBootHadMarker)trCoreSafeLocalSet('tradingResearchCloudSnapshotHistory_v2',JSON.stringify(trCoreSnapshotCache),'snapshot fallback');return true;}
+  if(trCoreMode!=='indexeddb')return trCoreSafeLocalSet('tradingResearchCloudSnapshotHistory_v2',JSON.stringify(trCoreSnapshotCache),'snapshot fallback');
+  const snap=clone(trCoreSnapshotCache);trCoreWriteChain=trCoreWriteChain.catch(()=>{}).then(()=>trCoreReplaceSnapshots(snap)).catch(e=>{trCoreReportPersistenceError(e,'snapshots');return false;});return true;
+}
+function trCoreQueueSnapshotRecord(snap){
+  const item={id:snap?.id||uid('SNAP'),...clone(snap)};const hist=[item,...trCoreSnapshotCache.filter(x=>x.id!==item.id)].slice(0,3);trCoreQueueSnapshotHistory(hist);return item;
+}
+function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length};}
+async function trCoreBootstrap(){
+  let legacyStateText='';try{legacyStateText=localStorage.getItem(STORAGE_KEY)||'';}catch{}
+  try{
+    await trCoreOpenDb();
+    const existing=await trCoreGet(TR_CORE_STATE_STORE,TR_CORE_STATE_ID);
+    let source=null,needsMarker=!trCoreBootHadMarker;
+    if(trCoreBootHadMarker){
+      if(existing?.payload)source=existing.payload;
+      else if(legacyStateText){source=JSON.parse(legacyStateText);}
+      else throw new Error('El marcador de migración existe, pero no se encuentra el estado durable en IndexedDB.');
+    }else{
+      source=trCorePendingState||clone(state);
+      let legacySnaps=[];
+      try{legacySnaps=JSON.parse(localStorage.getItem('tradingResearchCloudSnapshotHistory_v2')||'[]')||[];}catch{}
+      if(!legacySnaps.length){try{const s=JSON.parse(localStorage.getItem('tradingResearchCloudSafetySnapshot_v1')||'null');if(s)legacySnaps=[{id:s.id||uid('SNAP'),...s}];}catch{}}
+      if(legacySnaps.length)await trCoreReplaceSnapshots(legacySnaps.slice(0,3));
+    }
+    state=normalizeState(source);if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
+    trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
+    trCoreMode='indexeddb';trCoreHydrated=true;
+    const finalSaved=await trCorePersistNow(needsMarker?'migration-from-localStorage':'bootstrap-normalized');
+    if(!finalSaved)throw new Error('IndexedDB se abrió, pero no confirmó la escritura del workspace.');
+    if(needsMarker&&!trCoreSafeLocalSet(TR_CORE_MIGRATION_KEY,JSON.stringify({migratedAt:new Date().toISOString(),db:TR_CORE_DB_NAME,version:TR_CORE_DB_VERSION}),'marcador de migración'))throw new Error('El estado ya está en IndexedDB, pero no se pudo registrar el marcador de migración.');
+    trCoreSafeLocalRemove(STORAGE_KEY);trCoreSafeLocalRemove('tradingResearchCloudSnapshotHistory_v2');trCoreSafeLocalRemove('tradingResearchCloudSafetySnapshot_v1');
+  }catch(e){
+    console.error('[Trading Research · bootstrap IndexedDB]',e);
+    const canFallback=!!legacyStateText||!trCoreBootHadMarker;
+    if(canFallback){
+      if(legacyStateText){try{state=normalizeState(JSON.parse(legacyStateText));}catch{}}
+      trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreReportPersistenceError(e,'Inicialización IndexedDB');
+    }else{
+      trCoreFatal=true;trCoreMode='fatal';trCoreLastError=e?.message||String(e);trCoreHydrated=false;
+    }
+  }
+  document.documentElement.classList.remove('tr-core-loading');
+  if(trCoreFatal){
+    const root=document.getElementById('app');if(root)root.innerHTML=`<main class="tr-core-fatal"><h1>Trading Research</h1><h2>No se ha abierto el almacenamiento durable</h2><p>${esc(trCoreLastError)}</p><p><strong>No se han borrado tus datos.</strong> No introduzcas operaciones nuevas en este estado. Cierra otras pestañas de Trading Research y recarga; si persiste, usa un navegador con IndexedDB habilitado.</p></main>`;return;
+  }
+  if(typeof render==='function')render();
+}
+/* ===== END V31.11 CORE ===== */
+
 const basePlanConfig = {
   setups: ['Continuación','Estructura','Facilidad','Giro'],
   vd: ['RECH','A1','B3','ENV'],
@@ -157,7 +306,7 @@ function loadState(){
     const legacy=localStorage.getItem(LEGACY_V3_KEY)||localStorage.getItem(LEGACY_V2_KEY)||localStorage.getItem(LEGACY_V1_KEY); return legacy?normalizeState(JSON.parse(legacy)):clone(defaultState);
   }catch(e){return clone(defaultState);}
 }
-function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
+function persist(){return trCorePersistStateBridge('persist');}
 function saveState(){persist();render();}
 
 function getCurrentPlan(){return state.tradingPlans.find(p=>p.id===state.currentPlanId)||state.tradingPlans[0];}
@@ -834,7 +983,7 @@ async function importFullBackup(file){
     const restored=normalizeState(raw.state);state=restored;ensureAllPlansV8();
     await clearImageStore();
     for(const im of raw.images){if(!im?.id||!im?.data)continue;const blob=base64ToBlob(im.data,im.type);await storeImageFile(new File([blob],im.name||'imagen',{type:im.type||blob.type}),im.id);}
-    persist();integrityAuditCache=null;currentView='config';configTab='data';render();alert(`Restauración completada.\n${info}`);
+    persist();if(!await trCoreFlush())throw new Error('La copia se restauró en memoria, pero no se pudo confirmar su guardado durable.');integrityAuditCache=null;currentView='config';configTab='data';render();alert(`Restauración completada.\n${info}`);
   }catch(e){alert('No se pudo restaurar la copia: '+e.message);}
   finally{const input=document.getElementById('backupImportFile');if(input)input.value='';}
 }
@@ -906,7 +1055,7 @@ function loadCloudConfig(){
   const base={url:'https://ddzppjakpcyepuiekioj.supabase.co',publishableKey:'',autoSync:false,lastPush:'',lastPull:'',syncedImageIds:[]};
   try{return {...base,...JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY)||'{}')};}catch{return base;}
 }
-function saveCloudConfigLocal(){localStorage.setItem(CLOUD_CONFIG_KEY,JSON.stringify(cloudConfig));}
+function saveCloudConfigLocal(){return trCoreSafeLocalSet(CLOUD_CONFIG_KEY,JSON.stringify(cloudConfig),'configuración Supabase');}
 function cloudConfigured(){return !!(cloudConfig.url&&cloudConfig.publishableKey);}
 function cloudUserLabel(){return cloudAuthUser?.email||cloudAuthUser?.id||'Sin sesión';}
 function cloudStatusText(){return cloudStatus?.message||'Sin estado';}
@@ -1020,7 +1169,7 @@ async function cloudPullState(){
     const [plans,inst,ops,batches,opps]=await Promise.all(['trading_plans','trading_instruments','trading_operations','trading_import_batches','trading_opportunities'].map(t=>cloudFetchRows(t,user.id)));
     if(!confirm(`Supabase contiene ${plans.length} plan(es) y ${ops.length} operación(es).\n\nEsto sustituirá el estado local de este navegador. ¿Continuar?`)){cloudSetStatus('Descarga cancelada','idle');return;}
     const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
-    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;const localSaved=await trCorePersistNow('cloud-pull');cloudSuppressAutoSync=false;if(!localSaved)throw new Error('La descarga llegó a memoria, pero no se pudo guardar en el almacenamiento durable.');cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
   }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
   finally{cloudBusy=false;}
 }
@@ -1115,9 +1264,7 @@ function cloudDiffInventory(local,remote){
   return {deleted,missingLocal,deleteCount,localLossCount};
 }
 function saveCloudSafetySnapshot(reason){
-  try{
-    localStorage.setItem(CLOUD_SAFETY_SNAPSHOT_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,state:clone(state)}));
-  }catch{}
+  return trCoreQueueSnapshotRecord({id:uid('SNAP'),savedAt:new Date().toISOString(),reason,state:clone(state)});
 }
 function cloudCounts(inv){return {plans:(inv.plans||[]).length,operations:(inv.operations||[]).length,instruments:(inv.instruments||[]).length,batches:(inv.batches||[]).length,opportunities:(inv.opportunities||[]).length};}
 async function refreshCloudRemoteStatus(){
@@ -1173,7 +1320,7 @@ cloudPullState = async function(){
     }
     saveCloudSafetySnapshot('before-cloud-pull');
     const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
-    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;const localSaved=await trCorePersistNow('cloud-pull');cloudSuppressAutoSync=false;if(!localSaved)throw new Error('La descarga llegó a memoria, pero no se pudo guardar en el almacenamiento durable.');cloudConfig.lastPull=new Date().toISOString();saveCloudConfigLocal();cloudSetStatus(`Datos cargados · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length});currentView='dashboard';render();
   }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
   finally{cloudBusy=false;}
 };
@@ -1268,14 +1415,14 @@ async function cloudAcquireRevisionLock(user,expectedRevision,forceExpected=''){
   const rev=data[0]?.updated_at||nextRevision;cloudConfig.baseRemoteRevision=rev;saveCloudConfigLocal();return rev;
 }
 
-function loadCloudSnapshotHistory(){try{return JSON.parse(localStorage.getItem(CLOUD_SNAPSHOT_HISTORY_KEY)||'[]')||[];}catch{return [];}}
-function saveCloudSnapshotHistory(items){try{localStorage.setItem(CLOUD_SNAPSHOT_HISTORY_KEY,JSON.stringify(items));return true;}catch{return false;}}
+function loadCloudSnapshotHistory(){return clone(trCoreSnapshotCache||[]);}
+function saveCloudSnapshotHistory(items){return trCoreQueueSnapshotHistory(items);}
 function cloudSnapshotReasonLabel(r){return ({'before-cloud-push':'Antes de subida','before-cloud-pull':'Antes de descarga','before-conflict-force-push':'Antes de resolver conflicto con local','manual':'Snapshot manual'}[r]||r||'Snapshot');}
 function saveCloudSafetySnapshot(reason){
   const snap={id:uid('SNAP'),savedAt:new Date().toISOString(),reason,counts:{plans:state.tradingPlans?.length||0,operations:state.operations?.length||0,instruments:state.settings?.instruments?.length||0},state:clone(state)};
   let hist=loadCloudSnapshotHistory();hist.unshift(snap);hist=hist.slice(0,CLOUD_SNAPSHOT_LIMIT);
   if(!saveCloudSnapshotHistory(hist)){hist=hist.slice(0,1);saveCloudSnapshotHistory(hist);}
-  try{localStorage.setItem(CLOUD_SAFETY_SNAPSHOT_KEY,JSON.stringify(snap));}catch{}
+  trCoreQueueSnapshotRecord(snap);
   return snap;
 }
 function createManualCloudSnapshot(){saveCloudSafetySnapshot('manual');cloudSetStatus('Snapshot local creado','ok');render();}
@@ -1283,7 +1430,7 @@ function restoreCloudSnapshot(id){
   const snap=loadCloudSnapshotHistory().find(x=>x.id===id);if(!snap)return alert('Snapshot no encontrado.');
   if(!confirm(`Restaurar snapshot de ${fmtDate(snap.savedAt)} con ${snap.counts?.operations||0} operaciones?\n\nLa sincronización automática quedará desactivada hasta que revises el estado.`))return;
   cloudConfig.autoSync=false;cloudConfig.localDirty=true;cloudConfig.localDirtyAt=new Date().toISOString();cloudClearConflict();saveCloudConfigLocal();
-  cloudSuppressAutoSync=true;state=normalizeState(clone(snap.state));ensureAllPlansV8();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;currentView='dashboard';render();
+  cloudSuppressAutoSync=true;state=normalizeState(clone(snap.state));ensureAllPlansV8();trCorePersistStateBridge('restore-snapshot');cloudSuppressAutoSync=false;currentView='dashboard';render();
 }
 function deleteCloudSnapshot(id){const hist=loadCloudSnapshotHistory().filter(x=>x.id!==id);saveCloudSnapshotHistory(hist);render();}
 function cloudSnapshotPanelV92(){
@@ -1374,7 +1521,7 @@ cloudPullState=async function(){
     }else if(!confirm(`Supabase contiene ${plans.length} plan(es) y ${ops.length} operación(es).\n\nSe cargará la revisión remota ${cloudShortRevision(ws.updated_at)} en este dispositivo. ¿Continuar?`)){cloudSetStatus('Descarga cancelada','idle');return;}
     saveCloudSafetySnapshot('before-cloud-pull');
     const incoming={operations:ops.map(x=>x.payload),opportunities:opps.map(x=>x.payload),importBatches:batches.map(x=>x.payload),settings:{instruments:inst.map(x=>x.payload)},tradingPlans:plans.map(x=>x.payload),currentPlanId:ws.current_plan_id||plans[0]?.id||''};
-    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;localStorage.setItem(STORAGE_KEY,JSON.stringify(state));cloudSuppressAutoSync=false;
+    state=normalizeState(incoming);ensureAllPlansV8();cloudSuppressAutoSync=true;const localSaved=await trCorePersistNow('cloud-pull');cloudSuppressAutoSync=false;if(!localSaved)throw new Error('La descarga llegó a memoria, pero no se pudo guardar en el almacenamiento durable.');
     cloudConfig.lastPull=new Date().toISOString();cloudConfig.baseRemoteRevision=ws.updated_at||'';cloudConfig.localDirty=false;cloudConfig.localDirtyAt='';cloudClearConflict();saveCloudConfigLocal();
     cloudSetStatus(`Datos cargados V9.2 · ${state.operations.length} operaciones`,'ok',{plans:state.tradingPlans.length,operations:state.operations.length,batches:state.importBatches.length,instruments:state.settings.instruments.length,revision:ws.updated_at});currentView='dashboard';render();
   }catch(e){cloudSetStatus('Error al cargar: '+e.message,'error');alert('No se pudo cargar desde Supabase:\n'+e.message);}
@@ -1557,7 +1704,7 @@ normalizeState=function(raw){
   return out;
 };
 state=normalizeState(state);ensureMasterLibrary();
-try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}catch{}
+trCorePersistStateBridge('schema-normalize');
 
 function libraryTypeLabel(type){return ({setup:'Setup',vd:'VD',context:'Contexto',nr:'NR',hypothesis:'Hipótesis',riskStrategy:'Estrategia',riskRules:'Gestión del riesgo',discretionaryTarget:'Salida discrecional'})[type]||type;}
 function libraryTypeOrder(type){return ['setup','vd','context','nr','hypothesis','riskStrategy','riskRules','discretionaryTarget'].indexOf(type);}
@@ -5202,7 +5349,7 @@ const renderV30Base=render;
 render=function(){v30EnsureBaselineLocal();document.getElementById('app').innerHTML=shell();const view=document.getElementById('view');view.innerHTML=currentView==='changes'?researchChangesView():currentView==='dashboard'?dashboard():currentView==='decision'?researchDecisionCenter():currentView==='operations'?operations():currentView==='calendar'?calendarView():currentView==='goals'?goalsView():currentView==='quality'?dataQualityView():currentView==='compliance'?complianceView():currentView==='lab'?analyticsLab():currentView==='review'?reviewView():currentView==='gallery'?gallery():currentView==='journal'?journal():currentView==='blocks'?blocks():currentView==='plans'?plansView():config();setTimeout(hydrateImageElements,0);};
 Object.assign(window,{toggleModeCard,researchChangesView,researchSetFilter,researchMarkAllRead,researchClearHistory,researchResetBaseline,researchAlertOpen});
 
-function v30EnsureBaselineLocal(){try{const p=getCurrentPlan();ensurePlanResearchChanges(p);if(!p?.researchChanges?.lastSnapshot){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);p.researchChanges.initializedAt=new Date().toISOString();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}}catch(e){console.warn('V30 baseline:',e);}}
+function v30EnsureBaselineLocal(){try{const p=getCurrentPlan();ensurePlanResearchChanges(p);if(!p?.researchChanges?.lastSnapshot){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);p.researchChanges.initializedAt=new Date().toISOString();trCorePersistStateBridge('research-baseline');}}catch(e){console.warn('V30 baseline:',e);}}
 /* Fija una referencia inicial sin fabricar eventos ni marcar el workspace como modificado al instalar V30. */
 v30EnsureBaselineLocal();
 render();
@@ -5345,7 +5492,7 @@ saveOperationFromForm=async function(){
 function v301ReconcileCurrentOos(){
   const p=getCurrentPlan();if(!p)return 0;ensurePlanResearchChanges(p);ensurePlanForwardTests(p);let added=0;
   (p.forwardTests||[]).forEach(t=>{const n=forwardFrozenOps(t).length;if(n<=0)return;const has=(p.researchChanges.events||[]).some(e=>e.kind==='oos'&&String(e.title||'').includes(t.name));if(has)return;v30AddEvent(p.researchChanges,{kind:'oos',severity:'info',title:`${t.name}: progreso OOS reconciliado`,detail:'V30.1 detectó progreso Forward existente sin un evento histórico asociado y lo ha incorporado al timeline.',metric:`${n}/${t.targetN||50} OOS`,route:'lab:forward'});added++;});
-  if(added){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}return added;
+  if(added){p.researchChanges.lastSnapshot=v30BuildSnapshot(p);trCorePersistStateBridge('research-change');}return added;
 }
 function v301CheckChangesNow(){const p=getCurrentPlan();if(!p)return;const before=researchUnreadCount(p);v30TrackChangesForPlan(p);persistV30Base();render();setTimeout(()=>{const after=researchUnreadCount(p);if(after===before)alert('Comprobación completada: no se detectaron transiciones nuevas respecto a la referencia actual.');},20);}
 
@@ -7040,3 +7187,18 @@ v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mo
 Object.assign(window,{v3110SetTargetTicks,v3110SetTrailTrigger,v3110SetTrailGiveback,v3110BestExitPanel,v316SetTab,v316MarketTabs,v316MarketDataView});
 render();
 /* ===== END V31.10 PATCH ===== */
+
+/* ===== V31.11 PATCH · Structural Foundation I ===== */
+const V3111_APP_LABEL='V31.11 · Structural Foundation I · IndexedDB State';
+function v3111PersistencePanel(){
+  const i=trCorePersistenceInfo(),ok=i.mode==='indexeddb',mode=ok?'IndexedDB · durable':i.mode==='localStorage-fallback'?'localStorage · emergencia':i.mode;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Persistencia del workspace</h3><div class="help">El estado principal y los snapshots ya no dependen de localStorage. Market Data e imágenes siguen en sus almacenes IndexedDB especializados.</div></div><span class="stable-pill ${ok?'':'warning'}">${esc(mode)}</span></div><div class="integrity-kpis"><div><span>Motor</span><strong>${esc(mode)}</strong></div><div><span>Último guardado</span><strong>${i.lastSavedAt?esc(fmtDate(i.lastSavedAt)):'—'}</strong></div><div><span>Snapshots</span><strong>${Number(i.snapshots)||0}</strong></div><div><span>Estado</span><strong class="${i.lastError?'negative':'positive'}">${i.lastError?'Revisar':'OK'}</strong></div></div>${i.lastError?`<div class="notice danger"><strong>Persistencia:</strong> ${esc(i.lastError)}</div>`:'<div class="notice"><strong>V31.11:</strong> las escrituras del estado se serializan en una cola IndexedDB. localStorage queda reservado para configuración pequeña y como fallback explícito si IndexedDB no puede abrirse.</div>'}</section>`;
+}
+const dataSecurityPanelV3111Base=dataSecurityPanel;
+dataSecurityPanel=function(){return v3111PersistencePanel()+dataSecurityPanelV3111Base();};
+async function v3111ForceSave(){const ok=await trCorePersistNow('manual-flush');if(ok){await trCoreFlush();alert('Estado guardado correctamente en '+(trCoreMode==='indexeddb'?'IndexedDB.':'el fallback local.'));}else alert('No se pudo confirmar el guardado. Revisa el aviso de persistencia.');if(currentView==='config'&&configTab==='data')render();}
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.11</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V3111_APP_LABEL)}</div><div class="help">Fase estructural 1: estado y snapshots migrados a IndexedDB con cola de escritura, fallback explícito y aviso visible ante fallos. La lógica financiera, Market Data y Best Exit quedan congelados para esta refactorización.</div></div></div></div>`;};
+Object.assign(window,{trCorePersistenceInfo,trCoreFlush,v3111PersistencePanel,v3111ForceSave});
+trCoreBootstrap();
+/* ===== END V31.11 PATCH ===== */
+

@@ -1,0 +1,43 @@
+{
+  "sourceVersion": "31.10.4",
+  "algorithm": "sha256",
+  "regions": {
+    "riskCalc": [
+      "function riskCalc(r){",
+      "function instrumentSnapshot"
+    ],
+    "v314CalculateTrade": [
+      "function v314CalculateTrade(",
+      "async function v314LoadTicks"
+    ],
+    "v315BuildSeries": [
+      "function v315BuildSeries(",
+      "async function v315LoadTrade"
+    ],
+    "v3194Chronology": [
+      "function v3194EntryTimeMs(",
+      "const calcMetricStatsV3194Base"
+    ],
+    "v3110ObservedEvidence": [
+      "function v3110ObservedEvidence(",
+      "function v3110TimeExit"
+    ],
+    "v3110TargetScenario": [
+      "function v3110TargetScenario(",
+      "function v3110TrailScenario"
+    ],
+    "v3110TrailScenario": [
+      "function v3110TrailScenario(",
+      "function v3110FmtPct"
+    ]
+  },
+  "hashes": {
+    "riskCalc": "f7af969cd616a922c01cbf32d0dc2123cda7417e556c52ca6edaf6ef8f17d6a9",
+    "v314CalculateTrade": "25af53a5f7752de74e51adba72534a000fc377ce4914d601f367b8c756d49eb7",
+    "v315BuildSeries": "dace2c46c3534770cb83ab81a680edff36db230bc49b0600f0b1fa3b66ec8f41",
+    "v3194Chronology": "5cca6fb022ed62ebcf1df44717b428522550ee8c14bd5efc663d85c01ee88dc4",
+    "v3110ObservedEvidence": "3160424acdd6fc429e529f6acaeaa7c91cda822ac7b55ef7ddbdb0b4eda626f8",
+    "v3110TargetScenario": "2bd698697f69c92aa1221057bd55d4d4018f348c4e625ef69fa82f99d045ab61",
+    "v3110TrailScenario": "92f2bf1583a34e76026743c485b9277b5b197ca96ae56cfa4135dfbe5fe62082"
+  }
+}

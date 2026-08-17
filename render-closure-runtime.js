@@ -3,6 +3,8 @@
 'use strict';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
+const TR_SOURCE_CONSOLIDATION_PHASE='31.23.6';
+const TR_SOURCE_CONSOLIDATION_LABEL='V31.23.6 · Source Consolidation · State Action Bridge';
 const TR_RENDER_SOURCE_DEBT_BUDGET=Object.freeze({sourceRenderAssignments:12,bundledRenderAssignments:0,sourceRenderBaseAliases:5,bundledRenderBaseAliases:0,renderDeclarations:1});
 const trRenderClosureBase=window.render;
 let trRenderClosureCalls=0;
@@ -26,7 +28,7 @@ const TradingResearchRender=Object.freeze({version:TR_RENDER_CLOSURE_VERSION,lab
 /* V31.23.5: one namespaced public render API; duplicate diagnostic aliases removed. */
 window.TradingResearchRender=TradingResearchRender;
 if(typeof dataSecurityPanel==='function'){const trRenderClosureDataSecurityBase=dataSecurityPanel;dataSecurityPanel=function(){return trRenderClosurePanel()+trRenderClosureDataSecurityBase();};}
-if(typeof v30ModeCard==='function')v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.23.5</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_RENDER_CLOSURE_LABEL)}</div><div class="help">Render consolidado + primera poda real de aliases globales redundantes. Los diagnósticos públicos permanecen accesibles mediante APIs TradingResearch*.</div></div></div></div>`;};
+if(typeof v30ModeCard==='function')v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_SOURCE_CONSOLIDATION_PHASE}</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_SOURCE_CONSOLIDATION_LABEL)}</div><div class="help">Render consolidado + Action Registry compartido entre Event Runtime y State Runtime. Las dependencias cross-runtime de acciones ya no necesitan lecturas directas desde window en el bundle.</div></div></div></div>`;};
 trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
 try{const side=document.querySelector('.side-bottom');if(side&&typeof v30ModeCard==='function')side.outerHTML=v30ModeCard();}catch(_){}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>window.render(),0);}catch(_){}

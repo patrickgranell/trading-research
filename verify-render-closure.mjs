@@ -25,13 +25,15 @@ need(stateRuntime.includes('const trStateRenderBase=render;'),'State Runtime ya 
 need(stateRuntime.includes('trDomainRenderGuardBegin()')&&stateRuntime.includes('trDomainRenderGuardEnd()'),'State Runtime perdió el boundary read-only de render.');
 need(stateRuntime.includes('window.render=render;'),'State Runtime no publica el render protegido.');
 need(closure.includes("const TR_RENDER_CLOSURE_VERSION='31.23.5'"),'Render closure tiene versión inesperada.');
-need(closure.includes("const TR_SOURCE_CONSOLIDATION_PHASE='31.23.8'"),'La tarjeta visible no identifica V31.23.8.');
-need(closure.includes('Second App Global Export Prune'),'Falta la etiqueta visible de la segunda poda de app.js.');
+need(closure.includes("const TR_SOURCE_CONSOLIDATION_PHASE='31.23.9'"),'La tarjeta visible no identifica V31.23.9.');
+need(closure.includes('Dynamic Action Guard'),'Falta la etiqueta visible de Dynamic Action Guard.');
 need(closure.includes('function trSourceConsolidationDiagnostics()'),'Falta diagnóstico runtime de Source Consolidation.');
 need(closure.includes('function trSourceConsolidationPanel()'),'Falta panel runtime de Source Consolidation.');
-for(const meta of ['trading-research-app-global-source-blocks','trading-research-app-global-bundled-blocks','trading-research-app-global-source-entries','trading-research-app-global-bundled-entries','trading-research-app-global-source-unique','trading-research-app-global-bundled-unique'])need(closure.includes(meta),`Source Consolidation no consume ${meta}.`);
+for(const meta of ['trading-research-app-global-source-blocks','trading-research-app-global-bundled-blocks','trading-research-app-global-source-entries','trading-research-app-global-bundled-entries','trading-research-app-global-source-unique','trading-research-app-global-bundled-unique','trading-research-dynamic-handler-slots','trading-research-dynamic-candidate-roots','trading-research-dynamic-protected-globals'])need(closure.includes(meta),`Source Consolidation no consume ${meta}.`);
 need(closure.includes('sourceEntries===375&&bundledEntries===347'),'Source Consolidation no valida el segundo lote de entries.');
 need(closure.includes('sourceUnique===332&&bundledUnique===306'),'Source Consolidation no valida el segundo lote de exports únicos.');
+need(closure.includes('dynamicSlots===4&&dynamicCandidates===8&&dynamicProtected===3'),'Source Consolidation no valida el inventario Dynamic Action Guard.');
+need(closure.includes('v311DashboardDragStart')&&closure.includes('v311DashboardDragEnd')&&closure.includes('v311DashboardDrop'),'Panel Dynamic Action Guard no identifica los tres globals protegidos.');
 need(closure.includes('sourceConsolidation:trSourceConsolidationDiagnostics'),'TradingResearchRender no expone el diagnóstico namespaced de consolidación.');
 need(closure.includes('const trRenderClosureBase=window.render;'),'Render closure no captura el entry point final previo.');
 need(closure.includes('function trCanonicalRenderEntry('),'Falta el entry point canónico.');
@@ -49,4 +51,4 @@ console.log(` - Source legacy render assignments: ${sourceDebt.assignments}; bun
 console.log(` - Source renderV*Base aliases: ${sourceDebt.baseAliases}; bundled: ${bundledDebt.baseAliases}`);
 console.log(` - Bundled destructive root writes: ${bundledDebt.destructiveRootWrites}`);
 console.log(' - Render diagnostics exposed only through TradingResearchRender');
-console.log(' - Visible consolidation phase: V31.23.8 + second app export prune diagnostics');
+console.log(' - Visible consolidation phase: V31.23.9 + Dynamic Action Guard diagnostics');

@@ -45,13 +45,23 @@ else{
 if(!fs.existsSync('dist/app-global-prune-inventory.json'))failures.push('dist/app-global-prune-inventory.json missing');
 else{
   const inv=JSON.parse(fs.readFileSync('dist/app-global-prune-inventory.json','utf8'));
-  if(String(inv.version)!=='31.23.8')failures.push(`App global prune version unexpected: ${inv.version}`);
+  if(String(inv.version)!=='31.23.9')failures.push(`App global prune version unexpected: ${inv.version}`);
   if(Number(inv.touchedBlocks)!==15)failures.push(`App global prune touched blocks changed: ${inv.touchedBlocks}`);
   if(Number(inv.removedBlocks)!==5)failures.push(`App global prune removed blocks changed: ${inv.removedBlocks}`);
   if(Number(inv.removedEntries)!==28)failures.push(`App global prune removed entries changed: ${inv.removedEntries}`);
   if(Number(inv.before?.objectAssignBlocks)!==51||Number(inv.after?.objectAssignBlocks)!==46)failures.push(`App global prune block inventory unexpected: ${inv.before?.objectAssignBlocks} -> ${inv.after?.objectAssignBlocks}`);
   if(Number(inv.before?.objectAssignEntries)!==375||Number(inv.after?.objectAssignEntries)!==347)failures.push(`App global prune entry inventory unexpected: ${inv.before?.objectAssignEntries} -> ${inv.after?.objectAssignEntries}`);
   if(Number(inv.before?.objectAssignUnique)!==332||Number(inv.after?.objectAssignUnique)!==306)failures.push(`App global prune unique inventory unexpected: ${inv.before?.objectAssignUnique} -> ${inv.after?.objectAssignUnique}`);
+  if(Number(inv.dynamicActionGuard?.dynamicHandlerSlots)!==4)failures.push(`Dynamic Action Guard slot inventory changed: ${inv.dynamicActionGuard?.dynamicHandlerSlots}`);
+  if(Number(inv.dynamicActionGuard?.protectedDynamicGlobals)!==3)failures.push(`Dynamic Action Guard protected globals changed: ${inv.dynamicActionGuard?.protectedDynamicGlobals}`);
+}
+if(!fs.existsSync('dist/dynamic-action-inventory.json'))failures.push('dist/dynamic-action-inventory.json missing');
+else{
+  const inv=JSON.parse(fs.readFileSync('dist/dynamic-action-inventory.json','utf8'));
+  if(Number(inv.dynamicHandlerSlots)!==4)failures.push(`dynamic-action-inventory slots changed: ${inv.dynamicHandlerSlots}`);
+  if(Number(inv.dynamicCandidateRoots)!==8)failures.push(`dynamic-action-inventory candidate roots changed: ${inv.dynamicCandidateRoots}`);
+  if(Number(inv.protectedDynamicGlobals)!==3)failures.push(`dynamic-action-inventory protected globals changed: ${inv.protectedDynamicGlobals}`);
+  for(const name of ['v311DashboardDragEnd','v311DashboardDragStart','v311DashboardDrop'])if(!inv.names?.protectedDynamicGlobals?.includes(name))failures.push(`dynamic-action-inventory missing protected root: ${name}`);
 }
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
@@ -92,6 +102,7 @@ console.log(' - Dead renderV*Base aliases in bundled app: 0');
 console.log(' - Bundled destructive root writes: 1 bootstrap write');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - App explicit window export pruning: 51 -> 46 blocks; 375 -> 347 entries; 332 -> 306 unique exports');
+console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');
 console.log(` - Output size: ${size} bytes`);

@@ -31,12 +31,30 @@ else{
   if(inv.removedAssignments!==12)failures.push(`expected 12 removed render assignments, got ${inv.removedAssignments}`);
   if(inv.closureRuntime!=='render-closure-runtime.js')failures.push('render inventory does not identify canonical closure runtime');
 }
+if(!fs.existsSync('dist/state-action-inventory.json'))failures.push('dist/state-action-inventory.json missing');
+else{
+  const inv=JSON.parse(fs.readFileSync('dist/state-action-inventory.json','utf8'));
+  if(inv.bridge!==true)failures.push('bundled State Action Bridge marker missing from inventory');
+  if(Number(inv.resolveCalls)<14)failures.push(`State Action Bridge resolve inventory too low: ${inv.resolveCalls}`);
+  if(Number(inv.publishCalls)<19)failures.push(`State Action Bridge publish inventory too low: ${inv.publishCalls}`);
+  if(Number(inv.crossRuntimeWindowReads)!==0)failures.push(`State Action Bridge leaves ${inv.crossRuntimeWindowReads} direct cross-runtime window reads`);
+  if(Number(inv.targetActions)!==61)failures.push(`State Action Bridge target inventory changed: ${inv.targetActions}`);
+}
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
   const legacyBundled=(appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length;
   const aliasesBundled=(appBlock[2].match(/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm)||[]).length;
   if(legacyBundled!==0)failures.push(`bundled app still contains ${legacyBundled} render=function assignments`);
   if(aliasesBundled!==0)failures.push(`bundled app still contains ${aliasesBundled} dead renderV*Base aliases`);
+}
+const stateBlock=scripts.find(m=>/data-tr-state-runtime=/.test(m[1]));
+if(stateBlock){
+  if(!stateBlock[2].includes('V31.23.6 STATE ACTION BRIDGE'))failures.push('bundled State Runtime is missing V31.23.6 bridge');
+  if(!stateBlock[2].includes("const trStateActionResolve=(name)=>"))failures.push('bundled State Runtime is missing registry-aware resolver');
+  if(!stateBlock[2].includes("const trStateActionPublish=(name,value)=>"))failures.push('bundled State Runtime is missing registry-aware publisher');
+  for(const name of ['confirmImportPreview','deleteImportBatch','editOperation','openOperationModal','saveInstrument','saveOperationFromForm','v314ImportExecFile','v314ImportMarketFile','v319SyncExecutionSetsToOperations']){
+    if(new RegExp(`\\bwindow\\.${name}\\b`).test(stateBlock[2]))failures.push(`bundled State Runtime still reads window.${name} directly`);
+  }
 }
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'tr-build-check-'));
 try{
@@ -54,6 +72,7 @@ console.log(' - Canonical render closure: bundled + inventoried');
 console.log(' - Legacy render reassignments in bundled app: 0');
 console.log(' - Dead renderV*Base aliases in bundled app: 0');
 console.log(' - Bundled destructive root writes: 1 bootstrap write');
+console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');
 console.log(` - Output size: ${size} bytes`);

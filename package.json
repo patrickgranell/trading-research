@@ -1,11 +1,11 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.18.0",
+  "version": "31.19.0",
   "scripts": {
-    "build": "node -e \"const fs=require('fs'),p=require('./package.json'),v=p.version;fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true});let h=fs.readFileSync('index.html','utf8'),css=fs.readFileSync('styles.css','utf8'),js=fs.readFileSync('app.js','utf8'),rt=fs.readFileSync('structural-runtime.js','utf8'),st=fs.readFileSync('state-runtime.js','utf8'),sec=fs.readFileSync('security-runtime.js','utf8');js=js.replace(/<\\/script/gi,'<\\\\/script');rt=rt.replace(/<\\/script/gi,'<\\\\/script');st=st.replace(/<\\/script/gi,'<\\\\/script');sec=sec.replace(/<\\/script/gi,'<\\\\/script');h=h.replace(/<link\\s+rel=[\\\"']stylesheet[\\\"']\\s+href=[\\\"']styles\\.css[\\\"']\\s*\\/?\\s*>/i,()=>'<style data-tr-build=\\\"'+v+'\\\">'+css+'</style>').replace(/<script\\s+src=[\\\"']app\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-build=\\\"'+v+'\\\">'+js+'</script>').replace(/<script\\s+src=[\\\"']structural-runtime\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-structural-runtime=\\\"'+v+'\\\">'+rt+'</script>').replace(/<script\\s+src=[\\\"']state-runtime\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-state-runtime=\\\"'+v+'\\\">'+st+'</script>').replace(/<script\\s+src=[\\\"']security-runtime\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-security-runtime=\\\"'+v+'\\\">'+sec+'</script>');h=h.replace('</head>','  <meta name=\\\"trading-research-build-version\\\" content=\\\"'+v+'\\\" />\\n</head>');fs.writeFileSync('dist/index.html',h)\"",
+    "build": "node build.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "prebuild": "node --check app.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node verify-security.mjs && node verify-structure.mjs"
+    "prebuild": "node --check app.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node --check event-runtime.js && node verify-security.mjs && node verify-events.mjs && node verify-structure.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"

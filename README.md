@@ -1,3 +1,32 @@
+# Trading Research V31.19 · Security Foundation II · Event Delegation
+
+Esta fase cierra la deuda de **Event Delegation** que quedó explícitamente pendiente en V31.18, sin modificar las fórmulas financieras ni el modelo de datos.
+
+## Qué cambia
+
+- Los atributos ejecutables `onclick`, `onchange`, `oninput` y `onsubmit` dejan de existir en el HTML generado. Se sustituyen por atributos declarativos `data-tr-on*`.
+- Un único runtime (`event-runtime.js`) instala cuatro listeners globales en `document` para `click`, `change`, `input` y `submit`, y resuelve las acciones por propagación.
+- No se utiliza `eval()` ni `new Function()`. Los handlers históricos se interpretan mediante un parser restringido que solo admite el subconjunto de expresiones ya usado por Trading Research.
+- El intérprete bloquea acceso a `constructor`, `prototype` y `__proto__`.
+- Las pocas acciones históricas que mutaban directamente estado léxico de UI (`opsViewState`, `labState`, `galleryViewState`, etc.) pasan por `trLegacyStateCommand()`, un boundary explícito dentro de `app.js`.
+- `Configuración → Datos y seguridad` añade diagnóstico específico: listeners globales, handlers delegados, handlers inline DOM, errores de parseo, errores de ejecución y uso de eval/Function.
+- El modo actual pasa a **V31.19**.
+
+## Invariantes de aceptación
+
+- `Handlers inline DOM = 0`.
+- `Parse errors = 0`.
+- `Exec errors = 0`.
+- `eval / Function = No`.
+- La navegación, formularios, filtros, Market Data y Operaciones deben conservar su comportamiento.
+- Las 7 regiones financieras congeladas desde V31.10.4 permanecen byte-equivalentes.
+
+## Qué queda pendiente
+
+La siguiente frontera es **CSP estricta**. Event Delegation ya no depende de JavaScript inline ni de ejecución dinámica, de modo que la CSP puede abordarse ahora sin mezclarla con una migración masiva de eventos.
+
+---
+
 # Trading Research V31.18 · Security Foundation I · User Content Boundary
 
 Esta fase aborda la primera parte de la auditoría de seguridad de renderizado y formularios sin modificar las fórmulas financieras. A diferencia de las fases estructurales anteriores, V31.18 introduce un **delta mínimo y deliberado en `app.js`** para cerrar sinks concretos y dar nombres semánticos a los controles que ahora se leen con `FormData`.

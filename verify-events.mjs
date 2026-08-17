@@ -1,0 +1,36 @@
+import fs from 'node:fs';
+const app=fs.readFileSync('app.js','utf8');
+const structural=fs.readFileSync('structural-runtime.js','utf8');
+const stateRuntime=fs.readFileSync('state-runtime.js','utf8');
+const security=fs.readFileSync('security-runtime.js','utf8');
+const evt=fs.readFileSync('event-runtime.js','utf8');
+const index=fs.readFileSync('index.html','utf8');
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const fail=[];const need=(x,m)=>{if(!x)fail.push(m);};
+const executableAttr=/\s(?:onclick|onchange|oninput|onsubmit)\s*=/g;
+const delegatedAttr=/\sdata-tr-on(?:click|change|input|submit)\s*=/g;
+need(pkg.version==='31.19.0',`Versión inesperada ${pkg.version}`);
+need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
+need(index.indexOf('event-runtime.js')>index.indexOf('security-runtime.js'),'event-runtime.js debe cargar después de security-runtime.js.');
+for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security]]){
+  const n=(src.match(executableAttr)||[]).length;need(n===0,`${name}: quedan ${n} handlers HTML ejecutables.`);
+}
+const delegated=(app.match(delegatedAttr)||[]).length+(structural.match(delegatedAttr)||[]).length+(stateRuntime.match(delegatedAttr)||[]).length+(security.match(delegatedAttr)||[]).length;
+need(delegated>500,`Solo se detectan ${delegated} handlers declarativos; la migración parece incompleta.`);
+need(evt.includes("const TR_EVENT_TYPES=['click','change','input','submit']"),'Faltan los cuatro eventos delegados.');
+need(evt.includes('document.addEventListener(t,trEventDispatch,false)'),'No se instalan listeners delegados en document.');
+need(evt.includes('function trEventParser(')&&evt.includes('function trEventCompile('),'Falta parser restringido de handlers.');
+need(evt.includes('fn===globalThis.eval||fn===globalThis.Function'),'El runtime no bloquea eval/Function.');
+need(!/new\s+Function\s*\(/.test(evt)&&!/\beval\s*\(/.test(evt),'El runtime usa ejecución dinámica.');
+need(evt.includes("new Set(['__proto__','prototype','constructor'])"),'Falta bloqueo de prototype-pollution en el intérprete.');
+need(app.includes('function trLegacyStateCommand('),'Falta command boundary para antiguas mutaciones léxicas.');
+for(const key of ['ops-risk-policy','gallery-reset','journal-set','journal-reset','lab-clear','lab-compare-clear','reports-compare-open'])need(app.includes(`case '${key}'`),`Falta comando ${key}.`);
+need(evt.includes('inlineHandlers:a.inlineHandlers')&&evt.includes('usesEval:false'),'Diagnóstico de delegación incompleto.');
+need(evt.includes('<span>Handlers inline DOM</span>'),'Datos y seguridad no muestra handlers inline DOM.');
+if(fail.length){console.error('\nEvent delegation verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
+console.log('Event delegation verification OK');
+console.log(` - Declarative handlers in source: ${delegated}`);
+console.log(' - Executable onclick/onchange/oninput/onsubmit attributes in source: 0');
+console.log(' - Delegated document listeners: click/change/input/submit');
+console.log(' - Dynamic execution (eval/new Function): 0');
+console.log(' - Legacy lexical UI assignments routed through explicit command boundary');

@@ -66,8 +66,9 @@ function trStyleAttrStart(){
   trStyleAttrObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:[TR_STYLE_ATTR_SOURCE]});
 }
 
+/* V31.23.5: diagnostics stay behind the namespaced public API; the duplicate
+ * window.trStyleAttrDiagnostics alias is no longer required. */
 window.TradingResearchStyleAttrs=Object.freeze({version:TR_STYLE_ATTR_VERSION,diagnostics:trStyleAttrDiagnostics,rescan:()=>trStyleAttrScan(document)});
-Object.assign(window,{trStyleAttrDiagnostics});
 trStyleAttrStart();
 })();
 /* ===== END V31.22 STYLE ATTRIBUTE BOUNDARY ===== */

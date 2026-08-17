@@ -1,12 +1,11 @@
 import fs from 'node:fs';
-import crypto from 'node:crypto';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const index=fs.readFileSync('index.html','utf8');
 const build=fs.readFileSync('build.mjs','utf8');
 const runtime=fs.readFileSync('csp-runtime.js','utf8');
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
-need(pkg.version==='31.21.0',`Versión inesperada ${pkg.version}`);
-need(index.includes('trading-research-source-version" content="31.21.0"'),'source-version no es 31.21.0.');
+need(pkg.version==='31.21.1',`Versión inesperada ${pkg.version}`);
+need(index.includes('trading-research-source-version" content="31.21.1"'),'source-version no es 31.21.1.');
 need(index.includes('<script src="csp-runtime.js"></script>'),'index.html no carga csp-runtime.js.');
 need(index.indexOf('csp-runtime.js')>index.indexOf('event-runtime.js'),'csp-runtime.js debe cargar después de event-runtime.js.');
 need(index.includes('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js'),'Supabase SDK no está fijado a 2.112.3 UMD.');

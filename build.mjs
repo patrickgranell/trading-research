@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-source-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 fs.rmSync('dist',{recursive:true,force:true});
@@ -8,9 +9,13 @@ let h=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const safeScript=s=>s.replace(/<\/script/gi,'<\\/script');
 const transformStyleAttrs=s=>s.replace(/([<\s])style\s*=(['"])/g,(_m,prefix,quote)=>`${prefix}data-tr-style=${quote}`);
-const bundledScript=file=>safeScript(transformStyleAttrs(fs.readFileSync(file,'utf8')));
+const rawScript=file=>fs.readFileSync(file,'utf8');
+const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)));
+const appSource=rawScript('app.js');
+const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
+const bundledApp=safeScript(transformStyleAttrs(appConsolidation.source));
 const replacements=[
-  ['app.js','data-tr-build',bundledScript('app.js')],
+  ['app.js','data-tr-build',bundledApp],
   ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledScript('style-attr-runtime.js')],
   ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledScript('reports-purity-runtime.js')],
   ['structural-runtime.js','data-tr-structural-runtime',bundledScript('structural-runtime.js')],
@@ -36,12 +41,13 @@ for(const file of styleSourceFiles){
   }
   for(const m of src.matchAll(/\.style\.([A-Za-z_$][\w$]*)\s*=/g))styleProperties[m[1]]=(styleProperties[m[1]]||0)+1;
 }
-const appSource=fs.readFileSync('app.js','utf8');
+const sourceRenderDebt=renderDebtInventory(appSource);
+const bundledRenderDebt=renderDebtInventory(appConsolidation.source);
 const renderInventory={
   version:v,
-  legacyAssignments:(appSource.match(/\brender\s*=\s*function\s*\(/g)||[]).length,
-  legacyDeclarations:(appSource.match(/\bfunction\s+render\s*\(/g)||[]).length,
-  destructiveRootWrites:(appSource.match(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/g)||[]).length,
+  source:{...sourceRenderDebt},
+  bundled:{...bundledRenderDebt},
+  removedAssignments:appConsolidation.removed,
   closureRuntime:'render-closure-runtime.js',
   canonicalChain:['structural-runtime.js','state-runtime.js','render-closure-runtime.js']
 };
@@ -55,7 +61,7 @@ for(const [file,attr,src] of replacements){
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
   h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
-h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n  <meta name="trading-research-csp-version" content="${v}" />\n  <meta name="trading-research-style-source-inline-attrs" content="${styleInlineAttributes}" />\n  <meta name="trading-research-style-effective-inline-attrs" content="${effectiveInlineAttributes}" />\n  <meta name="trading-research-style-source-cssom-writes" content="${styleCssomWrites}" />\n</head>`);
+h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n  <meta name="trading-research-csp-version" content="${v}" />\n  <meta name="trading-research-style-source-inline-attrs" content="${styleInlineAttributes}" />\n  <meta name="trading-research-style-effective-inline-attrs" content="${effectiveInlineAttributes}" />\n  <meta name="trading-research-style-source-cssom-writes" content="${styleCssomWrites}" />\n  <meta name="trading-research-render-source-legacy-assignments" content="${sourceRenderDebt.assignments}" />\n  <meta name="trading-research-render-bundled-legacy-assignments" content="${bundledRenderDebt.assignments}" />\n</head>`);
 fs.writeFileSync('dist/index.html',h);
 
 const scriptHashes=replacements.map(([, ,src])=>sha256(src));
@@ -91,4 +97,4 @@ console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs transformed; ${effectiveInlineAttributes} effective inline attrs`);
 console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain allowed by the strict attribute policy`);
-console.log(`Render inventory -> ${renderInventory.legacyAssignments} legacy assignments + ${renderInventory.legacyDeclarations} declaration; canonical closure bundled`);
+console.log(`Render consolidation -> removed ${appConsolidation.removed} legacy assignments from bundled app; bundled legacy assignments ${bundledRenderDebt.assignments}`);

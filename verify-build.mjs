@@ -9,15 +9,22 @@ if(!fs.existsSync(file)){console.error('Build verification FAILED: dist/index.ht
 const h=fs.readFileSync(file,'utf8');
 const failures=[];
 const count=s=>h.split(s).length-1;
-const expectedMarkers=[['data-tr-build',2],['data-tr-style-attr-runtime',1],['data-tr-reports-purity-runtime',1],['data-tr-structural-runtime',1],['data-tr-state-runtime',1],['data-tr-security-runtime',1],['data-tr-event-runtime',1],['data-tr-csp-runtime',1],['data-tr-style-runtime',1]];
+const expectedMarkers=[['data-tr-build',2],['data-tr-style-attr-runtime',1],['data-tr-reports-purity-runtime',1],['data-tr-structural-runtime',1],['data-tr-state-runtime',1],['data-tr-security-runtime',1],['data-tr-event-runtime',1],['data-tr-csp-runtime',1],['data-tr-style-runtime',1],['data-tr-render-closure-runtime',1]];
 for(const [marker,expected] of expectedMarkers){const n=count(`${marker}="${v}"`);if(n!==expected)failures.push(`${marker}: expected ${expected}, got ${n}`);}
 if(count('<!doctype html>')!==1)failures.push(`doctype duplicated: ${count('<!doctype html>')}`);
 if(count('function modalShell(title,body,footer)')!==1)failures.push(`app.js duplicated/corrupted: modalShell count ${count('function modalShell(title,body,footer)')}`);
-if(/<script\s+src=["'](?:app|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime)\.js["']/i.test(h))failures.push('local runtime script src remains after bundling');
+if(/<script\s+src=["'](?:app|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime|render-closure-runtime)\.js["']/i.test(h))failures.push('local runtime script src remains after bundling');
 if(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']/i.test(h))failures.push('styles.css link remains after bundling');
 const size=Buffer.byteLength(h);if(size>3_000_000)failures.push(`bundle unexpectedly large: ${size} bytes`);
-const scripts=[...h.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime)=/.test(m[1]));
-if(scripts.length!==9)failures.push(`expected 9 bundled JS blocks, got ${scripts.length}`);
+const scripts=[...h.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime|render-closure-runtime)=/.test(m[1]));
+if(scripts.length!==10)failures.push(`expected 10 bundled JS blocks, got ${scripts.length}`);
+if(!fs.existsSync('dist/render-inventory.json'))failures.push('dist/render-inventory.json missing');
+else{
+  const inv=JSON.parse(fs.readFileSync('dist/render-inventory.json','utf8'));
+  if(inv.legacyAssignments>24)failures.push(`legacy render assignments exceeded budget: ${inv.legacyAssignments}`);
+  if(inv.legacyDeclarations>1)failures.push(`legacy render declarations exceeded budget: ${inv.legacyDeclarations}`);
+  if(inv.closureRuntime!=='render-closure-runtime.js')failures.push('render inventory does not identify canonical closure runtime');
+}
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'tr-build-check-'));
 try{
   scripts.forEach((m,i)=>{
@@ -29,7 +36,8 @@ try{
 if(failures.length){console.error('Build verification FAILED');for(const f of failures)console.error(' - '+f);process.exit(1);}
 console.log('Build verification OK');
 console.log(' - Single HTML document: yes');
-console.log(' - Bundled JS blocks: 9/9, syntax OK');
+console.log(' - Bundled JS blocks: 10/10, syntax OK');
+console.log(' - Canonical render closure: bundled + inventoried');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');
 console.log(` - Output size: ${size} bytes`);

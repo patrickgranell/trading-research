@@ -1,9 +1,9 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.11.0",
+  "version": "31.12.0",
   "scripts": {
-    "build": "node -e \"const fs=require('fs'),p=require('./package.json'),v=p.version;fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true});let h=fs.readFileSync('index.html','utf8'),css=fs.readFileSync('styles.css','utf8'),js=fs.readFileSync('app.js','utf8');js=js.replace(/<\\\\/script/gi,'<\\\\\\\\/script');h=h.replace(/<link\\\\s+rel=[\\\\\\\"']stylesheet[\\\\\\\"']\\\\s+href=[\\\\\\\"']styles\\\\.css[\\\\\\\"']\\\\s*\\\\/?\\\\s*>/i,()=>'<style data-tr-build=\\\\\\\"'+v+'\\\\\\\">'+css+'</style>').replace(/<script\\\\s+src=[\\\\\\\"']app\\\\.js[\\\\\\\"']\\\\s*><\\\\/script>/i,()=>'<script data-tr-build=\\\\\\\"'+v+'\\\\\\\">'+js+'</script>');h=h.replace('</head>','  <meta name=\\\\\\\"trading-research-build-version\\\\\\\" content=\\\\\\\"'+v+'\\\\\\\" />\\\\n</head>');fs.writeFileSync('dist/index.html',h)\"",
+    "build": "node -e \"const fs=require('fs'),p=require('./package.json'),v=p.version;fs.rmSync('dist',{recursive:true,force:true});fs.mkdirSync('dist',{recursive:true});let h=fs.readFileSync('index.html','utf8'),css=fs.readFileSync('styles.css','utf8'),js=fs.readFileSync('app.js','utf8'),rt=fs.readFileSync('structural-runtime.js','utf8');js=js.replace(/<\\/script/gi,'<\\\\/script');rt=rt.replace(/<\\/script/gi,'<\\\\/script');h=h.replace(/<link\\s+rel=[\\\"']stylesheet[\\\"']\\s+href=[\\\"']styles\\.css[\\\"']\\s*\\/?\\s*>/i,()=>'<style data-tr-build=\\\"'+v+'\\\">'+css+'</style>').replace(/<script\\s+src=[\\\"']app\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-build=\\\"'+v+'\\\">'+js+'</script>').replace(/<script\\s+src=[\\\"']structural-runtime\\.js[\\\"']\\s*><\\/script>/i,()=>'<script data-tr-structural-runtime=\\\"'+v+'\\\">'+rt+'</script>');h=h.replace('</head>','  <meta name=\\\"trading-research-build-version\\\" content=\\\"'+v+'\\\" />\\n</head>');fs.writeFileSync('dist/index.html',h)\"",
     "deploy": "npm run build && wrangler deploy",
     "prebuild": "node --check app.js && node verify-structure.mjs"
   },

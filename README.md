@@ -1,3 +1,40 @@
+# Trading Research V31.12
+
+## Structural Foundation II-A · Shell persistente + router central
+
+Esta versión continúa la refactorización estructural sin modificar la lógica financiera. V31.11 ya movió el workspace a IndexedDB; V31.12 cambia el coordinador de render para que la aplicación deje de destruir sidebar, selector de plan, apariencia y shell completo en cada actualización.
+
+### Qué cambia
+
+- Se introduce `structural-runtime.js` como primer módulo de runtime separado del histórico `app.js`.
+- El shell completo se monta una sola vez por carga normal.
+- `render()` pasa a usar un router central de 18 vistas y sustituye únicamente `#view`.
+- La sidebar se sincroniza de forma incremental: vista activa, grupo abierto, selector de Trading Plan, tema y contador de Cambios.
+- Si un render de la misma vista ocurre mientras el usuario está escribiendo en un input/textarea/select, se conserva el valor del formulario, el foco, la selección del cursor y la posición de scroll.
+- Se mantienen los hooks de hidratación de imágenes y ayuda contextual.
+- `Configuración → Datos y seguridad` añade un diagnóstico del motor de render. En una sesión normal `Shell mounts` debe permanecer en **1** aunque navegues o cambies filtros.
+
+### Qué NO cambia todavía
+
+- Las vistas internas siguen regenerando su propio `#view` completo. La siguiente etapa migrará módulos concretos (Operaciones, Dashboard, Market Data, etc.) a renders parciales.
+- Los handlers inline históricos siguen existiendo. Se eliminarán progresivamente cuando cada vista tenga su controlador delegado.
+- No cambia ningún cálculo financiero, persistencia, Market Data, Best Exit ni SQL.
+
+### Prueba recomendada
+
+1. Recargar y comprobar `Configuración → Datos y seguridad`: IndexedDB debe seguir en `OK` y el motor de render debe indicar `Shell persistente`, `Shell mounts = 1`.
+2. Navegar por Dashboard → Operaciones → Market Data → Bloques → Configuración. `Shell mounts` debe seguir siendo 1 mientras `Renders de vista` aumenta.
+3. Abrir una vista con un campo de texto, escribir sin guardar y provocar un render de esa misma vista (por ejemplo mediante una actualización secundaria compatible). El foco y texto no deben desaparecer.
+4. Revisar Dashboard, Bloques y Best Exit para confirmar que las métricas siguen idénticas.
+
+### Guardia de regresión
+
+`npm run build` conserva las 7 huellas financieras congeladas desde V31.10.4 y añade verificaciones del nuevo runtime: router central, shell persistente y continuidad de inputs.
+
+No requiere SQL nuevo.
+
+---
+
 # Trading Research V31.11
 
 ## Structural Foundation I · Persistencia durable

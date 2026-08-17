@@ -1,4 +1,4 @@
-# Trading Research V31.14 · Structural Foundation III-A
+# Trading Research V31.14.1 · Structural Foundation III-A
 
 Esta versión inicia la separación formal entre **estado durable de dominio** y **estado efímero de interfaz** sin modificar `app.js` ni las fórmulas financieras.
 
@@ -286,3 +286,8 @@ No requiere cambios SQL.
 - `Máximo marketable` pasa a `Mejor cierre marketable`, más claro cuando el mejor cierre sigue siendo negativo.
 - Si un fill límite pasivo supera el benchmark Bid/Ask, la tarjeta se denomina `Ventaja pasiva` en vez de mostrar ticks bajo `Retención del máximo`.
 - Sin cambios en la ventana temporal: ningún escenario usa datos posteriores al fill real.
+
+
+## V31.14.1 · Semantic Mutation Boundary
+
+Corrige la instrumentación de DomainStore: los normalizadores históricos que reconstruyen arrays/objetos con contenido idéntico ya no generan falsos `pending mutations`. El estado `OK` exige ahora cero mutaciones pendientes. Los commits explícitos mantienen su etiqueta durante el boundary de persistencia para agrupar también las normalizaciones/research tracking derivadas del mismo comando. No cambia `app.js` ni ninguna fórmula financiera.

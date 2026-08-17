@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
+import {TR_APP_GLOBAL_PRUNE_NAMES} from './app-global-prune-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 const file='dist/index.html';
@@ -44,11 +45,13 @@ else{
 if(!fs.existsSync('dist/app-global-prune-inventory.json'))failures.push('dist/app-global-prune-inventory.json missing');
 else{
   const inv=JSON.parse(fs.readFileSync('dist/app-global-prune-inventory.json','utf8'));
+  if(String(inv.version)!=='31.23.8')failures.push(`App global prune version unexpected: ${inv.version}`);
+  if(Number(inv.touchedBlocks)!==15)failures.push(`App global prune touched blocks changed: ${inv.touchedBlocks}`);
   if(Number(inv.removedBlocks)!==5)failures.push(`App global prune removed blocks changed: ${inv.removedBlocks}`);
-  if(Number(inv.removedEntries)!==7)failures.push(`App global prune removed entries changed: ${inv.removedEntries}`);
+  if(Number(inv.removedEntries)!==28)failures.push(`App global prune removed entries changed: ${inv.removedEntries}`);
   if(Number(inv.before?.objectAssignBlocks)!==51||Number(inv.after?.objectAssignBlocks)!==46)failures.push(`App global prune block inventory unexpected: ${inv.before?.objectAssignBlocks} -> ${inv.after?.objectAssignBlocks}`);
-  if(Number(inv.before?.objectAssignEntries)!==375||Number(inv.after?.objectAssignEntries)!==368)failures.push(`App global prune entry inventory unexpected: ${inv.before?.objectAssignEntries} -> ${inv.after?.objectAssignEntries}`);
-  if(Number(inv.before?.objectAssignUnique)!==332||Number(inv.after?.objectAssignUnique)!==326)failures.push(`App global prune unique inventory unexpected: ${inv.before?.objectAssignUnique} -> ${inv.after?.objectAssignUnique}`);
+  if(Number(inv.before?.objectAssignEntries)!==375||Number(inv.after?.objectAssignEntries)!==347)failures.push(`App global prune entry inventory unexpected: ${inv.before?.objectAssignEntries} -> ${inv.after?.objectAssignEntries}`);
+  if(Number(inv.before?.objectAssignUnique)!==332||Number(inv.after?.objectAssignUnique)!==306)failures.push(`App global prune unique inventory unexpected: ${inv.before?.objectAssignUnique} -> ${inv.after?.objectAssignUnique}`);
 }
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
@@ -58,11 +61,9 @@ if(appBlock){
   if(aliasesBundled!==0)failures.push(`bundled app still contains ${aliasesBundled} dead renderV*Base aliases`);
   const globals=globalSurfaceInventory(appBlock[2]);
   if(globals.objectAssignBlocks!==46)failures.push(`bundled app explicit Object.assign blocks: ${globals.objectAssignBlocks}, expected 46`);
-  if(globals.objectAssignEntries!==368)failures.push(`bundled app explicit entries: ${globals.objectAssignEntries}, expected 368`);
-  if(globals.objectAssignUnique!==326)failures.push(`bundled app explicit unique exports: ${globals.objectAssignUnique}, expected 326`);
-  for(const exact of ['Object.assign(window,{exitLabModule});','Object.assign(window,{v303MetricQualitySummary});','Object.assign(window,{v3192SyncAnkoraEconomics});','Object.assign(window,{v3193ChronologicalOps});','Object.assign(window,{v3194ChronologicalOps,v3194CompareOps,v3194EquityFromZero});']){
-    if(appBlock[2].includes(exact))failures.push(`bundled app still contains pruned export block: ${exact}`);
-  }
+  if(globals.objectAssignEntries!==347)failures.push(`bundled app explicit entries: ${globals.objectAssignEntries}, expected 347`);
+  if(globals.objectAssignUnique!==306)failures.push(`bundled app explicit unique exports: ${globals.objectAssignUnique}, expected 306`);
+  for(const name of TR_APP_GLOBAL_PRUNE_NAMES)if(globals.names.objectAssign.includes(name))failures.push(`bundled app still explicitly exports pruned name: ${name}`);
 }
 const stateBlock=scripts.find(m=>/data-tr-state-runtime=/.test(m[1]));
 if(stateBlock){
@@ -90,7 +91,7 @@ console.log(' - Legacy render reassignments in bundled app: 0');
 console.log(' - Dead renderV*Base aliases in bundled app: 0');
 console.log(' - Bundled destructive root writes: 1 bootstrap write');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
-console.log(' - App explicit window export pruning: 51 -> 46 blocks; 332 -> 326 unique exports');
+console.log(' - App explicit window export pruning: 51 -> 46 blocks; 375 -> 347 entries; 332 -> 306 unique exports');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');
 console.log(` - Output size: ${size} bytes`);

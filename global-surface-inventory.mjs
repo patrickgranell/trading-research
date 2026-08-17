@@ -127,4 +127,11 @@ if(import.meta.url===`file://${process.argv[1]}`){
   console.log(` - Declarative handlers scanned: ${d.handlerDeclarations}`);
   console.log(` - Handler root calls matching explicit globals: ${d.handlerBackedGlobals}/${d.handlerRootCalls}`);
   console.log(` - Top handler-backed globals: ${d.names.eventBacked.slice(0,30).join(', ')||'none'}`);
+  console.log(` - Handler roots without explicit export: ${d.names.eventUnmatched.join(', ')||'none'}`);
+  console.log(` - Explicit globals not called by declarative handlers: ${d.names.exportedNotSeenInHandlers.length}`);
+  for(const file of files){
+    const x=report.perFile[file];
+    if(x.objectAssignBlocks||x.directWindowAssignments)console.log(`   · ${file}: assign blocks ${x.objectAssignBlocks}, entries ${x.objectAssignEntries}/${x.objectAssignUnique} unique, direct ${x.directWindowAssignments}/${x.directWindowUnique} unique`);
+  }
+  console.log(` - First non-handler explicit globals: ${d.names.exportedNotSeenInHandlers.slice(0,80).join(', ')||'none'}`);
 }

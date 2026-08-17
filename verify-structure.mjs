@@ -11,7 +11,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const frozenAppSha='659a3a43664d2162eae5b60e1cd16f2830759e3ba49735d901f1216e48ef8d80';
 if(sha(app)!==frozenAppSha)fail.push(`app.js dejó de ser byte-idéntico a V31.12.1 (${sha(app).slice(0,10)} != ${frozenAppSha.slice(0,10)}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.15.0')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.16.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("function persist(){return trCorePersistStateBridge('persist');}"))fail.push('persist() no usa el bridge durable.');
 if(/localStorage\.setItem\(STORAGE_KEY/.test(app))fail.push('Queda una escritura directa del estado a localStorage.');
@@ -22,7 +22,7 @@ if(!runtime.includes('function trRenderEnsureShell('))fail.push('Falta shell per
 if(!runtime.includes('function trPartialRenderOperations('))fail.push('Falta render parcial de Operaciones.');
 if(!runtime.includes('function trPartialRenderMarket('))fail.push('Falta render parcial de Market Data.');
 if(!runtime.includes('TR_OPERATION_DRAFT_KEY'))fail.push('Falta recuperación temporal de borradores.');
-if(!stateRuntime.includes("const TR_STATE_RUNTIME_VERSION='31.15'"))fail.push('Falta State Runtime V31.15.');
+if(!stateRuntime.includes("const TR_STATE_RUNTIME_VERSION='31.16'"))fail.push('Falta State Runtime V31.16.');
 if(!stateRuntime.includes('const TRDomainStore=Object.freeze'))fail.push('Falta DomainStore.');
 if(!stateRuntime.includes('const TRUIStore=Object.freeze'))fail.push('Falta UIStore.');
 if(!stateRuntime.includes('new Proxy(value'))fail.push('Falta proxy profundo de mutaciones de dominio.');
@@ -42,6 +42,9 @@ if(!stateRuntime.includes("targetId?'operation.update':'operation.create'"))fail
 if(!stateRuntime.includes('if(trDomainCommandDepth){trDomainCommandPersistRequests++;return true;}'))fail.push('Persistencias legacy no se coalescen dentro de comandos.');
 if(!stateRuntime.includes('if(trDomainCommandDepth){trDomainCommandRenderRequests++;return;}'))fail.push('Renders legacy no se coalescen dentro de comandos.');
 for(const label of ['operation.emotional.update','operation.imported.update','operation.data-quality.update','operation.execution.link','operation.execution.unlink'])if(!stateRuntime.includes(label))fail.push(`Falta comando migrado ${label}.`);
+for(const label of ['contract.create','contract.update','plan.create','plan.update','plan.clone','plan.status.update','plan.risk-strategy.create','plan.risk-strategy.update','plan.risk-rules.update','plan.config.reset','plan.taxonomy.option.add','plan.taxonomy.option.remove','plan.hypothesis.create','plan.hypothesis.update','plan.emotion-taxonomy.add','plan.emotion-taxonomy.remove','plan.taxonomy.asset.create','plan.taxonomy.asset.update','plan.taxonomy.asset.delete','plan.visual-reference.create','plan.visual-reference.update','plan.visual-reference.delete','plan.checklist.create','plan.checklist.update','plan.checklist.delete','plan.checklist.reorder','plan.mistake-rule.create','plan.mistake-rule.update','plan.mistake-rule.delete','plan.mistake-rule.reorder','goal.create','goal.update','goal.delete','goal.status.update'])if(!stateRuntime.includes(label))fail.push(`Falta comando de configuración migrado ${label}.`);
+if(!stateRuntime.includes('function trWrapDomainCommandGlobal('))fail.push('Falta wrapper genérico de comandos de configuración.');
+
 if(!stateRuntime.includes("navigate=function(view){return TRUIStore.navigate(view);}"))fail.push('Navegación no migrada a UIStore.');
 if(!stateRuntime.includes("['v316SetTab','market.phase']"))fail.push('Market Data no está instrumentado por UIStore.');
 if(!stateRuntime.includes("['setOpsUnit','operations.unit']"))fail.push('Operaciones no está instrumentado por UIStore.');
@@ -53,6 +56,6 @@ console.log('Structural verification OK');
 console.log(' - app.js: byte-identical to V31.12.1');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
-console.log(' - State runtime: Operation command batching + read-only render + DomainStore/UIStore');
+console.log(' - State runtime: Operations + Plan Configuration command batching + read-only render + DomainStore/UIStore');
 console.log(' - Direct state localStorage writes: 0');
 console.log(` - Financial regions unchanged vs ${baseline.sourceVersion}: ${Object.keys(baseline.hashes).length}/${Object.keys(baseline.hashes).length}`);

@@ -1,3 +1,31 @@
+# Trading Research V31.16 · Structural Foundation III-B2 · Plan Configuration Command Boundary
+
+V31.16 extiende el patrón transaccional validado en V31.15 al segundo gran bloque de dominio: **contratos y configuración durable del Trading Plan**. Se mantiene intacta la lógica histórica; el runtime la ejecuta dentro de comandos explícitos y coalesce sus `persist()` / `render()` en un único commit, un snapshot durable y un render final.
+
+## Comandos migrados
+
+- Contratos: `contract.create`, `contract.update`.
+- Trading Plans: `plan.create`, `plan.update`, `plan.clone`, `plan.status.update`.
+- Gestión: `plan.risk-strategy.create/update`, `plan.risk-rules.update`, `plan.config.reset`.
+- Taxonomías: opciones Setup/VD/NR/salidas, hipótesis, taxonomía emocional, fichas enriquecidas de Setup/VD/Contexto y referencias visuales.
+- Checklist: crear, editar, eliminar y reordenar reglas.
+- Errores: crear, editar, eliminar y reordenar la taxonomía explícita.
+- Objetivos: crear, editar, eliminar y activar/pausar.
+
+Los comandos de Operaciones de V31.15 permanecen activos. Imports, restauraciones y Cloud no se migran en esta fase; se reservan para un boundary transaccional específico porque reemplazan o agregan conjuntos completos de datos.
+
+## Invariante de aceptación
+
+Una acción durable de este bloque debe incrementar `Domain revision` **como máximo una vez** si realmente modifica datos. `Legacy` no debe aumentar, `Controlados` debe aumentar en uno, `Mutaciones pendientes` debe quedar en 0 y `Estado` debe permanecer `OK`. Las solicitudes internas legacy de persistencia/render pueden ser varias: deben aparecer únicamente como coalescidas dentro del último comando.
+
+Pruebas recomendadas: editar la comisión de un contrato y volver a dejarla como estaba después de verificar el commit; editar una hipótesis o regla de checklist; crear/editar un objetivo; y comprobar en Datos y seguridad el nombre del último comando y el `+1` de revisión.
+
+`app.js` permanece byte-idéntico a V31.12.1 y las 7 regiones financieras congeladas desde V31.10.4 siguen protegidas por `npm run build`.
+
+No requiere SQL nuevo.
+
+---
+
 # Trading Research V31.15 · Structural Foundation III-B1 · Operation Command Boundary
 
 Esta fase inicia la migración real de comandos de Operaciones sin reescribir todavía la cadena histórica de negocio. El objetivo es que una acción de usuario produzca **un solo commit controlado**, aunque internamente los wrappers heredados sigan solicitando varias persistencias y renders.

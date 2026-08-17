@@ -1,4 +1,4 @@
-/* ===== V31.15 STATE RUNTIME · Structural Foundation III-B1 =====
+/* ===== V31.16 STATE RUNTIME · Structural Foundation III-B2 =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
  * - persistence boundaries publish atomic mutation batches
@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.15';
-const TR_STATE_APP_LABEL='V31.15 · Structural Foundation III-B1 · Operation Command Boundary';
+const TR_STATE_RUNTIME_VERSION='31.16';
+const TR_STATE_APP_LABEL='V31.16 · Structural Foundation III-B2 · Plan Configuration Command Boundary';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -456,6 +456,89 @@ function trWrapOperationCommand(name,label){
   ['v316Unlink','operation.execution.unlink']
 ].forEach(([name,label])=>trWrapOperationCommand(name,label));
 
+/* ---------- III-B2 · Plan/configuration command boundary ----------
+ * V31.15 proved that the historical handlers can remain intact while the runtime
+ * exposes one atomic domain transaction to persistence and render consumers.
+ * Apply the same boundary to contracts and Trading Plan configuration. No formula
+ * or payload transformation is duplicated here: the tested legacy handler remains
+ * the single source of business behavior until its later extraction into modules. */
+function trAssignDomainWrappedGlobal(name,wrapped){
+  window[name]=wrapped;
+  try{
+    switch(name){
+      case 'saveInstrument': saveInstrument=wrapped; break;
+      case 'saveRiskStrategy': saveRiskStrategy=wrapped; break;
+      case 'saveRiskManagement': saveRiskManagement=wrapped; break;
+      case 'savePlan': savePlan=wrapped; break;
+      case 'togglePlanStatus': togglePlanStatus=wrapped; break;
+      case 'addConfig': addConfig=wrapped; break;
+      case 'removeConfig': removeConfig=wrapped; break;
+      case 'addHypothesis': addHypothesis=wrapped; break;
+      case 'editHyp': editHyp=wrapped; break;
+      case 'resetPlanConfig': resetPlanConfig=wrapped; break;
+      case 'addEmotionConfig': addEmotionConfig=wrapped; break;
+      case 'removeEmotionConfig': removeEmotionConfig=wrapped; break;
+      case 'saveTaxonomyAsset': saveTaxonomyAsset=wrapped; break;
+      case 'deleteTaxonomyAsset': deleteTaxonomyAsset=wrapped; break;
+      case 'saveVisualReference': saveVisualReference=wrapped; break;
+      case 'deleteVisualReference': deleteVisualReference=wrapped; break;
+      case 'saveComplianceRule': saveComplianceRule=wrapped; break;
+      case 'deleteComplianceRule': deleteComplianceRule=wrapped; break;
+      case 'moveComplianceRule': moveComplianceRule=wrapped; break;
+      case 'saveGoal': saveGoal=wrapped; break;
+      case 'deleteGoal': deleteGoal=wrapped; break;
+      case 'toggleGoalActive': toggleGoalActive=wrapped; break;
+      case 'v312SaveMistake': v312SaveMistake=wrapped; break;
+      case 'v312DeleteMistake': v312DeleteMistake=wrapped; break;
+      case 'v312MoveMistake': v312MoveMistake=wrapped; break;
+    }
+  }catch{}
+}
+function trWrapDomainCommandGlobal(name,labelOrResolver,options={persist:true,render:true}){
+  const base=window[name];if(typeof base!=='function'||base.__trDomainCommandWrapped)return;
+  const wrapped=function(...args){
+    const label=typeof labelOrResolver==='function'?labelOrResolver.apply(this,args):labelOrResolver;
+    return TRDomainStore.command(String(label||`domain.${name}`),()=>base.apply(this,args),options);
+  };
+  Object.defineProperty(wrapped,'__trDomainCommandWrapped',{value:true});
+  Object.defineProperty(wrapped,'__trDomainCommandBase',{value:base});
+  trAssignDomainWrappedGlobal(name,wrapped);
+}
+
+/* Global contract library. Changing a contract may trigger historical economics
+ * propagation; every resulting mutation is still one contract.create/update command. */
+trWrapDomainCommandGlobal('saveInstrument',()=>typeof editingInstrumentId!=='undefined'&&editingInstrumentId?'contract.update':'contract.create');
+
+/* Trading Plan lifecycle and management rules. */
+trWrapDomainCommandGlobal('savePlan',()=>typeof editingPlanId!=='undefined'&&editingPlanId?'plan.update':(typeof cloningPlanId!=='undefined'&&cloningPlanId?'plan.clone':'plan.create'));
+trWrapDomainCommandGlobal('togglePlanStatus','plan.status.update');
+trWrapDomainCommandGlobal('saveRiskStrategy',()=>typeof editingRiskId!=='undefined'&&editingRiskId?'plan.risk-strategy.update':'plan.risk-strategy.create');
+trWrapDomainCommandGlobal('saveRiskManagement','plan.risk-rules.update');
+trWrapDomainCommandGlobal('resetPlanConfig','plan.config.reset');
+
+/* Taxonomies and plan-local reference material. */
+trWrapDomainCommandGlobal('addConfig','plan.taxonomy.option.add');
+trWrapDomainCommandGlobal('removeConfig','plan.taxonomy.option.remove');
+trWrapDomainCommandGlobal('addHypothesis','plan.hypothesis.create');
+trWrapDomainCommandGlobal('editHyp','plan.hypothesis.update');
+trWrapDomainCommandGlobal('addEmotionConfig','plan.emotion-taxonomy.add');
+trWrapDomainCommandGlobal('removeEmotionConfig','plan.emotion-taxonomy.remove');
+trWrapDomainCommandGlobal('saveTaxonomyAsset',()=>typeof editingTaxonomyAsset!=='undefined'&&editingTaxonomyAsset?.key?'plan.taxonomy.asset.update':'plan.taxonomy.asset.create');
+trWrapDomainCommandGlobal('deleteTaxonomyAsset','plan.taxonomy.asset.delete');
+trWrapDomainCommandGlobal('saveVisualReference',()=>typeof editingVisualReferenceId!=='undefined'&&editingVisualReferenceId?'plan.visual-reference.update':'plan.visual-reference.create');
+trWrapDomainCommandGlobal('deleteVisualReference','plan.visual-reference.delete');
+
+/* Checklist, explicit mistake taxonomy and scorecard goals. */
+trWrapDomainCommandGlobal('saveComplianceRule',()=>typeof editingComplianceRuleId!=='undefined'&&editingComplianceRuleId?'plan.checklist.update':'plan.checklist.create');
+trWrapDomainCommandGlobal('deleteComplianceRule','plan.checklist.delete');
+trWrapDomainCommandGlobal('moveComplianceRule','plan.checklist.reorder');
+trWrapDomainCommandGlobal('v312SaveMistake',()=>typeof editingMistakeId!=='undefined'&&editingMistakeId?'plan.mistake-rule.update':'plan.mistake-rule.create');
+trWrapDomainCommandGlobal('v312DeleteMistake','plan.mistake-rule.delete');
+trWrapDomainCommandGlobal('v312MoveMistake','plan.mistake-rule.reorder');
+trWrapDomainCommandGlobal('saveGoal',()=>typeof editingGoalId!=='undefined'&&editingGoalId?'goal.update':'goal.create');
+trWrapDomainCommandGlobal('deleteGoal','goal.delete');
+trWrapDomainCommandGlobal('toggleGoalActive','goal.status.update');
+
 /* Render is a strict durable read-only boundary. Legacy view builders may still
  * attempt lazy normalization during the migration, but those writes are rolled back
  * before render() returns and any persist request is suppressed. */
@@ -482,15 +565,15 @@ window.render=render;
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
   const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.15 mantiene el render durable de solo lectura y añade un command boundary para Operaciones: la cadena histórica de guardado puede solicitar varios persist/render, pero el runtime los agrupa en un único commit controlado, un snapshot durable y un render final.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.15 · Operation Command Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.16 extiende el command boundary validado en Operaciones a contratos y configuración durable del Trading Plan: planes, gestión/riesgo, taxonomías, checklist, errores y objetivos quedan agrupados en transacciones controladas sin duplicar su lógica histórica.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.16 · Plan Configuration Command Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.15</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B1: el guardado y las principales mutaciones de Operaciones pasan por comandos controlados y coalescen persistencias/renders legacy. DomainStore/UIStore, IndexedDB, shell persistente, borradores y Partial DOM permanecen activos. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.16</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B2: contratos y configuración durable del Trading Plan se suman al boundary ya validado de Operaciones. Crear/editar planes, estrategias, reglas, taxonomías, checklist, errores y objetivos coalesce persistencias/renders legacy en un único commit controlado. Imports/Cloud quedan para la siguiente fase transaccional. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
-/* ===== END V31.15 STATE RUNTIME ===== */
+/* ===== END V31.16 STATE RUNTIME ===== */

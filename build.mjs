@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-source-transform.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
+import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 fs.rmSync('dist',{recursive:true,force:true});
@@ -16,7 +17,9 @@ const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)));
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
 const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
-const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeFiles.map(rawScript)});
+const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
+const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
+const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
 const dynamicActionInventory=appGlobalPrune.inventory.dynamicActionGuard;
 const bundledApp=safeScript(transformStyleAttrs(appGlobalPrune.source));
 const stateSource=rawScript('state-runtime.js');
@@ -61,6 +64,7 @@ const renderInventory={
 };
 const stateActionInventory={version:v,...stateActionBridge.inventory};
 const appGlobalPruneInventory={version:v,...appGlobalPrune.inventory};
+const pruneCandidateManifest={version:v,...pruneCandidates};
 
 h=h.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?\s*>/i,()=>`<style data-tr-build="${v}">${css}</style>`);
 for(const [file,attr,src] of replacements){
@@ -68,7 +72,7 @@ for(const [file,attr,src] of replacements){
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
   h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
-h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n  <meta name="trading-research-csp-version" content="${v}" />\n  <meta name="trading-research-style-source-inline-attrs" content="${styleInlineAttributes}" />\n  <meta name="trading-research-style-effective-inline-attrs" content="${effectiveInlineAttributes}" />\n  <meta name="trading-research-style-source-cssom-writes" content="${styleCssomWrites}" />\n  <meta name="trading-research-render-source-legacy-assignments" content="${sourceRenderDebt.assignments}" />\n  <meta name="trading-research-render-bundled-legacy-assignments" content="${bundledRenderDebt.assignments}" />\n  <meta name="trading-research-app-global-source-blocks" content="${appGlobalPrune.inventory.before.objectAssignBlocks}" />\n  <meta name="trading-research-app-global-bundled-blocks" content="${appGlobalPrune.inventory.after.objectAssignBlocks}" />\n  <meta name="trading-research-app-global-source-entries" content="${appGlobalPrune.inventory.before.objectAssignEntries}" />\n  <meta name="trading-research-app-global-bundled-entries" content="${appGlobalPrune.inventory.after.objectAssignEntries}" />\n  <meta name="trading-research-app-global-source-unique" content="${appGlobalPrune.inventory.before.objectAssignUnique}" />\n  <meta name="trading-research-app-global-bundled-unique" content="${appGlobalPrune.inventory.after.objectAssignUnique}" />\n  <meta name="trading-research-dynamic-handler-slots" content="${dynamicActionInventory.dynamicHandlerSlots}" />\n  <meta name="trading-research-dynamic-protected-globals" content="${dynamicActionInventory.protectedDynamicGlobals}" />\n  <meta name="trading-research-dynamic-candidate-roots" content="${dynamicActionInventory.dynamicCandidateRoots}" />\n</head>`);
+h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n  <meta name="trading-research-csp-version" content="${v}" />\n  <meta name="trading-research-style-source-inline-attrs" content="${styleInlineAttributes}" />\n  <meta name="trading-research-style-effective-inline-attrs" content="${effectiveInlineAttributes}" />\n  <meta name="trading-research-style-source-cssom-writes" content="${styleCssomWrites}" />\n  <meta name="trading-research-render-source-legacy-assignments" content="${sourceRenderDebt.assignments}" />\n  <meta name="trading-research-render-bundled-legacy-assignments" content="${bundledRenderDebt.assignments}" />\n  <meta name="trading-research-app-global-source-blocks" content="${appGlobalPrune.inventory.before.objectAssignBlocks}" />\n  <meta name="trading-research-app-global-bundled-blocks" content="${appGlobalPrune.inventory.after.objectAssignBlocks}" />\n  <meta name="trading-research-app-global-source-entries" content="${appGlobalPrune.inventory.before.objectAssignEntries}" />\n  <meta name="trading-research-app-global-bundled-entries" content="${appGlobalPrune.inventory.after.objectAssignEntries}" />\n  <meta name="trading-research-app-global-source-unique" content="${appGlobalPrune.inventory.before.objectAssignUnique}" />\n  <meta name="trading-research-app-global-bundled-unique" content="${appGlobalPrune.inventory.after.objectAssignUnique}" />\n  <meta name="trading-research-prune-safe-candidates" content="${pruneCandidates.safeCandidateCount}" />\n  <meta name="trading-research-dynamic-handler-slots" content="${dynamicActionInventory.dynamicHandlerSlots}" />\n  <meta name="trading-research-dynamic-protected-globals" content="${dynamicActionInventory.protectedDynamicGlobals}" />\n  <meta name="trading-research-dynamic-candidate-roots" content="${dynamicActionInventory.dynamicCandidateRoots}" />\n</head>`);
 fs.writeFileSync('dist/index.html',h);
 
 const scriptHashes=replacements.map(([, ,src])=>sha256(src));
@@ -103,6 +107,7 @@ fs.writeFileSync('dist/render-inventory.json',JSON.stringify(renderInventory,nul
 fs.writeFileSync('dist/state-action-inventory.json',JSON.stringify(stateActionInventory,null,2)+'\n');
 fs.writeFileSync('dist/app-global-prune-inventory.json',JSON.stringify(appGlobalPruneInventory,null,2)+'\n');
 fs.writeFileSync('dist/dynamic-action-inventory.json',JSON.stringify({version:v,...dynamicActionInventory},null,2)+'\n');
+fs.writeFileSync('dist/prune-candidate-inventory.json',JSON.stringify(pruneCandidateManifest,null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs transformed; ${effectiveInlineAttributes} effective inline attrs`);
@@ -110,4 +115,5 @@ console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain a
 console.log(`Render consolidation -> removed ${appConsolidation.removed} legacy assignments from bundled app; bundled legacy assignments ${bundledRenderDebt.assignments}`);
 console.log(`State Action Bridge -> ${stateActionBridge.inventory.resolveCalls} registry-aware resolves, ${stateActionBridge.inventory.publishCalls} publishes, ${stateActionBridge.inventory.crossRuntimeWindowReads} direct cross-runtime window reads`);
 console.log(`App global prune -> blocks ${appGlobalPrune.inventory.before.objectAssignBlocks} -> ${appGlobalPrune.inventory.after.objectAssignBlocks}; entries ${appGlobalPrune.inventory.before.objectAssignEntries} -> ${appGlobalPrune.inventory.after.objectAssignEntries}; unique ${appGlobalPrune.inventory.before.objectAssignUnique} -> ${appGlobalPrune.inventory.after.objectAssignUnique}`);
+console.log(`Prune Candidate Closure -> ${pruneCandidates.safeCandidateCount} contract-safe explicit candidates remain`);
 console.log(`Dynamic Action Guard -> ${dynamicActionInventory.dynamicHandlerSlots} dynamic handler slots; ${dynamicActionInventory.dynamicCandidateRoots} candidate roots; ${dynamicActionInventory.protectedDynamicGlobals} protected exported globals`);

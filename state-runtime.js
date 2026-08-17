@@ -1,4 +1,4 @@
-/* ===== V31.16.1 STATE RUNTIME · Structural Foundation III-B2.1 =====
+/* ===== V31.17 STATE RUNTIME · Structural Foundation III-B3.1 =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
  * - persistence boundaries publish atomic mutation batches
@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.16.1';
-const TR_STATE_APP_LABEL='V31.16.1 · Structural Foundation III-B2.1 · Contract Async Cascade Boundary';
+const TR_STATE_RUNTIME_VERSION='31.17';
+const TR_STATE_APP_LABEL='V31.17 · Structural Foundation III-B3.1 · Atomic Import Boundary';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -61,6 +61,19 @@ let trDomainLastCommandMutations=0;
 let trDomainLastCommandPersistRequests=0;
 let trDomainLastCommandRenderRequests=0;
 const trDomainCommandBreakdown=new Map();
+/* III-B3.1 import transaction diagnostics. Large external imports may touch both the
+ * durable workspace and the dedicated Market Data IndexedDB. The runtime stages the
+ * Market Data writes and exposes one logical transaction to the user. */
+let trImportTransactions=0;
+let trImportCommitted=0;
+let trImportRolledBack=0;
+let trImportRollbackFailures=0;
+let trImportExternalWrites=0;
+let trImportLastLabel='';
+let trImportLastAt='';
+let trImportLastStatus='';
+let trImportLastExternalWrites=0;
+let trImportLastError='';
 const trDomainSchemaNormalizedRoots=new WeakSet();
 const trDomainSubscribers=new Set();
 
@@ -295,7 +308,7 @@ function trDomainExclusive(label,task){
   trDomainExclusiveChain=trDomainExclusiveChain.catch(()=>{}).then(run);return trDomainExclusiveChain;
 }
 function trDomainSnapshot(){trStateEnsureAttached('snapshot');return typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state));}
-function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],schemaNormalizations:trDomainSchemaNormalizeCount,schemaNormalizeLastAt:trDomainSchemaNormalizeLastAt,schemaNormalizeLastMutations:trDomainSchemaNormalizeLastMutations,renderSideEffects:trDomainRenderSideEffects,lastRenderSideEffect:trDomainLastRenderSideEffect,lastRenderSideEffectPaths:[...trDomainLastRenderSideEffectPaths],renderGuardSuppressedWrites:trDomainRenderGuardSuppressedWrites,renderGuardSuppressedPersists:trDomainRenderGuardSuppressedPersists,commandDepth:trDomainCommandDepth,commands:trDomainCommandCount,commandCoalescedPersists:trDomainCommandCoalescedPersists,commandCoalescedRenders:trDomainCommandCoalescedRenders,lastCommand:trDomainLastCommand,lastCommandAt:trDomainLastCommandAt,lastCommandMutations:trDomainLastCommandMutations,lastCommandPersistRequests:trDomainLastCommandPersistRequests,lastCommandRenderRequests:trDomainLastCommandRenderRequests,commandBreakdown:Object.fromEntries(trDomainCommandBreakdown),lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
+function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],schemaNormalizations:trDomainSchemaNormalizeCount,schemaNormalizeLastAt:trDomainSchemaNormalizeLastAt,schemaNormalizeLastMutations:trDomainSchemaNormalizeLastMutations,renderSideEffects:trDomainRenderSideEffects,lastRenderSideEffect:trDomainLastRenderSideEffect,lastRenderSideEffectPaths:[...trDomainLastRenderSideEffectPaths],renderGuardSuppressedWrites:trDomainRenderGuardSuppressedWrites,renderGuardSuppressedPersists:trDomainRenderGuardSuppressedPersists,commandDepth:trDomainCommandDepth,commands:trDomainCommandCount,commandCoalescedPersists:trDomainCommandCoalescedPersists,commandCoalescedRenders:trDomainCommandCoalescedRenders,lastCommand:trDomainLastCommand,lastCommandAt:trDomainLastCommandAt,lastCommandMutations:trDomainLastCommandMutations,lastCommandPersistRequests:trDomainLastCommandPersistRequests,lastCommandRenderRequests:trDomainLastCommandRenderRequests,commandBreakdown:Object.fromEntries(trDomainCommandBreakdown),importTransactions:trImportTransactions,importCommitted:trImportCommitted,importRolledBack:trImportRolledBack,importRollbackFailures:trImportRollbackFailures,importExternalWrites:trImportExternalWrites,importLastLabel:trImportLastLabel,importLastAt:trImportLastAt,importLastStatus:trImportLastStatus,importLastExternalWrites:trImportLastExternalWrites,importLastError:trImportLastError,lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
 const TRDomainStore=Object.freeze({
   getState:()=>{trStateEnsureAttached('get');return state;},snapshot:trDomainSnapshot,commit:trDomainCommit,command:trDomainCommand,flush:(label='manual.flush')=>trDomainFlush(label,'controlled'),subscribe(fn){if(typeof fn!=='function')return()=>{};trDomainSubscribers.add(fn);return()=>trDomainSubscribers.delete(fn);},diagnostics:trDomainDiagnostics,ensureAttached:trStateEnsureAttached,exclusive:trDomainExclusive
 });
@@ -574,6 +587,134 @@ trWrapDomainCommandGlobal('saveGoal',()=>typeof editingGoalId!=='undefined'&&edi
 trWrapDomainCommandGlobal('deleteGoal','goal.delete');
 trWrapDomainCommandGlobal('toggleGoalActive','goal.status.update');
 
+
+/* ---------- III-B3.1 · Atomic import boundary ----------
+ * Imports are the first commands that can create many operations in one action and,
+ * for NinjaTrader, also write to the dedicated Market Data IndexedDB. The historical
+ * parsers/calculators remain untouched. We stage their storage writes, let reads see
+ * the staged candidate, then publish the external records only when the whole import
+ * task has completed. Workspace mutations are coalesced into one DomainStore command.
+ */
+function trDomainRollbackMemory(snapshot,reason='transaction.rollback'){
+  try{
+    trDomainPendingMutationCount=0;trDomainPendingPaths=new Set();
+    const raw=typeof clone==='function'?clone(snapshot):JSON.parse(JSON.stringify(snapshot));
+    trDomainProxyCache=new WeakMap();trDomainRawByProxy=new WeakMap();trDomainRootTarget=raw;trDomainRootProxy=trStateProxy(raw,'$');state=trDomainRootProxy;trDomainAttached++;
+    trDomainLastMutationAt='';
+    return true;
+  }catch(e){trDomainLastError=`${reason}: ${e?.message||String(e)}`;console.error('[Trading Research · transaction rollback]',e);return false;}
+}
+function trImportMark(label,status,externalWrites=0,error=''){
+  trImportLastLabel=String(label||'import');trImportLastStatus=status;trImportLastExternalWrites=Number(externalWrites)||0;trImportLastAt=new Date().toISOString();trImportLastError=error?String(error?.message||error):'';
+}
+
+const trV314StorePutBase=typeof v314StorePut==='function'?v314StorePut:null;
+const trV314StoreGetBase=typeof v314StoreGet==='function'?v314StoreGet:null;
+const trV314StoreAllBase=typeof v314StoreAll==='function'?v314StoreAll:null;
+const trV314StoreDeleteBase=typeof v314StoreDelete==='function'?v314StoreDelete:null;
+function trV314StageKey(store,id){return `${store}::${String(id||'')}`;}
+function trV314StageCreate(){return {changes:new Map(),before:new Map(),writeCount:0,committed:false};}
+async function trV314StageRememberBefore(ctx,store,id){
+  const k=trV314StageKey(store,id);if(ctx.before.has(k))return;
+  const prior=trV314StoreGetBase?await trV314StoreGetBase(store,id):null;ctx.before.set(k,{store,id,value:prior});
+}
+async function trV314StagePut(ctx,store,value){
+  const id=value?.id;if(!id)throw new Error(`Market Data ${store}: registro sin id.`);await trV314StageRememberBefore(ctx,store,id);
+  ctx.changes.set(trV314StageKey(store,id),{type:'put',store,id,value});ctx.writeCount++;return value;
+}
+async function trV314StageDelete(ctx,store,id){await trV314StageRememberBefore(ctx,store,id);ctx.changes.set(trV314StageKey(store,id),{type:'delete',store,id});ctx.writeCount++;}
+async function trV314StageGet(ctx,store,id){const c=ctx.changes.get(trV314StageKey(store,id));if(c)return c.type==='delete'?null:c.value;return trV314StoreGetBase?trV314StoreGetBase(store,id):null;}
+async function trV314StageAll(ctx,store){
+  const base=trV314StoreAllBase?await trV314StoreAllBase(store):[],map=new Map((base||[]).map(v=>[String(v?.id||''),v]));
+  for(const c of ctx.changes.values()){if(c.store!==store)continue;if(c.type==='delete')map.delete(String(c.id));else map.set(String(c.id),c.value);}return [...map.values()];
+}
+async function trV314ApplyChanges(changes){
+  const list=[...changes];if(!list.length)return 0;if(typeof v314Db!=='function')throw new Error('Market Data IndexedDB no está disponible.');
+  const stores=[...new Set(list.map(x=>x.store))],db=await v314Db();
+  return new Promise((resolve,reject)=>{
+    let tx;try{tx=db.transaction(stores,'readwrite');for(const c of list){const os=tx.objectStore(c.store);if(c.type==='delete')os.delete(c.id);else os.put(c.value);}}
+    catch(e){try{db.close();}catch{};reject(e);return;}
+    tx.oncomplete=()=>{try{db.close();}catch{};resolve(list.length);};tx.onerror=()=>{const e=tx.error;try{db.close();}catch{};reject(e||new Error('Transacción Market Data fallida.'));};tx.onabort=()=>{const e=tx.error;try{db.close();}catch{};reject(e||new Error('Transacción Market Data abortada.'));};
+  });
+}
+async function trV314StageCommit(ctx){const n=await trV314ApplyChanges(ctx.changes.values());ctx.committed=true;return n;}
+async function trV314StageRollbackCommitted(ctx){
+  if(!ctx?.committed)return 0;const restore=[];
+  for(const rec of ctx.before.values())restore.push(rec.value==null?{type:'delete',store:rec.store,id:rec.id}:{type:'put',store:rec.store,id:rec.id,value:rec.value});
+  return trV314ApplyChanges(restore);
+}
+async function trWithV314Staging(task){
+  if(!trV314StorePutBase||!trV314StoreGetBase||!trV314StoreAllBase||!trV314StoreDeleteBase)return {value:await task(),ctx:null};
+  const ctx=trV314StageCreate();
+  const put=async(store,value)=>trV314StagePut(ctx,store,value),get=async(store,id)=>trV314StageGet(ctx,store,id),all=async store=>trV314StageAll(ctx,store),del=async(store,id)=>trV314StageDelete(ctx,store,id);
+  v314StorePut=put;v314StoreGet=get;v314StoreAll=all;v314StoreDelete=del;
+  try{window.v314StorePut=put;window.v314StoreGet=get;window.v314StoreAll=all;window.v314StoreDelete=del;}catch{}
+  try{const value=await task();await trV314StageCommit(ctx);return {value,ctx};}
+  finally{
+    v314StorePut=trV314StorePutBase;v314StoreGet=trV314StoreGetBase;v314StoreAll=trV314StoreAllBase;v314StoreDelete=trV314StoreDeleteBase;
+    try{window.v314StorePut=trV314StorePutBase;window.v314StoreGet=trV314StoreGetBase;window.v314StoreAll=trV314StoreAllBase;window.v314StoreDelete=trV314StoreDeleteBase;}catch{}
+  }
+}
+
+async function trRunAtomicImport(label,task,{stageMarketData=false,persist=true,onError='alert'}={}){
+  return TRDomainStore.exclusive(label,async()=>{
+    const before=typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state));let stageCtx=null;trImportTransactions++;trImportMark(label,'running',0,'');
+    try{
+      const value=await TRDomainStore.command(label,async()=>{
+        if(stageMarketData){const staged=await trWithV314Staging(task);stageCtx=staged.ctx;return staged.value;}
+        return await task();
+      },{persist,render:true});
+      if(persist&&typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('No se pudo confirmar el snapshot durable del import.');
+      const writes=stageCtx?.writeCount||0;trImportCommitted++;trImportExternalWrites+=writes;trImportMark(label,'committed',writes,'');return value;
+    }catch(e){
+      let rollbackOk=true;
+      if(stageCtx?.committed){try{await trV314StageRollbackCommitted(stageCtx);}catch(rb){rollbackOk=false;console.error('[Trading Research · Market Data rollback]',rb);}}
+      if(!trDomainRollbackMemory(before,`${label}.rollback`))rollbackOk=false;
+      trImportRolledBack++;if(!rollbackOk)trImportRollbackFailures++;trImportMark(label,rollbackOk?'rolled-back':'rollback-failed',stageCtx?.writeCount||0,e);
+      try{if(stageMarketData&&typeof v314RefreshMarketDataState==='function')await v314RefreshMarketDataState();}catch{}
+      try{if(typeof render==='function')render();}catch{}
+      if(onError==='market'&&typeof v314MarketUi!=='undefined'){v314MarketUi.error=e?.message||String(e);}
+      else if(onError==='alert')alert(`No se pudo completar ${label}:\n${e?.message||String(e)}`);
+      return undefined;
+    }
+  });
+}
+
+/* Ankora: confirmation is the durable point. Preview/file parsing remains ephemeral.
+ * Deleting a batch is equally a bulk mutation and therefore one controlled command. */
+const trConfirmImportPreviewBase=window.confirmImportPreview;
+if(typeof trConfirmImportPreviewBase==='function'){
+  confirmImportPreview=function(...args){return trRunAtomicImport('import.ankora.commit',()=>trConfirmImportPreviewBase.apply(this,args),{persist:true,onError:'alert'});};window.confirmImportPreview=confirmImportPreview;
+}
+const trDeleteImportBatchBase=window.deleteImportBatch;
+if(typeof trDeleteImportBatchBase==='function'){
+  deleteImportBatch=function(...args){return trRunAtomicImport('import.ankora.delete',()=>trDeleteImportBatchBase.apply(this,args),{persist:true,onError:'alert'});};window.deleteImportBatch=deleteImportBatch;
+}
+
+/* NinjaTrader Tick history: the pair marketMeta + marketTicks is staged and committed
+ * through one IndexedDB transaction. It does not mutate the workspace, so Domain
+ * revision correctly stays unchanged. */
+const trV314ImportMarketFileBase=window.v314ImportMarketFile;
+if(typeof trV314ImportMarketFileBase==='function'){
+  v314ImportMarketFile=function(file){if(!file)return;return trRunAtomicImport('import.ninjatrader.market',async()=>{const oldErr=v314MarketUi.error;v314MarketUi.error='';await trV314ImportMarketFileBase.call(this,file);if(v314MarketUi.error)throw new Error(v314MarketUi.error);v314MarketUi.error=oldErr&&oldErr!==v314MarketUi.error?'':v314MarketUi.error;},{stageMarketData:true,persist:false,onError:'market'});};window.v314ImportMarketFile=v314ImportMarketFile;
+}
+
+/* NinjaTrader Grid: stage the execSet writes while the historical V31.9 sync creates
+ * or refreshes Journal operations. If that sync reports an error, force rollback
+ * instead of leaving a Grid committed without its corresponding domain update. */
+const trV314ImportExecFileBase=window.v314ImportExecFile;
+if(typeof trV314ImportExecFileBase==='function'){
+  v314ImportExecFile=function(file){if(!file)return;return trRunAtomicImport('import.ninjatrader.executions',async()=>{
+    const syncBase=window.v319SyncExecutionSetsToOperations;let syncError=null;
+    if(typeof syncBase==='function'){
+      const syncChecked=async function(...args){const r=await syncBase.apply(this,args);if(r?.error){syncError=r.error;throw r.error;}return r;};window.v319SyncExecutionSetsToOperations=syncChecked;try{v319SyncExecutionSetsToOperations=syncChecked;}catch{}
+    }
+    v314MarketUi.error='';
+    try{await trV314ImportExecFileBase.call(this,file);if(syncError)throw syncError;if(v314MarketUi.error)throw new Error(v314MarketUi.error);}
+    finally{if(typeof syncBase==='function'){window.v319SyncExecutionSetsToOperations=syncBase;try{v319SyncExecutionSetsToOperations=syncBase;}catch{}}}
+  },{stageMarketData:true,persist:true,onError:'market'});};window.v314ImportExecFile=v314ImportExecFile;
+}
+
 /* Render is a strict durable read-only boundary. Legacy view builders may still
  * attempt lazy normalization during the migration, but those writes are rolled back
  * before render() returns and any persist request is suppressed. */
@@ -599,16 +740,16 @@ window.render=render;
 /* ---------- Diagnostics / integration ---------- */
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
-  const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.16.1 mantiene el command boundary validado en Operaciones y configuración durable, y además absorbe dentro de contract.create/update la cascada asíncrona de sincronización NinjaTrader disparada al guardar un contrato: planes, gestión/riesgo, taxonomías, checklist, errores y objetivos quedan agrupados en transacciones controladas sin duplicar su lógica histórica.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.16.1 · Contract Async Cascade Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects&&!d.importRollbackFailures,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.17 añade un boundary transaccional a las importaciones masivas. Ankora publica el lote completo como un único commit; NinjaTrader Grid agrupa la creación/actualización del Journal y sus escrituras de Market Data; el histórico Tick publica metadata + ticks en una sola transacción IndexedDB. Los parsers y cálculos históricos permanecen intactos.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.17 · Atomic Import Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong> · import tx: <strong>${d.importCommitted||0}</strong> OK / <strong class="${d.importRollbackFailures?'negative':''}">${d.importRolledBack||0}</strong> rollback · escrituras Market Data agrupadas: <strong>${d.importExternalWrites||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}${d.importLastLabel?` · última importación: ${esc(d.importLastLabel)} [${esc(d.importLastStatus||'—')}; ${d.importLastExternalWrites||0} ext.]`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.16.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B2.1: la cascada asíncrona NinjaTrader posterior a contract.create/update permanece dentro del mismo command boundary; contratos y configuración durable continúan migrados. Crear/editar planes, estrategias, reglas, taxonomías, checklist, errores y objetivos coalesce persistencias/renders legacy en un único commit controlado. Imports/Cloud quedan para la siguiente fase transaccional. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.17</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B3.1: Imports pasa a un boundary transaccional. Ankora confirma/elimina lotes en un único commit; NinjaTrader Grid agrupa Market Data + sincronización del Journal y el histórico Tick escribe metadata + ticks de forma atómica. Restore y Cloud quedan para las siguientes subfases. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
-/* ===== END V31.16.1 STATE RUNTIME ===== */
+/* ===== END V31.17 STATE RUNTIME ===== */

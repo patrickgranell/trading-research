@@ -1,4 +1,4 @@
-# Trading Research V31.16.1 · Structural Foundation III-B2.1 · Contract Async Cascade Boundary
+# Trading Research V31.17 · Structural Foundation III-B3.1 · Atomic Import Boundary
 
 V31.16.1 corrige la anomalía observada al validar `contract.update`: el handler histórico V31.9.2 lanzaba `v319SyncExecutionSetsToOperations()` sin `await`, de modo que la sincronización objetiva de filas NinjaTrader podía reanudarse después de cerrar el command boundary y publicar un segundo commit legacy.
 
@@ -388,3 +388,14 @@ Corrige la instrumentación de DomainStore: los normalizadores históricos que r
 - Persistencias solicitadas durante render se suprimen y se diagnostican.
 - Las reasignaciones semánticamente idénticas son también no-op referenciales.
 - contractEconomics de Ankora deja de refrescar updatedAt cuando no cambió la economía real.
+
+
+## V31.17 · Structural Foundation III-B3.1 · Atomic Import Boundary
+
+- Ankora `confirmImportPreview` y `deleteImportBatch` se publican como comandos controlados (`import.ankora.commit` / `import.ankora.delete`).
+- NinjaTrader Grid se ejecuta como `import.ninjatrader.executions`: las mutaciones Journal quedan en un único commit de dominio.
+- Las escrituras de `marketMeta`, `marketTicks` y `execSets` se stagean; los lectores ven el candidato y el commit final usa una sola transacción IndexedDB sobre los stores afectados.
+- El histórico Tick (`import.ninjatrader.market`) no incrementa Domain revision porque vive en Market Data, pero metadata + ticks se publican atómicamente.
+- Si una importación falla antes del commit, el workspace en memoria vuelve al snapshot previo y los writes de Market Data no se publican; si ya se publicaron y una fase posterior falla, se intenta rollback compensatorio.
+- Datos y seguridad muestra importaciones confirmadas/rollback y escrituras externas agrupadas.
+- `app.js` continúa congelado; Restore y Cloud quedan fuera de esta subfase.

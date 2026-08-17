@@ -1,4 +1,4 @@
-# Trading Research V31.10.3
+# Trading Research V31.10.4
 
 ## NinjaTrader Grid → Operaciones
 
@@ -116,3 +116,11 @@ No requiere cambios SQL.
 - Si un fill pasivo supera al mejor cierre marketable, se conserva la lectura en ticks de ventaja frente al benchmark Bid/Ask.
 
 No requiere cambios SQL.
+
+
+## V31.10.4 · Semántica temporal y benchmark marketable
+
+- `Tiempo en beneficio marketable` se calcula por duración real (milisegundos), no por porcentaje de muestras/ticks.
+- `Máximo marketable` pasa a `Mejor cierre marketable`, más claro cuando el mejor cierre sigue siendo negativo.
+- Si un fill límite pasivo supera el benchmark Bid/Ask, la tarjeta se denomina `Ventaja pasiva` en vez de mostrar ticks bajo `Retención del máximo`.
+- Sin cambios en la ventana temporal: ningún escenario usa datos posteriores al fill real.

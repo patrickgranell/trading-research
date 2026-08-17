@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build.mjs && node verify-build.mjs && node verify-csp-build.mjs && node verify-style-build.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "prebuild": "node --check app.js && node --check style-attr-runtime.js && node --check reports-purity-runtime.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node --check event-runtime.js && node --check csp-runtime.js && node --check style-runtime.js && node --check render-closure-runtime.js && node verify-security.mjs && node verify-events.mjs && node verify-csp.mjs && node verify-styles.mjs && node verify-render-closure.mjs && node verify-structure.mjs"
+    "prebuild": "node --check app.js && node --check render-source-transform.mjs && node --check style-attr-runtime.js && node --check reports-purity-runtime.js && node --check structural-runtime.js && node --check state-runtime.js && node --check security-runtime.js && node --check event-runtime.js && node --check csp-runtime.js && node --check style-runtime.js && node --check render-closure-runtime.js && node verify-security.mjs && node verify-events.mjs && node verify-csp.mjs && node verify-styles.mjs && node verify-render-closure.mjs && node verify-structure.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.68.0"

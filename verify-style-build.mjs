@@ -1,0 +1,26 @@
+import fs from 'node:fs';
+const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const h=fs.readFileSync('dist/index.html','utf8');
+const headers=fs.readFileSync('dist/_headers','utf8');
+const inventory=JSON.parse(fs.readFileSync('dist/style-inventory.json','utf8'));
+const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
+const executableStyleAttrs=[...h.matchAll(/(?:<|\s)style\s*=\s*["']/gi)].length;
+const transformedAttrs=[...h.matchAll(/data-tr-style\s*=\s*["']/gi)].length;
+need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
+need(inventory.inlineAttributes>0,'La build esperaba deuda histórica de atributos style en fuente para transformar.');
+need(inventory.effectiveInlineAttributes===0,`Quedan ${inventory.effectiveInlineAttributes} atributos style efectivos tras la transformación.`);
+need(executableStyleAttrs===0,`dist/index.html conserva ${executableStyleAttrs} atributos style ejecutables.`);
+need(transformedAttrs>0,'No se detectan atributos data-tr-style transformados en el bundle.');
+need(h.includes('data-tr-style-attr-runtime="31.22.0"'),'Falta el runtime de hidratación style-attr en el bundle.');
+need(h.includes("const TR_STYLE_ATTR_VERSION='31.22.0'"),'Runtime style-attr con versión inesperada.');
+need(/style-src-attr 'none'/.test(headers),'La CSP construida no bloquea style-src-attr.');
+need(!/style-src-attr[^\n;]*'unsafe-inline'/.test(headers),'La excepción unsafe-inline de style attrs sigue publicada.');
+need(!/\.style\.cssText\s*=/.test(h),'El bundle contiene escritura style.cssText incompatible con la política estricta.');
+need(!/setAttribute\s*\(\s*["']style["']/.test(h),'El bundle contiene setAttribute(style) incompatible con la política estricta.');
+if(fail.length){console.error('Strict style boundary build verification FAILED');for(const f of fail)console.error(' - '+f);process.exit(1);}
+console.log('Strict style boundary build verification OK');
+console.log(` - Legacy source style attrs transformed: ${inventory.inlineAttributes}`);
+console.log(' - Effective inline style attrs: 0');
+console.log(` - data-tr-style tokens in bundle: ${transformedAttrs}`);
+console.log(" - CSP: style-src-attr 'none'");
+console.log(' - cssText / setAttribute(style): absent');

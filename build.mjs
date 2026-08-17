@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-source-transform.mjs';
+import {transformStateActions} from './state-action-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 fs.rmSync('dist',{recursive:true,force:true});
@@ -14,12 +15,15 @@ const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)));
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
 const bundledApp=safeScript(transformStyleAttrs(appConsolidation.source));
+const stateSource=rawScript('state-runtime.js');
+const stateActionBridge=transformStateActions(stateSource);
+const bundledState=safeScript(transformStyleAttrs(stateActionBridge.source));
 const replacements=[
   ['app.js','data-tr-build',bundledApp],
   ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledScript('style-attr-runtime.js')],
   ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledScript('reports-purity-runtime.js')],
   ['structural-runtime.js','data-tr-structural-runtime',bundledScript('structural-runtime.js')],
-  ['state-runtime.js','data-tr-state-runtime',bundledScript('state-runtime.js')],
+  ['state-runtime.js','data-tr-state-runtime',bundledState],
   ['security-runtime.js','data-tr-security-runtime',bundledScript('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledScript('event-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledScript('csp-runtime.js')],
@@ -51,6 +55,7 @@ const renderInventory={
   closureRuntime:'render-closure-runtime.js',
   canonicalChain:['structural-runtime.js','state-runtime.js','render-closure-runtime.js']
 };
+const stateActionInventory={version:v,...stateActionBridge.inventory};
 
 // IMPORTANT: use replacer callbacks. Passing source code as a replacement string makes
 // String.replace interpret $`, $' and $& inside JavaScript as replacement tokens,
@@ -93,8 +98,10 @@ fs.writeFileSync('dist/_headers',headers);
 fs.writeFileSync('dist/csp-manifest.json',JSON.stringify({version:v,scriptHashes,styleHash,supabasePath,csp},null,2)+'\n');
 fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
 fs.writeFileSync('dist/render-inventory.json',JSON.stringify(renderInventory,null,2)+'\n');
+fs.writeFileSync('dist/state-action-inventory.json',JSON.stringify(stateActionInventory,null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs transformed; ${effectiveInlineAttributes} effective inline attrs`);
 console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain allowed by the strict attribute policy`);
 console.log(`Render consolidation -> removed ${appConsolidation.removed} legacy assignments from bundled app; bundled legacy assignments ${bundledRenderDebt.assignments}`);
+console.log(`State Action Bridge -> ${stateActionBridge.inventory.resolveCalls} registry-aware resolves, ${stateActionBridge.inventory.publishCalls} publishes, ${stateActionBridge.inventory.crossRuntimeWindowReads} direct cross-runtime window reads`);

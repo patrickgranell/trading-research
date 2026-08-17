@@ -21,9 +21,17 @@ if(scripts.length!==10)failures.push(`expected 10 bundled JS blocks, got ${scrip
 if(!fs.existsSync('dist/render-inventory.json'))failures.push('dist/render-inventory.json missing');
 else{
   const inv=JSON.parse(fs.readFileSync('dist/render-inventory.json','utf8'));
-  if(inv.legacyAssignments>24)failures.push(`legacy render assignments exceeded budget: ${inv.legacyAssignments}`);
-  if(inv.legacyDeclarations>1)failures.push(`legacy render declarations exceeded budget: ${inv.legacyDeclarations}`);
+  if(inv.source?.assignments!==12)failures.push(`source render assignment inventory changed: ${inv.source?.assignments}`);
+  if(inv.source?.declarations!==1)failures.push(`source render declaration inventory changed: ${inv.source?.declarations}`);
+  if(inv.bundled?.assignments!==0)failures.push(`bundled legacy render assignments remain: ${inv.bundled?.assignments}`);
+  if(inv.bundled?.declarations!==1)failures.push(`bundled bootstrap render declaration count unexpected: ${inv.bundled?.declarations}`);
+  if(inv.removedAssignments!==12)failures.push(`expected 12 removed render assignments, got ${inv.removedAssignments}`);
   if(inv.closureRuntime!=='render-closure-runtime.js')failures.push('render inventory does not identify canonical closure runtime');
+}
+const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
+if(appBlock){
+  const legacyBundled=(appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length;
+  if(legacyBundled!==0)failures.push(`bundled app still contains ${legacyBundled} render=function assignments`);
 }
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'tr-build-check-'));
 try{
@@ -38,6 +46,7 @@ console.log('Build verification OK');
 console.log(' - Single HTML document: yes');
 console.log(' - Bundled JS blocks: 10/10, syntax OK');
 console.log(' - Canonical render closure: bundled + inventoried');
+console.log(' - Legacy render reassignments in bundled app: 0');
 console.log(' - Strict style attribute runtime: bundled');
 console.log(' - app.js occurrence: 1');
 console.log(` - Output size: ${size} bytes`);

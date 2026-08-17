@@ -1,4 +1,4 @@
-/* ===== V31.16 STATE RUNTIME · Structural Foundation III-B2 =====
+/* ===== V31.16.1 STATE RUNTIME · Structural Foundation III-B2.1 =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
  * - persistence boundaries publish atomic mutation batches
@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.16';
-const TR_STATE_APP_LABEL='V31.16 · Structural Foundation III-B2 · Plan Configuration Command Boundary';
+const TR_STATE_RUNTIME_VERSION='31.16.1';
+const TR_STATE_APP_LABEL='V31.16.1 · Structural Foundation III-B2.1 · Contract Async Cascade Boundary';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -509,6 +509,41 @@ function trWrapDomainCommandGlobal(name,labelOrResolver,options={persist:true,re
  * propagation; every resulting mutation is still one contract.create/update command. */
 trWrapDomainCommandGlobal('saveInstrument',()=>typeof editingInstrumentId!=='undefined'&&editingInstrumentId?'contract.update':'contract.create');
 
+/* V31.16.1 · Contract async cascade boundary.
+ * V31.9.2's historical saveInstrument() launches v319SyncExecutionSetsToOperations()
+ * without awaiting it. Therefore its NinjaTrader snapshot refresh can resume after the
+ * outer contract.update command has already closed, creating a second legacy commit.
+ * Keep the historical handler untouched, but defer that one async cascade and await it
+ * inside the same DomainStore command. */
+(function trInstallContractAsyncCascadeBoundary(){
+  const wrapped=window.saveInstrument;
+  const legacyBase=wrapped?.__trDomainCommandBase;
+  if(typeof legacyBase!=='function'||wrapped.__trContractAsyncCascadeWrapped)return;
+  const commandAware=function(...args){
+    const label=typeof editingInstrumentId!=='undefined'&&editingInstrumentId?'contract.update':'contract.create';
+    return TRDomainStore.command(label,async()=>{
+      const syncBase=window.v319SyncExecutionSetsToOperations;
+      let deferredSync=false,deferredOptions=null;
+      if(typeof syncBase==='function'){
+        const syncStub=async function(options={}){deferredSync=true;deferredOptions=options;return {added:0,updated:0,deferred:true};};
+        window.v319SyncExecutionSetsToOperations=syncStub;
+        try{v319SyncExecutionSetsToOperations=syncStub;}catch{}
+      }
+      let out;
+      try{out=legacyBase.apply(this,args);if(out&&typeof out.then==='function')out=await out;}
+      finally{
+        if(typeof syncBase==='function'){window.v319SyncExecutionSetsToOperations=syncBase;try{v319SyncExecutionSetsToOperations=syncBase;}catch{}}
+      }
+      if(deferredSync&&typeof syncBase==='function')await syncBase(deferredOptions||{assignLegacyPlan:true});
+      return out;
+    },{persist:true,render:true});
+  };
+  Object.defineProperty(commandAware,'__trDomainCommandWrapped',{value:true});
+  Object.defineProperty(commandAware,'__trDomainCommandBase',{value:legacyBase});
+  Object.defineProperty(commandAware,'__trContractAsyncCascadeWrapped',{value:true});
+  trAssignDomainWrappedGlobal('saveInstrument',commandAware);
+})();
+
 /* Trading Plan lifecycle and management rules. */
 trWrapDomainCommandGlobal('savePlan',()=>typeof editingPlanId!=='undefined'&&editingPlanId?'plan.update':(typeof cloningPlanId!=='undefined'&&cloningPlanId?'plan.clone':'plan.create'));
 trWrapDomainCommandGlobal('togglePlanStatus','plan.status.update');
@@ -565,15 +600,15 @@ window.render=render;
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
   const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.16 extiende el command boundary validado en Operaciones a contratos y configuración durable del Trading Plan: planes, gestión/riesgo, taxonomías, checklist, errores y objetivos quedan agrupados en transacciones controladas sin duplicar su lógica histórica.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.16 · Plan Configuration Command Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.16.1 mantiene el command boundary validado en Operaciones y configuración durable, y además absorbe dentro de contract.create/update la cascada asíncrona de sincronización NinjaTrader disparada al guardar un contrato: planes, gestión/riesgo, taxonomías, checklist, errores y objetivos quedan agrupados en transacciones controladas sin duplicar su lógica histórica.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.16.1 · Contract Async Cascade Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.16</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B2: contratos y configuración durable del Trading Plan se suman al boundary ya validado de Operaciones. Crear/editar planes, estrategias, reglas, taxonomías, checklist, errores y objetivos coalesce persistencias/renders legacy en un único commit controlado. Imports/Cloud quedan para la siguiente fase transaccional. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.16.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B2.1: la cascada asíncrona NinjaTrader posterior a contract.create/update permanece dentro del mismo command boundary; contratos y configuración durable continúan migrados. Crear/editar planes, estrategias, reglas, taxonomías, checklist, errores y objetivos coalesce persistencias/renders legacy en un único commit controlado. Imports/Cloud quedan para la siguiente fase transaccional. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
-/* ===== END V31.16 STATE RUNTIME ===== */
+/* ===== END V31.16.1 STATE RUNTIME ===== */

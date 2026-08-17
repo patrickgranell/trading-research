@@ -1,3 +1,20 @@
+# Trading Research V31.16.1 · Structural Foundation III-B2.1 · Contract Async Cascade Boundary
+
+V31.16.1 corrige la anomalía observada al validar `contract.update`: el handler histórico V31.9.2 lanzaba `v319SyncExecutionSetsToOperations()` sin `await`, de modo que la sincronización objetiva de filas NinjaTrader podía reanudarse después de cerrar el command boundary y publicar un segundo commit legacy.
+
+## Cambio
+
+- `contract.create/update` mantiene abierto su `TRDomainStore.command()` hasta que termina la cascada asíncrona NinjaTrader derivada del guardado.
+- La función histórica no se modifica en `app.js`; el runtime sustituye temporalmente esa llamada por una solicitud diferida y después ejecuta/espera la sincronización dentro de la misma transacción.
+- La propagación Ankora síncrona sigue dentro del mismo boundary como en V31.16.
+- Resultado esperado al editar un contrato con operaciones importadas relacionadas: `Domain revision +1`, `Legacy` sin aumentar, `Controlados +1`, `Mutaciones pendientes = 0`, último commit `contract.update`.
+
+La corrección responde al caso observado en V31.16 donde una edición produjo `Domain revision 3 → 5` y `Legacy/controlados 2/1 → 3/2`; el segundo commit era `legacy:v319SyncExecutionSetsToOperations`.
+
+`app.js` permanece byte-idéntico a V31.12.1 y las regiones financieras congeladas siguen protegidas.
+
+---
+
 # Trading Research V31.16 · Structural Foundation III-B2 · Plan Configuration Command Boundary
 
 V31.16 extiende el patrón transaccional validado en V31.15 al segundo gran bloque de dominio: **contratos y configuración durable del Trading Plan**. Se mantiene intacta la lógica histórica; el runtime la ejecuta dentro de comandos explícitos y coalesce sus `persist()` / `render()` en un único commit, un snapshot durable y un render final.

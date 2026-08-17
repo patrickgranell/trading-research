@@ -1,4 +1,6 @@
 const RENDER_ASSIGNMENT=/\brender\s*=\s*function\s*\(\s*\)\s*\{/g;
+const TOP_LEVEL_RENDER_CALL=/^render\(\);\s*$/gm;
+const DEAD_RENDER_BASE_ALIAS=/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm;
 
 function skipQuoted(source,i,quote){
   i++;
@@ -38,6 +40,26 @@ function findFunctionEnd(source,openBrace){
   throw new Error('Unbalanced legacy render assignment.');
 }
 
+function removeRanges(source,ranges,marker){
+  let out=source;
+  for(const [start,end] of [...ranges].sort((a,b)=>b[0]-a[0]))out=out.slice(0,start)+marker+out.slice(end);
+  return out;
+}
+
+function pruneTopLevelRenderCalls(source,{expected=5,keep=1}={}){
+  const matches=[...source.matchAll(TOP_LEVEL_RENDER_CALL)];
+  if(matches.length!==expected)throw new Error(`Top-level render() inventory changed: expected ${expected}, found ${matches.length}.`);
+  const remove=matches.slice(keep).map(m=>[m.index,m.index+m[0].length]);
+  return {source:removeRanges(source,remove,'/* V31.23.3: redundant bootstrap render() removed */'),removed:remove.length,kept:Math.min(keep,matches.length)};
+}
+
+function pruneDeadRenderAliases(source,{expected=5}={}){
+  const matches=[...source.matchAll(DEAD_RENDER_BASE_ALIAS)];
+  if(matches.length!==expected)throw new Error(`Legacy render base alias inventory changed: expected ${expected}, found ${matches.length}.`);
+  const ranges=matches.map(m=>[m.index,m.index+m[0].length]);
+  return {source:removeRanges(source,ranges,'/* V31.23.3: dead render base alias removed */'),removed:ranges.length};
+}
+
 export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   const matches=[...source.matchAll(RENDER_ASSIGNMENT)];
   if(matches.length!==expected)throw new Error(`Legacy render assignment inventory changed: expected ${expected}, found ${matches.length}.`);
@@ -46,17 +68,20 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
     const openBrace=start+m[0].lastIndexOf('{');
     return [start,findFunctionEnd(source,openBrace)];
   });
-  let out=source;
-  for(const [start,end] of ranges.reverse())out=out.slice(0,start)+`/* V31.23.2: legacy render assignment removed from bundled source */`+out.slice(end);
+  let out=removeRanges(source,ranges,'/* V31.23.2: legacy render assignment removed from bundled source */');
   const remaining=(out.match(RENDER_ASSIGNMENT)||[]).length;
   if(remaining!==0)throw new Error(`Legacy render consolidation incomplete: ${remaining} assignment(s) remain.`);
-  return {source:out,removed:ranges.length};
+  const calls=pruneTopLevelRenderCalls(out,{expected:5,keep:1});out=calls.source;
+  const aliases=pruneDeadRenderAliases(out,{expected:5});out=aliases.source;
+  return {source:out,removed:ranges.length,bootstrapCallsRemoved:calls.removed,bootstrapCallsKept:calls.kept,renderAliasesRemoved:aliases.removed};
 }
 
 export function renderDebtInventory(source){
   return {
     assignments:(source.match(RENDER_ASSIGNMENT)||[]).length,
     declarations:(source.match(/\bfunction\s+render\s*\(/g)||[]).length,
+    topLevelCalls:(source.match(TOP_LEVEL_RENDER_CALL)||[]).length,
+    baseAliases:(source.match(DEAD_RENDER_BASE_ALIAS)||[]).length,
     destructiveRootWrites:(source.match(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/g)||[]).length
   };
 }

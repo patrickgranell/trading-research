@@ -1,3 +1,41 @@
+# Trading Research V31.12.1
+
+## Structural Foundation II-A.1 · Recuperación de borradores tras recarga
+
+V31.12.1 corrige una distinción importante detectada durante la validación de V31.12: conservar un formulario durante un **render interno** no puede conservarlo por sí solo durante un **F5 / Ctrl+Shift+R**, porque una recarga real destruye todo el DOM y toda la memoria JavaScript de la página.
+
+### Qué cambia
+
+- La última vista activa se conserva en `sessionStorage`, de modo que una recarga vuelve a la pantalla donde estabas en vez de regresar siempre al Dashboard.
+- Mientras el editor de operaciones está abierto, sus controles se mantienen como **borrador temporal de sesión**.
+- El borrador se actualiza en `input`, `change` y justo antes de abandonar/recargar la página.
+- Tras F5 o Ctrl+Shift+R se reabre automáticamente el editor de la misma operación y se restauran campos, selects, checks, foco, selección del cursor y scroll del modal.
+- El borrador recuperado **no se guarda como operación**: sigue requiriendo pulsar `Guardar operación`.
+- `Cancelar` elimina el borrador. Un guardado correcto también lo elimina.
+- Los archivos elegidos en `<input type=file>` no se pueden reconstruir tras una recarga por las restricciones de seguridad del navegador; si existían, el aviso de recuperación pide seleccionarlos de nuevo.
+- Se conserva la protección anterior para renders internos de la misma vista y el shell persistente.
+
+### Persistencia
+
+El borrador usa `sessionStorage`, no el IndexedDB del workspace. Es deliberado: se trata de estado de interfaz temporal, pequeño y específico de la pestaña, no de datos financieros confirmados. El `state` y sus snapshots continúan en IndexedDB.
+
+### Prueba recomendada
+
+1. Abrir `Operaciones → Editar`.
+2. Escribir una frase nueva en `Notas` sin guardar.
+3. Pulsar F5. Debe volver a la misma vista, reabrir el editor y mostrar la frase acompañada de `Borrador recuperado tras la recarga`.
+4. Repetir con Ctrl+Shift+R.
+5. Pulsar `Cancelar`, volver a recargar y comprobar que el borrador ya no reaparece.
+6. Repetir una tercera vez, pulsar `Guardar operación`, recargar y confirmar que el dato ya proviene del workspace durable, no del borrador.
+
+### Guardia de regresión
+
+`app.js` permanece byte por byte igual a V31.12. Las 7 huellas financieras congeladas desde V31.10.4 siguen siendo obligatorias en `npm run build`.
+
+No requiere SQL nuevo.
+
+---
+
 # Trading Research V31.12
 
 ## Structural Foundation II-A · Shell persistente + router central

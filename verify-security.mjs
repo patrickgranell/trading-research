@@ -7,10 +7,10 @@ const fail=[];
 const need=(cond,msg)=>{if(!cond)fail.push(msg);};
 const region=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);return a>=0&&b>=0?app.slice(a,b):'';};
 
-need(pkg.version==='31.21.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="security-runtime.js"></script>'),'index.html no carga security-runtime.js.');
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
-need(index.includes('trading-research-source-version" content="31.21.0"'),'source-version no es 31.21.0.');
+need(index.includes('trading-research-source-version" content="31.22.0"'),'source-version no es 31.22.0.');
 need(app.includes('function inlineUriToken(value){return globalThis.encodeURIComponent'), 'Falta token URI seguro para contexto inline.');
 need(app.includes(".replace(/'/g,'%27')"),'inlineUriToken no codifica el apóstrofo.');
 need(app.includes('function modalShell(title,body,footer){return `<div class="modal-backdrop"')&&app.includes('<div class="modal-head"><h3>${esc(title)}</h3>'),'modalShell no escapa el título en el sink.');
@@ -40,7 +40,7 @@ need(sec.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"),'Security runti
 for(const probe of ['trSecurityProbeEscaping','trSecurityProbeModalTitle','trSecurityProbeInlineToken','trSecurityProbeFormData'])need(sec.includes(`function ${probe}(`),`Falta sonda ${probe}.`);
 need(sec.includes('const trSecurityDataSecurityBase=dataSecurityPanel'),'Security runtime no se integra en Datos y seguridad.');
 need(sec.includes('<strong>V31.18</strong>'),'Mode card no anuncia V31.18.');
-need(sec.includes('inlineHandlersLegacy:false')&&sec.includes('eventDelegationReady:true')&&sec.includes('strictCspReady:false'),'El estado Event Delegation/CSP no está declarado correctamente.');
+need(sec.includes('inlineHandlersLegacy:false')&&sec.includes('eventDelegationReady:true')&&sec.includes('strictCspReady:false'),'El estado Event Delegation/CSP base no está declarado correctamente.');
 
 const rawEncode=(app.match(/(?<![.\w])encodeURIComponent\s*\(/g)||[]).length;
 need(rawEncode===0,`Quedan ${rawEncode} encodeURIComponent directos fuera del boundary inlineUriToken.`);

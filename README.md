@@ -1,3 +1,27 @@
+# Trading Research V31.21 · Security Foundation IV · Style Boundary Inventory
+
+Esta fase **no retira todavía** la excepción `style-src-attr 'unsafe-inline'`. Primero convierte la deuda de estilos inline en algo observable y cuantificable para poder migrarla sin romper gráficos, barras, heatmaps, modales ni layout.
+
+## Qué cambia
+
+- Nuevo `style-runtime.js` con inventario runtime de elementos que usan atributo `style`.
+- `MutationObserver` acotado exclusivamente a cambios del atributo `style` y altas de nodos con estilos inline.
+- `Configuración → Datos y seguridad` muestra deuda estática de fuente, nodos activos, nodos observados, mutaciones, propiedades y áreas/componentes más frecuentes.
+- El build publica una baseline estática de estilos (`style-inventory.json`) y la inserta como metadatos del bundle para contrastarla con lo realmente ejecutado en navegador.
+- La telemetría es efímera: no toca `state`, IndexedDB, Supabase ni los cálculos financieros.
+- La CSP ejecutable de V31.20 permanece intacta; el bloqueo de `style-src-attr` se pospone deliberadamente hasta completar la migración visual.
+
+## Prueba recomendada
+
+1. Abrir Datos y seguridad y anotar la muestra inicial.
+2. Navegar por Dashboard, Operaciones, Calendario, Informes y Market Data.
+3. En Market Data mover el inspector tick a tick y cambiar de operaciones/fases.
+4. Volver a Datos y seguridad sin recargar.
+5. Comprobar que aumentan `Nodos observados` / `Mutaciones style` y revisar las propiedades/áreas dominantes.
+6. `Estado` debe permanecer `OK`; no debe aparecer ninguna regresión de CSP, eventos, persistencia o arquitectura de estado.
+
+---
+
 # Trading Research V31.19 · Security Foundation II · Event Delegation
 
 Esta fase cierra la deuda de **Event Delegation** que quedó explícitamente pendiente en V31.18, sin modificar las fórmulas financieras ni el modelo de datos.

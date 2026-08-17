@@ -9,16 +9,16 @@ if(!fs.existsSync(file)){console.error('Build verification FAILED: dist/index.ht
 const h=fs.readFileSync(file,'utf8');
 const failures=[];
 const count=s=>h.split(s).length-1;
-const expectedMarkers=[['data-tr-build',2],['data-tr-structural-runtime',1],['data-tr-state-runtime',1],['data-tr-security-runtime',1],['data-tr-event-runtime',1],['data-tr-csp-runtime',1]];
+const expectedMarkers=[['data-tr-build',2],['data-tr-structural-runtime',1],['data-tr-state-runtime',1],['data-tr-security-runtime',1],['data-tr-event-runtime',1],['data-tr-csp-runtime',1],['data-tr-style-runtime',1]];
 for(const [marker,expected] of expectedMarkers){const n=count(`${marker}="${v}"`);if(n!==expected)failures.push(`${marker}: expected ${expected}, got ${n}`);}
 if(count('<!doctype html>')!==1)failures.push(`doctype duplicated: ${count('<!doctype html>')}`);
 if(count('function modalShell(title,body,footer)')!==1)failures.push(`app.js duplicated/corrupted: modalShell count ${count('function modalShell(title,body,footer)')}`);
-if(/<script\s+src=["'](?:app|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime)\.js["']/i.test(h))failures.push('local runtime script src remains after bundling');
+if(/<script\s+src=["'](?:app|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime)\.js["']/i.test(h))failures.push('local runtime script src remains after bundling');
 if(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']/i.test(h))failures.push('styles.css link remains after bundling');
 const size=Buffer.byteLength(h);if(size>3_000_000)failures.push(`bundle unexpectedly large: ${size} bytes`);
 // Syntax-check each inline JS payload in isolation. This catches accidental HTML/source splicing.
-const scripts=[...h.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime)=/.test(m[1]));
-if(scripts.length!==6)failures.push(`expected 6 bundled JS blocks, got ${scripts.length}`);
+const scripts=[...h.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|structural-runtime|state-runtime|security-runtime|event-runtime|csp-runtime|style-runtime)=/.test(m[1]));
+if(scripts.length!==7)failures.push(`expected 7 bundled JS blocks, got ${scripts.length}`);
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'tr-build-check-'));
 try{
   scripts.forEach((m,i)=>{
@@ -30,6 +30,6 @@ try{
 if(failures.length){console.error('Build verification FAILED');for(const f of failures)console.error(' - '+f);process.exit(1);}
 console.log('Build verification OK');
 console.log(` - Single HTML document: yes`);
-console.log(` - Bundled JS blocks: 6/6, syntax OK`);
+console.log(` - Bundled JS blocks: 7/7, syntax OK`);
 console.log(` - app.js occurrence: 1`);
 console.log(` - Output size: ${size} bytes`);

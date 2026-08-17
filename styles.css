@@ -797,3 +797,15 @@ html[data-theme="dark"] .be-kpis>div,html[data-theme="dark"] .be-controls>div,ht
 .tr-core-loading body::after{content:'Cargando workspace…';position:fixed;inset:0;display:grid;place-items:center;background:var(--bg,#07101f);color:var(--text,#e8eef9);font:600 14px/1.4 system-ui,sans-serif;z-index:99999}
 .tr-core-storage-warning{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);max-width:min(760px,calc(100vw - 32px));padding:12px 16px;border:1px solid #d85959;border-radius:10px;background:#3a1519;color:#ffe4e4;font:600 13px/1.4 system-ui,sans-serif;box-shadow:0 12px 36px #0008;z-index:100000}
 .tr-core-fatal{max-width:760px;margin:10vh auto;padding:28px;border:1px solid #d85959;border-radius:14px;background:#111b2b;color:#eef4ff;font-family:system-ui,sans-serif}.tr-core-fatal h1{margin-top:0}.tr-core-fatal h2{color:#ff9b9b}.tr-core-fatal p{line-height:1.6}
+
+/* ===== V31.21 · Style Boundary diagnostics ===== */
+.tr-style-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
+.tr-style-grid>div{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-soft,#0f1727);min-width:0}
+.tr-style-grid h4{margin:0 0 8px;font-size:12px}
+.tr-style-list{display:grid;gap:5px}
+.tr-style-list>div{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:11px}
+.tr-style-list code{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:85%}
+.tr-style-empty{font-size:11px;opacity:.7}
+.tr-style-actions{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+@media (max-width:1100px){.tr-style-grid{grid-template-columns:1fr}}
+/* ===== END V31.21 ===== */

@@ -1,8 +1,8 @@
-/* ===== V31.21 RUNTIME · Security Foundation IV · Style Boundary Inventory ===== */
+/* ===== V31.21.1 RUNTIME · Security Foundation IV · Style Boundary Inventory ===== */
 (()=>{
 'use strict';
-const TR_STYLE_RUNTIME_VERSION='31.21.0';
-const TR_STYLE_APP_LABEL='V31.21 · Security Foundation IV · Style Boundary Inventory';
+const TR_STYLE_RUNTIME_VERSION='31.21.1';
+const TR_STYLE_APP_LABEL='V31.21.1 · Style Boundary Inventory + Reports Purity';
 const TR_STYLE_MAX_BUCKETS=80;
 let trStyleObserver=null;
 let trStyleStartedAt='';
@@ -73,7 +73,8 @@ function trStyleRecordNode(el,kind='inserted'){
   trStyleStats.lastScope=scope;trStyleStats.lastSignature=sig;
 }
 function trStyleScanTree(root,kind='inserted'){
-  if(!(root instanceof Element)&&root!==document)return;
+  const valid=root===document||root instanceof Element||root instanceof DocumentFragment;
+  if(!valid)return;
   if(root instanceof Element)trStyleRecordNode(root,kind);
   try{root.querySelectorAll?.('[style]').forEach(el=>trStyleRecordNode(el,kind));}catch(_){/* diagnostics only */}
 }
@@ -94,7 +95,7 @@ function trStyleMutation(records){
         }else trStyleStats.removedAttributes++;
       }
     }else if(rec.type==='childList'){
-      rec.addedNodes.forEach(node=>{if(node instanceof Element)trStyleScanTree(node,'inserted');});
+      rec.addedNodes.forEach(node=>trStyleScanTree(node,'inserted'));
     }
   }
 }
@@ -106,6 +107,9 @@ function trStyleLiveSnapshot(){
 }
 function trStyleTop(map,n=6){return [...map.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,n).map(([name,count])=>({name,count}));}
 function trStyleDiagnostics(){
+  // Re-scan the currently mounted DOM on every diagnostics read. This closes gaps caused by
+  // whole-subtree innerHTML replacements that can happen between observer setup and panel paint.
+  trStyleScanTree(document,'inserted');
   const source=trStyleSourceBaseline(),live=trStyleLiveSnapshot();
   return {
     version:TR_STYLE_RUNTIME_VERSION,
@@ -145,7 +149,7 @@ function trStyleRows(rows,empty='Sin actividad observada todavía.'){
 }
 function trStyleRuntimePanel(){
   const d=trStyleDiagnostics();
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Style Boundary · inventario</h3><div class="help">V31.21 mide primero la deuda real de estilos inline antes de retirar <code>style-src-attr 'unsafe-inline'</code>. No bloquea estilos ni cambia cálculos.</div></div><span class="stable-pill">Observando</span></div><div class="integrity-kpis"><div><span>Style attrs en fuente</span><strong>${d.sourceInlineAttributes}</strong></div><div><span>Escrituras CSSOM en fuente</span><strong>${d.sourceCssomWrites}</strong></div><div><span>Nodos style activos</span><strong>${d.activeNodes}</strong></div><div><span>Nodos observados</span><strong>${d.nodesSeen}</strong></div><div><span>Mutaciones style</span><strong>${d.attributeMutations}</strong></div><div><span>Propiedades activas</span><strong>${d.activeProperties}</strong></div><div><span>CSP style attrs</span><strong>Compatibilidad</strong></div><div><span>Estado</span><strong class="positive">OK</strong></div></div><div class="tr-style-grid"><div><h4>Propiedades más observadas</h4>${trStyleRows(d.topProperties)}</div><div><h4>Áreas que generan estilos</h4>${trStyleRows(d.topScopes)}</div><div><h4>Elementos más frecuentes</h4>${trStyleRows(d.topSignatures)}</div></div><div class="notice"><strong>V31.21 · Style Boundary:</strong> la muestra combina un inventario estático generado durante el build con observación runtime mediante <code>MutationObserver</code>. Interactúa con Dashboard, Operaciones, Market Data, Calendario e Informes para ampliar la muestra. Cuando el inventario esté estable, migraremos por familias de propiedades y solo entonces activaremos <code>style-src-attr 'none'</code>.<br><small>La observación no modifica atributos <code>style</code>, no llama a <code>render()</code> al registrar mutaciones y no persiste telemetría en el dominio.</small></div><div class="tr-style-actions"><button class="btn small" data-tr-onclick="trStyleResetInventory()">Reiniciar muestra de estilos</button><span class="help">Inicio de muestra: ${esc(d.startedAt?new Date(d.startedAt).toLocaleTimeString('es-ES'):'—')}</span></div></section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Style Boundary · inventario</h3><div class="help">V31.21.1 mide la deuda real de estilos inline antes de retirar <code>style-src-attr 'unsafe-inline'</code>. El inventario vuelve a recorrer el DOM montado en cada lectura para no perder subárboles insertados. No bloquea estilos ni cambia cálculos.</div></div><span class="stable-pill">Observando</span></div><div class="integrity-kpis"><div><span>Style attrs en fuente</span><strong>${d.sourceInlineAttributes}</strong></div><div><span>Escrituras CSSOM en fuente</span><strong>${d.sourceCssomWrites}</strong></div><div><span>Nodos style activos</span><strong>${d.activeNodes}</strong></div><div><span>Nodos observados</span><strong>${d.nodesSeen}</strong></div><div><span>Mutaciones style</span><strong>${d.attributeMutations}</strong></div><div><span>Propiedades activas</span><strong>${d.activeProperties}</strong></div><div><span>CSP style attrs</span><strong>Compatibilidad</strong></div><div><span>Estado</span><strong class="positive">OK</strong></div></div><div class="tr-style-grid"><div><h4>Propiedades más observadas</h4>${trStyleRows(d.topProperties)}</div><div><h4>Áreas que generan estilos</h4>${trStyleRows(d.topScopes)}</div><div><h4>Elementos más frecuentes</h4>${trStyleRows(d.topSignatures)}</div></div><div class="notice"><strong>V31.21.1 · Style Boundary:</strong> la muestra combina inventario estático del build, observación por <code>MutationObserver</code> y rescaneo del DOM actualmente montado. Interactúa con Dashboard, Operaciones, Market Data, Calendario e Informes para ampliar la muestra. Cuando el inventario esté estable, migraremos por familias de propiedades y solo entonces activaremos <code>style-src-attr 'none'</code>.<br><small>La observación no modifica atributos <code>style</code>, no llama a <code>render()</code> al registrar mutaciones y no persiste telemetría en el dominio.</small></div><div class="tr-style-actions"><button class="btn small" data-tr-onclick="trStyleResetInventory()">Reiniciar muestra de estilos</button><span class="help">Inicio de muestra: ${esc(d.startedAt?new Date(d.startedAt).toLocaleTimeString('es-ES'):'—')}</span></div></section>`;
 }
 function trStyleStart(){
   if(trStyleObserver)return;
@@ -161,11 +165,11 @@ if(typeof dataSecurityPanel==='function'){
   window.dataSecurityPanel=dataSecurityPanel;
 }
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.21</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STYLE_APP_LABEL)}</div><div class="help">Inventario estático + observación runtime de estilos inline. La excepción CSP de style attributes sigue activa de forma deliberada hasta completar la migración visual.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.21.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STYLE_APP_LABEL)}</div><div class="help">Inventario estático + observación runtime + rescaneo del DOM montado. La excepción CSP de style attributes sigue activa hasta completar la migración visual.</div></div></div></div>`;};
 
 window.TradingResearchStyles=Object.freeze({version:TR_STYLE_RUNTIME_VERSION,diagnostics:trStyleDiagnostics,reset:trStyleResetInventory});
 Object.assign(window,{trStyleDiagnostics,trStyleResetInventory,trStyleRuntimePanel});
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=v30ModeCard();}catch(_){/* next render refreshes */}
 trStyleStart();
 })();
-/* ===== END V31.21 STYLE RUNTIME ===== */
+/* ===== END V31.21.1 STYLE RUNTIME ===== */

@@ -25,21 +25,20 @@ if(inv.before.blocks!==44)throw new Error(`Bloques window de entrada inesperados
 if(inv.before.entries!==325)throw new Error(`Entries window de entrada inesperadas: ${inv.before.entries}`);
 if(inv.before.unique!==286)throw new Error(`Exports window únicos de entrada inesperados: ${inv.before.unique}`);
 if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries window no cuadran con publicaciones registry: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}`);
-if(inv.after.entries!==275)throw new Error(`Entries window tras seis lotes: ${inv.after.entries}; se esperaban 275.`);
+if(inv.after.entries!==272)throw new Error(`Entries window tras seis lotes: ${inv.after.entries}; se esperaban 272.`);
 if(inv.after.unique!==238)throw new Error(`Exports window únicos tras seis lotes: ${inv.after.unique}; se esperaban 238.`);
 if(inv.batch1Entries!==9)throw new Error(`Publicaciones del lote I cambiaron: ${inv.batch1Entries}; se esperaban 9.`);
 if(inv.batch2Entries!==8)throw new Error(`Publicaciones del lote II cambiaron: ${inv.batch2Entries}; se esperaban 8.`);
 if(inv.batch3Entries!==8)throw new Error(`Publicaciones del lote III cambiaron: ${inv.batch3Entries}; se esperaban 8.`);
 if(inv.batch4Entries!==9)throw new Error(`Publicaciones del lote IV cambiaron: ${inv.batch4Entries}; se esperaban 9.`);
 if(inv.batch5Entries!==8)throw new Error(`Publicaciones del lote V cambiaron: ${inv.batch5Entries}; se esperaban 8.`);
-if(inv.batch6Entries!==8)throw new Error(`Publicaciones del lote VI cambiaron: ${inv.batch6Entries}; se esperaban 8.`);
+if(inv.batch6Entries!==11)throw new Error(`Publicaciones del lote VI cambiaron: ${inv.batch6Entries}; se esperaban 11.`);
+if(inv.registryEntries!==53)throw new Error(`Publicaciones registry acumuladas cambiaron: ${inv.registryEntries}; se esperaban 53.`);
 if(mapAfter.remainingUnique!==238||mapAfter.classified!==238||mapAfter.unclassified!==0)throw new Error(`Mapa contractual post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
 if((mapAfter.byPrimary['state-action']||0)!==12||(mapAfter.byPrimary['ui-handler']||0)!==223||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
 if(mapAfter.names.migrationFrontiers.stateOnly.length!==8)throw new Error(`Frontera State post-migración inesperada: ${mapAfter.names.migrationFrontiers.stateOnly.length}.`);
 if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`La migración reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
-for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){
-  if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);
-}
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);
 if(!migrated.source.includes('V31.23.17 State registry migration:'))throw new Error('Falta marcador V31.23.17 en el bundle migrado.');
 console.log('State Registry Migration verification OK');
 console.log(` - Cumulative State actions migrated: ${TR_STATE_REGISTRY_MIGRATION_NAMES.length} (${batches.map(b=>b.length).join('+')})`);

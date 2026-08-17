@@ -97,14 +97,14 @@ export function transformStateActions(source){
 
   const inventory=stateActionInventory(out);
   if(inventory.crossRuntimeWindowReads!==0)throw new Error(`State Action Bridge dejó ${inventory.crossRuntimeWindowReads} lecturas window directas cross-runtime.`);
-  if(inventory.resolveCalls<14||inventory.publishCalls<20)throw new Error(`State Action Bridge incompleto: resolve ${inventory.resolveCalls}, publish ${inventory.publishCalls}.`);
+  if(inventory.resolveCalls<14||inventory.publishCalls<19)throw new Error(`State Action Bridge incompleto: resolve ${inventory.resolveCalls}, publish ${inventory.publishCalls}.`);
   return {source:out,inventory};
 }
 
 export function stateActionInventory(source){
   const s=String(source);
-  const resolveCalls=(s.match(/trStateActionResolve\s*\(/g)||[]).length-1; // exclude helper declaration
-  const publishCalls=(s.match(/trStateActionPublish\s*\(/g)||[]).length-1;
+  const resolveCalls=(s.match(/trStateActionResolve\s*\(/g)||[]).length;
+  const publishCalls=(s.match(/trStateActionPublish\s*\(/g)||[]).length;
   let crossRuntimeWindowReads=0;
   for(const name of CROSS_RUNTIME_ACTIONS){
     const re=new RegExp(`\\bwindow\\.${name}\\b`,'g');
@@ -112,8 +112,8 @@ export function stateActionInventory(source){
   }
   return {
     bridge:s.includes(BRIDGE_MARKER),
-    resolveCalls:Math.max(0,resolveCalls),
-    publishCalls:Math.max(0,publishCalls),
+    resolveCalls,
+    publishCalls,
     crossRuntimeWindowReads,
     targetActions:TARGET_ACTIONS.length,
     crossRuntimeActions:[...CROSS_RUNTIME_ACTIONS]

@@ -1,3 +1,27 @@
+# Trading Research V31.15 · Structural Foundation III-B1 · Operation Command Boundary
+
+Esta fase inicia la migración real de comandos de Operaciones sin reescribir todavía la cadena histórica de negocio. El objetivo es que una acción de usuario produzca **un solo commit controlado**, aunque internamente los wrappers heredados sigan solicitando varias persistencias y renders.
+
+## Qué cambia
+
+- `saveOperationFromForm()` queda encapsulado como `operation.create` o `operation.update`.
+- Todas las mutaciones históricas derivadas del mismo guardado (checklist, Data Quality, MFE/MAE, Research Changes, Execution Evidence y journal completion) se agrupan en **un único commit DomainStore**.
+- Los múltiples `persist()` históricos del guardado se coalescen en **un único snapshot durable** del estado final.
+- Los múltiples `render()` históricos del guardado se coalescen en **un único render final**.
+- Abrir/editar una operación se clasifica como acción UI; si hay que cambiar de Trading Plan, reutiliza el commit controlado `plan.switch`.
+- También pasan por comandos controlados: diario emocional, edición rápida de importadas, Data Quality Workbench y vincular/desvincular Execution Evidence.
+- Datos y seguridad muestra número de comandos, persistencias/renders legacy coalescidos y el último comando ejecutado.
+
+## Invariante de aceptación
+
+Editar y guardar una operación debe incrementar `Domain revision` **una sola vez** para ese guardado y el último commit debe ser `operation.update` (o `operation.create` al crear una nueva). `Mutaciones pendientes` debe volver a 0. El contador de persistencias/renders coalescidos puede subir varias unidades: eso demuestra cuántas solicitudes legacy han quedado absorbidas por el command boundary.
+
+No se añade una eliminación individual de operaciones porque V31.14.3 no tenía ese comando en la interfaz; la eliminación por lotes de importación se migrará en la fase de Imports para no introducir funcionalidad nueva durante el refactor.
+
+`app.js` permanece byte-idéntico a V31.12.1 y las 7 regiones financieras protegidas siguen congeladas respecto a V31.10.4.
+
+---
+
 # Trading Research V31.14.3 · Structural Foundation III-A2
 
 Esta versión corrige la última anomalía detectada durante la validación de V31.14.1: algunas vistas todavía podían inicializar campos de esquema durable al navegar, haciendo crecer `Domain revision` durante acciones puramente de UI.

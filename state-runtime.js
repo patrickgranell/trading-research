@@ -1,4 +1,4 @@
-/* ===== V31.14 STATE RUNTIME · Structural Foundation III-A =====
+/* ===== V31.15 STATE RUNTIME · Structural Foundation III-B1 =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
  * - persistence boundaries publish atomic mutation batches
@@ -6,8 +6,8 @@
  * - UIStore classifies and tracks ephemeral UI state separately from durable state
  * No financial formula lives in this file.
  */
-const TR_STATE_RUNTIME_VERSION='31.14.3';
-const TR_STATE_APP_LABEL='V31.14.3 · Structural Foundation III-A3 · Read-only Render Boundary';
+const TR_STATE_RUNTIME_VERSION='31.15';
+const TR_STATE_APP_LABEL='V31.15 · Structural Foundation III-B1 · Operation Command Boundary';
 
 /* ---------- Durable domain store ---------- */
 let trDomainRootTarget=null;
@@ -46,6 +46,21 @@ let trDomainRenderGuardWrites=0;
 let trDomainRenderGuardPersistRequests=0;
 let trDomainRenderGuardSuppressedWrites=0;
 let trDomainRenderGuardSuppressedPersists=0;
+/* Controlled command batching. Legacy operation handlers can keep their tested
+ * mutation code temporarily, while every persist/render they request is coalesced
+ * into one observable domain commit + one durable snapshot + one final render. */
+let trDomainCommandDepth=0;
+let trDomainCommandPersistRequests=0;
+let trDomainCommandRenderRequests=0;
+let trDomainCommandCount=0;
+let trDomainCommandCoalescedPersists=0;
+let trDomainCommandCoalescedRenders=0;
+let trDomainLastCommand='';
+let trDomainLastCommandAt='';
+let trDomainLastCommandMutations=0;
+let trDomainLastCommandPersistRequests=0;
+let trDomainLastCommandRenderRequests=0;
+const trDomainCommandBreakdown=new Map();
 const trDomainSchemaNormalizedRoots=new WeakSet();
 const trDomainSubscribers=new Set();
 
@@ -244,25 +259,58 @@ function trDomainCommit(label,mutator,options={}){
     finish();return out;
   }catch(e){trDomainActiveLabel=previous;throw e;}
 }
+function trDomainCommand(label,task,options={}){
+  trStateEnsureAttached(`command.${label||'domain'}`);
+  /* Nested migrated commands participate in the outer atomic boundary. */
+  if(trDomainCommandDepth)return task?.();
+  const commandLabel=String(label||'domain.command'),previousLabel=trDomainActiveLabel;
+  const beforeMutations=trDomainMutationCount,beforeCommits=trDomainCommitCount;
+  trDomainActiveLabel=commandLabel;trDomainCommandDepth=1;trDomainCommandPersistRequests=0;trDomainCommandRenderRequests=0;
+  const finish=(value,error=null)=>{
+    const persistRequests=trDomainCommandPersistRequests,renderRequests=trDomainCommandRenderRequests;
+    let batch=null;
+    try{
+      if(!error&&trDomainPendingMutationCount)batch=trDomainFlush(commandLabel,'controlled');
+      /* Do not write a duplicate snapshot for validation-only/no-op commands. */
+      if(!error&&batch&&options.persist!==false){trDomainPersistBridgeBase(`command:${commandLabel}`);}
+      trDomainCommandCount++;trDomainLastCommand=commandLabel;trDomainLastCommandAt=new Date().toISOString();
+      trDomainLastCommandMutations=Math.max(0,trDomainMutationCount-beforeMutations);
+      trDomainLastCommandPersistRequests=persistRequests;trDomainLastCommandRenderRequests=renderRequests;
+      trDomainCommandCoalescedPersists+=persistRequests;trDomainCommandCoalescedRenders+=renderRequests;
+      trDomainCommandBreakdown.set(commandLabel,(trDomainCommandBreakdown.get(commandLabel)||0)+1);
+    }finally{
+      trDomainCommandDepth=0;trDomainCommandPersistRequests=0;trDomainCommandRenderRequests=0;trDomainActiveLabel=previousLabel;
+    }
+    if(!error&&options.render!==false&&renderRequests>0&&typeof render==='function')render();
+    if(error)throw error;return value;
+  };
+  try{
+    const out=task?.();
+    if(out&&typeof out.then==='function')return out.then(v=>finish(v),e=>finish(undefined,e));
+    return finish(out);
+  }catch(e){return finish(undefined,e);}
+}
 function trDomainExclusive(label,task){
   const run=async()=>{trDomainExclusiveBusy=true;try{if(typeof trCoreFlush==='function')await trCoreFlush();return await task();}finally{trDomainExclusiveBusy=false;trStateEnsureAttached(`exclusive.${label}`);}};
   trDomainExclusiveChain=trDomainExclusiveChain.catch(()=>{}).then(run);return trDomainExclusiveChain;
 }
 function trDomainSnapshot(){trStateEnsureAttached('snapshot');return typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state));}
-function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],schemaNormalizations:trDomainSchemaNormalizeCount,schemaNormalizeLastAt:trDomainSchemaNormalizeLastAt,schemaNormalizeLastMutations:trDomainSchemaNormalizeLastMutations,renderSideEffects:trDomainRenderSideEffects,lastRenderSideEffect:trDomainLastRenderSideEffect,lastRenderSideEffectPaths:[...trDomainLastRenderSideEffectPaths],renderGuardSuppressedWrites:trDomainRenderGuardSuppressedWrites,renderGuardSuppressedPersists:trDomainRenderGuardSuppressedPersists,lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
+function trDomainDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,attached:trDomainAttached,replacements:trDomainReplacements,unsafeReplacements:trDomainUnsafeReplacements,revision:trDomainRevision,commits:trDomainCommitCount,controlledCommits:trDomainControlledCommits,legacyCommits:trDomainLegacyCommits,mutations:trDomainMutationCount,suppressedNoopWrites:trDomainSuppressedNoopWrites,pendingMutations:trDomainPendingMutationCount,pendingPaths:[...trDomainPendingPaths],schemaNormalizations:trDomainSchemaNormalizeCount,schemaNormalizeLastAt:trDomainSchemaNormalizeLastAt,schemaNormalizeLastMutations:trDomainSchemaNormalizeLastMutations,renderSideEffects:trDomainRenderSideEffects,lastRenderSideEffect:trDomainLastRenderSideEffect,lastRenderSideEffectPaths:[...trDomainLastRenderSideEffectPaths],renderGuardSuppressedWrites:trDomainRenderGuardSuppressedWrites,renderGuardSuppressedPersists:trDomainRenderGuardSuppressedPersists,commandDepth:trDomainCommandDepth,commands:trDomainCommandCount,commandCoalescedPersists:trDomainCommandCoalescedPersists,commandCoalescedRenders:trDomainCommandCoalescedRenders,lastCommand:trDomainLastCommand,lastCommandAt:trDomainLastCommandAt,lastCommandMutations:trDomainLastCommandMutations,lastCommandPersistRequests:trDomainLastCommandPersistRequests,lastCommandRenderRequests:trDomainLastCommandRenderRequests,commandBreakdown:Object.fromEntries(trDomainCommandBreakdown),lastCommit:trDomainLastCommit,lastMutationAt:trDomainLastMutationAt,lastReplacement:trDomainLastReplacement,lastError:trDomainLastError,exclusiveBusy:trDomainExclusiveBusy};}
 const TRDomainStore=Object.freeze({
-  getState:()=>{trStateEnsureAttached('get');return state;},snapshot:trDomainSnapshot,commit:trDomainCommit,flush:(label='manual.flush')=>trDomainFlush(label,'controlled'),subscribe(fn){if(typeof fn!=='function')return()=>{};trDomainSubscribers.add(fn);return()=>trDomainSubscribers.delete(fn);},diagnostics:trDomainDiagnostics,ensureAttached:trStateEnsureAttached,exclusive:trDomainExclusive
+  getState:()=>{trStateEnsureAttached('get');return state;},snapshot:trDomainSnapshot,commit:trDomainCommit,command:trDomainCommand,flush:(label='manual.flush')=>trDomainFlush(label,'controlled'),subscribe(fn){if(typeof fn!=='function')return()=>{};trDomainSubscribers.add(fn);return()=>trDomainSubscribers.delete(fn);},diagnostics:trDomainDiagnostics,ensureAttached:trStateEnsureAttached,exclusive:trDomainExclusive
 });
 
 /* Persistence is the atomic boundary for still-legacy mutation syntax. */
 const trDomainPersistBridgeBase=trCorePersistStateBridge;
 trCorePersistStateBridge=function(reason='persist'){
   if(trDomainRenderGuardDepth){trDomainRenderGuardPersistRequests++;trDomainRenderGuardSuppressedPersists++;return true;}
+  if(trDomainCommandDepth){trDomainCommandPersistRequests++;return true;}
   trStateEnsureAttached(`persist.${reason}`);trDomainFlush(trDomainCallerLabel(reason),trDomainActiveLabel?'controlled':'legacy');return trDomainPersistBridgeBase(reason);
 };
 const trDomainPersistNowBase=trCorePersistNow;
 trCorePersistNow=async function(reason='persist'){
   if(trDomainRenderGuardDepth){trDomainRenderGuardPersistRequests++;trDomainRenderGuardSuppressedPersists++;return true;}
+  if(trDomainCommandDepth){trDomainCommandPersistRequests++;return true;}
   trStateEnsureAttached(`core.${reason}`);trDomainFlush(trDomainCallerLabel(reason),trDomainActiveLabel?'controlled':'legacy');return trDomainPersistNowBase(reason);
 };
 
@@ -357,11 +405,63 @@ function trUiWrapGlobal(name,label){
   ['v3110SetTargetTicks','best-exit.target'],['v3110SetTrailTrigger','best-exit.trail-trigger'],['v3110SetTrailGiveback','best-exit.giveback']
 ].forEach(([name,label])=>trUiWrapGlobal(name,label));
 
+/* ---------- III-B1 · Operation command boundary ----------
+ * Keep the mature V31.x operation transformation chain intact, but execute it as
+ * one command. This collapses the many historical persist()+render() calls made
+ * by compliance/data-quality/research/evidence wrappers into one atomic commit. */
+const trOperationSaveLegacyBase=window.saveOperationFromForm;
+if(typeof trOperationSaveLegacyBase==='function'){
+  saveOperationFromForm=function(...args){
+    const targetId=typeof editingId!=='undefined'&&editingId?editingId:null;
+    const label=targetId?'operation.update':'operation.create';
+    return TRDomainStore.command(label,()=>trOperationSaveLegacyBase.apply(this,args),{persist:true,render:true});
+  };
+  window.saveOperationFromForm=saveOperationFromForm;
+}
+
+/* Opening an editor is UI state. If an operation belongs to another plan, reuse
+ * the already-controlled plan switch instead of mutating currentPlanId directly. */
+const trOpenOperationModalLegacyBase=window.openOperationModal;
+if(typeof trOpenOperationModalLegacyBase==='function'){
+  openOperationModal=function(id=null){return TRUIStore.action(id?'operation.editor.edit':'operation.editor.new',()=>trOpenOperationModalLegacyBase.call(this,id));};
+  window.openOperationModal=openOperationModal;
+}
+const trEditOperationLegacyBase=window.editOperation;
+if(typeof trEditOperationLegacyBase==='function'){
+  editOperation=function(id){
+    const o=state.operations.find(x=>x.id===id);if(!o)return;
+    if(o.tradingPlanId!==state.currentPlanId){const out=switchPlan(o.tradingPlanId);setTimeout(()=>openOperationModal(id),0);return out;}
+    return openOperationModal(id);
+  };
+  window.editOperation=editOperation;
+}
+
+function trWrapOperationCommand(name,label){
+  const base=window[name];if(typeof base!=='function'||base.__trOperationCommandWrapped)return;
+  const wrapped=function(...args){return TRDomainStore.command(label,()=>base.apply(this,args),{persist:true,render:true});};
+  Object.defineProperty(wrapped,'__trOperationCommandWrapped',{value:true});window[name]=wrapped;
+  try{
+    if(name==='saveEmotionalEditor')saveEmotionalEditor=wrapped;
+    else if(name==='saveImportedRowEdit')saveImportedRowEdit=wrapped;
+    else if(name==='dqSaveWorkbench')dqSaveWorkbench=wrapped;
+    else if(name==='v316ApplyLink')v316ApplyLink=wrapped;
+    else if(name==='v316Unlink')v316Unlink=wrapped;
+  }catch{}
+}
+[
+  ['saveEmotionalEditor','operation.emotional.update'],
+  ['saveImportedRowEdit','operation.imported.update'],
+  ['dqSaveWorkbench','operation.data-quality.update'],
+  ['v316ApplyLink','operation.execution.link'],
+  ['v316Unlink','operation.execution.unlink']
+].forEach(([name,label])=>trWrapOperationCommand(name,label));
+
 /* Render is a strict durable read-only boundary. Legacy view builders may still
  * attempt lazy normalization during the migration, but those writes are rolled back
  * before render() returns and any persist request is suppressed. */
 const trStateRenderBase=render;
 render=function(...args){
+  if(trDomainCommandDepth){trDomainCommandRenderRequests++;return;}
   trStateEnsureAttached('render');
   trDomainNormalizeHydratedSchema('render');
   const commitsBefore=trDomainCommitCount,pendingBefore=trDomainPendingMutationCount;
@@ -382,15 +482,15 @@ window.render=render;
 function trStateRuntimeDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,domain:TRDomainStore.diagnostics(),ui:TRUIStore.diagnostics()};}
 function trStateRuntimePanel(){
   const d=TRDomainStore.diagnostics(),u=TRUIStore.diagnostics(),ok=!d.lastError&&!u.lastError&&!d.unsafeReplacements&&!d.pendingMutations&&!d.renderSideEffects,paths=(d.lastCommit?.paths||[]).slice(0,6).join(' · ')||'—';
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.14.3 mantiene el esquema durable fuera del render y convierte cada composición de UI en una transacción de solo lectura: cualquier escritura legacy durante la vista se revierte antes de volver al usuario.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.14.3 · render de solo lectura:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Arquitectura de estado</h3><div class="help">V31.15 mantiene el render durable de solo lectura y añade un command boundary para Operaciones: la cadena histórica de guardado puede solicitar varios persist/render, pero el runtime los agrupa en un único commit controlado, un snapshot durable y un render final.</div></div><span class="stable-pill ${ok?'':'warning'}">Domain + UI Store</span></div><div class="integrity-kpis"><div><span>Domain revision</span><strong>${d.revision}</strong></div><div><span>Commits observados</span><strong>${d.commits}</strong></div><div><span>Legacy / controlados</span><strong>${d.legacyCommits} / ${d.controlledCommits}</strong></div><div><span>Mutaciones pendientes</span><strong class="${d.pendingMutations?'negative':'positive'}">${d.pendingMutations}</strong></div><div><span>UI revision</span><strong>${u.revision}</strong></div><div><span>UI actions / legacy</span><strong>${u.trackedActions} / ${u.legacyChanges}</strong></div><div><span>Reemplazos de state</span><strong>${d.replacements}</strong></div><div><span>Estado</span><strong class="${ok?'positive':'negative'}">${ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.15 · Operation Command Boundary:</strong> <code>state</code> sigue siendo compatible con el código histórico, pero ya no es opaco: cada escritura profunda queda registrada y el siguiente guardado publica un lote atómico con rutas modificadas. <code>TRDomainStore.commit()</code> es el API para migrar comandos sin reescribir de golpe la lógica financiera. La navegación y los principales controles de Operaciones/Market Data ya pasan por <code>TRUIStore</code>. Comandos controlados ejecutados: <strong>${d.commands||0}</strong> · persistencias legacy coalescidas: <strong>${d.commandCoalescedPersists||0}</strong> · renders legacy coalescidos: <strong>${d.commandCoalescedRenders||0}</strong> · normalizaciones de esquema: <strong>${d.schemaNormalizations||0}</strong> · no-op suprimidos: <strong>${d.suppressedNoopWrites||0}</strong> · escrituras de render revertidas: <strong>${d.renderGuardSuppressedWrites||0}</strong> · persistencias de render suprimidas: <strong>${d.renderGuardSuppressedPersists||0}</strong> · efectos laterales detectados: <strong class="${d.renderSideEffects?'negative':'positive'}">${d.renderSideEffects||0}</strong>.<br><small>Último domain commit: ${esc(d.lastCommit?.label||'—')} · rutas: ${esc(paths)}${d.lastCommand?` · último comando: ${esc(d.lastCommand)} (${d.lastCommandMutations||0} mut.; ${d.lastCommandPersistRequests||0} persist; ${d.lastCommandRenderRequests||0} render)`:''}${u.lastAction?` · última UI action: ${esc(u.lastAction)}`:''}</small></div>${d.pendingMutations?`<div class="notice danger"><strong>Mutaciones sin persistir:</strong> ${d.pendingMutations}. Rutas: ${esc(d.pendingPaths.slice(0,8).join(' · '))}</div>`:''}${d.renderSideEffects?`<div class="notice danger"><strong>Render con efecto lateral:</strong> ${esc(d.lastRenderSideEffect||'detectado')}. Rutas: ${esc((d.lastRenderSideEffectPaths||[]).join(' · ')||'—')}. La escritura fue revertida y no alcanzó IndexedDB.</div>`:''}${d.lastError||u.lastError?`<div class="notice danger"><strong>State runtime:</strong> ${esc(d.lastError||u.lastError)}</div>`:''}</section>`;
 }
 
 const trStateDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trStateRuntimePanel()+trStateDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.14.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3A3: render durable de solo lectura + normalización eager + DomainStore/UIStore separados. IndexedDB, shell persistente, borradores y Partial DOM permanecen activos. La lógica financiera sigue congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.15</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_STATE_APP_LABEL)}</div><div class="help">Fase estructural 3B1: el guardado y las principales mutaciones de Operaciones pasan por comandos controlados y coalescen persistencias/renders legacy. DomainStore/UIStore, IndexedDB, shell persistente, borradores y Partial DOM permanecen activos. La lógica financiera sigue congelada.</div></div></div></div>`;};
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
-/* ===== END V31.14 STATE RUNTIME ===== */
+/* ===== END V31.15 STATE RUNTIME ===== */

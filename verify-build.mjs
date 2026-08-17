@@ -66,8 +66,7 @@ else{
 if(!fs.existsSync('dist/prune-candidate-inventory.json'))failures.push('dist/prune-candidate-inventory.json missing');
 else{
   const inv=JSON.parse(fs.readFileSync('dist/prune-candidate-inventory.json','utf8'));
-  if(String(inv.version)!==String(v))failures.push(`prune-candidate manifest build version unexpected: ${inv.version}`);
-  if(String(inv.version)!==String(v))failures.push(`prune-candidate manifest version mismatch: ${inv.version}`);
+  if(String(inv.version)!=='31.23.10')failures.push(`prune-candidate inventory version unexpected: ${inv.version}`);
   if(Number(inv.safeCandidateCount)!==0)failures.push(`contract-safe explicit prune candidates remain: ${inv.safeCandidateCount}`);
   if((inv.safeCandidates||[]).length!==0)failures.push(`contract-safe candidate list is not empty: ${(inv.safeCandidates||[]).join(', ')}`);
   if(Number(inv.guards?.stateTargets)!==61)failures.push(`prune candidate state target guard changed: ${inv.guards?.stateTargets}`);

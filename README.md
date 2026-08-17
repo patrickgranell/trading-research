@@ -1,4 +1,4 @@
-# Trading Research V31.14.2 · Structural Foundation III-A2
+# Trading Research V31.14.3 · Structural Foundation III-A2
 
 Esta versión corrige la última anomalía detectada durante la validación de V31.14.1: algunas vistas todavía podían inicializar campos de esquema durable al navegar, haciendo crecer `Domain revision` durante acciones puramente de UI.
 
@@ -311,3 +311,11 @@ No requiere cambios SQL.
 ## V31.14.1 · Semantic Mutation Boundary
 
 Corrige la instrumentación de DomainStore: los normalizadores históricos que reconstruyen arrays/objetos con contenido idéntico ya no generan falsos `pending mutations`. El estado `OK` exige ahora cero mutaciones pendientes. Los commits explícitos mantienen su etiqueta durante el boundary de persistencia para agrupar también las normalizaciones/research tracking derivadas del mismo comando. No cambia `app.js` ni ninguna fórmula financiera.
+
+
+## V31.14.3 · Read-only Render Boundary
+- render() ya no llama a v30EnsureBaselineLocal; la baseline se prepara en el boundary de dominio.
+- Escrituras legacy durante render se journalizan y revierten antes de salir de la composición.
+- Persistencias solicitadas durante render se suprimen y se diagnostican.
+- Las reasignaciones semánticamente idénticas son también no-op referenciales.
+- contractEconomics de Ankora deja de refrescar updatedAt cuando no cambió la economía real.

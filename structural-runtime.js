@@ -371,7 +371,8 @@ window.v315SetCursor=v315SetCursor;
 render=function(){
   if(trCoreFatal)return;
   try{
-    if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();
+    /* V31.14.3: durable schema/baseline preparation belongs to DomainStore before render.
+       Rendering is a projection and must never persist or initialize domain state. */
     const first=!trRenderShellMounted;
     const view=trRenderEnsureShell(first);if(!view)return;
     const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;

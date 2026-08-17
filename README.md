@@ -1,3 +1,37 @@
+# Trading Research V31.14 · Structural Foundation III-A
+
+Esta versión inicia la separación formal entre **estado durable de dominio** y **estado efímero de interfaz** sin modificar `app.js` ni las fórmulas financieras.
+
+## DomainStore
+
+- `state` se conserva compatible con el código histórico, pero queda envuelto en un **Proxy profundo** después de hidratar IndexedDB.
+- Las mutaciones profundas dejan de ser invisibles: se registran rutas, número de cambios y momento de la última mutación.
+- El boundary de persistencia agrupa los cambios pendientes en un **commit observable** y publica un evento a los suscriptores.
+- Se introduce `TRDomainStore.commit(label, mutator)` para migrar comandos de forma incremental sin reescribir la aplicación de golpe.
+- El cambio de Trading Plan ya usa un commit explícito como primer comando durable migrado.
+- Descargas/restauraciones externas se serializan mediante un lock de reemplazo para que dos sustituciones completas del workspace no se solapen.
+
+## UIStore
+
+- Se introduce un registro independiente para navegación, filtros de Operaciones, Market Data, Best Exit y el resto de estados de vista.
+- `navigate()` y `setConfigTab()` ya pasan por `TRUIStore`.
+- Los controles principales de Operaciones y Market Data se ejecutan dentro de acciones UI etiquetadas, conservando el código probado de V31.13.
+- El runtime detecta también cambios UI legacy que todavía no se han migrado, permitiendo medir el progreso de la refactorización.
+
+## Diagnóstico
+
+`Configuración → Datos y seguridad` añade **Arquitectura de estado**, con revisión del dominio, commits observados, legacy/controlados, mutaciones pendientes, revisión UI, acciones UI/legacy y reemplazos completos de `state`. En estado normal, después de guardar una edición, **Mutaciones pendientes debe volver a 0**.
+
+## Regresión
+
+- `app.js` sigue byte por byte idéntico a V31.12.1.
+- Las 7 regiones financieras permanecen idénticas a V31.10.4.
+- IndexedDB, shell persistente, recuperación de borradores y Partial DOM siguen activos.
+
+No requiere SQL nuevo.
+
+---
+
 # Trading Research V31.13 · Structural Foundation II-B
 
 Esta versión continúa la refactorización estructural sobre V31.12.1 sin modificar `app.js` financiero.

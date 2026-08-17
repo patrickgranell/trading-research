@@ -84,6 +84,7 @@ if(import.meta.url===`file://${process.argv[1]}`){
   console.log(` - Coverage: handler ${inv.coverage.uiHandler}; dynamic ${inv.coverage.dynamicAction}; state ${inv.coverage.stateAction}; same-app read ${inv.coverage.sameAppGlobalRead}; cross-runtime ${inv.coverage.crossRuntimeRead}; direct mirror ${inv.coverage.directGlobalMirror}`);
   console.log(` - Primary contracts: ${Object.entries(inv.byPrimary).map(([k,v])=>`${k} ${v}`).join('; ')}`);
   console.log(` - State migration frontier: ${inv.names.migrationFrontiers.stateOnly.length}`);
+  console.log(` - State migration names: ${inv.names.migrationFrontiers.stateOnly.join(', ')||'none'}`);
   console.log(` - Handler-only frontier: ${inv.names.migrationFrontiers.handlerOnly.length}`);
   console.log(` - Cross-runtime frontier: ${inv.names.migrationFrontiers.crossRuntime.length}`);
   console.log(` - Unclassified names: ${inv.names.unclassified.join(', ')||'none'}`);

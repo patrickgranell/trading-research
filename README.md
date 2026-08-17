@@ -468,3 +468,7 @@ Corrige la instrumentación de DomainStore: los normalizadores históricos que r
 - Si una importación falla antes del commit, el workspace en memoria vuelve al snapshot previo y los writes de Market Data no se publican; si ya se publicaron y una fase posterior falla, se intenta rollback compensatorio.
 - Datos y seguridad muestra importaciones confirmadas/rollback y escrituras externas agrupadas.
 - `app.js` continúa congelado; Restore y Cloud quedan fuera de esta subfase.
+
+
+## V31.19.1 · Build Integrity Hotfix
+Corrige el bundler estático: las sustituciones de CSS/JS ahora usan callbacks de `String.replace`, evitando que secuencias válidas de JavaScript como `$\`` y `$'` sean interpretadas como tokens de reemplazo y dupliquen/corrompan `dist/index.html`. `verify-build.mjs` bloquea futuros despliegues si el HTML se duplica, si `app.js` aparece más de una vez o si alguno de los cinco bloques JS embebidos deja de parsear. La lógica funcional de V31.19 no cambia.

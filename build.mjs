@@ -13,12 +13,15 @@ const replacements=[
   ['security-runtime.js','data-tr-security-runtime',safeScript(fs.readFileSync('security-runtime.js','utf8'))],
   ['event-runtime.js','data-tr-event-runtime',safeScript(fs.readFileSync('event-runtime.js','utf8'))],
 ];
-h=h.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?\s*>/i,`<style data-tr-build="${v}">${css}</style>`);
+// IMPORTANT: use replacer callbacks. Passing source code as a replacement string makes
+// String.replace interpret $`, $' and $& inside JavaScript as replacement tokens,
+// which can splice/duplicate the whole HTML document and corrupt the deployed bundle.
+h=h.replace(/<link\s+rel=["']stylesheet["']\s+href=["']styles\.css["']\s*\/?\s*>/i,()=>`<style data-tr-build="${v}">${css}</style>`);
 for(const [file,attr,src] of replacements){
   const escaped=file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
-  h=h.replace(re,`<script ${attr}="${v}">${src}</script>`);
+  h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
-h=h.replace('</head>',`  <meta name="trading-research-build-version" content="${v}" />\n</head>`);
+h=h.replace('</head>',()=>`  <meta name="trading-research-build-version" content="${v}" />\n</head>`);
 fs.writeFileSync('dist/index.html',h);
 console.log(`Built Trading Research ${v} -> dist/index.html`);

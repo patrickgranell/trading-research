@@ -13,7 +13,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const expectedAppSha='998403b8cce5c5931c2959f8e5fc12e1ac72e46e21be72ad7c5a03fbaf9caddd';
 if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el delta de Event Delegation V31.19 validado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.19.0')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.19.1')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("function persist(){return trCorePersistStateBridge('persist');}"))fail.push('persist() no usa el bridge durable.');
 if(/localStorage\.setItem\(STORAGE_KEY/.test(app))fail.push('Queda una escritura directa del estado a localStorage.');
@@ -61,7 +61,7 @@ if(!stateRuntime.includes("['setOpsUnit','operations.unit']"))fail.push('Operaci
 if(!index.includes('<script src="state-runtime.js"></script>'))fail.push('index.html no carga state-runtime.js.');
 if(!index.includes('<script src="security-runtime.js"></script>'))fail.push('index.html no carga security-runtime.js.');
 if(!index.includes('<script src="event-runtime.js"></script>'))fail.push('index.html no carga event-runtime.js.');
-if(!eventRuntime.includes("const TR_EVENT_RUNTIME_VERSION='31.19'"))fail.push('Falta Event Runtime V31.19.');
+if(!eventRuntime.includes("const TR_EVENT_RUNTIME_VERSION='31.19.1'"))fail.push('Falta Event Runtime V31.19.');
 if(!eventRuntime.includes('document.addEventListener(t,trEventDispatch,false)'))fail.push('Falta delegación central de eventos.');
 if(/new\s+Function\s*\(/.test(eventRuntime)||/\beval\s*\(/.test(eventRuntime))fail.push('Event Runtime usa ejecución dinámica incompatible con CSP.');
 if(!securityRuntime.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"))fail.push('Falta Security Runtime V31.18.');

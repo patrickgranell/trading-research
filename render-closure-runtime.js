@@ -1,9 +1,9 @@
-/* ===== V31.23.3 RUNTIME · Source Consolidation · Bootstrap Render Collapse ===== */
+/* ===== V31.23.3 RUNTIME · Source Consolidation · Dead Render Alias Pruning ===== */
 (()=>{
 'use strict';
 const TR_RENDER_CLOSURE_VERSION='31.23.3';
-const TR_RENDER_CLOSURE_LABEL='V31.23.3 · Source Consolidation · Bootstrap Render Collapse';
-const TR_RENDER_SOURCE_DEBT_BUDGET=Object.freeze({sourceRenderAssignments:12,bundledRenderAssignments:0,sourceTopLevelCalls:5,bundledTopLevelCalls:1,sourceRenderBaseAliases:5,bundledRenderBaseAliases:0,renderDeclarations:1});
+const TR_RENDER_CLOSURE_LABEL='V31.23.3 · Source Consolidation · Dead Render Alias Pruning';
+const TR_RENDER_SOURCE_DEBT_BUDGET=Object.freeze({sourceRenderAssignments:12,bundledRenderAssignments:0,sourceRenderBaseAliases:5,bundledRenderBaseAliases:0,renderDeclarations:1});
 const trRenderClosureBase=window.render;
 let trRenderClosureCalls=0;
 let trRenderClosureOwnershipRecoveries=0;
@@ -49,8 +49,6 @@ function trRenderClosureDiagnostics(){
     ownershipRecoveries:trRenderClosureOwnershipRecoveries,
     sourceLegacyAssignments:sourceLegacy,
     bundledLegacyAssignments:bundledLegacy,
-    sourceTopLevelCalls:5,
-    bundledTopLevelCalls:1,
     sourceRenderBaseAliases:5,
     bundledRenderBaseAliases:0,
     sourceDebtBudget:{...TR_RENDER_SOURCE_DEBT_BUDGET},
@@ -63,7 +61,7 @@ function trRenderClosureDiagnostics(){
 function trRenderClosurePanel(){
   const d=trRenderClosureDiagnostics();
   const mark=v=>`<strong class="${v?'positive':'negative'}">${v?'OK':'Revisar'}</strong>`;
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Canonical Render Closure</h3><div class="help">V31.23.3 mantiene fuera del bundle las 12 reasignaciones históricas de <code>render=function(...)</code> y, además, colapsa la fase de bootstrap: de cinco llamadas top-level a una sola y de cinco aliases <code>renderV*Base</code> a cero.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Bootstrap render clean</span></div><div class="integrity-kpis"><div><span>Entrada canónica</span>${mark(d.canonicalEntry)}</div><div><span>Legacy fuente / bundle</span><strong>${d.sourceLegacyAssignments} / <span class="positive">${d.bundledLegacyAssignments}</span></strong></div><div><span>Bootstrap calls</span><strong>${d.sourceTopLevelCalls} → ${d.bundledTopLevelCalls}</strong></div><div><span>renderV*Base</span><strong>${d.sourceRenderBaseAliases} → ${d.bundledRenderBaseAliases}</strong></div><div><span>Llamadas runtime</span><strong>${d.calls}</strong></div><div><span>Recuperaciones</span><strong>${d.ownershipRecoveries}</strong></div><div><span>Structural / State</span><strong>${esc(d.structuralRuntime||'—')} / ${esc(d.stateRuntime||'—')}</strong></div><div><span>Estado</span>${mark(d.ok)}</div></div><div class="notice"><strong>V31.23.3 · Bootstrap Render Collapse:</strong> la copia desplegable conserva un único render bootstrap para que el DOM exista durante la carga histórica, y elimina cuatro remounts redundantes. Después, Structural Runtime monta el shell persistente y State Runtime aplica el boundary read-only antes del Canonical Closure. No se modifican fórmulas financieras, persistencia, imports ni contratos de datos.</div>${d.lastError?`<div class="notice danger"><strong>Render closure:</strong> ${esc(d.lastError)}</div>`:''}</section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Canonical Render Closure</h3><div class="help">V31.23.3 mantiene fuera del bundle las 12 reasignaciones históricas de <code>render=function(...)</code> y elimina también los cinco aliases <code>renderV*Base</code> que quedan muertos una vez retirada esa cadena.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Render chain pruned</span></div><div class="integrity-kpis"><div><span>Entrada canónica</span>${mark(d.canonicalEntry)}</div><div><span>Legacy fuente / bundle</span><strong>${d.sourceLegacyAssignments} / <span class="positive">${d.bundledLegacyAssignments}</span></strong></div><div><span>renderV*Base</span><strong>${d.sourceRenderBaseAliases} → ${d.bundledRenderBaseAliases}</strong></div><div><span>Root writes bundle</span><strong>1 bootstrap</strong></div><div><span>Llamadas runtime</span><strong>${d.calls}</strong></div><div><span>Recuperaciones</span><strong>${d.ownershipRecoveries}</strong></div><div><span>Structural / State</span><strong>${esc(d.structuralRuntime||'—')} / ${esc(d.stateRuntime||'—')}</strong></div><div><span>Estado</span>${mark(d.ok)}</div></div><div class="notice"><strong>V31.23.3 · Dead Render Alias Pruning:</strong> el build retira únicamente código cuya dependencia desaparece al eliminar las 12 reasignaciones legacy. Conserva intactas las llamadas <code>render()</code> históricas porque muchas viven dentro de comandos funcionales y no deben confundirse con remounts de bootstrap. No se modifican fórmulas financieras, persistencia, imports ni contratos de datos.</div>${d.lastError?`<div class="notice danger"><strong>Render closure:</strong> ${esc(d.lastError)}</div>`:''}</section>`;
 }
 
 const TradingResearchRender=Object.freeze({
@@ -83,7 +81,7 @@ if(typeof dataSecurityPanel==='function'){
 }
 
 if(typeof v30ModeCard==='function'){
-  v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.23.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_RENDER_CLOSURE_LABEL)}</div><div class="help">Bundle de render consolidado: 0 reasignaciones legacy, 1 render bootstrap, 0 aliases renderV*Base; después toma el control el shell persistente protegido por State Runtime.</div></div></div></div>`;};
+  v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.23.3</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_RENDER_CLOSURE_LABEL)}</div><div class="help">Bundle de render consolidado: 0 reasignaciones legacy y 0 aliases renderV*Base. Las llamadas render funcionales se conservan; el runtime final sigue siendo shell persistente + State guard + Canonical Closure.</div></div></div></div>`;};
 }
 
 trRenderClosureEnsureOwnership();

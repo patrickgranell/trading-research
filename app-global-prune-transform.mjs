@@ -1,13 +1,13 @@
 import {globalSurfaceInventory,handlerRootInventory} from './global-surface-inventory.mjs';
+import {assertPruneTargetsAvoidDynamicActions} from './dynamic-action-inventory.mjs';
 
-export const TR_APP_GLOBAL_PRUNE_VERSION='31.23.8';
+export const TR_APP_GLOBAL_PRUNE_VERSION='31.23.9';
 export const TR_APP_GLOBAL_PRUNE_TARGETS=Object.freeze([
   Object.freeze({block:'Object.assign(window,{exitLabModule});',names:['exitLabModule'],reason:'view builder interno; ya no forma parte del contrato de eventos'}),
   Object.freeze({block:'Object.assign(window,{v303MetricQualitySummary});',names:['v303MetricQualitySummary'],reason:'helper analítico interno sin handler ni consumidor cross-runtime'}),
   Object.freeze({block:'Object.assign(window,{v3192SyncAnkoraEconomics});',names:['v3192SyncAnkoraEconomics'],reason:'helper de economía llamado léxicamente dentro de app.js'}),
   Object.freeze({block:'Object.assign(window,{v3193ChronologicalOps});',names:['v3193ChronologicalOps'],reason:'helper cronológico interno sin contrato UI'}),
   Object.freeze({block:'Object.assign(window,{v3194ChronologicalOps,v3194CompareOps,v3194EquityFromZero});',names:['v3194ChronologicalOps','v3194CompareOps','v3194EquityFromZero'],reason:'helpers cronológicos internos sin contrato UI'}),
-
   Object.freeze({block:'Object.assign(window,{v301ExcursionInput,v301RefreshExcursionEquivalents,v301WorkbenchExcursionInput,v301CheckChangesNow,saveOperationFromForm,dqSaveWorkbench});',names:['v301RefreshExcursionEquivalents'],reason:'helper de refresco invocado léxicamente y por setTimeout; no es acción UI pública'}),
   Object.freeze({block:'Object.assign(window,{v312OpenMistakeModal,v312SaveMistake,v312DeleteMistake,v312MoveMistake,v312ToggleMistakeEvaluation,v312UpdateMistakePreview,v312SetMistakeFilter,v312ResetMistakeFilters,mistakesView,saveOperationFromForm,viewOperation});',names:['mistakesView'],reason:'view builder interno; navegación y render lo resuelven léxicamente'}),
   Object.freeze({block:'Object.assign(window,{reportsViewState,v313SetTab,v313SetUnit,v313SetBasis,v313SetScope,v313SetReportField,v313ToggleSection,v313SetCompareField,v313SavePresetPrompt,v313LoadPreset,v313DeletePreset,v313PrintReport,reportsView});',names:['reportsViewState','reportsView'],reason:'estado UI y view builder internos; State Runtime usa el binding léxico y los handlers usan acciones dedicadas'}),
@@ -33,6 +33,7 @@ function parseSimpleAssignBlock(block){
 
 export function pruneAppGlobalExports(source,{runtimeSources=[]}={}){
   const input=String(source);
+  const dynamicGuard=assertPruneTargetsAvoidDynamicActions(input,TR_APP_GLOBAL_PRUNE_NAMES);
   const handlerRoots=handlerRootInventory(input).roots;
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES){
     if(handlerRoots[name])throw new Error(`App Global Prune: ${name} sigue siendo raíz de ${handlerRoots[name]} handler(s) declarativo(s).`);
@@ -51,7 +52,7 @@ export function pruneAppGlobalExports(source,{runtimeSources=[]}={}){
     const props=parseSimpleAssignBlock(target.block);
     for(const name of target.names)if(!props.includes(name))throw new Error(`App Global Prune: ${name} no está en su bloque objetivo.`);
     const remove=new Set(target.names),remaining=props.filter(name=>!remove.has(name));
-    const marker=`/* V31.23.8 pruned explicit window export: ${target.names.join(', ')} */`;
+    const marker=`/* V31.23.9 pruned explicit window export: ${target.names.join(', ')} */`;
     const replacement=remaining.length?`Object.assign(window,{${remaining.join(',')}});${marker}`:marker;
     out=out.replace(target.block,replacement);
     touchedBlocks++;
@@ -63,5 +64,5 @@ export function pruneAppGlobalExports(source,{runtimeSources=[]}={}){
   if(before.objectAssignBlocks-after.objectAssignBlocks!==removedBlocks)throw new Error(`App Global Prune: reducción de bloques inesperada ${before.objectAssignBlocks} -> ${after.objectAssignBlocks}.`);
   if(before.objectAssignEntries-after.objectAssignEntries!==removedEntries)throw new Error(`App Global Prune: reducción de entries inesperada ${before.objectAssignEntries} -> ${after.objectAssignEntries}.`);
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES)if(after.names.objectAssign.includes(name))throw new Error(`App Global Prune: ${name} sigue publicado mediante Object.assign(window, ...) después de la poda.`);
-  return {source:out,inventory:{version:TR_APP_GLOBAL_PRUNE_VERSION,touchedBlocks,removedBlocks,removedEntries,targetNames:[...TR_APP_GLOBAL_PRUNE_NAMES],before:{objectAssignBlocks:before.objectAssignBlocks,objectAssignEntries:before.objectAssignEntries,objectAssignUnique:before.objectAssignUnique,totalUniqueGlobals:before.totalUniqueGlobals},after:{objectAssignBlocks:after.objectAssignBlocks,objectAssignEntries:after.objectAssignEntries,objectAssignUnique:after.objectAssignUnique,totalUniqueGlobals:after.totalUniqueGlobals}}};
+  return {source:out,inventory:{version:TR_APP_GLOBAL_PRUNE_VERSION,touchedBlocks,removedBlocks,removedEntries,targetNames:[...TR_APP_GLOBAL_PRUNE_NAMES],dynamicActionGuard:dynamicGuard.inventory,before:{objectAssignBlocks:before.objectAssignBlocks,objectAssignEntries:before.objectAssignEntries,objectAssignUnique:before.objectAssignUnique,totalUniqueGlobals:before.totalUniqueGlobals},after:{objectAssignBlocks:after.objectAssignBlocks,objectAssignEntries:after.objectAssignEntries,objectAssignUnique:after.objectAssignUnique,totalUniqueGlobals:after.totalUniqueGlobals}}};
 }

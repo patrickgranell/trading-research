@@ -1,3 +1,19 @@
+# Trading Research V31.13 · Structural Foundation II-B
+
+Esta versión continúa la refactorización estructural sobre V31.12.1 sin modificar `app.js` financiero.
+
+## Cambios de render
+
+- El shell/sidebar sigue montándose una sola vez por carga.
+- En **Operaciones**, las llamadas internas a `render()` actualizan solo el hub de filtros y `#opsAnalyticsArea`; la búsqueda y los controles que ya eran incrementales siguen sin reconstruir `#view`.
+- En **Market Data**, cambiar pestaña actualiza chrome/tabs/cuerpo por regiones; dentro de una misma pestaña se sustituye solo el cuerpo de Market Data.
+- El **inspector tick a tick** no reemplaza el slider: actualiza únicamente el gráfico y la rejilla del inspector durante el arrastre.
+- Datos y seguridad muestra contadores separados de **Full-view renders** y **Partial renders** para verificar el comportamiento.
+- Se mantienen IndexedDB durable y la recuperación de borradores de operación tras F5/Ctrl+Shift+R.
+- Las 7 regiones financieras protegidas permanecen idénticas a V31.10.4.
+
+---
+
 # Trading Research V31.12.1
 
 ## Structural Foundation II-A.1 · Recuperación de borradores tras recarga

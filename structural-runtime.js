@@ -1,6 +1,6 @@
-/* ===== V31.12 RUNTIME · Structural Foundation II · Persistent Shell ===== */
-const V3112_APP_LABEL='V31.12.1 · Structural Foundation II-A · Persistent Shell + Draft Recovery';
-const TR_RENDER_RUNTIME_VERSION='31.12.1';
+/* ===== V31.13 RUNTIME · Structural Foundation II-B · Partial Rendering ===== */
+const V3112_APP_LABEL='V31.13 · Structural Foundation II-B · Partial Operations + Market Data';
+const TR_RENDER_RUNTIME_VERSION='31.13';
 const TR_UI_SESSION_KEY='tradingResearchUiSessionV31121';
 const TR_OPERATION_DRAFT_KEY='tradingResearchOperationDraftV31121';
 const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','blocks','reports','market','plans','config']);
@@ -23,6 +23,9 @@ trUiRestoreViewAtBoot();
 let trRenderShellMounted=false;
 let trRenderShellMounts=0;
 let trRenderViewRenders=0;
+let trRenderPartialRenders=0;
+const trRenderPartialByRegion=Object.create(null);
+let trRenderLastPartial='';
 let trRenderLastView='';
 let trRenderLastAt='';
 let trRenderLastError='';
@@ -68,9 +71,10 @@ function trRenderEditable(el){
 function trRenderControlKey(el,root){
   if(el.id)return `#${el.id}`;
   const name=el.getAttribute('name');
-  if(!name)return '';
-  const peers=[...root.querySelectorAll(`[name="${CSS.escape(name)}"]`)];
-  return `name:${name}:${peers.indexOf(el)}`;
+  if(name){const peers=[...root.querySelectorAll(`[name="${CSS.escape(name)}"]`)];return `name:${name}:${peers.indexOf(el)}`;}
+  /* Structural II-B: unnamed controls (e.g. Best Exit numeric inputs) still need a stable key. */
+  const controls=[...root.querySelectorAll('input,textarea,select,[contenteditable="true"]')];
+  const idx=controls.indexOf(el);return idx>=0?`control:${idx}`:'';
 }
 function trRenderFindControl(key,root){
   if(!key)return null;
@@ -79,6 +83,7 @@ function trRenderFindControl(key,root){
     const parts=key.split(':'),idx=Number(parts.pop()),name=parts.slice(1).join(':');
     try{return [...root.querySelectorAll(`[name="${CSS.escape(name)}"]`)][idx]||null;}catch{return null;}
   }
+  if(key.startsWith('control:')){const idx=Number(key.slice(8));return [...root.querySelectorAll('input,textarea,select,[contenteditable="true"]')][idx]||null;}
   return null;
 }
 function trRenderCaptureInputContinuity(view){
@@ -181,15 +186,15 @@ function trRenderAfterView(){
   trDraftMaybeRestoreAfterView();
 }
 function trRenderDiagnostics(){
-  return {runtime:TR_RENDER_RUNTIME_VERSION,shell:'persistent',shellMounts:trRenderShellMounts,viewRenders:trRenderViewRenders,currentView,lastView:trRenderLastView,lastRenderAt:trRenderLastAt,lastError:trRenderLastError,draftRecovery:'session',draftRecoveredAt:trDraftLastRecoveredAt,draftError:trDraftLastError};
+  return {runtime:TR_RENDER_RUNTIME_VERSION,shell:'persistent',shellMounts:trRenderShellMounts,fullViewRenders:trRenderViewRenders,viewRenders:trRenderViewRenders,partialRenders:trRenderPartialRenders,partialByRegion:{...trRenderPartialByRegion},lastPartial:trRenderLastPartial,currentView,lastView:trRenderLastView,lastRenderAt:trRenderLastAt,lastError:trRenderLastError,draftRecovery:'session',draftRecoveredAt:trDraftLastRecoveredAt,draftError:trDraftLastError};
 }
 function trRenderRuntimePanel(){
-  const d=trRenderDiagnostics(),ok=d.shellMounts===1&&!d.lastError&&!d.draftError;
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Motor de render</h3><div class="help">V31.12.1 mantiene shell/sidebar montados y añade recuperación de borradores de operación ante F5 o Ctrl+Shift+R dentro de la misma pestaña.</div></div><span class="stable-pill ${ok?'':'warning'}">Shell persistente</span></div><div class="integrity-kpis"><div><span>Shell mounts</span><strong>${d.shellMounts}</strong></div><div><span>Renders de vista</span><strong>${d.viewRenders}</strong></div><div><span>Vista actual</span><strong>${esc(d.currentView||'—')}</strong></div><div><span>Estado</span><strong class="${(!d.lastError&&!d.draftError)?'positive':'negative'}">${(!d.lastError&&!d.draftError)?'OK':'Revisar'}</strong></div></div>${d.lastError||d.draftError?`<div class="notice danger"><strong>Runtime:</strong> ${esc(d.lastError||d.draftError)}</div>`:'<div class="notice"><strong>V31.12.1:</strong> un render interno conserva foco/valor/cursor en memoria. Una recarga real del navegador destruye JavaScript y DOM, por lo que ahora el editor de operaciones mantiene además un borrador temporal en <code>sessionStorage</code>, reabre la vista y recupera los campos sin guardarlos como operación. Los archivos seleccionados no pueden recuperarse por seguridad del navegador.</div>'}</section>`;
+  const d=trRenderDiagnostics(),ok=d.shellMounts===1&&!d.lastError&&!d.draftError,parts=Object.entries(d.partialByRegion||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`).join(' · ')||'todavía sin renders parciales';
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Motor de render</h3><div class="help">V31.13 mantiene shell/sidebar persistentes y evita regenerar la vista completa en interacciones internas de Operaciones y Market Data.</div></div><span class="stable-pill ${ok?'':'warning'}">Partial DOM</span></div><div class="integrity-kpis"><div><span>Shell mounts</span><strong>${d.shellMounts}</strong></div><div><span>Full-view renders</span><strong>${d.fullViewRenders}</strong></div><div><span>Partial renders</span><strong>${d.partialRenders}</strong></div><div><span>Estado</span><strong class="${(!d.lastError&&!d.draftError)?'positive':'negative'}">${(!d.lastError&&!d.draftError)?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.13:</strong> Operaciones actualiza filtros/analytics sin sustituir <code>#view</code>; Market Data conserva cabecera y pestañas cuando solo cambia el contenido de la fase. El inspector tick a tick actualiza únicamente gráfico e inspector para no romper el arrastre del slider. Borradores tras F5/Ctrl+Shift+R y persistencia IndexedDB siguen activos.<br><small>Contadores parciales: ${esc(parts)}${d.lastPartial?` · último: ${esc(d.lastPartial)}`:''}</small></div>${d.lastError||d.draftError?`<div class="notice danger"><strong>Runtime:</strong> ${esc(d.lastError||d.draftError)}</div>`:''}</section>`;
 }
 
 /* Version card is generated dynamically when the persistent shell mounts once. */
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.12.1</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V3112_APP_LABEL)}</div><div class="help">Fase estructural 2A.1: shell/sidebar persistentes, router central, continuidad durante renders internos y recuperación temporal del editor de operaciones tras una recarga real. La lógica financiera e IndexedDB permanecen congelados.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.13</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(V3112_APP_LABEL)}</div><div class="help">Fase estructural 2B: shell/sidebar persistentes + render parcial en Operaciones y Market Data. La recuperación de borradores y IndexedDB permanecen activas; la lógica financiera continúa congelada.</div></div></div></div>`;};
 
 /* Add render diagnostics to the existing Datos y seguridad view without replacing V31.11 persistence diagnostics. */
 const dataSecurityPanelV3112Base=dataSecurityPanel;
@@ -287,6 +292,81 @@ document.addEventListener('change',e=>{if(e.target?.closest?.('#operationForm'))
 window.addEventListener('beforeunload',()=>{trUiRememberView();trDraftCaptureOperation();});
 /* ----- END V31.12.1 draft recovery ----- */
 
+
+/* ----- V31.13 · Partial rendering for Operations + Market Data ----- */
+function trPartialRecord(region){
+  trRenderPartialRenders++;trRenderPartialByRegion[region]=(trRenderPartialByRegion[region]||0)+1;trRenderLastPartial=region;trRenderLastAt=new Date().toISOString();
+}
+function trPartialRestoreScroll(x,y){requestAnimationFrame(()=>{try{window.scrollTo(x,y);}catch{}});}
+function trPartialWrapElement(el,id){
+  if(!el)return null;const existing=document.getElementById(id);if(existing)return existing;
+  const wrap=document.createElement('div');wrap.id=id;wrap.style.display='contents';el.before(wrap);wrap.appendChild(el);return wrap;
+}
+function trPartialPrepareOperations(view=document.getElementById('view')){
+  if(!view||view.dataset.trView!=='operations')return false;
+  const filter=view.querySelector('.filter-hub');if(filter)trPartialWrapElement(filter,'tr-ops-filter-region');
+  return !!document.getElementById('opsAnalyticsArea');
+}
+function trPartialRenderOperations(){
+  const view=document.getElementById('view');if(!view||view.dataset.trView!=='operations')return false;
+  trPartialPrepareOperations(view);
+  const filter=document.getElementById('tr-ops-filter-region'),analytics=document.getElementById('opsAnalyticsArea');if(!filter||!analytics)return false;
+  const continuity=trRenderCaptureInputContinuity(view),sx=window.scrollX,sy=window.scrollY;
+  filter.innerHTML=operationsFilterPanel();
+  analytics.innerHTML=opsAnalyticsHtml(filteredOps());
+  if(continuity)trRenderRestoreInputContinuity(continuity,view);else trPartialRestoreScroll(sx,sy);
+  trPartialRecord('operations.regions');trRenderAfterView();return true;
+}
+function trPartialPrepareMarket(view=document.getElementById('view')){
+  if(!view||view.dataset.trView!=='market')return false;
+  if(document.getElementById('tr-market-body-region'))return true;
+  const tabs=view.querySelector(':scope > .md-phase-tabs');if(!tabs)return false;
+  const nodes=[...view.children],idx=nodes.indexOf(tabs);if(idx<0)return false;
+  const before=nodes.slice(0,idx),after=nodes.slice(idx+1);
+  const chrome=document.createElement('div');chrome.id='tr-market-chrome-region';chrome.style.display='contents';tabs.before(chrome);before.forEach(n=>chrome.appendChild(n));
+  const tabRegion=document.createElement('div');tabRegion.id='tr-market-tabs-region';tabRegion.style.display='contents';tabs.before(tabRegion);tabRegion.appendChild(tabs);
+  const body=document.createElement('div');body.id='tr-market-body-region';body.style.display='contents';tabRegion.after(body);after.forEach(n=>body.appendChild(n));
+  body.dataset.trMarketTab=String(v316Ui?.tab||'');return true;
+}
+function trPartialMarketParts(){
+  const tpl=document.createElement('template');tpl.innerHTML=v314MarketDataView();
+  const tabs=tpl.content.querySelector('.md-phase-tabs');if(!tabs)return null;
+  const nodes=[...tpl.content.children],idx=nodes.indexOf(tabs);if(idx<0)return null;
+  return {chrome:nodes.slice(0,idx).map(n=>n.outerHTML).join(''),tabs:tabs.outerHTML,body:nodes.slice(idx+1).map(n=>n.outerHTML).join('')};
+}
+function trPartialRenderMarket(reason='market.body'){
+  const view=document.getElementById('view');if(!view||view.dataset.trView!=='market'||!trPartialPrepareMarket(view))return false;
+  const parts=trPartialMarketParts(),chrome=document.getElementById('tr-market-chrome-region'),tabs=document.getElementById('tr-market-tabs-region'),body=document.getElementById('tr-market-body-region');if(!parts||!chrome||!tabs||!body)return false;
+  const oldTab=body.dataset.trMarketTab||'',newTab=String(v316Ui?.tab||''),tabChanged=oldTab!==newTab,continuity=trRenderCaptureInputContinuity(body),sx=window.scrollX,sy=window.scrollY;
+  if(tabChanged){chrome.innerHTML=parts.chrome;tabs.innerHTML=parts.tabs;}
+  body.innerHTML=parts.body;body.dataset.trMarketTab=newTab;
+  if(continuity&&!tabChanged)trRenderRestoreInputContinuity(continuity,body);else trPartialRestoreScroll(sx,sy);
+  trPartialRecord(tabChanged?'market.tab':reason);trRenderAfterView();return true;
+}
+function trPartialPrepareCurrentView(view=document.getElementById('view')){
+  if(!view)return;if(currentView==='operations')trPartialPrepareOperations(view);else if(currentView==='market')trPartialPrepareMarket(view);
+}
+
+/* Count the partial analytics path that V5 already had, so diagnostics measure real DOM work. */
+const trRefreshOpsAnalyticsBase=refreshOpsAnalytics;
+refreshOpsAnalytics=function(read=true){const before=document.getElementById('opsAnalyticsArea');const out=trRefreshOpsAnalyticsBase(read);if(currentView==='operations'&&before)trPartialRecord('operations.analytics');return out;};
+window.refreshOpsAnalytics=refreshOpsAnalytics;
+
+/* Cursor movement must never replace its own range input while the user is dragging it. */
+const trV315SetCursorBase=v315SetCursor;
+v315SetCursor=function(v){
+  const series=v315RunningUi.series;if(!series?.points?.length||currentView!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);
+  v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,series.points.length-1));
+  const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),rows=set?.results||[],idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),result=rows[idx],cursor=series.points[v315RunningUi.cursor];if(!result||!cursor)return;
+  const body=document.getElementById('tr-market-body-region'),panel=body?.querySelector('.rp-panel');if(!panel)return trV315SetCursorBase(v);
+  const oldChart=panel.querySelector('.rp-chart-wrap'),chartHtml=v315RenderChart(result,series);if(oldChart&&chartHtml){const tpl=document.createElement('template');tpl.innerHTML=chartHtml.trim();const fresh=tpl.content.firstElementChild;if(fresh)oldChart.replaceWith(fresh);}
+  const grid=panel.querySelector('.rp-inspect-grid');if(grid)grid.innerHTML=`<div><span>Hora Grid</span><strong>${esc(v315GridTime(cursor.ms,series.offsetHours,true))}</strong></div><div><span>Transcurrido</span><strong>${v315Duration(cursor.ms-series.startMs)}</strong></div><div><span>Last</span><strong>${Number(cursor.last).toFixed(2)}</strong></div><div><span>Bid / Ask</span><strong>${Number(cursor.bid).toFixed(2)} / ${Number(cursor.ask).toFixed(2)}</strong></div><div><span>P&amp;L Last</span><strong class="${cursor.pnlTicks>0?'positive':cursor.pnlTicks<0?'negative':''}">${v314SignedTicks(cursor.pnlTicks)}</strong></div>`;
+  const range=panel.querySelector('.rp-slider input[type="range"]');if(range&&Number(range.value)!==v315RunningUi.cursor)range.value=String(v315RunningUi.cursor);
+  trPartialRecord('market.cursor');
+};
+window.v315SetCursor=v315SetCursor;
+/* ----- END V31.13 partial rendering ----- */
+
 /* Final runtime coordinator. This is the only render() used after bootstrap completes. */
 render=function(){
   if(trCoreFatal)return;
@@ -294,24 +374,24 @@ render=function(){
     if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();
     const first=!trRenderShellMounted;
     const view=trRenderEnsureShell(first);if(!view)return;
-    const previous=view.dataset.trView||trRenderLastView||'';
-    const sameView=previous===currentView;
+    const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;
+    trRenderSyncSidebar();trUiRememberView();
+    if(sameView&&currentView==='operations'&&trPartialRenderOperations()){trRenderLastView=currentView;trRenderLastError='';return;}
+    if(sameView&&currentView==='market'&&trPartialRenderMarket()){trRenderLastView=currentView;trRenderLastError='';return;}
     const continuity=sameView?trRenderCaptureInputContinuity(view):null;
-    trRenderSyncSidebar();
-    trUiRememberView();
-    view.innerHTML=trRenderViewHtml(currentView);
-    view.dataset.trView=currentView;
+    view.innerHTML=trRenderViewHtml(currentView);view.dataset.trView=currentView;
     trRenderViewRenders++;trRenderLastView=currentView;trRenderLastAt=new Date().toISOString();trRenderLastError='';
+    trPartialPrepareCurrentView(view);
     if(continuity)trRenderRestoreInputContinuity(continuity,view);
     trRenderAfterView();
   }catch(e){
-    trRenderLastError=e?.message||String(e);console.error('[Trading Research · render V31.12]',e);
+    trRenderLastError=e?.message||String(e);console.error('[Trading Research · render V31.13]',e);
     const view=document.getElementById('view');if(view)view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${esc(currentView)}:</strong> ${esc(trRenderLastError)}</div></section>`;
   }
 };
 window.render=render;
-Object.assign(window,{trRenderDiagnostics,trRenderRuntimePanel,trRenderViewHtml});
+Object.assign(window,{trRenderDiagnostics,trRenderRuntimePanel,trRenderViewHtml,trPartialRenderOperations,trPartialRenderMarket});
 
 /* If IndexedDB bootstrap completed unusually early, mount the new runtime immediately. */
 if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated&&!trCoreFatal)render();
-/* ===== END V31.12 RUNTIME ===== */
+/* ===== END V31.13 RUNTIME ===== */

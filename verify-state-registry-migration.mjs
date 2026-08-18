@@ -24,6 +24,7 @@ if(batches.some(b=>b.length!==8)||TR_STATE_REGISTRY_MIGRATION_NAMES.length!==48)
 if(inv.before.blocks!==44)throw new Error(`Bloques window de entrada inesperados: ${inv.before.blocks}`);
 if(inv.before.entries!==325)throw new Error(`Entries window de entrada inesperadas: ${inv.before.entries}`);
 if(inv.before.unique!==286)throw new Error(`Exports window únicos de entrada inesperados: ${inv.before.unique}`);
+if(inv.after.blocks!==43)throw new Error(`Bloques window tras seis lotes: ${inv.after.blocks}; se esperaban 43.`);
 if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries window no cuadran con publicaciones registry: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}`);
 if(inv.after.entries!==272)throw new Error(`Entries window tras seis lotes: ${inv.after.entries}; se esperaban 272.`);
 if(inv.after.unique!==238)throw new Error(`Exports window únicos tras seis lotes: ${inv.after.unique}; se esperaban 238.`);

@@ -24,8 +24,9 @@ if(batches.some(b=>b.length!==8)||TR_STATE_REGISTRY_MIGRATION_NAMES.length!==56)
 if(inv.before.blocks!==44)throw new Error(`Bloques window de entrada inesperados: ${inv.before.blocks}`);
 if(inv.before.entries!==325)throw new Error(`Entries window de entrada inesperadas: ${inv.before.entries}`);
 if(inv.before.unique!==286)throw new Error(`Exports window únicos de entrada inesperados: ${inv.before.unique}`);
-if(inv.after.blocks>43)throw new Error(`La migración final no redujo/conservó el cierre de bloques esperado: ${inv.after.blocks}.`);
+if(inv.after.blocks!==42)throw new Error(`Bloques window tras siete lotes: ${inv.after.blocks}; se esperaban 42.`);
 if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries window no cuadran con publicaciones registry: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}`);
+if(inv.after.entries!==262)throw new Error(`Entries window tras siete lotes: ${inv.after.entries}; se esperaban 262.`);
 if(inv.after.unique!==230)throw new Error(`Exports window únicos tras siete lotes: ${inv.after.unique}; se esperaban 230.`);
 if(inv.batch1Entries!==9)throw new Error(`Publicaciones del lote I cambiaron: ${inv.batch1Entries}; se esperaban 9.`);
 if(inv.batch2Entries!==8)throw new Error(`Publicaciones del lote II cambiaron: ${inv.batch2Entries}; se esperaban 8.`);
@@ -33,8 +34,8 @@ if(inv.batch3Entries!==8)throw new Error(`Publicaciones del lote III cambiaron: 
 if(inv.batch4Entries!==9)throw new Error(`Publicaciones del lote IV cambiaron: ${inv.batch4Entries}; se esperaban 9.`);
 if(inv.batch5Entries!==8)throw new Error(`Publicaciones del lote V cambiaron: ${inv.batch5Entries}; se esperaban 8.`);
 if(inv.batch6Entries!==11)throw new Error(`Publicaciones del lote VI cambiaron: ${inv.batch6Entries}; se esperaban 11.`);
-if(inv.batch7Entries<8)throw new Error(`Publicaciones del lote VII insuficientes: ${inv.batch7Entries}; se esperaban al menos 8.`);
-if(inv.registryEntries!==53+inv.batch7Entries)throw new Error(`Publicaciones registry acumuladas no cuadran: ${inv.registryEntries}; esperadas ${53+inv.batch7Entries}.`);
+if(inv.batch7Entries!==10)throw new Error(`Publicaciones del lote VII cambiaron: ${inv.batch7Entries}; se esperaban 10.`);
+if(inv.registryEntries!==63)throw new Error(`Publicaciones registry acumuladas cambiaron: ${inv.registryEntries}; se esperaban 63.`);
 if(mapAfter.remainingUnique!==230||mapAfter.classified!==230||mapAfter.unclassified!==0)throw new Error(`Mapa contractual post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
 if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==223||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
 if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error(`La frontera State final no quedó cerrada: ${mapAfter.names.migrationFrontiers.stateOnly.length}.`);

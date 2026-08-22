@@ -23,9 +23,9 @@ const mapAfter=remainingGlobalContractMap(migrated.source,{runtimeSources,stateA
 if(TR_UI_REGISTRY_MIGRATION_VERSION!=='31.23.21')throw new Error(`Versión UI inesperada: ${TR_UI_REGISTRY_MIGRATION_VERSION}`);
 if(TR_UI_REGISTRY_MIGRATION_BATCH_1.length!==8||TR_UI_REGISTRY_MIGRATION_BATCH_2.length!==8||TR_UI_REGISTRY_MIGRATION_BATCH_3.length!==8||TR_UI_REGISTRY_MIGRATION_NAMES.length!==24)throw new Error('Los lotes UI I/II/III deben contener 8 acciones cada uno.');
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
-if(inv.after.blocks>40||inv.after.blocks<32)throw new Error(`Bloques window tras UI III fuera de rango seguro: ${inv.after.blocks}.`);
-if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries UI no cuadran: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}.`);
-if(inv.registryEntries<24||inv.batch1Entries!==8||inv.batch2Entries!==8||inv.batch3Entries<8)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lotes ${inv.batch1Entries}/${inv.batch2Entries}/${inv.batch3Entries}.`);
+if(inv.after.blocks!==40)throw new Error(`Bloques window tras UI III: ${inv.after.blocks}; se esperaban 40.`);
+if(inv.registryEntries!==27||inv.batch1Entries!==8||inv.batch2Entries!==8||inv.batch3Entries!==11)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lotes ${inv.batch1Entries}/${inv.batch2Entries}/${inv.batch3Entries}.`);
+if(inv.after.entries!==235)throw new Error(`Entries window tras UI III: ${inv.after.entries}; se esperaban 235.`);
 if(inv.after.unique!==206)throw new Error(`Exports window únicos tras UI III: ${inv.after.unique}; se esperaban 206.`);
 if(mapAfter.remainingUnique!==206||mapAfter.classified!==206||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
 if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==199||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios UI post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);

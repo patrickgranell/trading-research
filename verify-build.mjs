@@ -36,10 +36,9 @@ if(migrationInv){
   need(String(migrationInv.version)==='31.23.18',`State registry migration version unexpected: ${migrationInv.version}`);
   need((migrationInv.names||[]).length===56,`State registry migrated names unexpected: ${(migrationInv.names||[]).length}`);
   const batches=migrationInv.batches||{};need(['batch1','batch2','batch3','batch4','batch5','batch6','batch7'].every(k=>(batches[k]||[]).length===8),'State registry batch sizes changed');
-  need(Number(migrationInv.batch1Entries)===9&&Number(migrationInv.batch2Entries)===8&&Number(migrationInv.batch3Entries)===8&&Number(migrationInv.batch4Entries)===9&&Number(migrationInv.batch5Entries)===8&&Number(migrationInv.batch6Entries)===11&&Number(migrationInv.batch7Entries)>=8,`State registry publication occurrences unexpected: ${migrationInv.registryEntries}`);
-  need(Number(migrationInv.registryEntries)===53+Number(migrationInv.batch7Entries),`State registry publication total unexpected: ${migrationInv.registryEntries}`);
-  need(Number(migrationInv.before?.blocks)===44&&Number(migrationInv.after?.blocks)<=43,`State registry block inventory changed: ${migrationInv.before?.blocks} -> ${migrationInv.after?.blocks}`);
-  need(Number(migrationInv.before?.entries)===325&&Number(migrationInv.after?.entries)===325-Number(migrationInv.registryEntries),`State registry entry inventory unexpected: ${migrationInv.before?.entries} -> ${migrationInv.after?.entries}`);
+  need(Number(migrationInv.registryEntries)===63&&Number(migrationInv.batch1Entries)===9&&Number(migrationInv.batch2Entries)===8&&Number(migrationInv.batch3Entries)===8&&Number(migrationInv.batch4Entries)===9&&Number(migrationInv.batch5Entries)===8&&Number(migrationInv.batch6Entries)===11&&Number(migrationInv.batch7Entries)===10,`State registry publication occurrences unexpected: ${migrationInv.registryEntries}`);
+  need(Number(migrationInv.before?.blocks)===44&&Number(migrationInv.after?.blocks)===42,`State registry block inventory changed: ${migrationInv.before?.blocks} -> ${migrationInv.after?.blocks}`);
+  need(Number(migrationInv.before?.entries)===325&&Number(migrationInv.after?.entries)===262,`State registry entry inventory unexpected: ${migrationInv.before?.entries} -> ${migrationInv.after?.entries}`);
   need(Number(migrationInv.before?.unique)===286&&Number(migrationInv.after?.unique)===230,`State registry unique inventory unexpected: ${migrationInv.before?.unique} -> ${migrationInv.after?.unique}`);
 }
 const dynamicInv=readJson('dist/dynamic-action-inventory.json');
@@ -49,15 +48,13 @@ const candidateInv=readJson('dist/prune-candidate-inventory.json');
 need(!!candidateInv,'dist/prune-candidate-inventory.json missing');if(candidateInv)need(Number(candidateInv.safeCandidateCount)===0&&(candidateInv.safeCandidates||[]).length===0,'contract-safe explicit prune candidates remain');
 const contractInv=readJson('dist/remaining-global-contract-map.json');
 need(!!contractInv,'dist/remaining-global-contract-map.json missing');
-if(contractInv){need(String(contractInv.version)==='31.23.11','remaining contract map version changed');need(Number(contractInv.remainingUnique)===230&&Number(contractInv.classified)===230&&Number(contractInv.unclassified)===0,`remaining contract coverage unexpected: ${contractInv.classified}/${contractInv.remainingUnique}`);need(Number(contractInv.multiContract)===5,`remaining contract overlap changed: ${contractInv.multiContract}`);need(Number(contractInv.byPrimary?.['state-action'])===4&&Number(contractInv.byPrimary?.['ui-handler'])===223&&Number(contractInv.byPrimary?.['dynamic-action'])===3,'remaining primary contract counts unexpected');need(Number(contractInv.coverage?.crossRuntimeRead)===0,'remaining map reopened cross-runtime direct reads');need(Number(contractInv.names?.migrationFrontiers?.stateOnly?.length)===0,`state migration frontier not closed: ${contractInv.names?.migrationFrontiers?.stateOnly?.length}`);need(Number(contractInv.names?.migrationFrontiers?.handlerOnly?.length)===221,'handler-only frontier changed');}
+if(contractInv){need(String(contractInv.version)==='31.23.11','remaining contract map version changed');need(Number(contractInv.remainingUnique)===230&&Number(contractInv.classified)===230&&Number(contractInv.unclassified)===0,`remaining contract coverage unexpected: ${contractInv.classified}/${contractInv.remainingUnique}`);need(Number(contractInv.multiContract)===6,`remaining contract overlap changed: ${contractInv.multiContract}`);need(Number(contractInv.byPrimary?.['state-action'])===4&&Number(contractInv.byPrimary?.['ui-handler'])===223&&Number(contractInv.byPrimary?.['dynamic-action'])===3,'remaining primary contract counts unexpected');need(Number(contractInv.coverage?.crossRuntimeRead)===0,'remaining map reopened cross-runtime direct reads');need(Number(contractInv.names?.migrationFrontiers?.stateOnly?.length)===0,`state migration frontier not closed: ${contractInv.names?.migrationFrontiers?.stateOnly?.length}`);need(Number(contractInv.names?.migrationFrontiers?.handlerOnly?.length)===221,'handler-only frontier changed');}
 
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
   need((appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length===0,'bundled legacy render assignment remains');
   need((appBlock[2].match(/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm)||[]).length===0,'bundled dead render alias remains');
-  const globals=globalSurfaceInventory(appBlock[2]);
-  if(migrationInv){need(globals.objectAssignBlocks===Number(migrationInv.after?.blocks),`bundled app blocks ${globals.objectAssignBlocks}, inventory ${migrationInv.after?.blocks}`);need(globals.objectAssignEntries===Number(migrationInv.after?.entries),`bundled app entries ${globals.objectAssignEntries}, inventory ${migrationInv.after?.entries}`);}
-  need(globals.objectAssignUnique===230,`bundled app unique ${globals.objectAssignUnique}, expected 230`);
+  const globals=globalSurfaceInventory(appBlock[2]);need(globals.objectAssignBlocks===42,`bundled app blocks ${globals.objectAssignBlocks}, expected 42`);need(globals.objectAssignEntries===262,`bundled app entries ${globals.objectAssignEntries}, expected 262`);need(globals.objectAssignUnique===230,`bundled app unique ${globals.objectAssignUnique}, expected 230`);
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app re-exports pruned name ${name}`);
   for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app still explicitly exports State-migrated name ${name}`);
   for(const name of [TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7].flat())need(appBlock[2].includes(name),`bundled app lost lexical State action binding ${name}`);
@@ -75,7 +72,7 @@ console.log(' - Bundled JS blocks: 10/10, syntax OK');
 console.log(' - Canonical render closure: bundled + inventoried');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - App explicit window export pruning: 51 -> 44 blocks; 375 -> 325 entries; 332 -> 286 unique exports');
-console.log(` - State Registry Migration VII cumulative: 56 names; explicit window blocks 44 -> ${migrationInv?.after?.blocks}; entries 325 -> ${migrationInv?.after?.entries}; unique 286 -> 230`);
+console.log(' - State Registry Migration VII cumulative: 56 names; explicit window blocks 44 -> 42; entries 325 -> 262; unique 286 -> 230');
 console.log(' - Remaining Global Contract Map: 230/230 classified; primary State 4 / handler 223 / dynamic 3; State frontier 0; cross-runtime 0');
 console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(` - Output size: ${size} bytes`);

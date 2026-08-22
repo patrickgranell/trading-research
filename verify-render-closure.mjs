@@ -25,12 +25,12 @@ need(closure.includes("const TR_SOURCE_CONSOLIDATION_PHASE='31.23.18'"),'visible
 need(closure.includes('State Registry Migration VII'),'missing State Registry Migration VII label');
 need(closure.includes('function trSourceConsolidationDiagnostics()')&&closure.includes('function trSourceConsolidationPanel()'),'missing Source Consolidation diagnostics');
 for(const meta of ['trading-research-app-global-source-blocks','trading-research-app-global-bundled-blocks','trading-research-app-global-source-entries','trading-research-app-global-bundled-entries','trading-research-app-global-source-unique','trading-research-app-global-bundled-unique','trading-research-state-registry-migrated','trading-research-state-registry-batch1','trading-research-state-registry-batch2','trading-research-state-registry-batch3','trading-research-state-registry-batch4','trading-research-state-registry-batch5','trading-research-state-registry-batch6','trading-research-state-registry-batch7','trading-research-prune-safe-candidates','trading-research-dynamic-handler-slots','trading-research-dynamic-candidate-roots','trading-research-dynamic-protected-globals','trading-research-contract-map-remaining','trading-research-contract-map-classified','trading-research-contract-map-unclassified','trading-research-contract-map-multi','trading-research-contract-map-primary-state','trading-research-contract-map-primary-handler','trading-research-contract-map-primary-dynamic','trading-research-contract-map-state-frontier','trading-research-contract-map-handler-frontier','trading-research-contract-map-cross-runtime'])need(closure.includes(meta),`Source Consolidation does not consume ${meta}`);
-need(closure.includes('sourceBlocks===51&&bundledBlocks<=43'),'block closure guard changed');
-need(closure.includes('sourceEntries===375&&bundledEntries<=264'),'entry closure guard changed');
+need(closure.includes('sourceBlocks===51&&bundledBlocks===42'),'block closure guard changed');
+need(closure.includes('sourceEntries===375&&bundledEntries===262'),'entry closure guard changed');
 need(closure.includes('sourceUnique===332&&bundledUnique===230'),'unique export closure guard changed');
 need(closure.includes('stateMigrated===56&&stateBatch1===8&&stateBatch2===8&&stateBatch3===8&&stateBatch4===8&&stateBatch5===8&&stateBatch6===8&&stateBatch7===8'),'seven State batches are not guarded');
-need(closure.includes('removedBlocks>=8&&removedEntries>=111&&removedUnique===102&&safeCandidates===0'),'accumulated removal guard changed');
-need(closure.includes('contractRemaining===230&&contractClassified===230&&contractUnclassified===0&&contractMulti===5'),'contract coverage guard changed');
+need(closure.includes('removedBlocks===9&&removedEntries===113&&removedUnique===102&&safeCandidates===0'),'accumulated removal guard changed');
+need(closure.includes('contractRemaining===230&&contractClassified===230&&contractUnclassified===0&&contractMulti===6'),'contract coverage guard changed');
 need(closure.includes('primaryState===4&&primaryHandler===223&&primaryDynamic===3'),'primary contract guard changed');
 need(closure.includes('stateFrontier===0&&handlerFrontier===221&&crossRuntime===0'),'final State frontier guard changed');
 need(closure.includes('dynamicSlots===4&&dynamicCandidates===8&&dynamicProtected===3'),'Dynamic Action Guard changed');

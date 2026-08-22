@@ -1,0 +1,30 @@
+name: Validate Trading Research
+
+on:
+  push:
+    branches:
+      - main
+      - v31.23-source-consolidation
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Prebuild verification
+        run: npm run prebuild
+
+      - name: Build verification
+        run: npm run build

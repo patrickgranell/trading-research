@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
-const files=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','index.html'];
+const files=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js','index.html'];
 const text=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 const inlineAttributes=[...text.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const cssomWrites=[...text.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...text.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;
@@ -12,8 +12,10 @@ const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="style-attr-runtime.js"></script>'),'index.html no carga style-attr-runtime.js.');
 need(index.includes('<script src="style-runtime.js"></script>'),'index.html no carga style-runtime.js.');
+need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');
 need(index.indexOf('style-attr-runtime.js')>index.indexOf('app.js'),'style-attr-runtime.js debe cargar después de app.js.');
 need(index.indexOf('style-runtime.js')>index.indexOf('csp-runtime.js'),'style-runtime.js debe cargar después de csp-runtime.js.');
+need(index.indexOf('render-closure-runtime.js')>index.indexOf('style-runtime.js'),'render-closure-runtime.js debe cargar después del runtime de estilos.');
 need(boundary.includes("const TR_STYLE_ATTR_VERSION='31.22.0'"),'Boundary runtime con versión incorrecta.');
 need(boundary.includes("const TR_STYLE_ATTR_SOURCE='data-tr-style'"),'Boundary runtime no usa data-tr-style.');
 need(boundary.includes('new MutationObserver(trStyleAttrMutations)'),'Falta hidratación runtime de nuevos tokens de estilo.');

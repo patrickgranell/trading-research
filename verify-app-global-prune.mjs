@@ -1,0 +1,54 @@
+import fs from 'node:fs';
+import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
+import {globalSurfaceInventory} from './global-surface-inventory.mjs';
+import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
+import {pruneAppGlobalExports,TR_APP_GLOBAL_PRUNE_NAMES,TR_APP_GLOBAL_PRUNE_TARGETS} from './app-global-prune-transform.mjs';
+
+const app=fs.readFileSync('app.js','utf8');
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const runtimeSources=runtimeFiles.map(file=>fs.readFileSync(file,'utf8'));
+const stateActionTransformSource=fs.readFileSync('state-action-transform.mjs','utf8');
+const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
+let result=null,candidates=null;
+try{
+  const renderConsolidated=consolidateLegacyRenderAssignments(app,{expected:12});
+  candidates=pruneCandidateInventory(renderConsolidated.source,{runtimeSources,stateActionTransformSource});
+  result=pruneAppGlobalExports(renderConsolidated.source,{runtimeSources});
+}catch(e){fail.push(e?.message||String(e));}
+const inv=result?.inventory,after=result?globalSurfaceInventory(result.source):null,dyn=inv?.dynamicActionGuard;
+need(!app.includes('V31.23.10 pruned explicit window export'),'app.js fuente fue podado físicamente; esta fase debe mantener el histórico intacto y podar solo el bundle.');
+need(inv?.version==='31.23.10',`Versión de poda inesperada: ${inv?.version}.`);
+need(inv?.touchedBlocks===26,`Se esperaban 26 bloques inspeccionados/podados; hay ${inv?.touchedBlocks??0}.`);
+need(inv?.removedBlocks===7,`Se esperaban 7 bloques explícitos vaciados por completo; hay ${inv?.removedBlocks??0}.`);
+need(inv?.removedEntries===50,`Se esperaban 50 entries retiradas; hay ${inv?.removedEntries??0}.`);
+need(TR_APP_GLOBAL_PRUNE_NAMES.length===46,`El inventario único de nombres podados debería ser 46; hay ${TR_APP_GLOBAL_PRUNE_NAMES.length}.`);
+need(inv?.before?.objectAssignBlocks===51,`Baseline app.js inesperada: ${inv?.before?.objectAssignBlocks} bloques, esperados 51.`);
+need(inv?.before?.objectAssignEntries===375,`Baseline app.js inesperada: ${inv?.before?.objectAssignEntries} entries, esperadas 375.`);
+need(inv?.before?.objectAssignUnique===332,`Baseline app.js inesperada: ${inv?.before?.objectAssignUnique} exports únicos, esperados 332.`);
+need(inv?.after?.objectAssignBlocks===44,`Bundle app debería quedar en 44 bloques; hay ${inv?.after?.objectAssignBlocks}.`);
+need(inv?.after?.objectAssignEntries===325,`Bundle app debería quedar en 325 entries; hay ${inv?.after?.objectAssignEntries}.`);
+need(inv?.after?.objectAssignUnique===286,`Bundle app debería quedar en 286 exports explícitos únicos; hay ${inv?.after?.objectAssignUnique}.`);
+need((result?.source.match(/V31\.23\.10 pruned explicit window export:/g)||[]).length===TR_APP_GLOBAL_PRUNE_TARGETS.length,`Marcadores V31.23.10 inesperados; se esperaban ${TR_APP_GLOBAL_PRUNE_TARGETS.length}.`);
+need(candidates?.safeCandidateCount===0,`Quedan ${candidates?.safeCandidateCount??-1} candidatos contract-safe sin podar: ${(candidates?.safeCandidates||[]).join(', ')}`);
+need(Number(dyn?.declarativeHandlers)>500,`Dynamic Action Guard ve pocos handlers: ${dyn?.declarativeHandlers??0}.`);
+need(Array.isArray(dyn?.names?.protectedDynamicGlobals),'Falta inventario de globals protegidos por acciones dinámicas.');
+const protectedSet=new Set(dyn?.names?.protectedDynamicGlobals||[]);
+const overlap=TR_APP_GLOBAL_PRUNE_NAMES.filter(name=>protectedSet.has(name));
+need(overlap.length===0,`La poda cruza acciones dinámicas protegidas: ${overlap.join(', ')}`);
+for(const name of TR_APP_GLOBAL_PRUNE_NAMES)need(!after?.names?.objectAssign?.includes(name),`${name} sigue publicado mediante Object.assign(window, ...) después de la poda.`);
+if(fail.length){console.error('\nApp Global Prune verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
+console.log('App Global Prune verification OK');
+console.log(` - app.js source Object.assign blocks: ${inv.before.objectAssignBlocks}`);
+console.log(` - bundled app Object.assign blocks: ${inv.after.objectAssignBlocks}`);
+console.log(` - explicit entries: ${inv.before.objectAssignEntries} -> ${inv.after.objectAssignEntries}`);
+console.log(` - unique explicit exports: ${inv.before.objectAssignUnique} -> ${inv.after.objectAssignUnique}`);
+console.log(` - touched blocks: ${inv.touchedBlocks}; fully removed blocks: ${inv.removedBlocks}`);
+console.log(` - unique pruned names: ${TR_APP_GLOBAL_PRUNE_NAMES.length}; removed occurrences: ${inv.removedEntries}`);
+console.log(` - remaining contract-safe explicit candidates: ${candidates.safeCandidateCount}`);
+console.log(` - dynamic handler slots: ${dyn.dynamicHandlerSlots}; protected dynamic globals: ${dyn.protectedDynamicGlobals}`);
+console.log(` - protected dynamic roots: ${dyn.names.protectedDynamicGlobals.join(', ')||'none'}`);
+console.log(' - handler roots for pruned exports: 0');
+console.log(' - dynamic-action protected roots pruned: 0');
+console.log(' - State Action targets pruned: 0');
+console.log(' - explicit same-app window/globalThis refs for pruned exports: 0');
+console.log(' - direct cross-runtime window reads for pruned exports: 0');

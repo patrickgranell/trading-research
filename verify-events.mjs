@@ -3,6 +3,7 @@ const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const stateRuntime=fs.readFileSync('state-runtime.js','utf8');
 const security=fs.readFileSync('security-runtime.js','utf8');
+const closure=fs.readFileSync('render-closure-runtime.js','utf8');
 const evt=fs.readFileSync('event-runtime.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
@@ -11,11 +12,13 @@ const executableAttr=/\s(?:onclick|onchange|oninput|onsubmit)\s*=/g;
 const delegatedAttr=/\sdata-tr-on(?:click|change|input|submit)\s*=/g;
 need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
+need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');
 need(index.indexOf('event-runtime.js')>index.indexOf('security-runtime.js'),'event-runtime.js debe cargar después de security-runtime.js.');
-for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security]]){
+need(index.indexOf('render-closure-runtime.js')>index.indexOf('event-runtime.js'),'render closure debe cargar después de instalar la delegación de eventos.');
+for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security],['render-closure-runtime.js',closure]]){
   const n=(src.match(executableAttr)||[]).length;need(n===0,`${name}: quedan ${n} handlers HTML ejecutables.`);
 }
-const delegated=(app.match(delegatedAttr)||[]).length+(structural.match(delegatedAttr)||[]).length+(stateRuntime.match(delegatedAttr)||[]).length+(security.match(delegatedAttr)||[]).length;
+const delegated=[app,structural,stateRuntime,security,closure].reduce((n,src)=>n+(src.match(delegatedAttr)||[]).length,0);
 need(delegated>500,`Solo se detectan ${delegated} handlers declarativos; la migración parece incompleta.`);
 need(evt.includes("const TR_EVENT_TYPES=['click','change','input','submit']"),'Faltan los cuatro eventos delegados.');
 need(evt.includes('document.addEventListener(t,trEventDispatch,false)'),'No se instalan listeners delegados en document.');
@@ -23,6 +26,11 @@ need(evt.includes('function trEventParser(')&&evt.includes('function trEventComp
 need(evt.includes('fn===globalThis.eval||fn===globalThis.Function'),'El runtime no bloquea eval/Function.');
 need(!/new\s+Function\s*\(/.test(evt)&&!/\beval\s*\(/.test(evt),'El runtime usa ejecución dinámica.');
 need(evt.includes("new Set(['__proto__','prototype','constructor'])"),'Falta bloqueo de prototype-pollution en el intérprete.');
+need(evt.includes("const trActionRegistry=(window.TradingResearchActions"),'Falta el Action Registry bridge.');
+need(evt.includes('function trActionResolve(name)'),'Falta resolver dedicado de acciones.');
+need(evt.includes('Object.prototype.hasOwnProperty.call(trActionRegistry,name)'),'El resolver no prioriza el registro dedicado.');
+need(evt.includes("if(typeof value==='function'){trActionRegistry[name]=value"),'El fallback global no cachea funciones históricas en el registro.');
+need(evt.includes('actionRegistryHits:trActionRegistryHits')&&evt.includes('globalFallbacks:trActionGlobalFallbacks')&&evt.includes('registryMisses:trActionRegistryMisses'),'Diagnóstico del Action Registry incompleto.');
 need(app.includes('function trLegacyStateCommand('),'Falta command boundary para antiguas mutaciones léxicas.');
 for(const key of ['ops-risk-policy','gallery-reset','journal-set','journal-reset','lab-clear','lab-compare-clear','reports-compare-open'])need(app.includes(`case '${key}'`),`Falta comando ${key}.`);
 need(evt.includes('inlineHandlers:a.inlineHandlers')&&evt.includes('usesEval:false'),'Diagnóstico de delegación incompleto.');
@@ -32,6 +40,7 @@ console.log('Event delegation verification OK');
 console.log(` - Declarative handlers in source: ${delegated}`);
 console.log(' - Executable onclick/onchange/oninput/onsubmit attributes in source: 0');
 console.log(' - Delegated document listeners: click/change/input/submit');
+console.log(' - Action resolution: TradingResearchActions first, observable global fallback second');
 console.log(' - Dynamic execution (eval/new Function): 0');
 console.log(' - Legacy lexical UI assignments routed through explicit command boundary');
 console.log(' - CSP enforcement: verified separately by verify-csp');

@@ -23,7 +23,7 @@ const mapAfter=remainingGlobalContractMap(migrated.source,{runtimeSources,stateA
 if(TR_UI_REGISTRY_MIGRATION_VERSION!=='31.23.20')throw new Error(`Versión UI inesperada: ${TR_UI_REGISTRY_MIGRATION_VERSION}`);
 if(TR_UI_REGISTRY_MIGRATION_BATCH_1.length!==8||TR_UI_REGISTRY_MIGRATION_BATCH_2.length!==8||TR_UI_REGISTRY_MIGRATION_NAMES.length!==16)throw new Error('Los lotes UI I/II deben contener 8 acciones cada uno.');
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
-if(inv.after.blocks!==41)throw new Error(`Bloques window tras UI II: ${inv.after.blocks}; se esperaban 41.`);
+if(inv.after.blocks!==40)throw new Error(`Bloques window tras UI II: ${inv.after.blocks}; se esperaban 40.`);
 if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries UI no cuadran: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}.`);
 if(inv.registryEntries!==16||inv.batch1Entries!==8||inv.batch2Entries!==8)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lotes ${inv.batch1Entries}/${inv.batch2Entries}.`);
 if(inv.after.entries!==246)throw new Error(`Entries window tras UI II: ${inv.after.entries}; se esperaban 246.`);

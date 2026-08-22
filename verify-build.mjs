@@ -5,7 +5,7 @@ import {spawnSync} from 'node:child_process';
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
 import {TR_APP_GLOBAL_PRUNE_NAMES} from './app-global-prune-transform.mjs';
 import {TR_STATE_REGISTRY_MIGRATION_NAMES,TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7} from './state-registry-migration-transform.mjs';
-import {TR_UI_REGISTRY_MIGRATION_NAMES,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7} from './ui-registry-migration-transform.mjs';
+import {TR_UI_REGISTRY_MIGRATION_NAMES,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8} from './ui-registry-migration-transform.mjs';
 
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version,file='dist/index.html',fail=[];
@@ -45,13 +45,13 @@ if(migrationInv){
 const uiInv=readJson('dist/ui-registry-migration-inventory.json');
 need(!!uiInv,'dist/ui-registry-migration-inventory.json missing');
 if(uiInv){
-  need(String(uiInv.version)==='31.23.25',`UI registry migration version unexpected: ${uiInv.version}`);
-  need((uiInv.names||[]).length===56,'UI registry migrated names changed');
-  need((uiInv.batches?.batch1||[]).length===8&&(uiInv.batches?.batch2||[]).length===8&&(uiInv.batches?.batch3||[]).length===8&&(uiInv.batches?.batch4||[]).length===8&&(uiInv.batches?.batch5||[]).length===8&&(uiInv.batches?.batch6||[]).length===8&&(uiInv.batches?.batch7||[]).length===8,'UI registry batch sizes changed');
-  need(Number(uiInv.registryEntries)===61&&Number(uiInv.batch1Entries)===8&&Number(uiInv.batch2Entries)===8&&Number(uiInv.batch3Entries)===11&&Number(uiInv.batch4Entries)===9&&Number(uiInv.batch5Entries)===8&&Number(uiInv.batch6Entries)===8&&Number(uiInv.batch7Entries)===9,'UI registry publications changed');
-  need(Number(uiInv.before?.blocks)===42&&Number(uiInv.after?.blocks)===38,'UI registry block inventory changed');
-  need(Number(uiInv.before?.entries)===262&&Number(uiInv.after?.entries)===201,'UI registry entry inventory changed');
-  need(Number(uiInv.before?.unique)===230&&Number(uiInv.after?.unique)===174,'UI registry unique inventory changed');
+  need(String(uiInv.version)==='31.23.26',`UI registry migration version unexpected: ${uiInv.version}`);
+  need((uiInv.names||[]).length===64,'UI registry migrated names changed');
+  need((uiInv.batches?.batch1||[]).length===8&&(uiInv.batches?.batch2||[]).length===8&&(uiInv.batches?.batch3||[]).length===8&&(uiInv.batches?.batch4||[]).length===8&&(uiInv.batches?.batch5||[]).length===8&&(uiInv.batches?.batch6||[]).length===8&&(uiInv.batches?.batch7||[]).length===8&&(uiInv.batches?.batch8||[]).length===8,'UI registry batch sizes changed');
+  need(Number(uiInv.registryEntries)===69&&Number(uiInv.batch1Entries)===8&&Number(uiInv.batch2Entries)===8&&Number(uiInv.batch3Entries)===11&&Number(uiInv.batch4Entries)===9&&Number(uiInv.batch5Entries)===8&&Number(uiInv.batch6Entries)===8&&Number(uiInv.batch7Entries)===9&&Number(uiInv.batch8Entries)===8,'UI registry publications changed');
+  need(Number(uiInv.before?.blocks)===42&&Number(uiInv.after?.blocks)===36,'UI registry block inventory changed');
+  need(Number(uiInv.before?.entries)===262&&Number(uiInv.after?.entries)===193,'UI registry entry inventory changed');
+  need(Number(uiInv.before?.unique)===230&&Number(uiInv.after?.unique)===166,'UI registry unique inventory changed');
 }
 const dynamicInv=readJson('dist/dynamic-action-inventory.json');
 need(!!dynamicInv,'dist/dynamic-action-inventory.json missing');
@@ -60,20 +60,20 @@ const candidateInv=readJson('dist/prune-candidate-inventory.json');
 need(!!candidateInv,'dist/prune-candidate-inventory.json missing');if(candidateInv)need(Number(candidateInv.safeCandidateCount)===0&&(candidateInv.safeCandidates||[]).length===0,'contract-safe explicit prune candidates remain');
 const contractInv=readJson('dist/remaining-global-contract-map.json');
 need(!!contractInv,'dist/remaining-global-contract-map.json missing');
-if(contractInv){need(String(contractInv.version)==='31.23.11','remaining contract map version changed');need(Number(contractInv.remainingUnique)===174&&Number(contractInv.classified)===174&&Number(contractInv.unclassified)===0,`remaining contract coverage unexpected: ${contractInv.classified}/${contractInv.remainingUnique}`);need(Number(contractInv.multiContract)===6,`remaining contract overlap changed: ${contractInv.multiContract}`);need(Number(contractInv.byPrimary?.['state-action'])===4&&Number(contractInv.byPrimary?.['ui-handler'])===167&&Number(contractInv.byPrimary?.['dynamic-action'])===3,'remaining primary contract counts unexpected');need(Number(contractInv.coverage?.crossRuntimeRead)===0,'remaining map reopened cross-runtime direct reads');need(Number(contractInv.names?.migrationFrontiers?.stateOnly?.length)===0,`state migration frontier not closed: ${contractInv.names?.migrationFrontiers?.stateOnly?.length}`);need(Number(contractInv.names?.migrationFrontiers?.handlerOnly?.length)===165,'handler-only frontier changed');}
+if(contractInv){need(String(contractInv.version)==='31.23.11','remaining contract map version changed');need(Number(contractInv.remainingUnique)===166&&Number(contractInv.classified)===166&&Number(contractInv.unclassified)===0,`remaining contract coverage unexpected: ${contractInv.classified}/${contractInv.remainingUnique}`);need(Number(contractInv.multiContract)===6,`remaining contract overlap changed: ${contractInv.multiContract}`);need(Number(contractInv.byPrimary?.['state-action'])===4&&Number(contractInv.byPrimary?.['ui-handler'])===159&&Number(contractInv.byPrimary?.['dynamic-action'])===3,'remaining primary contract counts unexpected');need(Number(contractInv.coverage?.crossRuntimeRead)===0,'remaining map reopened cross-runtime direct reads');need(Number(contractInv.names?.migrationFrontiers?.stateOnly?.length)===0,`state migration frontier not closed: ${contractInv.names?.migrationFrontiers?.stateOnly?.length}`);need(Number(contractInv.names?.migrationFrontiers?.handlerOnly?.length)===157,'handler-only frontier changed');}
 
 const appBlock=scripts.find(m=>/data-tr-build=/.test(m[1]));
 if(appBlock){
   need((appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length===0,'bundled legacy render assignment remains');
   need((appBlock[2].match(/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm)||[]).length===0,'bundled dead render alias remains');
   const globals=globalSurfaceInventory(appBlock[2]);
-  need(globals.objectAssignBlocks===38,`bundled app blocks ${globals.objectAssignBlocks}, expected 38`);
-  need(globals.objectAssignEntries===201,`bundled app entries ${globals.objectAssignEntries}, expected 201`);
-  need(globals.objectAssignUnique===174,`bundled app unique ${globals.objectAssignUnique}, expected 174`);
+  need(globals.objectAssignBlocks===36,`bundled app blocks ${globals.objectAssignBlocks}, expected 36`);
+  need(globals.objectAssignEntries===193,`bundled app entries ${globals.objectAssignEntries}, expected 193`);
+  need(globals.objectAssignUnique===166,`bundled app unique ${globals.objectAssignUnique}, expected 166`);
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app re-exports pruned name ${name}`);
   for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app still explicitly exports State-migrated name ${name}`);
   for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app still explicitly exports UI-migrated name ${name}`);
-  for(const name of [TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7].flat())need(appBlock[2].includes(name),`bundled app lost lexical action binding ${name}`);
+  for(const name of [TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8].flat())need(appBlock[2].includes(name),`bundled app lost lexical action binding ${name}`);
 }
 const stateBlock=scripts.find(m=>/data-tr-state-runtime=/.test(m[1]));
 if(stateBlock){need(stateBlock[2].includes('V31.23.6 STATE ACTION BRIDGE'),'bundled State Runtime missing bridge');need(stateBlock[2].includes("const trStateActionResolve=(name)=>"),'bundled State Runtime missing registry resolver');need(stateBlock[2].includes("const trStateActionPublish=(name,value)=>"),'bundled State Runtime missing registry publisher');for(const name of ['confirmImportPreview','deleteImportBatch','editOperation','openOperationModal','saveInstrument','saveOperationFromForm','v314ImportExecFile','v314ImportMarketFile','v319SyncExecutionSetsToOperations'])need(!new RegExp(`\\bwindow\\.${name}\\b`).test(stateBlock[2]),`bundled State Runtime still reads window.${name}`);}
@@ -89,7 +89,7 @@ console.log(' - Canonical render closure: bundled + inventoried');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - App explicit window export pruning: 51 -> 44 blocks; 375 -> 325 entries; 332 -> 286 unique exports');
 console.log(' - State Registry Migration VII cumulative: 56 names; explicit window blocks 44 -> 42; entries 325 -> 262; unique 286 -> 230');
-console.log(' - UI Registry Migration VII cumulative: 56 names; explicit window blocks 42 -> 38; entries 262 -> 201; unique 230 -> 174');
-console.log(' - Remaining Global Contract Map: 174/174 classified; primary State 4 / handler 167 / dynamic 3; State frontier 0; handler frontier 165; cross-runtime 0');
+console.log(' - UI Registry Migration VIII cumulative: 64 names; explicit window blocks 42 -> 36; entries 262 -> 193; unique 230 -> 166');
+console.log(' - Remaining Global Contract Map: 166/166 classified; primary State 4 / handler 159 / dynamic 3; State frontier 0; handler frontier 157; cross-runtime 0');
 console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(` - Output size: ${size} bytes`);

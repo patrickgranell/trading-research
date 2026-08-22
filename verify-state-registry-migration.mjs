@@ -42,6 +42,7 @@ if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error(`La fr
 if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`La migración reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
 for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);
 if(!migrated.source.includes('V31.23.18 State registry migration:'))throw new Error('Falta marcador V31.23.18 en el bundle migrado.');
+const handlerRows=mapAfter.rows.filter(r=>mapAfter.names.migrationFrontiers.handlerOnly.includes(r.name)).sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name));
 console.log('State Registry Migration verification OK');
 console.log(` - Cumulative State actions migrated: ${TR_STATE_REGISTRY_MIGRATION_NAMES.length} (${batches.map(b=>b.length).join('+')})`);
 console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
@@ -50,3 +51,5 @@ console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.af
 console.log(` - Registry publications: ${inv.registryEntries} total; batches ${inv.batch1Entries}/${inv.batch2Entries}/${inv.batch3Entries}/${inv.batch4Entries}/${inv.batch5Entries}/${inv.batch6Entries}/${inv.batch7Entries}`);
 console.log(` - State frontier: ${mapBefore.names.migrationFrontiers.stateOnly.length} -> ${mapAfter.names.migrationFrontiers.stateOnly.length}`);
 console.log(` - Batch VII migrated: ${TR_STATE_REGISTRY_MIGRATION_BATCH_7.join(', ')}`);
+console.log(` - Handler-only frontier after State closure: ${handlerRows.length}`);
+console.log(` - Lowest-use handler-only candidates: ${handlerRows.slice(0,40).map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);

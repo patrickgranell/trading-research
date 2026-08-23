@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
-import {migrateUiHandlersToRegistry,TR_UI_REGISTRY_MIGRATION_NAMES,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8,TR_UI_REGISTRY_MIGRATION_BATCH_9,TR_UI_REGISTRY_MIGRATION_BATCH_10,TR_UI_REGISTRY_MIGRATION_BATCH_11,TR_UI_REGISTRY_MIGRATION_BATCH_12,TR_UI_REGISTRY_MIGRATION_BATCH_13,TR_UI_REGISTRY_MIGRATION_BATCH_14,TR_UI_REGISTRY_MIGRATION_BATCH_15,TR_UI_REGISTRY_MIGRATION_BATCH_16,TR_UI_REGISTRY_MIGRATION_BATCH_17,TR_UI_REGISTRY_MIGRATION_BATCH_18,TR_UI_REGISTRY_MIGRATION_BATCH_19,TR_UI_REGISTRY_MIGRATION_BATCH_20,TR_UI_REGISTRY_MIGRATION_BATCH_21,TR_UI_REGISTRY_MIGRATION_BATCH_22,TR_UI_REGISTRY_MIGRATION_BATCH_23,TR_UI_REGISTRY_MIGRATION_BATCH_24,TR_UI_REGISTRY_MIGRATION_BATCH_25,TR_UI_REGISTRY_MIGRATION_VERSION,TR_UI_REGISTRY_FINAL_BINDING_VERSION} from './ui-registry-migration-transform.mjs';
+import {migrateUiHandlersToRegistry,TR_UI_REGISTRY_MIGRATION_NAMES,TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8,TR_UI_REGISTRY_MIGRATION_BATCH_9,TR_UI_REGISTRY_MIGRATION_BATCH_10,TR_UI_REGISTRY_MIGRATION_BATCH_11,TR_UI_REGISTRY_MIGRATION_BATCH_12,TR_UI_REGISTRY_MIGRATION_BATCH_13,TR_UI_REGISTRY_MIGRATION_BATCH_14,TR_UI_REGISTRY_MIGRATION_BATCH_15,TR_UI_REGISTRY_MIGRATION_BATCH_16,TR_UI_REGISTRY_MIGRATION_BATCH_17,TR_UI_REGISTRY_MIGRATION_BATCH_18,TR_UI_REGISTRY_MIGRATION_BATCH_19,TR_UI_REGISTRY_MIGRATION_BATCH_20,TR_UI_REGISTRY_MIGRATION_BATCH_21,TR_UI_REGISTRY_MIGRATION_BATCH_22,TR_UI_REGISTRY_MIGRATION_BATCH_23,TR_UI_REGISTRY_MIGRATION_BATCH_24,TR_UI_REGISTRY_MIGRATION_BATCH_25,TR_UI_REGISTRY_MIGRATION_BATCH_26,TR_UI_REGISTRY_MIGRATION_VERSION,TR_UI_REGISTRY_FINAL_BINDING_VERSION} from './ui-registry-migration-transform.mjs';
 import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
@@ -20,22 +20,24 @@ const handlerFrontier=new Set(mapBefore.names.migrationFrontiers.handlerOnly);
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)if(!handlerFrontier.has(name))throw new Error(`UI Registry Migration: ${name} no pertenece a la frontera handler-only segura.`);
 const migrated=migrateUiHandlersToRegistry(stateMigrated.source),inv=migrated.inventory,after=globalSurfaceInventory(migrated.source);
 const mapAfter=remainingGlobalContractMap(migrated.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
-if(TR_UI_REGISTRY_MIGRATION_VERSION!=='31.23.44')throw new Error(`Versión UI inesperada: ${TR_UI_REGISTRY_MIGRATION_VERSION}`);
+if(TR_UI_REGISTRY_MIGRATION_VERSION!=='31.23.45')throw new Error(`Versión UI inesperada: ${TR_UI_REGISTRY_MIGRATION_VERSION}`);
 if(TR_UI_REGISTRY_FINAL_BINDING_VERSION!=='31.23.41'||inv.finalBindingVersion!=='31.23.41')throw new Error(`Versión final-binding UI inesperada: ${inv.finalBindingVersion}`);
-const batches=[TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8,TR_UI_REGISTRY_MIGRATION_BATCH_9,TR_UI_REGISTRY_MIGRATION_BATCH_10,TR_UI_REGISTRY_MIGRATION_BATCH_11,TR_UI_REGISTRY_MIGRATION_BATCH_12,TR_UI_REGISTRY_MIGRATION_BATCH_13,TR_UI_REGISTRY_MIGRATION_BATCH_14,TR_UI_REGISTRY_MIGRATION_BATCH_15,TR_UI_REGISTRY_MIGRATION_BATCH_16,TR_UI_REGISTRY_MIGRATION_BATCH_17,TR_UI_REGISTRY_MIGRATION_BATCH_18,TR_UI_REGISTRY_MIGRATION_BATCH_19,TR_UI_REGISTRY_MIGRATION_BATCH_20,TR_UI_REGISTRY_MIGRATION_BATCH_21,TR_UI_REGISTRY_MIGRATION_BATCH_22,TR_UI_REGISTRY_MIGRATION_BATCH_23,TR_UI_REGISTRY_MIGRATION_BATCH_24,TR_UI_REGISTRY_MIGRATION_BATCH_25];
-if(batches.some(b=>b.length!==8)||TR_UI_REGISTRY_MIGRATION_NAMES.length!==200)throw new Error(`Los lotes UI I/XXV deben contener 8 acciones cada uno: ${batches.map(b=>b.length).join('+')}.`);
-if(inv.finalBindingRefreshEntries!==200)throw new Error(`UI final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
+const batches=[TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2,TR_UI_REGISTRY_MIGRATION_BATCH_3,TR_UI_REGISTRY_MIGRATION_BATCH_4,TR_UI_REGISTRY_MIGRATION_BATCH_5,TR_UI_REGISTRY_MIGRATION_BATCH_6,TR_UI_REGISTRY_MIGRATION_BATCH_7,TR_UI_REGISTRY_MIGRATION_BATCH_8,TR_UI_REGISTRY_MIGRATION_BATCH_9,TR_UI_REGISTRY_MIGRATION_BATCH_10,TR_UI_REGISTRY_MIGRATION_BATCH_11,TR_UI_REGISTRY_MIGRATION_BATCH_12,TR_UI_REGISTRY_MIGRATION_BATCH_13,TR_UI_REGISTRY_MIGRATION_BATCH_14,TR_UI_REGISTRY_MIGRATION_BATCH_15,TR_UI_REGISTRY_MIGRATION_BATCH_16,TR_UI_REGISTRY_MIGRATION_BATCH_17,TR_UI_REGISTRY_MIGRATION_BATCH_18,TR_UI_REGISTRY_MIGRATION_BATCH_19,TR_UI_REGISTRY_MIGRATION_BATCH_20,TR_UI_REGISTRY_MIGRATION_BATCH_21,TR_UI_REGISTRY_MIGRATION_BATCH_22,TR_UI_REGISTRY_MIGRATION_BATCH_23,TR_UI_REGISTRY_MIGRATION_BATCH_24,TR_UI_REGISTRY_MIGRATION_BATCH_25,TR_UI_REGISTRY_MIGRATION_BATCH_26];
+if(batches.some(b=>b.length!==8)||TR_UI_REGISTRY_MIGRATION_NAMES.length!==208)throw new Error(`Los lotes UI I/XXVI deben contener 8 acciones cada uno: ${batches.map(b=>b.length).join('+')}.`);
+if(inv.finalBindingRefreshEntries!==208)throw new Error(`UI final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
-if(inv.registryEntries!==221||inv.batch25Entries!==12)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lote XXV ${inv.batch25Entries}.`);
-if(inv.after.blocks!==19)throw new Error(`Bloques window tras UI XXV: ${inv.after.blocks}; se esperaban 19.`);
-if(inv.after.entries!==41)throw new Error(`Entries window tras UI XXV: ${inv.after.entries}; se esperaban 41.`);
-if(inv.after.unique!==30)throw new Error(`Exports window únicos tras UI XXV: ${inv.after.unique}; se esperaban 30.`);
-if(mapAfter.remainingUnique!==30||mapAfter.classified!==30||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
-if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==23||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios UI post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
-if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error('La frontera State se reabrió durante UI XXV.');
-if(mapAfter.names.migrationFrontiers.handlerOnly.length!==21)throw new Error(`Frontera handler-only tras UI XXV: ${mapAfter.names.migrationFrontiers.handlerOnly.length}; se esperaban 21.`);
-if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`UI XXV reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
+if(inv.after.unique!==22)throw new Error(`Exports window únicos tras UI XXVI: ${inv.after.unique}; se esperaban 22.`);
+if(mapAfter.remainingUnique!==22||mapAfter.classified!==22||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
+if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==15||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios UI post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
+if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error('La frontera State se reabrió durante UI XXVI.');
+if(mapAfter.names.migrationFrontiers.handlerOnly.length!==13)throw new Error(`Frontera handler-only tras UI XXVI: ${mapAfter.names.migrationFrontiers.handlerOnly.length}; se esperaban 13.`);
+if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`UI XXVI reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);if(!migrated.source.includes(name))throw new Error(`Se perdió binding léxico UI ${name}.`);}
+
+console.log('UI Registry Migration XXVI measurement');
+console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
+console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);
+console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh; batch XXVI ${inv.batch26Entries}`);
 
 const historicalAssigns=[...stateMigrated.source.matchAll(/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g)],late=[];
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){
@@ -47,15 +49,12 @@ const lateNames=[...new Set(late)].sort(),allowedLate=new Set(['applyRiskToOpera
 if(lateNames.some(n=>!allowedLate.has(n)))throw new Error(`Deuda late-binding UI inesperada: ${lateNames.join(',')||'none'}`);
 const finalMarker='/* V31.23.41 UI final binding closure */',finalIdx=migrated.source.lastIndexOf(finalMarker),finalPublish=`Object.assign(trAppUiActionRegistryV340,{${TR_UI_REGISTRY_MIGRATION_NAMES.join(',')}});`;
 if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('UI final binding closure no está al final del transform UI.');
-if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppUiActionRegistryV340,'__trUiFinalBindingClosure',{value:200"))throw new Error('UI final binding publication/marker incompleto.');
+if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppUiActionRegistryV340,'__trUiFinalBindingClosure',{value:208"))throw new Error('UI final binding publication/marker incompleto.');
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)for(const m of migrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>finalIdx)throw new Error(`${name} se redefine después del UI final binding closure.`);
 
-console.log('UI Registry Migration XXV verification OK');
+console.log('UI Registry Migration XXVI measurement OK');
 console.log(` - UI handlers migrated: ${TR_UI_REGISTRY_MIGRATION_NAMES.length}`);
-console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
-console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);
 console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.after.unique}`);
-console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh; batch XXV ${inv.batch25Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
-console.log(` - Batch UI XXV: ${TR_UI_REGISTRY_MIGRATION_BATCH_25.join(', ')}`);
+console.log(` - Batch UI XXVI: ${TR_UI_REGISTRY_MIGRATION_BATCH_26.join(', ')}`);
 console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefines covered: ${lateNames.join(', ')||'none'}`);

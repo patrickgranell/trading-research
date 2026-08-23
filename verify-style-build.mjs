@@ -9,6 +9,9 @@ const transformedAttrs=[...h.matchAll(/data-tr-style\s*=\s*["']/gi)].length;
 need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
 need(inventory.inlineAttributes>0,'La build esperaba deuda histórica de atributos style en fuente para transformar.');
 need(inventory.effectiveInlineAttributes===0,`Quedan ${inventory.effectiveInlineAttributes} atributos style efectivos tras la transformación.`);
+need(inventory.transform?.kind==='open-tag-context-scanner','La build no declara el scanner context-aware de style attrs.');
+need(inventory.transform?.selfTest===true,'El build no ejecutó el self-test del scanner de style attrs.');
+need(Number(inventory.transform?.appConverted)>0,'El scanner no convirtió atributos style del app bundle.');
 need(executableStyleAttrs===0,`dist/index.html conserva ${executableStyleAttrs} atributos style ejecutables.`);
 need(transformedAttrs>0,'No se detectan atributos data-tr-style transformados en el bundle.');
 need(h.includes('data-tr-style-attr-runtime="31.23.0"'),'Falta el runtime de hidratación style-attr en el bundle.');
@@ -19,8 +22,9 @@ need(!/\.style\.cssText\s*=/.test(h),'El bundle contiene escritura style.cssText
 need(!/setAttribute\s*\(\s*["']style["']/.test(h),'El bundle contiene setAttribute(style) incompatible con la política estricta.');
 if(fail.length){console.error('Strict style boundary build verification FAILED');for(const f of fail)console.error(' - '+f);process.exit(1);}
 console.log('Strict style boundary build verification OK');
-console.log(` - Legacy source style attrs transformed: ${inventory.inlineAttributes}`);
+console.log(` - Legacy source style attrs inventoried: ${inventory.inlineAttributes}`);
 console.log(' - Effective inline style attrs: 0');
 console.log(` - data-tr-style tokens in bundle: ${transformedAttrs}`);
+console.log(' - Transform: context-aware opening-tag scanner + self-test');
 console.log(" - CSP: style-src-attr 'none'");
 console.log(' - cssText / setAttribute(style): absent');

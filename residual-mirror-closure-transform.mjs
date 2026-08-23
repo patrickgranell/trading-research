@@ -31,5 +31,5 @@ export function closeResidualDirectMirrors(source){
   }
   const uniqueRemoved=before.objectAssignUnique-after.objectAssignUnique;
   if(uniqueRemoved!==TR_RESIDUAL_MIRROR_CLOSURE_NAMES.length)throw new Error(`Residual Mirror Closure: reducción unique ${uniqueRemoved}; esperada ${TR_RESIDUAL_MIRROR_CLOSURE_NAMES.length}.`);
-  return {source:sourceOut,inventory:{version:TR_RESIDUAL_MIRROR_CLOSURE_VERSION,names:[...TR_RESIDUAL_MIRROR_CLOSURE_NAMES],occurrences,touchedBlocks,removedEntries,directMirrorsRemoved,before:{blocks:before.objectAssignBlocks,entries:before.objectAssignEntries,unique:before.objectAssignUnique,directUnique:before.directUnique},after:{blocks:after.objectAssignBlocks,entries:after.objectAssignEntries,unique:after.objectAssignUnique,directUnique:after.directUnique}}};
+  return {source:sourceOut,inventory:{version:TR_RESIDUAL_MIRROR_CLOSURE_VERSION,names:[...TR_RESIDUAL_MIRROR_CLOSURE_NAMES],occurrences,touchedBlocks,removedEntries,directMirrorsRemoved,before:{blocks:before.objectAssignBlocks,entries:before.objectAssignEntries,unique:before.objectAssignUnique,directUnique:before.directWindowUnique},after:{blocks:after.objectAssignBlocks,entries:after.objectAssignEntries,unique:after.objectAssignUnique,directUnique:after.directWindowUnique}}};
 }

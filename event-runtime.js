@@ -6,7 +6,9 @@ const TR_EVENT_APP_LABEL='V31.23.4 · Source Consolidation · Action Registry Br
 const TR_EVENT_TYPES=['click','change','input','submit'];
 const TR_EVENT_ATTR_PREFIX='data-tr-on';
 const TR_BLOCKED_KEYS=new Set(['__proto__','prototype','constructor']);
+const TR_EVENT_AST_CACHE_LIMIT=512;
 const trEventAstCache=new Map();
+let trEventAstEvictions=0;
 const trActionRegistry=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:Object.create(null);
 if(!window.TradingResearchActions)window.TradingResearchActions=trActionRegistry;
 let trEventDispatches=0,trEventParseErrors=0,trEventExecErrors=0,trEventLastError='',trEventListenersInstalled=false;
@@ -85,10 +87,20 @@ function trEventParser(src){
   }
   const ast=program();if(cur().t!=='eof')throw new SyntaxError('Tokens sobrantes');return ast;
 }
+function trEventCacheGet(src){
+  if(!trEventAstCache.has(src))return null;
+  const ast=trEventAstCache.get(src);trEventAstCache.delete(src);trEventAstCache.set(src,ast);return ast;
+}
+function trEventCacheSet(src,ast){
+  if(trEventAstCache.has(src))trEventAstCache.delete(src);
+  trEventAstCache.set(src,ast);
+  if(trEventAstCache.size>TR_EVENT_AST_CACHE_LIMIT){const oldest=trEventAstCache.keys().next().value;trEventAstCache.delete(oldest);trEventAstEvictions++;}
+  return ast;
+}
 function trEventCompile(code){
   const src=String(code||'').trim();if(!src)return {t:'prog',body:[]};
-  if(trEventAstCache.has(src))return trEventAstCache.get(src);
-  try{const ast=trEventParser(src);trEventAstCache.set(src,ast);return ast;}catch(e){trEventParseErrors++;trEventLastError=`${e?.message||e} · ${src.slice(0,180)}`;throw e;}
+  const cached=trEventCacheGet(src);if(cached)return cached;
+  try{return trEventCacheSet(src,trEventParser(src));}catch(e){trEventParseErrors++;trEventLastError=`${e?.message||e} · ${src.slice(0,180)}`;throw e;}
 }
 function trEventRef(node,ctx){
   if(node.t==='id'){
@@ -166,7 +178,7 @@ function trEventAuditDocument(root=document){
 }
 function trEventDiagnostics(){
   const a=trEventAuditDocument(document);
-  return {version:TR_EVENT_RUNTIME_VERSION,listeners:trEventListenersInstalled?TR_EVENT_TYPES.length:0,delegatedHandlers:a.handlers,inlineHandlers:a.inlineHandlers,parseErrors:a.parseErrors,executionErrors:trEventExecErrors,dispatches:trEventDispatches,cacheSize:trEventAstCache.size,actionRegistrySize:trActionRegistrySize(),actionRegistryHits:trActionRegistryHits,globalFallbacks:trActionGlobalFallbacks,registryMisses:trActionRegistryMisses,lastError:trEventLastError,usesEval:false,ok:trEventListenersInstalled&&a.inlineHandlers===0&&a.parseErrors===0&&!trEventExecErrors&&!trActionRegistryMisses};
+  return {version:TR_EVENT_RUNTIME_VERSION,listeners:trEventListenersInstalled?TR_EVENT_TYPES.length:0,delegatedHandlers:a.handlers,inlineHandlers:a.inlineHandlers,parseErrors:a.parseErrors,executionErrors:trEventExecErrors,dispatches:trEventDispatches,cacheSize:trEventAstCache.size,cacheLimit:TR_EVENT_AST_CACHE_LIMIT,cacheEvictions:trEventAstEvictions,actionRegistrySize:trActionRegistrySize(),actionRegistryHits:trActionRegistryHits,globalFallbacks:trActionGlobalFallbacks,registryMisses:trActionRegistryMisses,lastError:trEventLastError,usesEval:false,ok:trEventListenersInstalled&&a.inlineHandlers===0&&a.parseErrors===0&&!trEventExecErrors&&!trActionRegistryMisses&&trEventAstCache.size<=TR_EVENT_AST_CACHE_LIMIT};
 }
 
 trEventInstall();
@@ -181,13 +193,13 @@ if(typeof dataSecurityPanel==='function'){
     let html=trEventDataSecurityBase();
     html=html.replace('<div><span>Event delegation</span><strong>Parcial / pendiente</strong></div>',`<div><span>Event delegation</span><strong class="${d.ok?'positive':'negative'}">${d.ok?'OK':'Revisar'}</strong></div>`)
       .replace('Deuda explícita: la aplicación todavía conserva numerosos <code>onclick/onchange/oninput</code> históricos. Esta fase reduce la superficie de inyección sin fingir que existe una CSP estricta; la delegación global de eventos se abordará por módulos para no romper una base funcional ya validada.',`V31.23.4 conserva la delegación estricta y añade una frontera explícita de acciones: el intérprete consulta primero <code>TradingResearchActions</code> y solo usa el objeto global como puente transitorio.`);
-    const extra=`<section class="card panel config-wide"><div class="panel-title"><div><h3>Delegación de eventos</h3><div class="help">V31.23.4 mantiene click/change/input/submit en listeners de documento y separa por primera vez la resolución de acciones del objeto global.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Action registry bridge</span></div><div class="integrity-kpis"><div><span>Listeners globales</span><strong>${d.listeners}</strong></div><div><span>Handlers delegados</span><strong>${d.delegatedHandlers}</strong></div><div><span>Handlers inline DOM</span><strong class="${d.inlineHandlers?'negative':'positive'}">${d.inlineHandlers}</strong></div><div><span>Action registry</span><strong>${d.actionRegistrySize}</strong></div><div><span>Registry hits</span><strong>${d.actionRegistryHits}</strong></div><div><span>Fallback global</span><strong>${d.globalFallbacks}</strong></div><div><span>Registry misses</span><strong class="${d.registryMisses?'negative':'positive'}">${d.registryMisses}</strong></div><div><span>Parse / Exec</span><strong class="${d.parseErrors||d.executionErrors?'negative':'positive'}">${d.parseErrors} / ${d.executionErrors}</strong></div><div><span>eval / Function</span><strong class="positive">No</strong></div><div><span>Estado</span><strong class="${d.ok?'positive':'negative'}">${d.ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.23.4 · Action Registry Bridge:</strong> las acciones ejecutadas por atributos <code>data-tr-on*</code> se resuelven primero desde <code>TradingResearchActions</code>. Si una acción histórica todavía vive solo en <code>window</code>, se usa una vez como fallback y se cachea en el registro. Esto permite retirar exports globales por lotes posteriores sin reescribir los 600+ handlers ni introducir <code>eval</code>.</div>${d.lastError?`<div class="notice danger"><strong>Delegación:</strong> ${esc(d.lastError)}</div>`:''}</section>`;
+    const extra=`<section class="card panel config-wide"><div class="panel-title"><div><h3>Delegación de eventos</h3><div class="help">V31.23.4 mantiene click/change/input/submit en listeners de documento, separa la resolución de acciones del objeto global y limita la caché AST para que handlers dinámicos no acumulen memoria sin cota.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Action registry bridge</span></div><div class="integrity-kpis"><div><span>Listeners globales</span><strong>${d.listeners}</strong></div><div><span>Handlers delegados</span><strong>${d.delegatedHandlers}</strong></div><div><span>Handlers inline DOM</span><strong class="${d.inlineHandlers?'negative':'positive'}">${d.inlineHandlers}</strong></div><div><span>AST cache</span><strong>${d.cacheSize} / ${d.cacheLimit}</strong></div><div><span>Action registry</span><strong>${d.actionRegistrySize}</strong></div><div><span>Registry hits</span><strong>${d.actionRegistryHits}</strong></div><div><span>Fallback global</span><strong>${d.globalFallbacks}</strong></div><div><span>Registry misses</span><strong class="${d.registryMisses?'negative':'positive'}">${d.registryMisses}</strong></div><div><span>Parse / Exec</span><strong class="${d.parseErrors||d.executionErrors?'negative':'positive'}">${d.parseErrors} / ${d.executionErrors}</strong></div><div><span>eval / Function</span><strong class="positive">No</strong></div><div><span>Estado</span><strong class="${d.ok?'positive':'negative'}">${d.ok?'OK':'Revisar'}</strong></div></div><div class="notice"><strong>V31.23.4 · Action Registry Bridge:</strong> las acciones ejecutadas por atributos <code>data-tr-on*</code> se resuelven primero desde <code>TradingResearchActions</code>. Si una acción histórica todavía vive solo en <code>window</code>, se usa una vez como fallback y se cachea en el registro. La caché del parser usa LRU con límite rígido de <strong>${d.cacheLimit}</strong> entradas${d.cacheEvictions?` y ha expulsado ${d.cacheEvictions}`:''}.</div>${d.lastError?`<div class="notice danger"><strong>Delegación:</strong> ${esc(d.lastError)}</div>`:''}</section>`;
     return extra+html;
   };
   window.dataSecurityPanel=dataSecurityPanel;
 }
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.23.4</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_EVENT_APP_LABEL)}</div><div class="help">Delegated Events ya resuelve acciones mediante un registro dedicado con fallback global observable. La siguiente subfase podrá mover exports legacy fuera de window de forma controlada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.23.4</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_EVENT_APP_LABEL)}</div><div class="help">Delegated Events resuelve acciones mediante un registro dedicado con fallback global observable y una caché AST LRU acotada.</div></div></div></div>`;};
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=v30ModeCard();}catch(_){/* next render will refresh */}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>render(),0);}catch(_){/* no forced render elsewhere */}
 })();

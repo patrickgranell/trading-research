@@ -41,3 +41,5 @@ console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.af
 console.log(` - Registry publications: ${inv.registryEntries}; batch XX ${inv.batch20Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XX: ${TR_UI_REGISTRY_MIGRATION_BATCH_20.join(', ')}`);
+const nextUi=mapAfter.rows.filter(r=>r.contracts.length===1&&r.contracts[0]==='ui-handler').sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name)).slice(0,20);
+console.log(` - Next handler-only candidates: ${nextUi.map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);

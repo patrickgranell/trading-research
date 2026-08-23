@@ -1,6 +1,7 @@
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
 
 export const TR_STATE_REGISTRY_MIGRATION_VERSION='31.23.18';
+export const TR_STATE_REGISTRY_FINAL_BINDING_VERSION='31.23.41';
 export const TR_STATE_REGISTRY_MIGRATION_BATCH_1=Object.freeze([
   'setOpsUnit','setOpsBasis','toggleOpsDay','toggleOpsModule','resetOpsFilters','setOpsQuickPeriod','setOpsDimension','applyHeatCell'
 ]);
@@ -34,6 +35,7 @@ export const TR_STATE_REGISTRY_MIGRATION_NAMES=Object.freeze([
 
 const SIMPLE_ASSIGN=/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g;
 const PRELUDE="const trAppActionRegistryV318=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));\n";
+const finalBindingClosure=()=>`\nObject.assign(trAppActionRegistryV318,{${TR_STATE_REGISTRY_MIGRATION_NAMES.join(',')}});Object.defineProperty(trAppActionRegistryV318,'__trStateFinalBindingClosure',{value:${TR_STATE_REGISTRY_MIGRATION_NAMES.length},writable:false,enumerable:false,configurable:true});/* V31.23.41 State final binding closure */\n`;
 
 export function migrateStateActionsToRegistry(source){
   const input=String(source),before=globalSurfaceInventory(input),targets=new Set(TR_STATE_REGISTRY_MIGRATION_NAMES);
@@ -62,7 +64,7 @@ export function migrateStateActionsToRegistry(source){
   for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){
     if(!occurrences[name])throw new Error(`State Registry Migration: ${name} no apareció en ningún Object.assign(window,...).`);
   }
-  const out=PRELUDE+body,after=globalSurfaceInventory(out);
+  const out=PRELUDE+body+finalBindingClosure(),after=globalSurfaceInventory(out);
   for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){
     if(after.names.objectAssign.includes(name))throw new Error(`State Registry Migration: ${name} sigue como export explícito window.`);
   }
@@ -70,6 +72,8 @@ export function migrateStateActionsToRegistry(source){
   if(uniqueRemoved!==TR_STATE_REGISTRY_MIGRATION_NAMES.length)throw new Error(`State Registry Migration: reducción unique ${uniqueRemoved}; esperada ${TR_STATE_REGISTRY_MIGRATION_NAMES.length}.`);
   return {source:out,inventory:{
     version:TR_STATE_REGISTRY_MIGRATION_VERSION,
+    finalBindingVersion:TR_STATE_REGISTRY_FINAL_BINDING_VERSION,
+    finalBindingRefreshEntries:TR_STATE_REGISTRY_MIGRATION_NAMES.length,
     names:[...TR_STATE_REGISTRY_MIGRATION_NAMES],
     batches:{batch1:[...TR_STATE_REGISTRY_MIGRATION_BATCH_1],batch2:[...TR_STATE_REGISTRY_MIGRATION_BATCH_2],batch3:[...TR_STATE_REGISTRY_MIGRATION_BATCH_3],batch4:[...TR_STATE_REGISTRY_MIGRATION_BATCH_4],batch5:[...TR_STATE_REGISTRY_MIGRATION_BATCH_5],batch6:[...TR_STATE_REGISTRY_MIGRATION_BATCH_6],batch7:[...TR_STATE_REGISTRY_MIGRATION_BATCH_7]},
     touchedBlocks,registryEntries,batch1Entries,batch2Entries,batch3Entries,batch4Entries,batch5Entries,batch6Entries,batch7Entries,occurrences,

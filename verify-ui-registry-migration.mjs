@@ -43,3 +43,6 @@ console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.hand
 console.log(` - Batch UI XXII: ${TR_UI_REGISTRY_MIGRATION_BATCH_22.join(', ')}`);
 const nextUi=mapAfter.rows.filter(r=>mapAfter.names.migrationFrontiers.handlerOnly.includes(r.name)).sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name)).slice(0,16);
 console.log(` - NEXT_UI_FRONTIER: ${nextUi.map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);
+const sourceForAudit=stateMigrated.source,assignBlocks=[...sourceForAudit.matchAll(/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g)],lateRedefs=[];
+for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){let last=-1;for(const m of assignBlocks)if(m[1].split(',').map(x=>x.trim()).includes(name))last=Math.max(last,m.index||0);if(last<0)continue;const re=new RegExp(`\\b${name.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}\\s*=(?!=)`,'g');for(const m of sourceForAudit.matchAll(re))if((m.index||0)>last){lateRedefs.push(name);break;}}
+console.log(` - LATE_REDEFINITION_AUDIT: ${[...new Set(lateRedefs)].sort().join(', ')||'none'}`);

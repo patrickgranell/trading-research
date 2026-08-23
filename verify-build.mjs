@@ -49,7 +49,7 @@ if(uiInv){
   need((uiInv.names||[]).length===96,'UI registry migrated names changed');
   need((uiInv.batches?.batch1||[]).length===8&&(uiInv.batches?.batch2||[]).length===8&&(uiInv.batches?.batch3||[]).length===8&&(uiInv.batches?.batch4||[]).length===8&&(uiInv.batches?.batch5||[]).length===8&&(uiInv.batches?.batch6||[]).length===8&&(uiInv.batches?.batch7||[]).length===8&&(uiInv.batches?.batch8||[]).length===8&&(uiInv.batches?.batch9||[]).length===8&&(uiInv.batches?.batch10||[]).length===8&&(uiInv.batches?.batch11||[]).length===8&&(uiInv.batches?.batch12||[]).length===8,'UI registry batch sizes changed');
   need(Number(uiInv.registryEntries)===102&&Number(uiInv.batch1Entries)===8&&Number(uiInv.batch2Entries)===8&&Number(uiInv.batch3Entries)===11&&Number(uiInv.batch4Entries)===9&&Number(uiInv.batch5Entries)===8&&Number(uiInv.batch6Entries)===8&&Number(uiInv.batch7Entries)===9&&Number(uiInv.batch8Entries)===8&&Number(uiInv.batch9Entries)===9&&Number(uiInv.batch10Entries)===8&&Number(uiInv.batch11Entries)===8&&Number(uiInv.batch12Entries)===8,'UI registry publications changed');
-  need(Number(uiInv.before?.blocks)===42&&Number(uiInv.after?.blocks)===34,'UI registry block inventory changed');
+  need(Number(uiInv.before?.blocks)===42&&Number(uiInv.after?.blocks)===32,'UI registry block inventory changed');
   need(Number(uiInv.before?.entries)===262&&Number(uiInv.after?.entries)===160,'UI registry entry inventory changed');
   need(Number(uiInv.before?.unique)===230&&Number(uiInv.after?.unique)===134,'UI registry unique inventory changed');
 }
@@ -67,7 +67,7 @@ if(appBlock){
   need((appBlock[2].match(/\brender\s*=\s*function\s*\(/g)||[]).length===0,'bundled legacy render assignment remains');
   need((appBlock[2].match(/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm)||[]).length===0,'bundled dead render alias remains');
   const globals=globalSurfaceInventory(appBlock[2]);
-  need(globals.objectAssignBlocks===34,`bundled app blocks ${globals.objectAssignBlocks}, expected 34`);
+  need(globals.objectAssignBlocks===32,`bundled app blocks ${globals.objectAssignBlocks}, expected 32`);
   need(globals.objectAssignEntries===160,`bundled app entries ${globals.objectAssignEntries}, expected 160`);
   need(globals.objectAssignUnique===134,`bundled app unique ${globals.objectAssignUnique}, expected 134`);
   for(const name of TR_APP_GLOBAL_PRUNE_NAMES)need(!globals.names.objectAssign.includes(name),`bundled app re-exports pruned name ${name}`);
@@ -89,7 +89,7 @@ console.log(' - Canonical render closure: bundled + inventoried');
 console.log(' - State Action Bridge: bundled + inventoried, 0 direct cross-runtime window reads');
 console.log(' - App explicit window export pruning: 51 -> 44 blocks; 375 -> 325 entries; 332 -> 286 unique exports');
 console.log(' - State Registry Migration VII cumulative: 56 names; explicit window blocks 44 -> 42; entries 325 -> 262; unique 286 -> 230');
-console.log(' - UI Registry Migration XII cumulative: 96 names; explicit window blocks 42 -> 34; entries 262 -> 160; unique 230 -> 134');
+console.log(' - UI Registry Migration XII cumulative: 96 names; explicit window blocks 42 -> 32; entries 262 -> 160; unique 230 -> 134');
 console.log(' - Remaining Global Contract Map: 134/134 classified; primary State 4 / handler 127 / dynamic 3; State frontier 0; handler frontier 125; cross-runtime 0');
 console.log(' - Dynamic Action Guard: 4 dynamic slots; 8 candidate roots; 3 protected exported globals');
 console.log(` - Output size: ${size} bytes`);

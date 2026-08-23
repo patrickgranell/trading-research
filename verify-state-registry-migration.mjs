@@ -52,4 +52,4 @@ console.log(` - Registry publications: ${inv.registryEntries} total; batches ${i
 console.log(` - State frontier: ${mapBefore.names.migrationFrontiers.stateOnly.length} -> ${mapAfter.names.migrationFrontiers.stateOnly.length}`);
 console.log(` - Batch VII migrated: ${TR_STATE_REGISTRY_MIGRATION_BATCH_7.join(', ')}`);
 console.log(` - Handler-only frontier after State closure: ${handlerRows.length}`);
-console.log(` - Lowest-use handler-only candidates: ${handlerRows.slice(0,80).map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);
+console.log(` - Lowest-use handler-only candidates: ${handlerRows.slice(0,120).map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);

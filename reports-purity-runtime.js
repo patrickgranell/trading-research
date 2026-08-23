@@ -2,6 +2,24 @@
 (()=>{
 'use strict';
 const TR_REPORTS_PURITY_VERSION='31.21.1';
+const TR_RESEARCH_PURITY_BRIDGE_VERSION='31.23.54';
+let trStudyRenderPurityBypasses=0;
+
+/* V31.23.54 · Research render purity.
+ * ensurePlanStudies() is a historical schema normalizer and therefore mutates the
+ * durable Trading Plan. State Runtime already normalizes schemas immediately before
+ * opening its read-only render guard, so any call that occurs while that guard is
+ * active is redundant and must be read-only. Keeping this bridge in a runtime file
+ * preserves app.js byte-for-byte while eliminating the observed Lab render write to
+ * $.tradingPlans.*.savedStudies. */
+const trEnsurePlanStudiesBase=typeof ensurePlanStudies==='function'?ensurePlanStudies:null;
+if(trEnsurePlanStudiesBase){
+  ensurePlanStudies=function(p){
+    const guarded=typeof trDomainRenderGuardDepth!=='undefined'&&trDomainRenderGuardDepth>0;
+    if(guarded){trStudyRenderPurityBypasses++;return p;}
+    return trEnsurePlanStudiesBase(p);
+  };
+}
 
 function trReportNormalizedPresets(p){
   const src=Array.isArray(p?.reportPresets)?p.reportPresets:[];
@@ -85,6 +103,6 @@ if(typeof window.v313BuilderView==='function'){
   try{v313BuilderView=window.v313BuilderView;}catch(_){/* classic script global */}
 }
 
-window.TradingResearchReportsPurity=Object.freeze({version:TR_REPORTS_PURITY_VERSION,normalizePresets:trReportNormalizedPresets});
+window.TradingResearchReportsPurity=Object.freeze({version:TR_REPORTS_PURITY_VERSION,researchBridge:TR_RESEARCH_PURITY_BRIDGE_VERSION,normalizePresets:trReportNormalizedPresets,diagnostics:()=>({researchBridge:TR_RESEARCH_PURITY_BRIDGE_VERSION,studyRenderPurityBypasses:trStudyRenderPurityBypasses,ok:true})});
 })();
 /* ===== END V31.21.1 REPORTS PURITY RUNTIME ===== */

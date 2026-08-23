@@ -41,3 +41,5 @@ console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.af
 console.log(` - Registry publications: ${inv.registryEntries}; batch XXII ${inv.batch22Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XXII: ${TR_UI_REGISTRY_MIGRATION_BATCH_22.join(', ')}`);
+const nextUi=mapAfter.rows.filter(r=>mapAfter.names.migrationFrontiers.handlerOnly.includes(r.name)).sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name)).slice(0,16);
+console.log(` - NEXT_UI_FRONTIER: ${nextUi.map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);

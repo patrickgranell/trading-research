@@ -8,34 +8,15 @@ import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
 import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
 import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
 import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
+import {transformStyleAttrs,styleTransformSelfTest} from './html-style-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
+const styleSelfTest=styleTransformSelfTest();if(!styleSelfTest.ok)throw new Error(`Style transform self-test failed: ${JSON.stringify(styleSelfTest.failures)}`);
 fs.rmSync('dist',{recursive:true,force:true});
 fs.mkdirSync('dist',{recursive:true});
 let h=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const safeScript=s=>s.replace(/<\/script/gi,'<\\/script');
-/*
- * Legacy style attributes live inside HTML fragments embedded in JS strings/template
- * literals. A global text replacement was too broad: it could rewrite prose or code
- * examples containing `style=` even when they were not inside an HTML tag. Keep the
- * zero-dependency build, but gate each rewrite on actual open-tag context. This is not
- * a full HTML/JS AST; it is deliberately fail-closed and only rewrites an attribute
- * when the nearest unmatched `<` starts a syntactically plausible HTML tag.
- */
-function transformStyleAttrs(s){
-  const src=String(s??'');let out='',last=0,converted=0;
-  const re=/\bstyle\s*=(['"])/gi;let m;
-  while((m=re.exec(src))){
-    const at=m.index,lt=src.lastIndexOf('<',at),gt=src.lastIndexOf('>',at);
-    if(lt<0||lt<gt)continue;
-    const head=src.slice(lt+1,at);
-    /* Opening/closing tag name first; no nested angle bracket before the attribute. */
-    if(!/^\s*\/?[A-Za-z][A-Za-z0-9:-]*(?:\s|$)[^<>]*$/s.test(head))continue;
-    out+=src.slice(last,at)+'data-tr-style'+m[0].slice('style'.length);last=at+m[0].length;converted++;
-  }
-  return {source:out+src.slice(last),converted};
-}
 const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
@@ -110,7 +91,7 @@ const csp=["default-src 'none'","base-uri 'none'","object-src 'none'","frame-anc
 const headers=`/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()\n`;
 fs.writeFileSync('dist/_headers',headers);
 fs.writeFileSync('dist/csp-manifest.json',JSON.stringify({version:v,scriptHashes,styleHash,supabasePath,csp},null,2)+'\n');
-fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,transform:{kind:'open-tag-context',appConverted:appStyleTransform.converted,stateConverted:stateStyleTransform.converted},properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
+fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,transform:{kind:'open-tag-context-scanner',selfTest:true,appConverted:appStyleTransform.converted,stateConverted:stateStyleTransform.converted},properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
 fs.writeFileSync('dist/render-inventory.json',JSON.stringify(renderInventory,null,2)+'\n');
 fs.writeFileSync('dist/state-action-inventory.json',JSON.stringify(stateActionInventory,null,2)+'\n');
 fs.writeFileSync('dist/app-global-prune-inventory.json',JSON.stringify(appGlobalPruneInventory,null,2)+'\n');
@@ -123,7 +104,7 @@ fs.writeFileSync('dist/remaining-global-contract-map.json',JSON.stringify(remain
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs inventoried; ${effectiveInlineAttributes} effective inline attrs`);
-console.log(`Style transform -> context-gated open-tag scan; app ${appStyleTransform.converted}, state ${stateStyleTransform.converted}`);
+console.log(`Style transform -> open-tag context scanner; app ${appStyleTransform.converted}, state ${stateStyleTransform.converted}`);
 console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain allowed by the strict attribute policy`);
 console.log(`Render consolidation -> removed ${appConsolidation.removed} legacy assignments from bundled app; bundled legacy assignments ${bundledRenderDebt.assignments}`);
 console.log(`State Action Bridge -> ${stateActionBridge.inventory.resolveCalls} registry-aware resolves, ${stateActionBridge.inventory.publishCalls} publishes, ${stateActionBridge.inventory.crossRuntimeWindowReads} direct cross-runtime window reads`);

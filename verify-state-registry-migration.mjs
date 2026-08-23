@@ -53,3 +53,6 @@ console.log(` - State frontier: ${mapBefore.names.migrationFrontiers.stateOnly.l
 console.log(` - Batch VII migrated: ${TR_STATE_REGISTRY_MIGRATION_BATCH_7.join(', ')}`);
 console.log(` - Handler-only frontier after State closure: ${handlerRows.length}`);
 console.log(` - Lowest-use handler-only candidates: ${handlerRows.slice(0,80).map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);
+const sourceForAudit=pruned.source,assignBlocks=[...sourceForAudit.matchAll(/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g)],lateRedefs=[];
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){let last=-1;for(const m of assignBlocks)if(m[1].split(',').map(x=>x.trim()).includes(name))last=Math.max(last,m.index||0);if(last<0)continue;const re=new RegExp(`\\b${name.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}\\s*=(?!=)`,'g');for(const m of sourceForAudit.matchAll(re))if((m.index||0)>last){lateRedefs.push(name);break;}}
+console.log(` - STATE_LATE_REDEFINITION_AUDIT: ${[...new Set(lateRedefs)].sort().join(', ')||'none'}`);

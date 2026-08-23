@@ -26,6 +26,9 @@ const batches=[TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2
 if(batches.some(b=>b.length!==8)||TR_UI_REGISTRY_MIGRATION_NAMES.length!==216)throw new Error(`Los lotes UI I/XXVII deben contener 8 acciones cada uno: ${batches.map(b=>b.length).join('+')}.`);
 if(inv.finalBindingRefreshEntries!==216)throw new Error(`UI final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
+if(inv.registryEntries!==238||inv.batch27Entries!==9)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lote XXVII ${inv.batch27Entries}.`);
+if(inv.after.blocks!==11)throw new Error(`Bloques window tras UI XXVII: ${inv.after.blocks}; se esperaban 11.`);
+if(inv.after.entries!==24)throw new Error(`Entries window tras UI XXVII: ${inv.after.entries}; se esperaban 24.`);
 if(inv.after.unique!==14)throw new Error(`Exports window únicos tras UI XXVII: ${inv.after.unique}; se esperaban 14.`);
 if(mapAfter.remainingUnique!==14||mapAfter.classified!==14||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
 if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==7||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios UI post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
@@ -33,11 +36,6 @@ if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error('La fr
 if(mapAfter.names.migrationFrontiers.handlerOnly.length!==5)throw new Error(`Frontera handler-only tras UI XXVII: ${mapAfter.names.migrationFrontiers.handlerOnly.length}; se esperaban 5.`);
 if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`UI XXVII reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);if(!migrated.source.includes(name))throw new Error(`Se perdió binding léxico UI ${name}.`);}
-
-console.log('UI Registry Migration XXVII measurement');
-console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
-console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);
-console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh; batch XXVII ${inv.batch27Entries}`);
 
 const historicalAssigns=[...stateMigrated.source.matchAll(/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g)],late=[];
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){
@@ -52,9 +50,12 @@ if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('UI
 if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppUiActionRegistryV340,'__trUiFinalBindingClosure',{value:216"))throw new Error('UI final binding publication/marker incompleto.');
 for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)for(const m of migrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>finalIdx)throw new Error(`${name} se redefine después del UI final binding closure.`);
 
-console.log('UI Registry Migration XXVII measurement OK');
+console.log('UI Registry Migration XXVII verification OK');
 console.log(` - UI handlers migrated: ${TR_UI_REGISTRY_MIGRATION_NAMES.length}`);
+console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
+console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);
 console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.after.unique}`);
+console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh; batch XXVII ${inv.batch27Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XXVII: ${TR_UI_REGISTRY_MIGRATION_BATCH_27.join(', ')}`);
 console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefines covered: ${lateNames.join(', ')||'none'}`);

@@ -20,6 +20,10 @@ need(boundary.includes("const TR_STYLE_ATTR_VERSION='31.22.0'"),'Boundary runtim
 need(boundary.includes("const TR_STYLE_ATTR_SOURCE='data-tr-style'"),'Boundary runtime no usa data-tr-style.');
 need(boundary.includes('new MutationObserver(trStyleAttrMutations)'),'Falta hidratación runtime de nuevos tokens de estilo.');
 need(boundary.includes('el.style[camel]=value'),'Las propiedades estándar no se aplican mediante CSSOM directo.');
+need(boundary.includes('ignoredEmpty:0'),'Boundary no contabiliza no-ops de estilo dinámico vacío.');
+need(boundary.includes('if(!raw){trStyleAttrStats.ignoredEmpty++;return;}'),'Atributos de estilo vacíos deberían ser no-op, no rechazo.');
+need(boundary.includes("if(!rawValue){trStyleAttrStats.ignoredEmpty++;continue;}"),'Declaraciones dinámicas con valor vacío deberían ser no-op, no rechazo.');
+need(boundary.includes('ignoredEmpty:trStyleAttrStats.ignoredEmpty'),'Diagnóstico no expone los no-ops vacíos.');
 need(!/\.style\.cssText\s*=/.test(boundary),'Boundary runtime usa cssText, incompatible con style-src-attr none.');
 need(!/setAttribute\s*\(\s*["']style["']/.test(boundary),'Boundary runtime usa setAttribute(style), incompatible con style-src-attr none.');
 need(runtime.includes("const TR_STYLE_RUNTIME_VERSION='31.22.0'"),'Diagnóstico style runtime con versión incorrecta.');
@@ -34,4 +38,5 @@ console.log(` - Legacy source style attributes: ${inlineAttributes}`);
 console.log(` - Direct CSSOM writes in source: ${cssomWrites}`);
 console.log(' - Build-time style attribute transform: enabled');
 console.log(' - Runtime token hydration: enabled');
+console.log(' - Empty dynamic style values: harmless no-op, still observable in diagnostics');
 console.log(" - CSP target: style-src-attr 'none'");

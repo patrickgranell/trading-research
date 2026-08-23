@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 const app=fs.readFileSync('app.js','utf8');
+const styleBoundary=fs.readFileSync('style-attr-runtime.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const stateRuntime=fs.readFileSync('state-runtime.js','utf8');
 const security=fs.readFileSync('security-runtime.js','utf8');
@@ -33,6 +34,11 @@ need(evt.includes("if(typeof value==='function'){trActionRegistry[name]=value"),
 need(evt.includes('actionRegistryHits:trActionRegistryHits')&&evt.includes('globalFallbacks:trActionGlobalFallbacks')&&evt.includes('registryMisses:trActionRegistryMisses'),'Diagnóstico del Action Registry incompleto.');
 need(app.includes('function trLegacyStateCommand('),'Falta command boundary para antiguas mutaciones léxicas.');
 for(const key of ['ops-risk-policy','gallery-reset','journal-set','journal-reset','lab-clear','lab-compare-clear','reports-compare-open'])need(app.includes(`case '${key}'`),`Falta comando ${key}.`);
+need(styleBoundary.includes("const TR_RELEASE_READINESS_BRIDGE_VERSION='31.23.53'"),'Falta cierre release-readiness para handlers léxicos del Laboratorio.');
+need(styleBoundary.includes('registry.labState=facade'),'labState no se publica como facade estrecha en TradingResearchActions.');
+need(styleBoundary.includes('Object.preventExtensions(facade)'),'La facade labState debe ser no extensible.');
+need(styleBoundary.includes('nr:{enumerable:true')&&styleBoundary.includes('hypothesis:{enumerable:true'),'La facade labState no está limitada a NR / Hipótesis.');
+need(!styleBoundary.includes('window.labState='),'El cierre de Laboratorio reabrió window.labState.');
 need(evt.includes('inlineHandlers:a.inlineHandlers')&&evt.includes('usesEval:false'),'Diagnóstico de delegación incompleto.');
 need(evt.includes('<span>Handlers inline DOM</span>'),'Datos y seguridad no muestra handlers inline DOM.');
 if(fail.length){console.error('\nEvent delegation verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
@@ -42,5 +48,6 @@ console.log(' - Executable onclick/onchange/oninput/onsubmit attributes in sourc
 console.log(' - Delegated document listeners: click/change/input/submit');
 console.log(' - Action resolution: TradingResearchActions first, observable global fallback second');
 console.log(' - Dynamic execution (eval/new Function): 0');
-console.log(' - Legacy lexical UI assignments routed through explicit command boundary');
+console.log(' - Legacy lexical UI assignments routed through explicit command/binding boundaries');
+console.log(' - Lab NR/Hypothesis lexical facade: TradingResearchActions only; window.labState remains closed');
 console.log(' - CSP enforcement: verified separately by verify-csp');

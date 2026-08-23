@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 
-const PHASE='31.23.51';
+const PHASE='31.23.52';
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 const readJson=path=>JSON.parse(fs.readFileSync(path,'utf8'));
@@ -56,7 +56,6 @@ need(Number(contracts.byPrimary?.['state-action']||0)===0&&Number(contracts.byPr
 need(Number(contracts.names?.migrationFrontiers?.stateOnly?.length||0)===0&&Number(contracts.names?.migrationFrontiers?.handlerOnly?.length||0)===0,'Se reabrió una frontera State/UI');
 need(Number(contracts.coverage?.crossRuntimeRead||0)===0,'Se reabrió cross-runtime');
 need(Number(candidates.safeCandidateCount)===0,'Quedan candidatos de poda contract-safe');
-
 need(Number(dynamic.dynamicHandlerSlots)===4&&Number(dynamic.dynamicCandidateRoots)===8&&Number(dynamic.protectedDynamicGlobals)===3,'Inventario histórico Dynamic Action Guard cambió');
 
 const appMatch=html.match(/<script\s+data-tr-build="31\.22\.0">([\s\S]*?)<\/script>/i);
@@ -76,6 +75,16 @@ need(app.includes('__trDynamicDragDiagnostics'),'Falta diagnóstico delegado del
 for(const type of ['dragstart','dragend','dragover','drop'])need((app.match(new RegExp(`data-tr-on${type}=`,`g`))||[]).length===1,`data-tr-on${type} no aparece exactamente una vez`);
 need((app.match(/(?:^|[\s<])(?:ondragstart|ondragend|ondragover|ondrop)\s*=/gm)||[]).length===0,'Quedan handlers drag DOM0 efectivos');
 
+const cleanupMatch=html.match(/<script\s+data-tr-operation-cleanup-runtime="31\.22\.0">([\s\S]*?)<\/script>/i);
+need(!!cleanupMatch,'No se encontró Operation Cleanup Runtime');
+const cleanup=cleanupMatch?.[1]||'';
+need(cleanup.includes("const TR_OPERATION_CLEANUP_VERSION='31.23.52'"),'Operation Cleanup Runtime no es V31.23.52');
+need(cleanup.includes("Object.assign(registry,{openOperationModal,deleteOperation,deleteOperationImage})"),'Operation Cleanup no registra sus acciones');
+need(cleanup.includes("__trOperationCleanupDiagnostics"),'Operation Cleanup no publica diagnóstico en Action Registry');
+need(cleanup.includes("for(const im of o.images||[])await deleteImageBlob(im.id)")&&cleanup.includes("state.operations=state.operations.filter(x=>x.id!==id)"),'Eliminar operación no limpia operación + blobs');
+need(cleanup.includes("await deleteImageBlob(imageId)")&&cleanup.includes("o.images=(o.images||[]).filter(x=>x.id!==imageId)"),'Eliminar captura no limpia blob + metadata');
+need(!/Object\.assign\(window,\{/.test(cleanup),'Operation Cleanup reabrió Object.assign(window,...)');
+
 need(Number(style.inlineAttributes)===66&&Number(style.effectiveInlineAttributes)===0,'Style Boundary final cambió');
 need(!/(?:<|\s)style\s*=\s*["']/i.test(html),'dist conserva atributos style ejecutables');
 need(/style-src-attr 'none'/.test(headers),'CSP no bloquea style-src-attr');
@@ -92,10 +101,11 @@ need(String(structural.stdout||'').includes('Financial regions unchanged vs 31.1
 const invariants={
   packageFrozen:'31.22.0',
   explicitWindow:{blocks:0,entries:0,exports:0},
-  registries:{state:56,ui:221},
+  registries:{state:56,ui:221,operationCleanup:2},
   finalBindings:{state:56,ui:221,residualMirrors:5,dashboardUnit:1,dynamicActions:3},
   frontiers:{state:0,ui:0,crossRuntime:0},
   drag:{legacyDom0:0,delegates:4},
+  operationCleanup:{deleteOperation:true,deleteOperationImage:true,imageBlobCleanup:true},
   render:{legacyAssignments:0,baseAliases:0,rootWrites:1},
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
@@ -110,9 +120,10 @@ if(fail.length){
 
 const manifest={phase:PHASE,status:'PASS',generatedAt:new Date().toISOString(),invariants};
 fs.writeFileSync('dist/source-consolidation-final-audit.json',JSON.stringify(manifest,null,2)+'\n');
-console.log('Source Consolidation Final Audit V31.23.51 PASS');
+console.log('Source Consolidation Final Audit V31.23.52 PASS');
 console.log(' - Explicit app window action surface: 0 blocks / 0 entries / 0 exports');
 console.log(' - Registry final bindings: State 56 / UI 221 / residual 5 / dashboard 1 / dynamic 3');
+console.log(' - Operation Cleanup Controls: delete operation + delete image registered, image blobs cleaned');
 console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");

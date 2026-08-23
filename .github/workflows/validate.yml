@@ -26,5 +26,8 @@ jobs:
       - name: Prebuild verification
         run: npm run prebuild
 
+      - name: Residual mirror closure measurement
+        run: node verify-residual-mirror-closure.mjs
+
       - name: Build verification
         run: npm run build

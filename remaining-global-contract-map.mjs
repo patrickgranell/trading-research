@@ -86,7 +86,6 @@ if(import.meta.url===`file://${process.argv[1]}`){
   console.log(` - State migration frontier: ${inv.names.migrationFrontiers.stateOnly.length}`);
   console.log(` - State migration names: ${inv.names.migrationFrontiers.stateOnly.join(', ')||'none'}`);
   console.log(` - Handler-only frontier: ${inv.names.migrationFrontiers.handlerOnly.length}`);
-  console.log(` - Handler-only next candidates: ${inv.names.migrationFrontiers.handlerOnly.slice(0,24).join(', ')||'none'}`);
   console.log(` - Cross-runtime frontier: ${inv.names.migrationFrontiers.crossRuntime.length}`);
   console.log(` - Unclassified names: ${inv.names.unclassified.join(', ')||'none'}`);
 }

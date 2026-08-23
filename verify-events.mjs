@@ -32,6 +32,14 @@ need(evt.includes('function trActionResolve(name)'),'Falta resolver dedicado de 
 need(evt.includes('Object.prototype.hasOwnProperty.call(trActionRegistry,name)'),'El resolver no prioriza el registro dedicado.');
 need(evt.includes("if(typeof value==='function'){trActionRegistry[name]=value"),'El fallback global no cachea funciones históricas en el registro.');
 need(evt.includes('actionRegistryHits:trActionRegistryHits')&&evt.includes('globalFallbacks:trActionGlobalFallbacks')&&evt.includes('registryMisses:trActionRegistryMisses'),'Diagnóstico del Action Registry incompleto.');
+/* External-audit hardening: dynamic handler literals may contain IDs. The parser cache
+ * must therefore remain bounded even if many unique strings are seen in one session. */
+need(evt.includes('const TR_EVENT_AST_CACHE_LIMIT=512'),'La caché AST no tiene límite rígido de 512 entradas.');
+need(evt.includes('function trEventCacheGet(src)')&&evt.includes('function trEventCacheSet(src,ast)'),'Falta implementación LRU de la caché AST.');
+need(evt.includes('trEventAstCache.delete(src);trEventAstCache.set(src,ast)'),'Los hits de AST no refrescan el orden LRU.');
+need(evt.includes('if(trEventAstCache.size>TR_EVENT_AST_CACHE_LIMIT)')&&evt.includes('trEventAstEvictions++'),'La caché AST no expulsa la entrada más antigua al superar el límite.');
+need(evt.includes('cacheLimit:TR_EVENT_AST_CACHE_LIMIT')&&evt.includes('cacheEvictions:trEventAstEvictions'),'Diagnóstico AST cache incompleto.');
+need(evt.includes('trEventAstCache.size<=TR_EVENT_AST_CACHE_LIMIT'),'El estado OK no comprueba la cota de la caché AST.');
 need(app.includes('function trLegacyStateCommand('),'Falta command boundary para antiguas mutaciones léxicas.');
 for(const key of ['ops-risk-policy','gallery-reset','journal-set','journal-reset','lab-clear','lab-compare-clear','reports-compare-open'])need(app.includes(`case '${key}'`),`Falta comando ${key}.`);
 need(styleBoundary.includes("const TR_RELEASE_READINESS_BRIDGE_VERSION='31.23.53'"),'Falta cierre release-readiness para handlers léxicos del Laboratorio.');
@@ -41,6 +49,7 @@ need(styleBoundary.includes('nr:{enumerable:true')&&styleBoundary.includes('hypo
 need(!styleBoundary.includes('window.labState='),'El cierre de Laboratorio reabrió window.labState.');
 need(evt.includes('inlineHandlers:a.inlineHandlers')&&evt.includes('usesEval:false'),'Diagnóstico de delegación incompleto.');
 need(evt.includes('<span>Handlers inline DOM</span>'),'Datos y seguridad no muestra handlers inline DOM.');
+need(evt.includes('<span>AST cache</span>'),'Datos y seguridad no muestra la cota de la caché AST.');
 if(fail.length){console.error('\nEvent delegation verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Event delegation verification OK');
 console.log(` - Declarative handlers in source: ${delegated}`);
@@ -48,6 +57,7 @@ console.log(' - Executable onclick/onchange/oninput/onsubmit attributes in sourc
 console.log(' - Delegated document listeners: click/change/input/submit');
 console.log(' - Action resolution: TradingResearchActions first, observable global fallback second');
 console.log(' - Dynamic execution (eval/new Function): 0');
+console.log(' - AST cache: LRU bounded to 512 entries');
 console.log(' - Legacy lexical UI assignments routed through explicit command/binding boundaries');
 console.log(' - Lab NR/Hypothesis lexical facade: TradingResearchActions only; window.labState remains closed');
 console.log(' - CSP enforcement: verified separately by verify-csp');

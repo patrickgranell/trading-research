@@ -9,7 +9,7 @@ const boundary=fs.readFileSync('style-attr-runtime.js','utf8');
 const build=fs.readFileSync('build.mjs','utf8');
 const index=fs.readFileSync('index.html','utf8');
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
-need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="style-attr-runtime.js"></script>'),'index.html no carga style-attr-runtime.js.');
 need(index.includes('<script src="style-runtime.js"></script>'),'index.html no carga style-runtime.js.');
 need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');

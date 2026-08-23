@@ -26,6 +26,9 @@ const batches=Array.from({length:28},(_,i)=>U[`TR_UI_REGISTRY_MIGRATION_BATCH_${
 if(batches.slice(0,27).some(b=>b.length!==8)||batches[27].length!==5||U.TR_UI_REGISTRY_MIGRATION_NAMES.length!==221)throw new Error(`Lotes UI inesperados: ${batches.map(b=>b.length).join('+')}.`);
 if(inv.finalBindingRefreshEntries!==221)throw new Error(`UI final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
+if(inv.registryEntries!==247||inv.batch28Entries!==9)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lote XXVIII ${inv.batch28Entries}.`);
+if(inv.after.blocks!==10)throw new Error(`Bloques window tras UI XXVIII: ${inv.after.blocks}; se esperaban 10.`);
+if(inv.after.entries!==15)throw new Error(`Entries window tras UI XXVIII: ${inv.after.entries}; se esperaban 15.`);
 if(inv.after.unique!==9)throw new Error(`Exports window únicos tras UI XXVIII: ${inv.after.unique}; se esperaban 9.`);
 if(mapAfter.remainingUnique!==9||mapAfter.classified!==9||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
 if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==2||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios UI post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
@@ -43,7 +46,7 @@ if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('UI
 if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppUiActionRegistryV340,'__trUiFinalBindingClosure',{value:221"))throw new Error('UI final binding publication/marker incompleto.');
 for(const name of U.TR_UI_REGISTRY_MIGRATION_NAMES)for(const m of migrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>finalIdx)throw new Error(`${name} se redefine después del UI final binding closure.`);
 
-console.log('UI Registry Migration XXVIII measurement OK');
+console.log('UI Registry Migration XXVIII verification OK');
 console.log(` - UI handlers migrated: ${U.TR_UI_REGISTRY_MIGRATION_NAMES.length}`);
 console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
 console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);

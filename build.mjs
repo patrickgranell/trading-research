@@ -15,12 +15,32 @@ fs.mkdirSync('dist',{recursive:true});
 let h=fs.readFileSync('index.html','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const safeScript=s=>s.replace(/<\/script/gi,'<\\/script');
-const transformStyleAttrs=s=>s.replace(/([<\s])style\s*=(['"])/g,(_m,prefix,quote)=>`${prefix}data-tr-style=${quote}`);
+/*
+ * Legacy style attributes live inside HTML fragments embedded in JS strings/template
+ * literals. A global text replacement was too broad: it could rewrite prose or code
+ * examples containing `style=` even when they were not inside an HTML tag. Keep the
+ * zero-dependency build, but gate each rewrite on actual open-tag context. This is not
+ * a full HTML/JS AST; it is deliberately fail-closed and only rewrites an attribute
+ * when the nearest unmatched `<` starts a syntactically plausible HTML tag.
+ */
+function transformStyleAttrs(s){
+  const src=String(s??'');let out='',last=0,converted=0;
+  const re=/\bstyle\s*=(['"])/gi;let m;
+  while((m=re.exec(src))){
+    const at=m.index,lt=src.lastIndexOf('<',at),gt=src.lastIndexOf('>',at);
+    if(lt<0||lt<gt)continue;
+    const head=src.slice(lt+1,at);
+    /* Opening/closing tag name first; no nested angle bracket before the attribute. */
+    if(!/^\s*\/?[A-Za-z][A-Za-z0-9:-]*(?:\s|$)[^<>]*$/s.test(head))continue;
+    out+=src.slice(last,at)+'data-tr-style'+m[0].slice('style'.length);last=at+m[0].length;converted++;
+  }
+  return {source:out+src.slice(last),converted};
+}
 const rawScript=file=>fs.readFileSync(file,'utf8');
-const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)));
+const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
@@ -28,10 +48,12 @@ const stateRegistryMigration=migrateStateActionsToRegistry(appGlobalPrune.source
 const uiRegistryMigration=migrateUiHandlersToRegistry(stateRegistryMigration.source);
 const residualMirrorClosure=closeResidualDirectMirrors(uiRegistryMigration.source);
 const dynamicActionInventory=appGlobalPrune.inventory.dynamicActionGuard;
-const bundledApp=safeScript(transformStyleAttrs(residualMirrorClosure.source));
+const appStyleTransform=transformStyleAttrs(residualMirrorClosure.source);
+const bundledApp=safeScript(appStyleTransform.source);
 const stateSource=rawScript('state-runtime.js');
 const stateActionBridge=transformStateActions(stateSource);
-const bundledState=safeScript(transformStyleAttrs(stateActionBridge.source));
+const stateStyleTransform=transformStyleAttrs(stateActionBridge.source);
+const bundledState=safeScript(stateStyleTransform.source);
 const contractMapRuntimeSources=appGlobalPruneRuntimeFiles.map(file=>file==='state-runtime.js'?stateActionBridge.source:rawScript(file));
 const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source,{runtimeSources:contractMapRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const replacements=[
@@ -40,6 +62,7 @@ const replacements=[
   ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledScript('reports-purity-runtime.js')],
   ['structural-runtime.js','data-tr-structural-runtime',bundledScript('structural-runtime.js')],
   ['state-runtime.js','data-tr-state-runtime',bundledState],
+  ['persistence-coalescing-runtime.js','data-tr-persistence-coalescing-runtime',bundledScript('persistence-coalescing-runtime.js')],
   ['security-runtime.js','data-tr-security-runtime',bundledScript('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledScript('event-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledScript('csp-runtime.js')],
@@ -48,7 +71,7 @@ const replacements=[
   ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledScript('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','render-closure-runtime.js','index.html'];
+const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','render-closure-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;
@@ -87,7 +110,7 @@ const csp=["default-src 'none'","base-uri 'none'","object-src 'none'","frame-anc
 const headers=`/*\n  Content-Security-Policy: ${csp}\n  X-Content-Type-Options: nosniff\n  X-Frame-Options: DENY\n  Referrer-Policy: no-referrer\n  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()\n`;
 fs.writeFileSync('dist/_headers',headers);
 fs.writeFileSync('dist/csp-manifest.json',JSON.stringify({version:v,scriptHashes,styleHash,supabasePath,csp},null,2)+'\n');
-fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
+fs.writeFileSync('dist/style-inventory.json',JSON.stringify({version:v,sourceFiles:styleSourceFiles,inlineAttributes:styleInlineAttributes,effectiveInlineAttributes,cssomWrites:styleCssomWrites,totalSourceDebt:styleInlineAttributes+styleCssomWrites,transform:{kind:'open-tag-context',appConverted:appStyleTransform.converted,stateConverted:stateStyleTransform.converted},properties:Object.fromEntries(Object.entries(styleProperties).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))},null,2)+'\n');
 fs.writeFileSync('dist/render-inventory.json',JSON.stringify(renderInventory,null,2)+'\n');
 fs.writeFileSync('dist/state-action-inventory.json',JSON.stringify(stateActionInventory,null,2)+'\n');
 fs.writeFileSync('dist/app-global-prune-inventory.json',JSON.stringify(appGlobalPruneInventory,null,2)+'\n');
@@ -99,7 +122,8 @@ fs.writeFileSync('dist/prune-candidate-inventory.json',JSON.stringify(pruneCandi
 fs.writeFileSync('dist/remaining-global-contract-map.json',JSON.stringify(remainingContractManifest,null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
-console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs transformed; ${effectiveInlineAttributes} effective inline attrs`);
+console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs inventoried; ${effectiveInlineAttributes} effective inline attrs`);
+console.log(`Style transform -> context-gated open-tag scan; app ${appStyleTransform.converted}, state ${stateStyleTransform.converted}`);
 console.log(`Style inventory -> ${styleCssomWrites} direct CSSOM writes remain allowed by the strict attribute policy`);
 console.log(`Render consolidation -> removed ${appConsolidation.removed} legacy assignments from bundled app; bundled legacy assignments ${bundledRenderDebt.assignments}`);
 console.log(`State Action Bridge -> ${stateActionBridge.inventory.resolveCalls} registry-aware resolves, ${stateActionBridge.inventory.publishCalls} publishes, ${stateActionBridge.inventory.crossRuntimeWindowReads} direct cross-runtime window reads`);

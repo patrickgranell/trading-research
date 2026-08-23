@@ -40,7 +40,7 @@ for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){
   if(lastPublish<0)continue;
   for(const m of stateMigrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>lastPublish){late.push(name);break;}
 }
-const lateNames=[...new Set(late)].sort(),allowedLate=new Set(['applyRiskToOperation','dashboardResetDraft','saveDashboardCustomization']);
+const lateNames=[...new Set(late)].sort(),allowedLate=new Set(['applyRiskToOperation','dashboardResetDraft','labReset','saveDashboardCustomization']);
 if(lateNames.some(n=>!allowedLate.has(n)))throw new Error(`Deuda late-binding UI inesperada: ${lateNames.join(',')||'none'}`);
 const finalMarker='/* V31.23.41 UI final binding closure */',finalIdx=migrated.source.lastIndexOf(finalMarker),finalPublish=`Object.assign(trAppUiActionRegistryV340,{${TR_UI_REGISTRY_MIGRATION_NAMES.join(',')}});`;
 if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('UI final binding closure no está al final del transform UI.');

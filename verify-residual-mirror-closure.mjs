@@ -18,6 +18,7 @@ const closed=closeResidualDirectMirrors(ui.source),inv=closed.inventory;
 const transformedState=transformStateActions(raw['state-runtime.js']).source;
 const runtimeSources=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:raw[f]);
 const map=remainingGlobalContractMap(closed.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+const legacyDragAttr=/(?:^|[\s<])(?:ondragstart|ondragend|ondragover|ondrop)\s*=/gm;
 
 if(TR_RESIDUAL_MIRROR_CLOSURE_VERSION!=='31.23.50')throw new Error(`Residual Contract Closure versión inesperada: ${TR_RESIDUAL_MIRROR_CLOSURE_VERSION}`);
 if(TR_RESIDUAL_MIRROR_CLOSURE_NAMES.length!==5)throw new Error('Residual Mirror Closure debe conservar exactamente 5 mirrors cerrados.');
@@ -30,14 +31,16 @@ if(inv.occurrences?.setDashboardUnit!==2)throw new Error(`setDashboardUnit publi
 for(const name of TR_DYNAMIC_ACTION_CONTRACT_NAMES)if(inv.occurrences?.[name]!==1)throw new Error(`${name}: publicación histórica inesperada ${inv.occurrences?.[name]}.`);
 if(inv.dashboardHandlerRefsRemoved!==5)throw new Error(`Referencias window.setDashboardUnit retiradas: ${inv.dashboardHandlerRefsRemoved}; esperadas 5.`);
 if(inv.legacyDragHandlersBefore!==4||inv.legacyDragHandlersAfter!==0||inv.dragDelegatedListeners!==4)throw new Error(`Delegación drag inesperada: ${inv.legacyDragHandlersBefore} -> ${inv.legacyDragHandlersAfter}; listeners ${inv.dragDelegatedListeners}.`);
+for(const type of ['dragstart','dragend','dragover','drop'])if(inv.dragAttributeConversions?.[type]!==1)throw new Error(`Conversión on${type} inesperada.`);
 if(map.remainingUnique!==0||map.classified!==0||map.unclassified!==0)throw new Error(`Mapa residual debería quedar vacío: ${map.classified}/${map.remainingUnique}, unclassified ${map.unclassified}.`);
 if(map.coverage.directGlobalMirror!==0||map.coverage.crossRuntimeRead!==0)throw new Error(`Cobertura residual inesperada: mirror ${map.coverage.directGlobalMirror}, cross-runtime ${map.coverage.crossRuntimeRead}.`);
 if(map.names.migrationFrontiers.handlerOnly.length!==0||map.names.migrationFrontiers.stateOnly.length!==0)throw new Error('Se reabrió una frontera segura tras Dynamic Action Contract Closure.');
 for(const name of [...TR_RESIDUAL_MIRROR_CLOSURE_NAMES,TR_DASHBOARD_UNIT_CONTRACT_NAME,...TR_DYNAMIC_ACTION_CONTRACT_NAMES])if(!closed.source.includes(name))throw new Error(`Se perdió binding léxico/registry ${name}.`);
 if(!closed.source.includes("__trResidualMirrorClosure',{value:5")||!closed.source.includes("__trDashboardUnitContractClosure',{value:1")||!closed.source.includes("__trDynamicActionContractClosure',{value:3"))throw new Error('Faltan markers runtime de cierre de contratos.');
-if(!closed.source.includes("__trDynamicDragDiagnostics")||!closed.source.includes("data-tr-dashboard-drag"))throw new Error('Falta la delegación especializada del drag de Dashboard.');
+if(!closed.source.includes('__trDynamicDragDiagnostics'))throw new Error('Falta diagnóstico de delegación especializada del drag de Dashboard.');
+for(const type of ['dragstart','dragend','dragover','drop'])if(!closed.source.includes(`data-tr-on${type}=`))throw new Error(`Falta atributo declarativo data-tr-on${type}.`);
 if(/\bwindow\.setDashboardUnit\s*\(/.test(closed.source))throw new Error('Sigue existiendo window.setDashboardUnit(...) en el bundle transformado.');
-if(/\b(?:ondragstart|ondragend|ondragover|ondrop)\s*=/.test(closed.source))throw new Error('Quedan atributos drag DOM0 en el bundle transformado.');
+if(legacyDragAttr.test(closed.source))throw new Error('Quedan atributos drag DOM0 en el bundle transformado.');
 
 console.log('Dynamic Action Contract Closure V31.23.50 measurement OK');
 console.log(` - Residual mirrors already closed: ${TR_RESIDUAL_MIRROR_CLOSURE_NAMES.join(', ')}`);

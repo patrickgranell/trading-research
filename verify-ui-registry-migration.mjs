@@ -41,3 +41,4 @@ console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.af
 console.log(` - Registry publications: ${inv.registryEntries}; batch XIV ${inv.batch14Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XIV: ${TR_UI_REGISTRY_MIGRATION_BATCH_14.join(', ')}`);
+console.log(` - Next handler-only candidates: ${mapAfter.names.migrationFrontiers.handlerOnly.slice(0,24).join(', ')}`);

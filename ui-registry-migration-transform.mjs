@@ -1,6 +1,6 @@
 import {globalSurfaceInventory} from './global-surface-inventory.mjs';
 
-export const TR_UI_REGISTRY_MIGRATION_VERSION='31.23.34';
+export const TR_UI_REGISTRY_MIGRATION_VERSION='31.23.35';
 export const TR_UI_REGISTRY_MIGRATION_BATCH_1=Object.freeze([
   'calendarGoLatest','calendarSetBasis','calendarSetMetric','calendarSetUnit',
   'complianceResetFilters','complianceSetBasis','complianceSetFilter','complianceSetUnit'
@@ -65,6 +65,10 @@ export const TR_UI_REGISTRY_MIGRATION_BATCH_16=Object.freeze([
   'decisionOpenForward','decisionOpenGoals','decisionOpenReviews','deleteSavedLibraryItem',
   'dqSetFocus','dqWorkbenchNavigate','filterOperations','goalReadFilters'
 ]);
+export const TR_UI_REGISTRY_MIGRATION_BATCH_17=Object.freeze([
+  'swapResearchGridAxes','testCloudConnection','toggleCompareSelectedStudy','toggleGallerySelect',
+  'toggleOperationChecklistEvaluation','togglePreviewRaw','toggleSavedRaw','updateActiveStudy'
+]);
 export const TR_UI_REGISTRY_MIGRATION_NAMES=Object.freeze([
   ...TR_UI_REGISTRY_MIGRATION_BATCH_1,
   ...TR_UI_REGISTRY_MIGRATION_BATCH_2,
@@ -81,17 +85,18 @@ export const TR_UI_REGISTRY_MIGRATION_NAMES=Object.freeze([
   ...TR_UI_REGISTRY_MIGRATION_BATCH_13,
   ...TR_UI_REGISTRY_MIGRATION_BATCH_14,
   ...TR_UI_REGISTRY_MIGRATION_BATCH_15,
-  ...TR_UI_REGISTRY_MIGRATION_BATCH_16
+  ...TR_UI_REGISTRY_MIGRATION_BATCH_16,
+  ...TR_UI_REGISTRY_MIGRATION_BATCH_17
 ]);
 
 const SIMPLE_ASSIGN=/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g;
-const PRELUDE="const trAppUiActionRegistryV334=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));\n";
+const PRELUDE="const trAppUiActionRegistryV335=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));\n";
 
 export function migrateUiHandlersToRegistry(source){
   const input=String(source),before=globalSurfaceInventory(input),targets=new Set(TR_UI_REGISTRY_MIGRATION_NAMES);
-  const batch1=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_1),batch2=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_2),batch3=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_3),batch4=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_4),batch5=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_5),batch6=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_6),batch7=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_7),batch8=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_8),batch9=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_9),batch10=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_10),batch11=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_11),batch12=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_12),batch13=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_13),batch14=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_14),batch15=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_15),batch16=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_16);
+  const batch1=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_1),batch2=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_2),batch3=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_3),batch4=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_4),batch5=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_5),batch6=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_6),batch7=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_7),batch8=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_8),batch9=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_9),batch10=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_10),batch11=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_11),batch12=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_12),batch13=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_13),batch14=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_14),batch15=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_15),batch16=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_16),batch17=new Set(TR_UI_REGISTRY_MIGRATION_BATCH_17);
   const occurrences=Object.fromEntries(TR_UI_REGISTRY_MIGRATION_NAMES.map(n=>[n,0]));
-  let touchedBlocks=0,registryEntries=0,batch1Entries=0,batch2Entries=0,batch3Entries=0,batch4Entries=0,batch5Entries=0,batch6Entries=0,batch7Entries=0,batch8Entries=0,batch9Entries=0,batch10Entries=0,batch11Entries=0,batch12Entries=0,batch13Entries=0,batch14Entries=0,batch15Entries=0,batch16Entries=0;
+  let touchedBlocks=0,registryEntries=0,batch1Entries=0,batch2Entries=0,batch3Entries=0,batch4Entries=0,batch5Entries=0,batch6Entries=0,batch7Entries=0,batch8Entries=0,batch9Entries=0,batch10Entries=0,batch11Entries=0,batch12Entries=0,batch13Entries=0,batch14Entries=0,batch15Entries=0,batch16Entries=0,batch17Entries=0;
   const body=input.replace(SIMPLE_ASSIGN,(full,list)=>{
     const props=list.split(',').map(x=>x.trim()).filter(Boolean),moved=props.filter(n=>targets.has(n));
     if(!moved.length)return full;
@@ -114,16 +119,17 @@ export function migrateUiHandlersToRegistry(source){
       if(batch14.has(name))batch14Entries++;
       if(batch15.has(name))batch15Entries++;
       if(batch16.has(name))batch16Entries++;
+      if(batch17.has(name))batch17Entries++;
     }
     const remaining=props.filter(n=>!targets.has(n));
     const windowPart=remaining.length?`Object.assign(window,{${remaining.join(',')}});`:'';
-    const registryPart=`Object.assign(trAppUiActionRegistryV334,{${moved.join(',')}});`;
-    return `${windowPart}${registryPart}/* V31.23.34 UI registry migration: ${moved.join(', ')} */`;
+    const registryPart=`Object.assign(trAppUiActionRegistryV335,{${moved.join(',')}});`;
+    return `${windowPart}${registryPart}/* V31.23.35 UI registry migration: ${moved.join(', ')} */`;
   });
   for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)if(!occurrences[name])throw new Error(`UI Registry Migration: ${name} no apareció en ningún Object.assign(window,...).`);
   const out=PRELUDE+body,after=globalSurfaceInventory(out);
   for(const name of TR_UI_REGISTRY_MIGRATION_NAMES)if(after.names.objectAssign.includes(name))throw new Error(`UI Registry Migration: ${name} sigue como export explícito window.`);
   const uniqueRemoved=before.objectAssignUnique-after.objectAssignUnique;
   if(uniqueRemoved!==TR_UI_REGISTRY_MIGRATION_NAMES.length)throw new Error(`UI Registry Migration: reducción unique ${uniqueRemoved}; esperada ${TR_UI_REGISTRY_MIGRATION_NAMES.length}.`);
-  return {source:out,inventory:{version:TR_UI_REGISTRY_MIGRATION_VERSION,names:[...TR_UI_REGISTRY_MIGRATION_NAMES],batches:{batch1:[...TR_UI_REGISTRY_MIGRATION_BATCH_1],batch2:[...TR_UI_REGISTRY_MIGRATION_BATCH_2],batch3:[...TR_UI_REGISTRY_MIGRATION_BATCH_3],batch4:[...TR_UI_REGISTRY_MIGRATION_BATCH_4],batch5:[...TR_UI_REGISTRY_MIGRATION_BATCH_5],batch6:[...TR_UI_REGISTRY_MIGRATION_BATCH_6],batch7:[...TR_UI_REGISTRY_MIGRATION_BATCH_7],batch8:[...TR_UI_REGISTRY_MIGRATION_BATCH_8],batch9:[...TR_UI_REGISTRY_MIGRATION_BATCH_9],batch10:[...TR_UI_REGISTRY_MIGRATION_BATCH_10],batch11:[...TR_UI_REGISTRY_MIGRATION_BATCH_11],batch12:[...TR_UI_REGISTRY_MIGRATION_BATCH_12],batch13:[...TR_UI_REGISTRY_MIGRATION_BATCH_13],batch14:[...TR_UI_REGISTRY_MIGRATION_BATCH_14],batch15:[...TR_UI_REGISTRY_MIGRATION_BATCH_15],batch16:[...TR_UI_REGISTRY_MIGRATION_BATCH_16]},touchedBlocks,registryEntries,batch1Entries,batch2Entries,batch3Entries,batch4Entries,batch5Entries,batch6Entries,batch7Entries,batch8Entries,batch9Entries,batch10Entries,batch11Entries,batch12Entries,batch13Entries,batch14Entries,batch15Entries,batch16Entries,occurrences,before:{blocks:before.objectAssignBlocks,entries:before.objectAssignEntries,unique:before.objectAssignUnique},after:{blocks:after.objectAssignBlocks,entries:after.objectAssignEntries,unique:after.objectAssignUnique}}};
+  return {source:out,inventory:{version:TR_UI_REGISTRY_MIGRATION_VERSION,names:[...TR_UI_REGISTRY_MIGRATION_NAMES],batches:{batch1:[...TR_UI_REGISTRY_MIGRATION_BATCH_1],batch2:[...TR_UI_REGISTRY_MIGRATION_BATCH_2],batch3:[...TR_UI_REGISTRY_MIGRATION_BATCH_3],batch4:[...TR_UI_REGISTRY_MIGRATION_BATCH_4],batch5:[...TR_UI_REGISTRY_MIGRATION_BATCH_5],batch6:[...TR_UI_REGISTRY_MIGRATION_BATCH_6],batch7:[...TR_UI_REGISTRY_MIGRATION_BATCH_7],batch8:[...TR_UI_REGISTRY_MIGRATION_BATCH_8],batch9:[...TR_UI_REGISTRY_MIGRATION_BATCH_9],batch10:[...TR_UI_REGISTRY_MIGRATION_BATCH_10],batch11:[...TR_UI_REGISTRY_MIGRATION_BATCH_11],batch12:[...TR_UI_REGISTRY_MIGRATION_BATCH_12],batch13:[...TR_UI_REGISTRY_MIGRATION_BATCH_13],batch14:[...TR_UI_REGISTRY_MIGRATION_BATCH_14],batch15:[...TR_UI_REGISTRY_MIGRATION_BATCH_15],batch16:[...TR_UI_REGISTRY_MIGRATION_BATCH_16],batch17:[...TR_UI_REGISTRY_MIGRATION_BATCH_17]},touchedBlocks,registryEntries,batch1Entries,batch2Entries,batch3Entries,batch4Entries,batch5Entries,batch6Entries,batch7Entries,batch8Entries,batch9Entries,batch10Entries,batch11Entries,batch12Entries,batch13Entries,batch14Entries,batch15Entries,batch16Entries,batch17Entries,occurrences,before:{blocks:before.objectAssignBlocks,entries:before.objectAssignEntries,unique:before.objectAssignUnique},after:{blocks:after.objectAssignBlocks,entries:after.objectAssignEntries,unique:after.objectAssignUnique}}};
 }

@@ -26,8 +26,5 @@ jobs:
       - name: Prebuild verification
         run: npm run prebuild
 
-      - name: UI frontier diagnostic
-        run: node diagnose-next-ui-frontier.mjs
-
       - name: Build verification
         run: npm run build

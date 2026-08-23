@@ -3,6 +3,7 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const app=fs.readFileSync('app.js','utf8');
 const runtime=fs.readFileSync('persistence-coalescing-runtime.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
+const runtimeCode=runtime.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 
 need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
@@ -16,13 +17,13 @@ need(runtime.includes('const trPersistBridgeBase=trCorePersistStateBridge'),'No 
 need(runtime.includes("trCorePersistStateBridge=function(reason='persist'){return trPersistSchedule(reason);}"),'persist() no queda dirigido al scheduler sincrónicamente barato.');
 need(runtime.includes('trPersistTimer=setTimeout(()=>{void trPersistRunPending();},TR_PERSIST_DEBOUNCE_MS)'),'No se difiere la escritura hasta el final del debounce.');
 need(runtime.includes('const ok=trPersistBridgeBase(pending.reason)'),'El snapshot histórico no se ejecuta dentro de la fase diferida.');
-need(!runtime.includes('clone(state)'),'El runtime de coalescing no debe volver a clonar el workspace por petición.');
+need(!runtimeCode.includes('clone(state)'),'El runtime de coalescing no debe volver a clonar el workspace por petición.');
 need(runtime.includes("trCorePersistNow=async function(reason='persist')"),'Falta semántica de persistencia inmediata.');
 need(runtime.includes('trPersistCancelPendingAsSuperseded();return trPersistNowBase(reason)'),'PersistNow no cancela una escritura legacy redundante antes del snapshot inmediato.');
 need(runtime.includes('trCoreFlush=async function()')&&runtime.includes('await trPersistRunPending()')&&runtime.includes('return trFlushBase()'),'Flush no fuerza el debounce pendiente antes de esperar IndexedDB.');
 need(runtime.includes("document.addEventListener('visibilitychange'")&&runtime.includes("addEventListener('pagehide'"),'Falta flush preventivo al ocultar/salir de la página.');
 need(runtime.includes('writeCoalescing:{version:TR_PERSIST_COALESCE_VERSION'),'Persistencia no expone diagnóstico del coalescer.');
-need(!/\bwindow\./.test(runtime),'El runtime de coalescing no debe reabrir superficie global explícita.');
+need(!/\bwindow\s*\./.test(runtimeCode),'El runtime de coalescing no debe reabrir superficie global explícita.');
 
 if(fail.length){console.error('Persistence coalescing verification FAILED');for(const f of fail)console.error(' - '+f);process.exit(1);}
 console.log('Persistence coalescing verification OK');

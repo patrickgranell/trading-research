@@ -59,3 +59,5 @@ console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XXIII: ${TR_UI_REGISTRY_MIGRATION_BATCH_23.join(', ')}`);
 console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefines covered: ${lateNames.join(', ')||'none'}`);
+const nextUi=mapAfter.rows.filter(r=>mapAfter.names.migrationFrontiers.handlerOnly.includes(r.name)).sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name)).slice(0,16);
+console.log(` - NEXT_UI_FRONTIER: ${nextUi.map(r=>`${r.name}:${r.handlerUses}`).join(', ')}`);

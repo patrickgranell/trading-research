@@ -12,19 +12,30 @@ function trIsTagNameStart(c){return !!c&&/[A-Za-z]/.test(c);}
 function trIsTagNameChar(c){return !!c&&/[A-Za-z0-9:-]/.test(c);}
 function trIsAttrBoundary(c){return c===undefined||trIsSpace(c)||c==='/'||c==='>'||c==='`';}
 
+function trPlausibleTagStart(src,i){
+  let p=i+1;while(trIsSpace(src[p]))p++;
+  if(src[p]==='/'||src[p]==='!'||src[p]==='?')return false;
+  if(!trIsTagNameStart(src[p]))return false;
+  p++;while(trIsTagNameChar(src[p]))p++;
+  return trIsAttrBoundary(src[p]);
+}
+function trTagOpenThrough(src,start,end){
+  let quote='';
+  for(let p=start+1;p<end;p++){
+    const c=src[p];
+    if(quote){if(c===quote&&src[p-1]!=='\\')quote='';continue;}
+    if(c==='"'||c==="'"){quote=c;continue;}
+    if(c==='>')return false;
+  }
+  return true;
+}
 function trOpenTagStartBefore(src,at){
+  /* Search backwards for a plausible `<tag ...` and validate its span forward.
+     A `>` inside a quoted attribute value does not close the tag. */
   for(let i=at-1;i>=0;i--){
-    const c=src[i];
-    if(c==='>')return -1;
-    if(c!=='<')continue;
-    let p=i+1;while(trIsSpace(src[p]))p++;
-    if(src[p]==='/'||src[p]==='!'||src[p]==='?')return -1;
-    if(!trIsTagNameStart(src[p]))return -1;
-    p++;while(trIsTagNameChar(src[p]))p++;
-    /* A tag name must end before attributes begin; `<fooBar` inside ordinary code
-       without whitespace never qualifies as a tag containing a style attribute. */
-    if(!trIsAttrBoundary(src[p]))return -1;
-    return i;
+    if(src[i]!=='<')continue;
+    if(!trPlausibleTagStart(src,i))continue;
+    if(trTagOpenThrough(src,i,at))return i;
   }
   return -1;
 }
@@ -53,6 +64,7 @@ export function styleTransformSelfTest(){
   const fixtures=[
     {input:'<div style="color:red">x</div>',converted:1,contains:'data-tr-style="color:red"'},
     {input:'<div class="x"\n style = \'margin:0\'>x</div>',converted:1,contains:"data-tr-style = 'margin:0'"},
+    {input:'<button data-tr-onclick="x>y" style="width:10px">',converted:1,contains:'data-tr-style="width:10px"'},
     {input:'const style="color:red";',converted:0,contains:'const style="color:red";'},
     {input:'Documentation says style="color:red" without a tag.',converted:0,contains:'style="color:red"'},
     {input:'x > style="color:red"',converted:0,contains:'style="color:red"'},

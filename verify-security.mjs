@@ -7,7 +7,7 @@ const fail=[];
 const need=(cond,msg)=>{if(!cond)fail.push(msg);};
 const region=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);return a>=0&&b>=0?app.slice(a,b):'';};
 
-need(pkg.version==='31.22.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="security-runtime.js"></script>'),'index.html no carga security-runtime.js.');
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
 need(index.includes('trading-research-source-version" content="31.22.0"'),'source-version no es 31.22.0.');

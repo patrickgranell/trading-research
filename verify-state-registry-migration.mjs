@@ -1,0 +1,70 @@
+import fs from 'node:fs';
+import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
+import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
+import {migrateStateActionsToRegistry,TR_STATE_REGISTRY_MIGRATION_NAMES,TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7,TR_STATE_REGISTRY_MIGRATION_VERSION,TR_STATE_REGISTRY_FINAL_BINDING_VERSION} from './state-registry-migration-transform.mjs';
+import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
+import {transformStateActions} from './state-action-transform.mjs';
+import {globalSurfaceInventory} from './global-surface-inventory.mjs';
+
+const app=fs.readFileSync('app.js','utf8');
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const raw=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
+const render=consolidateLegacyRenderAssignments(app,{expected:12});
+const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(raw)});
+const state=transformStateActions(raw['state-runtime.js']).source;
+const runtimeSources=runtimeFiles.map(f=>f==='state-runtime.js'?state:raw[f]);
+const mapBefore=remainingGlobalContractMap(pruned.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+const frontier=new Set(mapBefore.names.migrationFrontiers.stateOnly);
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)if(!frontier.has(name))throw new Error(`State Registry Migration: ${name} ya no pertenece a la frontera State segura.`);
+const migrated=migrateStateActionsToRegistry(pruned.source),inv=migrated.inventory,after=globalSurfaceInventory(migrated.source);
+const mapAfter=remainingGlobalContractMap(migrated.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+if(TR_STATE_REGISTRY_MIGRATION_VERSION!=='31.23.18')throw new Error(`Versión de migración inesperada: ${TR_STATE_REGISTRY_MIGRATION_VERSION}`);
+if(TR_STATE_REGISTRY_FINAL_BINDING_VERSION!=='31.23.41'||inv.finalBindingVersion!=='31.23.41')throw new Error(`Versión final-binding State inesperada: ${inv.finalBindingVersion}`);
+const batches=[TR_STATE_REGISTRY_MIGRATION_BATCH_1,TR_STATE_REGISTRY_MIGRATION_BATCH_2,TR_STATE_REGISTRY_MIGRATION_BATCH_3,TR_STATE_REGISTRY_MIGRATION_BATCH_4,TR_STATE_REGISTRY_MIGRATION_BATCH_5,TR_STATE_REGISTRY_MIGRATION_BATCH_6,TR_STATE_REGISTRY_MIGRATION_BATCH_7];
+if(batches.some(b=>b.length!==8)||TR_STATE_REGISTRY_MIGRATION_NAMES.length!==56)throw new Error(`Lotes State inesperados: ${batches.map(b=>b.length).join('+')}=${TR_STATE_REGISTRY_MIGRATION_NAMES.length}.`);
+if(inv.finalBindingRefreshEntries!==56)throw new Error(`State final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
+if(inv.before.blocks!==44)throw new Error(`Bloques window de entrada inesperados: ${inv.before.blocks}`);
+if(inv.before.entries!==325)throw new Error(`Entries window de entrada inesperadas: ${inv.before.entries}`);
+if(inv.before.unique!==286)throw new Error(`Exports window únicos de entrada inesperados: ${inv.before.unique}`);
+if(inv.after.blocks!==42)throw new Error(`Bloques window tras siete lotes: ${inv.after.blocks}; se esperaban 42.`);
+if(inv.after.entries!==inv.before.entries-inv.registryEntries)throw new Error(`Entries window no cuadran con publicaciones registry: ${inv.before.entries} - ${inv.registryEntries} != ${inv.after.entries}`);
+if(inv.after.entries!==262)throw new Error(`Entries window tras siete lotes: ${inv.after.entries}; se esperaban 262.`);
+if(inv.after.unique!==230)throw new Error(`Exports window únicos tras siete lotes: ${inv.after.unique}; se esperaban 230.`);
+if(inv.batch1Entries!==9)throw new Error(`Publicaciones del lote I cambiaron: ${inv.batch1Entries}; se esperaban 9.`);
+if(inv.batch2Entries!==8)throw new Error(`Publicaciones del lote II cambiaron: ${inv.batch2Entries}; se esperaban 8.`);
+if(inv.batch3Entries!==8)throw new Error(`Publicaciones del lote III cambiaron: ${inv.batch3Entries}; se esperaban 8.`);
+if(inv.batch4Entries!==9)throw new Error(`Publicaciones del lote IV cambiaron: ${inv.batch4Entries}; se esperaban 9.`);
+if(inv.batch5Entries!==8)throw new Error(`Publicaciones del lote V cambiaron: ${inv.batch5Entries}; se esperaban 8.`);
+if(inv.batch6Entries!==11)throw new Error(`Publicaciones del lote VI cambiaron: ${inv.batch6Entries}; se esperaban 11.`);
+if(inv.batch7Entries!==10)throw new Error(`Publicaciones del lote VII cambiaron: ${inv.batch7Entries}; se esperaban 10.`);
+if(inv.registryEntries!==63)throw new Error(`Publicaciones registry acumuladas cambiaron: ${inv.registryEntries}; se esperaban 63.`);
+if(mapAfter.remainingUnique!==230||mapAfter.classified!==230||mapAfter.unclassified!==0)throw new Error(`Mapa contractual post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
+if((mapAfter.byPrimary['state-action']||0)!==4||(mapAfter.byPrimary['ui-handler']||0)!==223||(mapAfter.byPrimary['dynamic-action']||0)!==3)throw new Error(`Primarios post-migración inesperados: State ${mapAfter.byPrimary['state-action']||0}, UI ${mapAfter.byPrimary['ui-handler']||0}, dinámico ${mapAfter.byPrimary['dynamic-action']||0}.`);
+if(mapAfter.names.migrationFrontiers.stateOnly.length!==0)throw new Error(`La frontera State final no quedó cerrada: ${mapAfter.names.migrationFrontiers.stateOnly.length}.`);
+if(mapAfter.coverage.crossRuntimeRead!==0)throw new Error(`La migración reabrió ${mapAfter.coverage.crossRuntimeRead} lecturas cross-runtime.`);
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)if(after.names.objectAssign.includes(name))throw new Error(`${name} sigue en Object.assign(window,...).`);
+if(!migrated.source.includes('V31.23.18 State registry migration:'))throw new Error('Falta marcador V31.23.18 en el bundle migrado.');
+
+const historicalAssigns=[...pruned.source.matchAll(/Object\.assign\(window,\{([A-Za-z_$][\w$]*(?:\s*,\s*[A-Za-z_$][\w$]*)*)\}\);/g)],late=[];
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES){
+  let lastPublish=-1;for(const m of historicalAssigns)if(m[1].split(',').map(x=>x.trim()).includes(name))lastPublish=Math.max(lastPublish,m.index||0);
+  if(lastPublish<0)continue;
+  for(const m of pruned.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>lastPublish){late.push(name);break;}
+}
+const lateNames=[...new Set(late)].sort();
+if(lateNames.join(',')!=='openOperationModal')throw new Error(`Deuda late-binding State inesperada: ${lateNames.join(',')||'none'}`);
+const finalMarker='/* V31.23.41 State final binding closure */',finalIdx=migrated.source.lastIndexOf(finalMarker),finalPublish=`Object.assign(trAppActionRegistryV318,{${TR_STATE_REGISTRY_MIGRATION_NAMES.join(',')}});`;
+if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('State final binding closure no está al final del transform State.');
+if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppActionRegistryV318,'__trStateFinalBindingClosure',{value:56"))throw new Error('State final binding publication/marker incompleto.');
+for(const name of TR_STATE_REGISTRY_MIGRATION_NAMES)for(const m of migrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>finalIdx)throw new Error(`${name} se redefine después del State final binding closure.`);
+
+const handlerRows=mapAfter.rows.filter(r=>mapAfter.names.migrationFrontiers.handlerOnly.includes(r.name)).sort((a,b)=>a.handlerUses-b.handlerUses||a.name.localeCompare(b.name));
+console.log('State Registry Migration verification OK');
+console.log(` - Cumulative State actions migrated: ${TR_STATE_REGISTRY_MIGRATION_NAMES.length} (${batches.map(b=>b.length).join('+')})`);
+console.log(` - Explicit window blocks: ${inv.before.blocks} -> ${inv.after.blocks}`);
+console.log(` - Explicit window entries: ${inv.before.entries} -> ${inv.after.entries}`);
+console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.after.unique}`);
+console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh`);
+console.log(` - State frontier: ${mapBefore.names.migrationFrontiers.stateOnly.length} -> ${mapAfter.names.migrationFrontiers.stateOnly.length}`);
+console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefine covered: ${lateNames.join(', ')}`);
+console.log(` - Handler-only frontier after State closure: ${handlerRows.length}`);

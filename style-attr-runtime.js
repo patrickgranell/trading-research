@@ -5,8 +5,24 @@ const TR_STYLE_ATTR_VERSION='31.22.0';
 const TR_STYLE_ATTR_SOURCE='data-tr-style';
 const TR_STYLE_ATTR_MAX_LEN=1600;
 const TR_STYLE_ATTR_MAX_DECLS=24;
+const TR_RELEASE_READINESS_BRIDGE_VERSION='31.23.53';
 let trStyleAttrObserver=null;
-const trStyleAttrStats={hydrated:0,declarations:0,rejected:0,lastProperty:'',lastError:''};
+const trStyleAttrStats={hydrated:0,declarations:0,rejected:0,ignoredEmpty:0,lastProperty:'',lastError:''};
+let trLabStateBridgeInstalled=false;
+
+function trInstallLabStateBridge(){
+  const registry=(window.TradingResearchActions&&typeof window.TradingResearchActions==='object')?window.TradingResearchActions:(window.TradingResearchActions=Object.create(null));
+  if(typeof labState==='undefined'||!labState||typeof labState!=='object')return false;
+  const facade=Object.create(null);
+  Object.defineProperties(facade,{
+    nr:{enumerable:true,get:()=>labState.nr,set:value=>{labState.nr=String(value??'');}},
+    hypothesis:{enumerable:true,get:()=>labState.hypothesis,set:value=>{labState.hypothesis=String(value??'');}}
+  });
+  Object.preventExtensions(facade);
+  registry.labState=facade;
+  trLabStateBridgeInstalled=true;
+  return true;
+}
 
 function trStyleAttrSafeProperty(name){
   const p=String(name||'').trim().toLowerCase();
@@ -32,14 +48,19 @@ function trStyleAttrHydrate(el){
   if(!(el instanceof Element)||!el.hasAttribute(TR_STYLE_ATTR_SOURCE))return;
   const raw=String(el.getAttribute(TR_STYLE_ATTR_SOURCE)||'');
   el.removeAttribute(TR_STYLE_ATTR_SOURCE);
-  if(!raw||raw.length>TR_STYLE_ATTR_MAX_LEN){trStyleAttrStats.rejected++;trStyleAttrStats.lastError='Atributo vacío o demasiado largo';return;}
+  if(!raw){trStyleAttrStats.ignoredEmpty++;return;}
+  if(raw.length>TR_STYLE_ATTR_MAX_LEN){trStyleAttrStats.rejected++;trStyleAttrStats.lastError='Atributo demasiado largo';return;}
   const decls=raw.split(';').map(x=>x.trim()).filter(Boolean).slice(0,TR_STYLE_ATTR_MAX_DECLS);
   let applied=0;
   for(const decl of decls){
     const i=decl.indexOf(':');
     if(i<=0){trStyleAttrStats.rejected++;continue;}
-    const prop=trStyleAttrSafeProperty(decl.slice(0,i)),value=trStyleAttrSafeValue(decl.slice(i+1));
-    if(!prop||!value){trStyleAttrStats.rejected++;continue;}
+    const prop=trStyleAttrSafeProperty(decl.slice(0,i));
+    if(!prop){trStyleAttrStats.rejected++;continue;}
+    const rawValue=String(decl.slice(i+1)??'').trim();
+    if(!rawValue){trStyleAttrStats.ignoredEmpty++;continue;}
+    const value=trStyleAttrSafeValue(rawValue);
+    if(!value){trStyleAttrStats.rejected++;continue;}
     try{trStyleAttrApply(el,prop,value);applied++;trStyleAttrStats.declarations++;trStyleAttrStats.lastProperty=prop;}
     catch(e){trStyleAttrStats.rejected++;trStyleAttrStats.lastError=e?.message||String(e);}
   }
@@ -57,7 +78,7 @@ function trStyleAttrMutations(records){
 }
 function trStyleAttrDiagnostics(){
   const pending=document.querySelectorAll?.(`[${TR_STYLE_ATTR_SOURCE}]`)?.length||0;
-  return {version:TR_STYLE_ATTR_VERSION,hydrated:trStyleAttrStats.hydrated,declarations:trStyleAttrStats.declarations,rejected:trStyleAttrStats.rejected,pending,lastProperty:trStyleAttrStats.lastProperty,lastError:trStyleAttrStats.lastError,strictStyleAttrBoundary:true,ok:pending===0&&trStyleAttrStats.rejected===0};
+  return {version:TR_STYLE_ATTR_VERSION,releaseReadinessBridge:TR_RELEASE_READINESS_BRIDGE_VERSION,hydrated:trStyleAttrStats.hydrated,declarations:trStyleAttrStats.declarations,rejected:trStyleAttrStats.rejected,ignoredEmpty:trStyleAttrStats.ignoredEmpty,pending,lastProperty:trStyleAttrStats.lastProperty,lastError:trStyleAttrStats.lastError,labStateBridgeInstalled:trLabStateBridgeInstalled,strictStyleAttrBoundary:true,ok:pending===0&&trStyleAttrStats.rejected===0};
 }
 function trStyleAttrStart(){
   trStyleAttrScan(document);
@@ -66,8 +87,14 @@ function trStyleAttrStart(){
   trStyleAttrObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:[TR_STYLE_ATTR_SOURCE]});
 }
 
+/* V31.23.53 release-readiness closure: the only remaining lexical-state handlers
+ * address labState.nr / labState.hypothesis. Publish a narrow, non-extensible facade
+ * in TradingResearchActions so delegated events never reopen window.labState. */
+trInstallLabStateBridge();
+
+/* V31.23.5: diagnostics stay behind the namespaced public API; the duplicate
+ * window.trStyleAttrDiagnostics alias is no longer required. */
 window.TradingResearchStyleAttrs=Object.freeze({version:TR_STYLE_ATTR_VERSION,diagnostics:trStyleAttrDiagnostics,rescan:()=>trStyleAttrScan(document)});
-Object.assign(window,{trStyleAttrDiagnostics});
 trStyleAttrStart();
 })();
 /* ===== END V31.22 STYLE ATTRIBUTE BOUNDARY ===== */

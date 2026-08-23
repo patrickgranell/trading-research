@@ -26,5 +26,8 @@ jobs:
       - name: Prebuild verification
         run: npm run prebuild
 
+      - name: Residual global contract diagnostic
+        run: node diagnose-residual-global-contracts.mjs
+
       - name: Build verification
         run: npm run build

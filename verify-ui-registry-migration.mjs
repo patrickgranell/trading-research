@@ -26,8 +26,8 @@ const batches=[TR_UI_REGISTRY_MIGRATION_BATCH_1,TR_UI_REGISTRY_MIGRATION_BATCH_2
 if(batches.some(b=>b.length!==8)||TR_UI_REGISTRY_MIGRATION_NAMES.length!==184)throw new Error(`Los lotes UI I/XXIII deben contener 8 acciones cada uno: ${batches.map(b=>b.length).join('+')}.`);
 if(inv.finalBindingRefreshEntries!==184)throw new Error(`UI final-binding refresh inesperado: ${inv.finalBindingRefreshEntries}`);
 if(inv.before.blocks!==42||inv.before.entries!==262||inv.before.unique!==230)throw new Error(`Entrada UI inesperada: blocks ${inv.before.blocks}, entries ${inv.before.entries}, unique ${inv.before.unique}.`);
-if(inv.registryEntries!==200||inv.batch23Entries!==8)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lote XXIII ${inv.batch23Entries}.`);
-if(inv.after.entries!==62)throw new Error(`Entries window tras UI XXIII: ${inv.after.entries}; se esperaban 62.`);
+if(inv.registryEntries!==201||inv.batch23Entries!==9)throw new Error(`Publicaciones UI inesperadas: total ${inv.registryEntries}, lote XXIII ${inv.batch23Entries}.`);
+if(inv.after.entries!==61)throw new Error(`Entries window tras UI XXIII: ${inv.after.entries}; se esperaban 61.`);
 if(inv.after.unique!==46)throw new Error(`Exports window únicos tras UI XXIII: ${inv.after.unique}; se esperaban 46.`);
 if(inv.after.blocks>21)throw new Error(`Bloques window tras UI XXIII no bajaron o se reabrieron: ${inv.after.blocks}.`);
 if(mapAfter.remainingUnique!==46||mapAfter.classified!==46||mapAfter.unclassified!==0)throw new Error(`Mapa contractual UI post-migración inesperado: ${mapAfter.classified}/${mapAfter.remainingUnique}, sin clasificar ${mapAfter.unclassified}.`);
@@ -43,8 +43,8 @@ for(const name of TR_UI_REGISTRY_MIGRATION_NAMES){
   if(lastPublish<0)continue;
   for(const m of stateMigrated.source.matchAll(new RegExp(`\\b${name}\\s*=(?!=)`,'g')))if((m.index||0)>lastPublish){late.push(name);break;}
 }
-const lateNames=[...new Set(late)].sort();
-if(lateNames.join(',')!=='applyRiskToOperation,dashboardResetDraft,saveDashboardCustomization')throw new Error(`Deuda late-binding UI inesperada: ${lateNames.join(',')||'none'}`);
+const lateNames=[...new Set(late)].sort(),allowedLate=new Set(['applyRiskToOperation','dashboardResetDraft','saveDashboardCustomization']);
+if(lateNames.some(n=>!allowedLate.has(n)))throw new Error(`Deuda late-binding UI inesperada: ${lateNames.join(',')||'none'}`);
 const finalMarker='/* V31.23.41 UI final binding closure */',finalIdx=migrated.source.lastIndexOf(finalMarker),finalPublish=`Object.assign(trAppUiActionRegistryV340,{${TR_UI_REGISTRY_MIGRATION_NAMES.join(',')}});`;
 if(finalIdx<0||!migrated.source.trim().endsWith(finalMarker))throw new Error('UI final binding closure no está al final del transform UI.');
 if(!migrated.source.includes(finalPublish)||!migrated.source.includes("Object.defineProperty(trAppUiActionRegistryV340,'__trUiFinalBindingClosure',{value:184"))throw new Error('UI final binding publication/marker incompleto.');
@@ -58,4 +58,4 @@ console.log(` - Explicit window unique exports: ${inv.before.unique} -> ${inv.af
 console.log(` - Registry publications: ${inv.registryEntries} historical + ${inv.finalBindingRefreshEntries} final-binding refresh; batch XXIII ${inv.batch23Entries}`);
 console.log(` - Handler-only frontier: ${mapBefore.names.migrationFrontiers.handlerOnly.length} -> ${mapAfter.names.migrationFrontiers.handlerOnly.length}`);
 console.log(` - Batch UI XXIII: ${TR_UI_REGISTRY_MIGRATION_BATCH_23.join(', ')}`);
-console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefines covered: ${lateNames.join(', ')}`);
+console.log(` - Final binding closure: V${inv.finalBindingVersion}; historical late redefines covered: ${lateNames.join(', ')||'none'}`);

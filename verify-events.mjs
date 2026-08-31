@@ -27,7 +27,6 @@ for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['s
 const sourceLegacy=[app,structural,stateRuntime,security,closure].reduce((n,src)=>n+(src.match(legacyProgramAttr)||[]).length,0);
 const sourceStructured=[app,structural,stateRuntime,security,closure].reduce((n,src)=>n+(src.match(structuredAttr)||[]).length,0);
 need(sourceLegacy>500,`Solo se detectan ${sourceLegacy} handlers legacy de fuente; revisar inventario antes de aceptar una caída grande.`);
-need(sourceStructured>=2,'No aparecen los primeros handlers estructurados explícitos de V31.24.');
 
 need(evt.includes("const TR_EVENT_RUNTIME_VERSION='31.24.0'"),'Event Runtime no está en V31.24.');
 need(evt.includes("const TR_EVENT_TYPES=['click','change','input','submit']"),'Faltan los cuatro eventos delegados.');

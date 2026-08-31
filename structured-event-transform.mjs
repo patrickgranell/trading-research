@@ -155,7 +155,8 @@ export function transformStructuredEventSources(entries){
       if(openTagStartBefore(src,i)<0)continue;
       let attr;try{attr=readHandlerAttribute(src,i);}catch(e){errors.push({file:name,at:i,error:e.message});break;}
       if(!attr)continue;
-      const runtimeRaw=attr.raw.replace(/\\\\([\"'])/g,'$1');\n      const split=splitDynamic(runtimeRaw);
+      const runtimeRaw=attr.raw.replace(/\\(["'])/g,'$1');
+      const split=splitDynamic(runtimeRaw);
       if(split.skeleton.trim()===TR_SLOT_PREFIX+'0__'&&split.expressions.length===1){
         dynamicActionRejected++;errors.push({file:name,at:i,error:'Nombre/programa de acción dinámico rechazado.',raw:attr.raw});i=attr.end-1;continue;
       }

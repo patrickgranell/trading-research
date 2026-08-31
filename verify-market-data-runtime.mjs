@@ -42,15 +42,23 @@ function extractDeclaration(src,name){
   for(const n of ['V314_TICK_CACHE_MAX_DATASETS','V314_TICK_CACHE_MAX_TICKS','v314TickCacheTicks','v314TickCacheEvictions']){
     const x=extractDeclaration(app,n);if(x)pieces.push(x);
   }
-  for(const n of ['v314TickCacheGet','v314TickCachePut','v314TickCacheDelete']){
+  for(const n of ['v314TickCacheCount','v314TickCacheGet','v314TickCachePut','v314TickCacheDelete','v314TickCacheInfo']){
     try{pieces.push(extractFunction(app,n));}catch{}
   }
   pieces.push(extractFunction(app,'v314LoadTicks'));
-  try{vm.runInContext(pieces.join('\n')+';globalThis.__load=v314LoadTicks;',context);}
+  try{vm.runInContext(pieces.join('\n')+';globalThis.__load=v314LoadTicks;globalThis.__put=typeof v314TickCachePut===\"function\"?v314TickCachePut:null;globalThis.__info=typeof v314TickCacheInfo===\"function\"?v314TickCacheInfo:null;',context);}
   catch(e){fail.push('D12: no se pudo ejecutar loader real: '+e.message);}
   if(context.__load){
     for(let i=0;i<6;i++)await context.__load('MD-'+i);
     need(context.v314TickCache.size<=2,`D12: cache de datasets sin cota efectiva; size=${context.v314TickCache.size}`);
+    if(context.__put&&context.__info){
+      context.__put('BIG-A',new Array(1500000));
+      context.__put('BIG-B',new Array(700000));
+      const info=context.__info();
+      need(info.datasets<=2,`D12: límite datasets roto tras carga grande: ${info.datasets}`);
+      need(info.ticks<=2000000,`D12: presupuesto de ticks roto: ${info.ticks}`);
+      need(info.evictions>=1,'D12: la prueba no observó ninguna eviction LRU.');
+    }
   }
   need(app.includes('V314_TICK_CACHE_MAX_DATASETS'),'D12: falta cota explícita por número de datasets.');
   need(app.includes('V314_TICK_CACHE_MAX_TICKS'),'D12: falta cota explícita por ticks aproximados.');

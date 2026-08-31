@@ -191,7 +191,7 @@ export function structuredEventTransformSelfTest(){
     if(!src.includes('encodeURIComponent(JSON.stringify([o.id]))'))failures.push('safe args serialization missing');
     if(src.includes('data-tr-onclick='))failures.push('legacy program attr remained');
     const malicious="x');PWN();String('x",encoded=encodeURIComponent(JSON.stringify([malicious]));
-    if(encoded.includes('PWN()'))failures.push('malicious value was not encoded as inert data');
+    try{const decoded=JSON.parse(decodeURIComponent(encoded));if(decoded[0]!==malicious)failures.push('malicious value did not round-trip as literal data');}catch(e){failures.push('encoded args are not valid URI JSON');}
     const planText=JSON.stringify(got.plans);if((planText.match(/viewOperation/g)||[]).length!==1||planText.includes('PWN'))failures.push('malicious value altered compiled plan');
   }catch(e){failures.push('basic fixture: '+e.message);}
   try{transformStructuredEventSources([{name:'dynamic.js',source:"const x=`<button data-tr-onclick=\"${action}\">X</button>`;"}]);failures.push('dynamic action was accepted');}

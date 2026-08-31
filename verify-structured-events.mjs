@@ -34,7 +34,7 @@ need(self.ok,`Structured transform self-test falló: ${JSON.stringify(self.failu
 need(Number(self.dynamicActionRejected)>=1,'El self-test no rechaza nombres de acción dinámicos.');
 
 need(app.includes("data-tr-onclick=\"viewOperation('${o.id}')\""),'D04 source fixture cambió: revisar el sink persistido.');
-const fixture='const row=o=>`<button data-tr-onclick="viewOperation(\\\'${o.id}\\\')">Ver</button>`;';
+const fixture="const row=o=>`<button data-tr-onclick=\"viewOperation('${o.id}')\">Ver</button>`;" ;
 let compiled=null;
 try{compiled=transformStructuredEventSources([{name:'fixture.js',source:fixture}]);}
 catch(e){fail.push('No se pudo compilar fixture D04: '+e.message);}

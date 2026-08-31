@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import vm from 'node:vm';
 
 const fail=[];
 const need=(c,m)=>{if(!c)fail.push(m);};
@@ -42,6 +43,85 @@ need(runtime.includes("importFullBackup=trBackupV2ImportFullBackup"),'El restore
 need(app.includes('if(!blob)continue'),'La reproducción D03 cambió en el monolito: revisar el contraste del hallazgo.');
 need(app.includes('state=restored;ensureAllPlansV8();\n    await clearImageStore();'),
   'La reproducción D02 cambió en el monolito: revisar el contraste del hallazgo.');
+
+
+need(runtime.includes("db.transaction(IMAGE_STORE,'readwrite')"),'Staging/finalización de imágenes no usa una transacción IndexedDB única.');
+need(runtime.includes("db.transaction(TR_BACKUP_V2_MARKET_STORES,'readwrite')"),'Market Data no se reemplaza en una transacción multi-store.');
+need(runtime.includes('store.clear();for(const rec of marketData?.[storeName]||[])store.put'), 'Market Data restore no hace replace all-or-nothing por store.');
+need(runtime.includes('const marketMatches=await trBackupV2MarketMatchesManifest(journal.manifest)'), 'Recovery no detecta si el commit Market Data llegó a completarse.');
+need(runtime.includes("return {status:'aborted-before-market'}"), 'Recovery no puede abortar de forma segura antes del commit externo.');
+need(runtime.includes("return {status:'completed-forward'}"), 'Recovery no puede completar hacia delante tras un commit externo.');
+
+const pStart=runtime.indexOf('async function trBackupV2RestoreProtocol(');
+const pEnd=pStart<0?-1:runtime.indexOf('\n\nasync function trBackupV2RecoverPending',pStart);
+need(pStart>=0&&pEnd>pStart,'No se pudo aislar el protocolo de restore para fault injection.');
+if(pStart>=0&&pEnd>pStart){
+  const protocolSrc=runtime.slice(pStart,pEnd);
+  const context={
+    TR_BACKUP_V2_JOURNAL_ID:'journal',
+    TR_BACKUP_V2_SCHEMA:2,
+    uid:()=> 'RST2_TEST',
+    trBackupV2Clone:v=>JSON.parse(JSON.stringify(v)),
+    trBackupV2RestoreIo:()=>{throw new Error('default IO no debe usarse en test');}
+  };
+  vm.createContext(context);
+  vm.runInContext(protocolSrc+'\nthis.protocol=trBackupV2RestoreProtocol;',context);
+  const prepared={workspace:{sentinel:'target'},images:Array.from({length:100},(_,i)=>({id:'IMG'+(i+1)})),marketData:{},manifest:{expectedImageIds:Array.from({length:100},(_,i)=>'IMG'+(i+1)),hashes:{images:{}}}};
+
+  {
+    const calls=[];let latestJournal=null;
+    const io={
+      journalPut:async j=>{calls.push('journal:'+j.phase);latestJournal=JSON.parse(JSON.stringify(j));},
+      journalDelete:async()=>calls.push('journal-delete'),
+      stageImages:async()=>{calls.push('stage-images');const e=new Error('image 37 of 100');e.name='QuotaExceededError';throw e;},
+      verifyStage:async()=>calls.push('verify-stage'),
+      replaceMarketData:async()=>calls.push('market-commit'),
+      finalizeImages:async()=>calls.push('image-commit'),
+      persistWorkspace:async()=>calls.push('workspace-commit'),
+      cleanupStage:async()=>calls.push('stage-cleanup')
+    };
+    let error=null;try{await context.protocol(prepared,io);}catch(e){error=e;}
+    need(error?.name==='QuotaExceededError','Fault injection 37/100 no propagó QuotaExceededError.');
+    need(JSON.stringify(calls)===JSON.stringify(['journal:prepared','stage-images']),
+      'QuotaExceeded durante staging avanzó a Market Data/workspace: '+calls.join(' -> '));
+    need(latestJournal?.phase==='prepared','Fault injection no dejó journal en fase recuperable prepared.');
+  }
+
+  {
+    const calls=[];
+    const io={
+      journalPut:async j=>calls.push('journal:'+j.phase),
+      journalDelete:async()=>calls.push('journal-delete'),
+      stageImages:async()=>calls.push('stage-images'),
+      verifyStage:async()=>calls.push('verify-stage'),
+      replaceMarketData:async()=>calls.push('market-commit'),
+      finalizeImages:async()=>calls.push('image-commit'),
+      persistWorkspace:async()=>calls.push('workspace-commit'),
+      cleanupStage:async()=>calls.push('stage-cleanup')
+    };
+    await context.protocol(prepared,io);
+    const expected=['journal:prepared','stage-images','verify-stage','journal:images-staged','market-commit','journal:market-committed','image-commit','journal:images-committed','workspace-commit','journal:workspace-committed','stage-cleanup','journal-delete'];
+    need(JSON.stringify(calls)===JSON.stringify(expected),'Orden de commit restore inesperado: '+calls.join(' -> '));
+  }
+
+  {
+    const calls=[];let journalWrites=0;
+    const io={
+      journalPut:async j=>{journalWrites++;calls.push('journal:'+j.phase);if(j.phase==='market-committed')throw new Error('journal write after market commit failed');},
+      journalDelete:async()=>calls.push('journal-delete'),
+      stageImages:async()=>calls.push('stage-images'),
+      verifyStage:async()=>calls.push('verify-stage'),
+      replaceMarketData:async()=>calls.push('market-commit'),
+      finalizeImages:async()=>calls.push('image-commit'),
+      persistWorkspace:async()=>calls.push('workspace-commit'),
+      cleanupStage:async()=>calls.push('stage-cleanup')
+    };
+    let error=null;try{await context.protocol(prepared,io);}catch(e){error=e;}
+    need(!!error,'Fault injection posterior a Market Data no interrumpió el protocolo.');
+    need(calls.includes('market-commit')&&!calls.includes('workspace-commit'),'Fallo tras Market Data publicó workspace indebidamente.');
+    need(runtime.includes('trBackupV2MarketMatchesManifest'), 'El journal stale tras Market Data no tiene detección forward-recovery.');
+  }
+}
 
 if(fail.length){
   console.error('Backup V2 / Restore verification FAILED');

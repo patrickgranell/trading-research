@@ -33,11 +33,11 @@ vm.createContext(context);
 const names=[
   'importKey','ankoraCanonicalSource','ankoraSourceFingerprint','ankoraSourceIdentity',
   'ankoraOperationSourceIdentity','ankoraOperationSourceFingerprint','ankoraClassifyPreviewDrafts',
-  'operationFromDraft'
+  'operationFromDraft','importBatchOperations'
 ];
 try{
   vm.runInContext(names.map(n=>extractFunction(app,n)).join('\n')+
-    ';globalThis.__api={fp:ankoraSourceFingerprint,id:ankoraSourceIdentity,classify:ankoraClassifyPreviewDrafts,make:operationFromDraft};',context);
+    ';globalThis.__api={fp:ankoraSourceFingerprint,id:ankoraSourceIdentity,classify:ankoraClassifyPreviewDrafts,make:operationFromDraft,batchOps:importBatchOperations};',context);
 }catch(e){fail.push('No se pudo cargar implementación D10 real: '+e.message);}
 
 const api=context.__api;
@@ -118,7 +118,19 @@ if(api){
   need(d6a.importDisposition==='conflict'&&d6b.importDisposition==='conflict'&&!d6a.include&&!d6b.include,
     'D10 divergent same-identity rows in one file were auto-merged instead of conflict.');
 
-  // 7) Fingerprint is deterministic despite column insertion order.
+  // 7) Schema v5 batch resolves both inserted and updated affected IDs.
+  context.state.operations=[
+    {id:'new-1',importBatchId:'B-NEW'},
+    {id:'updated-old',importBatchId:'B-OLD'},
+    {id:'other',importBatchId:'B-OTHER'}
+  ];
+  const affected=api.batchOps({id:'B-NEW',schemaVersion:5,operationIds:['new-1','updated-old']}).map(o=>o.id).sort();
+  need(JSON.stringify(affected)===JSON.stringify(['new-1','updated-old']),
+    'D10 batch v5 no resuelve correctamente operaciones insertadas + actualizadas por operationIds.');
+  const legacy=api.batchOps({id:'B-OLD',schemaVersion:4}).map(o=>o.id);
+  need(legacy.length===1&&legacy[0]==='updated-old','D10 batch legacy perdió fallback por importBatchId.');
+
+  // 8) Fingerprint is deterministic despite column insertion order.
   const reordered={};
   for(const k of Object.keys(same).reverse())reordered[k]=same[k];
   need(api.fp(same)===api.fp(reordered),'D10 fingerprint depends on object column insertion order.');
@@ -129,6 +141,10 @@ need(app.includes('function ankoraClassifyPreviewDrafts('),'D10: falta clasifica
 need(app.includes("importDisposition:'insert'"),'D10: draft no declara política insert/update/skip/conflict.');
 need(app.includes('sourceFingerprint'),'D10: fingerprint no se persiste con la operación.');
 need(app.includes('function importBatchOperations('),'D10: batches de actualización no pueden resolver operaciones afectadas.');
+const effectiveBatchTable=app.slice(app.lastIndexOf('function importBatchTable(batches){'),app.indexOf('\nfunction viewImportBatchTrades(',app.lastIndexOf('function importBatchTable(batches){')));
+const effectiveBatchView=app.slice(app.indexOf('function viewImportBatchTrades(',app.lastIndexOf('function importBatchTable(batches){')),app.indexOf('\nfunction openImportBatchInspector(',app.indexOf('function viewImportBatchTrades(',app.lastIndexOf('function importBatchTable(batches){'))));
+need(effectiveBatchTable.includes('insertedCount')&&effectiveBatchTable.includes('updatedCount'),'D10: tabla efectiva de batches no distingue inserts/updates.');
+need(effectiveBatchView.includes('importBatchOperations(b)'),'D10: View trades efectivo no usa operationIds de schema v5.');
 need(app.includes('schemaVersion:5'),'D10: batch de reconciliación no está versionado como schema 5.');
 const effectiveConfirm=extractFunction(app,'confirmImportPreview');
 need(!effectiveConfirm.includes('state.operations.push(...rows);'),'D10: confirmación efectiva sigue insertando todas las filas ciegamente.');

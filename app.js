@@ -79,6 +79,15 @@ async function trCoreReplaceSnapshots(items){
 function trCoreStateRecord(payload,reason='persist'){
   return {id:TR_CORE_STATE_ID,payload:clone(payload),savedAt:new Date().toISOString(),reason,appVersion:TR_CORE_APP_VERSION};
 }
+function trCoreIsValidWorkspacePayload(payload){
+  return !!payload&&typeof payload==='object'&&!Array.isArray(payload)
+    &&Array.isArray(payload.operations)
+    &&Array.isArray(payload.opportunities)
+    &&Array.isArray(payload.importBatches)
+    &&!!payload.settings&&typeof payload.settings==='object'&&!Array.isArray(payload.settings)
+    &&Array.isArray(payload.settings.instruments)
+    &&Array.isArray(payload.tradingPlans)&&payload.tradingPlans.length>0;
+}
 async function trCorePersistNow(reason='persist'){
   const snapshot=clone(state);
   if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return false;}
@@ -115,7 +124,7 @@ async function trCoreBootstrap(){
   try{
     await trCoreOpenDb();
     const existing=await trCoreGet(TR_CORE_STATE_STORE,TR_CORE_STATE_ID);
-    const hasDurableWorkspace=!!existing?.payload;
+    const hasDurableWorkspace=trCoreIsValidWorkspacePayload(existing?.payload);
     let source=null,needsMarker=!trCoreBootHadMarker;
     if(hasDurableWorkspace){
       /* Storage authority is determined by durable data, never by the migration marker.

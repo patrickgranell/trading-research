@@ -62,7 +62,7 @@ if(compiled){
   };
   vm.createContext(context);
   let runtime=injectStructuredEventPlans(evt,compiled.plans);
-  runtime=runtime.replace('function trEventInstall(){','window.__trStructuredEventTest={invoke:trEventInvoke,diagnostics:trEventDiagnostics};\\nfunction trEventInstall(){');
+  runtime=runtime.replace('function trEventInstall(){','window.__trStructuredEventTest={invoke:trEventInvoke,diagnostics:trEventDiagnostics};\nfunction trEventInstall(){');
   try{vm.runInContext(runtime,context);}
   catch(e){fail.push('No se pudo ejecutar Event Runtime V31.24 en fixture: '+e.message);}
 

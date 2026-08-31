@@ -6375,13 +6375,86 @@ function v314DetectExecutionEnvironment(rows){
   const envs=new Set((rows||[]).map(r=>v314ClassifyExecutionEnvironment(r.account,r.connection)).filter(Boolean));
   if(envs.size>1)return 'mixed';return envs.size===1?[...envs][0]:null;
 }
+function v314ExecutionSide(action){
+  const s=String(action||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(s.startsWith('compr')||s==='buy'||s.startsWith('buy '))return 'BUY';
+  if(s.startsWith('vend')||s==='sell'||s.startsWith('sell '))return 'SELL';
+  return null;
+}
+function v314LedgerPositionKey(row){
+  const account=String(row?.account||'').trim().toLowerCase(),instrument=v314NormInstrument(row?.instrument);
+  return account+'\u0000'+instrument;
+}
+function v314LedgerFill(row,qty,role){
+  return {...row,qty:Number(qty),originalQty:Number(row?.qty)||Number(qty),ledgerRole:role};
+}
+function v314LedgerOpenPosition(row,side,qty){
+  const direction=side==='BUY'?'LONG':'SHORT',fill=v314LedgerFill(row,qty,'entry');
+  return {
+    id:uid('CAL'),key:v314LedgerPositionKey(row),account:String(row.account||'').trim(),instrument:row.instrument,direction,
+    openQuantity:Number(qty),weightedEntryPrice:Number(row.price),entryFills:[fill],exitFills:[],realizedMatches:[],
+    peakQuantity:Number(qty),totalEntryQuantity:Number(qty)
+  };
+}
+function v314LedgerFinalizePosition(pos){
+  const entryQty=pos.entryFills.reduce((s,x)=>s+(Number(x.qty)||0),0),exitQty=pos.exitFills.reduce((s,x)=>s+(Number(x.qty)||0),0);
+  const entryPrice=entryQty?pos.entryFills.reduce((s,x)=>s+(Number(x.price)||0)*(Number(x.qty)||0),0)/entryQty:Number(pos.weightedEntryPrice)||0;
+  const exitPrice=exitQty?pos.exitFills.reduce((s,x)=>s+(Number(x.price)||0)*(Number(x.qty)||0),0)/exitQty:0;
+  const first=pos.entryFills[0],last=pos.exitFills[pos.exitFills.length-1];
+  return {
+    id:pos.id,ledgerVersion:1,positionKey:pos.key,account:pos.account,instrument:pos.instrument,direction:pos.direction,
+    entryRows:pos.entryFills,exitRows:pos.exitFills,realizedMatches:pos.realizedMatches,
+    quantity:Number(pos.peakQuantity)||entryQty,peakQuantity:Number(pos.peakQuantity)||entryQty,totalEntryQuantity:entryQty,
+    entryPrice,exitPrice,entryWallMs:first?.wallMs,exitWallMs:last?.wallMs,entryTimeText:first?.timeText||'',exitTimeText:last?.timeText||'',exitName:last?.name||''
+  };
+}
+function v314BuildPositionLedger(rows){
+  const positions=new Map(),trades=[],invalidRows=[],EPS=1e-9;
+  for(const row of rows||[]){
+    const side=v314ExecutionSide(row.action);
+    if(!side){invalidRows.push({row,reason:'unknown_action'});continue;}
+    const key=v314LedgerPositionKey(row);let pos=positions.get(key)||null,remaining=Number(row.qty)||0;
+    if(!(remaining>EPS)){invalidRows.push({row,reason:'invalid_quantity'});continue;}
+    const sideDirection=side==='BUY'?'LONG':'SHORT';
+    if(!pos){
+      if(String(row.exType||'').trim().toLowerCase()==='salida'){invalidRows.push({row,reason:'unmatched_exit'});continue;}
+      positions.set(key,v314LedgerOpenPosition(row,side,remaining));continue;
+    }
+    if(pos.direction===sideDirection){
+      const nextQty=pos.openQuantity+remaining;
+      pos.weightedEntryPrice=((pos.weightedEntryPrice*pos.openQuantity)+(Number(row.price)*remaining))/nextQty;
+      pos.openQuantity=nextQty;pos.entryFills.push(v314LedgerFill(row,remaining,'entry'));pos.totalEntryQuantity+=remaining;pos.peakQuantity=Math.max(pos.peakQuantity,nextQty);
+      continue;
+    }
+    while(pos&&remaining>EPS){
+      const closingQty=Math.min(pos.openQuantity,remaining),exitFill=v314LedgerFill(row,closingQty,'exit');
+      pos.exitFills.push(exitFill);
+      pos.realizedMatches.push({direction:pos.direction,qty:closingQty,entryPrice:pos.weightedEntryPrice,exitPrice:Number(row.price),executionId:row.executionId||'',orderId:row.orderId||'',wallMs:row.wallMs});
+      pos.openQuantity=Math.max(0,pos.openQuantity-closingQty);remaining=Math.max(0,remaining-closingQty);
+      if(pos.openQuantity<=EPS){
+        trades.push(v314LedgerFinalizePosition(pos));positions.delete(key);pos=null;
+        if(remaining>EPS){pos=v314LedgerOpenPosition(row,side,remaining);positions.set(key,pos);}
+      }
+    }
+  }
+  const openPositions=[...positions.values()].map(p=>({...p,entryRows:p.entryFills,exitRows:p.exitFills}));
+  return {trades,openPositions,unclosed:openPositions.length,openQuantity:openPositions.reduce((s,p)=>s+p.openQuantity,0),invalidRows};
+}
 function v314ParseExecutionCsv(text,fileName){
   const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter(x=>x.trim());if(lines.length<2)throw new Error('El Grid no contiene ejecuciones.');
   const header=v314CsvSplit(lines[0]).map(x=>x.trim()),idx=n=>header.indexOf(n),required=['Instrumento','Acción','Cantidad','Precio','Tiempo','E/X'];for(const k of required)if(idx(k)<0)throw new Error(`Falta la columna ${k}.`);
-  const rows=[];for(const line of lines.slice(1)){const v=v314CsvSplit(line),wall=v314ParseWallDate(v[idx('Tiempo')]);if(!Number.isFinite(wall))continue;const price=v314Num(v[idx('Precio')]),qty=v314Num(v[idx('Cantidad')]);if(!Number.isFinite(price)||!Number.isFinite(qty)||qty<=0)continue;rows.push({instrument:String(v[idx('Instrumento')]||'').trim(),action:String(v[idx('Acción')]||'').trim(),qty,price,timeText:String(v[idx('Tiempo')]||'').trim(),wallMs:wall,exType:String(v[idx('E/X')]||'').trim(),position:idx('Posición')>=0?String(v[idx('Posición')]||'').trim():'',name:idx('Nombre')>=0?String(v[idx('Nombre')]||'').trim():'',executionId:idx('ID')>=0?String(v[idx('ID')]||'').trim():'',orderId:idx('ID de orden')>=0?String(v[idx('ID de orden')]||'').trim():'',account:idx('Cuenta')>=0?String(v[idx('Cuenta')]||'').trim():'',connection:idx('Conexión')>=0?String(v[idx('Conexión')]||'').trim():''});}
-  rows.sort((a,b)=>a.wallMs-b.wallMs);if(!rows.length)throw new Error('No se encontraron filas de ejecución válidas.');
-  const open=[],trades=[];for(const r of rows){if(r.exType.toLowerCase()==='entrada'){const dir=r.action.toLowerCase().startsWith('compr')?'LONG':'SHORT';open.push({id:uid('CAL'),instrument:r.instrument,direction:dir,entryRows:[r],exitRows:[],quantity:r.qty,remaining:r.qty});continue;}if(r.exType.toLowerCase()!=='salida')continue;let j=-1;for(let k=open.length-1;k>=0;k--){const o=open[k],opposite=o.direction==='LONG'?r.action.toLowerCase().startsWith('vend'):r.action.toLowerCase().startsWith('compr');if(v314NormInstrument(o.instrument)===v314NormInstrument(r.instrument)&&opposite&&o.remaining>0){j=k;break;}}if(j<0)continue;const o=open[j];o.exitRows.push(r);o.remaining=Math.max(0,o.remaining-r.qty);if(o.remaining<=1e-9){const ew=o.entryRows.reduce((s,x)=>s+x.price*x.qty,0)/o.entryRows.reduce((s,x)=>s+x.qty,0),xw=o.exitRows.reduce((s,x)=>s+x.price*x.qty,0)/o.exitRows.reduce((s,x)=>s+x.qty,0);trades.push({...o,entryPrice:ew,exitPrice:xw,entryWallMs:o.entryRows[0].wallMs,exitWallMs:o.exitRows[o.exitRows.length-1].wallMs,entryTimeText:o.entryRows[0].timeText,exitTimeText:o.exitRows[o.exitRows.length-1].timeText,exitName:o.exitRows[o.exitRows.length-1].name});open.splice(j,1);}}
-  return {rows,trades,unclosed:open.length,sourceFile:fileName||'',executionEnvironment:v314DetectExecutionEnvironment(rows)};
+  const rows=[],invalidActions=[];
+  for(let lineIndex=1;lineIndex<lines.length;lineIndex++){
+    const line=lines[lineIndex],v=v314CsvSplit(line),wall=v314ParseWallDate(v[idx('Tiempo')]);if(!Number.isFinite(wall))continue;
+    const price=v314Num(v[idx('Precio')]),qty=v314Num(v[idx('Cantidad')]);if(!Number.isFinite(price)||!Number.isFinite(qty)||qty<=0)continue;
+    const action=String(v[idx('Acción')]||'').trim(),side=v314ExecutionSide(action);
+    const row={instrument:String(v[idx('Instrumento')]||'').trim(),action,side,qty,price,timeText:String(v[idx('Tiempo')]||'').trim(),wallMs:wall,exType:String(v[idx('E/X')]||'').trim(),position:idx('Posición')>=0?String(v[idx('Posición')]||'').trim():'',name:idx('Nombre')>=0?String(v[idx('Nombre')]||'').trim():'',executionId:idx('ID')>=0?String(v[idx('ID')]||'').trim():'',orderId:idx('ID de orden')>=0?String(v[idx('ID de orden')]||'').trim():'',account:idx('Cuenta')>=0?String(v[idx('Cuenta')]||'').trim():'',connection:idx('Conexión')>=0?String(v[idx('Conexión')]||'').trim():'',sourceLine:lineIndex+1};
+    if(!side){invalidActions.push(row);continue;}rows.push(row);
+  }
+  if(invalidActions.length){const sample=invalidActions.slice(0,5).map(r=>`línea ${r.sourceLine}: "${r.action||'(vacía)'}"`).join(', ');throw new Error(`Acción de ejecución no reconocida (${invalidActions.length}): ${sample}. Importación cancelada.`);}
+  rows.sort((a,b)=>a.wallMs-b.wallMs||a.sourceLine-b.sourceLine);if(!rows.length)throw new Error('No se encontraron filas de ejecución válidas.');
+  const ledger=v314BuildPositionLedger(rows);
+  return {rows,trades:ledger.trades,unclosed:ledger.unclosed,openPositions:ledger.openPositions,openQuantity:ledger.openQuantity,invalidRows:ledger.invalidRows,ledgerVersion:1,sourceFile:fileName||'',executionEnvironment:v314DetectExecutionEnvironment(rows)};
 }
 function v314LowerBoundTicks(ticks,ms){let lo=0,hi=ticks.length;while(lo<hi){const mid=(lo+hi)>>1;if(ticks[mid][0]<ms)lo=mid+1;else hi=mid;}return lo;}
 function v314FindFill(ticks,nominalMs,price,action,tickSize=.01,windowSec=3){
@@ -6525,7 +6598,14 @@ function v316EligibleOp(o){return o&&o.tradingPlanId===state.currentPlanId&&o.ra
 function v316WallInput(ms){if(!Number.isFinite(Number(ms)))return '';const d=new Date(Number(ms)),p=n=>String(n).padStart(2,'0');return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;}
 function v316InputWallMs(s){const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)):NaN;}
 function v316InstrumentTickSize(instrument){const root=v314NormInstrument(instrument).split(' ')[0],inst=(state.settings?.instruments||[]).find(x=>String(x.symbol||'').toUpperCase()===root);return Number(inst?.tickSize)||.01;}
-function v316AggregateTicks(trade,tickSize){const q=Math.max(1,Number(trade?.quantity)||1),e=Number(trade?.entryPrice)||0;if(Array.isArray(trade?.exitRows)&&trade.exitRows.length){return trade.exitRows.reduce((s,x)=>{const t=trade.direction==='LONG'?(Number(x.price)-e):(e-Number(x.price));return s+(t/tickSize)*(Number(x.qty)||0);},0);}const per=trade.direction==='LONG'?(Number(trade.exitPrice)-e):(e-Number(trade.exitPrice));return per/tickSize*q;}
+function v316AggregateTicks(trade,tickSize){
+  if(Array.isArray(trade?.realizedMatches)&&trade.realizedMatches.length){
+    return trade.realizedMatches.reduce((s,m)=>{const e=Number(m.entryPrice)||0,x=Number(m.exitPrice)||0,q=Number(m.qty)||0,d=m.direction==='LONG'?(x-e):(e-x);return s+(d/tickSize)*q;},0);
+  }
+  const q=Math.max(1,Number(trade?.quantity)||1),e=Number(trade?.entryPrice)||0;
+  if(Array.isArray(trade?.exitRows)&&trade.exitRows.length){return trade.exitRows.reduce((s,x)=>{const t=trade.direction==='LONG'?(Number(x.price)-e):(e-Number(x.price));return s+(t/tickSize)*(Number(x.qty)||0);},0);}
+  const per=trade.direction==='LONG'?(Number(trade.exitPrice)-e):(e-Number(trade.exitPrice));return per/tickSize*q;
+}
 function v316ExecKey(set,trade){return `${set?.id||''}:${trade?.id||''}`;}
 function v316LinkedOpFor(set,trade){const key=v316ExecKey(set,trade);return state.operations.find(o=>o.executionEvidence?.executionKey===key)||null;}
 function v316CanMatchEnvironment(op,set){const opEnv=v316Env(op),setEnv=v316EnvForSet(set);return opEnv==='pending'||opEnv===setEnv;}

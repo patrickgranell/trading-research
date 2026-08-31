@@ -1,6 +1,7 @@
 import fs from 'node:fs';
+import {transformStyleAttrs,styleTransformSelfTest} from './html-style-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
-const files=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js','index.html'];
+const files=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','render-closure-runtime.js','index.html'];
 const text=files.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 const inlineAttributes=[...text.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const cssomWrites=[...text.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...text.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;
@@ -28,15 +29,19 @@ need(!/\.style\.cssText\s*=/.test(boundary),'Boundary runtime usa cssText, incom
 need(!/setAttribute\s*\(\s*["']style["']/.test(boundary),'Boundary runtime usa setAttribute(style), incompatible con style-src-attr none.');
 need(runtime.includes("const TR_STYLE_RUNTIME_VERSION='31.22.0'"),'Diagnóstico style runtime con versión incorrecta.');
 need(runtime.includes('effectiveInlineAttributes'),'Diagnóstico no muestra atributos style efectivos.');
-need(build.includes('transformStyleAttrs'),'Build no transforma atributos style históricos.');
-need(build.includes("style-src-attr 'none'"),'Build no activa la política estricta de style attrs.');
+need(build.includes("from './html-style-transform.mjs'"),'Build no usa el scanner dedicado de atributos style.');
+need(build.includes("kind:'open-tag-context-scanner'"),'Inventario de build no identifica el transformador context-aware.');
+const self=styleTransformSelfTest();need(self.ok,`Self-test del style scanner falló: ${JSON.stringify(self.failures)}`);
+const prose='const note = "style=\\"color:red\\"";';need(transformStyleAttrs(prose).converted===0,'El scanner altera style= fuera de un tag HTML.');
+const codeExample='Documentation: style="color:red"';need(transformStyleAttrs(codeExample).source===codeExample,'El scanner altera texto explicativo sin tag.');
 need(inlineAttributes>0,'La prueba esperaba deuda histórica en fuente para comprobar la transformación.');
 need(cssomWrites>0,'La prueba esperaba escrituras CSSOM directas existentes; son compatibles con style-src-attr none.');
 if(fail.length){console.error('Style boundary verification FAILED');for(const f of fail)console.error(' - '+f);process.exit(1);}
 console.log('Style boundary verification OK');
 console.log(` - Legacy source style attributes: ${inlineAttributes}`);
 console.log(` - Direct CSSOM writes in source: ${cssomWrites}`);
-console.log(' - Build-time style attribute transform: enabled');
+console.log(' - Build-time style transform: context-aware opening-tag scanner');
+console.log(' - Scanner self-test: prose/code outside HTML tags preserved');
 console.log(' - Runtime token hydration: enabled');
 console.log(' - Empty dynamic style values: harmless no-op, still observable in diagnostics');
 console.log(" - CSP target: style-src-attr 'none'");

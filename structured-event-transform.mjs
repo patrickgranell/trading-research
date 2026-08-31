@@ -185,7 +185,7 @@ export function injectStructuredEventPlans(source,plans){
 export function structuredEventTransformSelfTest(){
   const failures=[];let dynamicActionRejected=0;
   try{
-    const input='function row(o){return `<button data-tr-onclick="viewOperation(\\'${o.id}\\')">Ver</button>`;}';
+    const input="function row(o){return `<button data-tr-onclick=\"viewOperation('${o.id}')\">Ver</button>`;}" ;
     const got=transformStructuredEventSources([{name:'fixture.js',source:input}]),src=got.sources['fixture.js'];
     if(!src.includes('data-tr-action-click="__tr_evt_'))failures.push('action attr missing');
     if(!src.includes('encodeURIComponent(JSON.stringify([o.id]))'))failures.push('safe args serialization missing');
@@ -194,7 +194,7 @@ export function structuredEventTransformSelfTest(){
     if(encoded.includes('PWN()'))failures.push('malicious value was not encoded as inert data');
     const planText=JSON.stringify(got.plans);if((planText.match(/viewOperation/g)||[]).length!==1||planText.includes('PWN'))failures.push('malicious value altered compiled plan');
   }catch(e){failures.push('basic fixture: '+e.message);}
-  try{transformStructuredEventSources([{name:'dynamic.js',source:'const x=`<button data-tr-onclick="${action}">X</button>`;'}]);failures.push('dynamic action was accepted');}
+  try{transformStructuredEventSources([{name:'dynamic.js',source:"const x=`<button data-tr-onclick=\"${action}\">X</button>`;"}]);failures.push('dynamic action was accepted');}
   catch(e){dynamicActionRejected=Number(e.dynamicActionRejected)||1;}
   return {ok:failures.length===0,failures,dynamicActionRejected};
 }

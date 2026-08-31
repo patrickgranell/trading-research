@@ -10,8 +10,11 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const baseline=JSON.parse(fs.readFileSync('financial-regression-baseline.json','utf8'));
 const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-const expectedAppSha='998403b8cce5c5931c2959f8e5fc12e1ac72e46e21be72ad7c5a03fbaf9caddd';
-if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el delta de Event Delegation V31.19 validado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
+/* Full-source freeze: this proves exact source identity only. Storage Authority
+ * semantics are verified independently by verify-storage-authority.mjs. Rebaseline
+ * this hash only after reviewing the complete intended app.js delta. */
+const expectedAppSha='ff6e2637fc5d46a17156fbe8f2597f9904d87ed8fded4f906c71f3614bbabbc1';
+if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D01 auditado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.23.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
@@ -71,7 +74,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got.slice(0,10)} != ${want.slice(0,10)}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: V31.19 event-delegation delta hash validated');
+console.log(' - app.js: exact-source freeze V31.24 D01 validated');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

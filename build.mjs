@@ -21,7 +21,7 @@ const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
@@ -44,6 +44,7 @@ const replacements=[
   ['structural-runtime.js','data-tr-structural-runtime',bundledScript('structural-runtime.js')],
   ['state-runtime.js','data-tr-state-runtime',bundledState],
   ['persistence-coalescing-runtime.js','data-tr-persistence-coalescing-runtime',bundledScript('persistence-coalescing-runtime.js')],
+  ['backup-v2-runtime.js','data-tr-backup-v2-runtime',bundledScript('backup-v2-runtime.js')],
   ['security-runtime.js','data-tr-security-runtime',bundledScript('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledScript('event-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledScript('csp-runtime.js')],
@@ -52,7 +53,7 @@ const replacements=[
   ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledScript('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','render-closure-runtime.js','index.html'];
+const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','render-closure-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;

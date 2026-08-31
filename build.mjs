@@ -9,9 +9,11 @@ import {migrateStateActionsToRegistry} from './state-registry-migration-transfor
 import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
 import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
 import {transformStyleAttrs,styleTransformSelfTest} from './html-style-transform.mjs';
+import {transformStructuredEventSources,structuredEventTransformSelfTest,injectStructuredEventPlans} from './structured-event-transform.mjs';
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const v=pkg.version;
 const styleSelfTest=styleTransformSelfTest();if(!styleSelfTest.ok)throw new Error(`Style transform self-test failed: ${JSON.stringify(styleSelfTest.failures)}`);
+const structuredEventSelfTest=structuredEventTransformSelfTest();if(!structuredEventSelfTest.ok)throw new Error(`Structured event transform self-test failed: ${JSON.stringify(structuredEventSelfTest.failures)}`);
 fs.rmSync('dist',{recursive:true,force:true});
 fs.mkdirSync('dist',{recursive:true});
 let h=fs.readFileSync('index.html','utf8');
@@ -29,29 +31,40 @@ const stateRegistryMigration=migrateStateActionsToRegistry(appGlobalPrune.source
 const uiRegistryMigration=migrateUiHandlersToRegistry(stateRegistryMigration.source);
 const residualMirrorClosure=closeResidualDirectMirrors(uiRegistryMigration.source);
 const dynamicActionInventory=appGlobalPrune.inventory.dynamicActionGuard;
-const appStyleTransform=transformStyleAttrs(residualMirrorClosure.source);
-const bundledApp=safeScript(appStyleTransform.source);
 const stateSource=rawScript('state-runtime.js');
 const stateActionBridge=transformStateActions(stateSource);
-const stateStyleTransform=transformStyleAttrs(stateActionBridge.source);
-const bundledState=safeScript(stateStyleTransform.source);
 const contractMapRuntimeSources=appGlobalPruneRuntimeFiles.map(file=>file==='state-runtime.js'?stateActionBridge.source:rawScript(file));
 const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source,{runtimeSources:contractMapRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
+
+/* V31.24 D04/D11: compile historical handler programs at BUILD TIME only.
+ * Runtime receives static plan IDs plus URI-encoded JSON values. */
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
+preEventSources['app.js']=residualMirrorClosure.source;
+const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
+structuredEventTransform.sources['event-runtime.js']=injectStructuredEventPlans(structuredEventTransform.sources['event-runtime.js'],structuredEventTransform.plans);
+const structuredEventInventory={version:v,selfTest:true,...structuredEventTransform.inventory};
+const styleTransformedSources=Object.fromEntries(Object.entries(structuredEventTransform.sources).map(([file,source])=>[file,transformStyleAttrs(source)]));
+const bundledSource=file=>safeScript(styleTransformedSources[file].source);
+const appStyleTransform=styleTransformedSources['app.js'];
+const stateStyleTransform=styleTransformedSources['state-runtime.js'];
+const bundledApp=bundledSource('app.js');
+const bundledState=bundledSource('state-runtime.js');
 const replacements=[
   ['app.js','data-tr-build',bundledApp],
-  ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledScript('style-attr-runtime.js')],
-  ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledScript('reports-purity-runtime.js')],
-  ['structural-runtime.js','data-tr-structural-runtime',bundledScript('structural-runtime.js')],
+  ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledSource('style-attr-runtime.js')],
+  ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledSource('reports-purity-runtime.js')],
+  ['structural-runtime.js','data-tr-structural-runtime',bundledSource('structural-runtime.js')],
   ['state-runtime.js','data-tr-state-runtime',bundledState],
-  ['persistence-coalescing-runtime.js','data-tr-persistence-coalescing-runtime',bundledScript('persistence-coalescing-runtime.js')],
-  ['backup-v2-runtime.js','data-tr-backup-v2-runtime',bundledScript('backup-v2-runtime.js')],
-  ['security-runtime.js','data-tr-security-runtime',bundledScript('security-runtime.js')],
-  ['event-runtime.js','data-tr-event-runtime',bundledScript('event-runtime.js')],
-  ['csp-runtime.js','data-tr-csp-runtime',bundledScript('csp-runtime.js')],
-  ['style-runtime.js','data-tr-style-runtime',bundledScript('style-runtime.js')],
-  ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledScript('operation-cleanup-runtime.js')],
-  ['blob-lifecycle-runtime.js','data-tr-blob-lifecycle-runtime',bundledScript('blob-lifecycle-runtime.js')],
-  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledScript('render-closure-runtime.js')],
+  ['persistence-coalescing-runtime.js','data-tr-persistence-coalescing-runtime',bundledSource('persistence-coalescing-runtime.js')],
+  ['backup-v2-runtime.js','data-tr-backup-v2-runtime',bundledSource('backup-v2-runtime.js')],
+  ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
+  ['event-runtime.js','data-tr-event-runtime',bundledSource('event-runtime.js')],
+  ['csp-runtime.js','data-tr-csp-runtime',bundledSource('csp-runtime.js')],
+  ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
+  ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],
+  ['blob-lifecycle-runtime.js','data-tr-blob-lifecycle-runtime',bundledSource('blob-lifecycle-runtime.js')],
+  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
 const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
@@ -103,6 +116,7 @@ fs.writeFileSync('dist/residual-mirror-closure-inventory.json',JSON.stringify(re
 fs.writeFileSync('dist/dynamic-action-inventory.json',JSON.stringify({version:v,...dynamicActionInventory},null,2)+'\n');
 fs.writeFileSync('dist/prune-candidate-inventory.json',JSON.stringify(pruneCandidateManifest,null,2)+'\n');
 fs.writeFileSync('dist/remaining-global-contract-map.json',JSON.stringify(remainingContractManifest,null,2)+'\n');
+fs.writeFileSync('dist/structured-event-inventory.json',JSON.stringify(structuredEventInventory,null,2)+'\n');
 console.log(`Built Trading Research ${v} -> dist/index.html`);
 console.log(`Generated CSP -> dist/_headers (${scriptHashes.length} script hashes + 1 style hash)`);
 console.log(`Style boundary -> ${styleInlineAttributes} legacy attrs inventoried; ${effectiveInlineAttributes} effective inline attrs`);
@@ -117,3 +131,4 @@ console.log(`Residual Mirror Closure V31.23.48 -> ${residualMirrorClosure.invent
 console.log(`Prune Candidate Closure -> ${pruneCandidates.safeCandidateCount} contract-safe explicit candidates remain`);
 console.log(`Remaining Global Contract Map -> ${remainingContracts.classified}/${remainingContracts.remainingUnique} classified; primary State ${remainingContracts.byPrimary['state-action']||0}, handler ${remainingContracts.byPrimary['ui-handler']||0}, dynamic ${remainingContracts.byPrimary['dynamic-action']||0}; State frontier ${remainingContracts.names.migrationFrontiers.stateOnly.length}; handler frontier ${remainingContracts.names.migrationFrontiers.handlerOnly.length}; cross-runtime ${remainingContracts.coverage.crossRuntimeRead}`);
 console.log(`Dynamic Action Guard -> ${dynamicActionInventory.dynamicHandlerSlots} dynamic handler slots; ${dynamicActionInventory.dynamicCandidateRoots} candidate roots; ${dynamicActionInventory.protectedDynamicGlobals} protected exported globals`);
+console.log(`Structured Event Boundary -> ${structuredEventInventory.converted} handlers compiled to ${structuredEventInventory.uniquePlans} static plans; ${structuredEventInventory.dynamicSlots} value slots; ${structuredEventInventory.dynamicActionRejected} dynamic actions rejected`);

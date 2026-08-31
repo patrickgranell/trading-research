@@ -81,7 +81,7 @@ if(compiled){
     const asyncEl=makeEl({'data-tr-action-click':'asyncBoom'});
     try{context.__trStructuredEventTest.invoke('asyncBoom',asyncEl,event,'click');}
     catch(e){fail.push('Invocación async D11 lanzó síncronamente: '+e.message);}
-    await Promise.resolve();await Promise.resolve();
+    await Promise.resolve();await new Promise(resolve=>setTimeout(resolve,0));
     const d=context.__trStructuredEventTest.diagnostics();
     need(d.asyncObserved>=1,'D11: Promise async no fue observada.');
     need(d.asyncRejections===1,`D11: rejection async esperada 1, obtenida ${d.asyncRejections}.`);

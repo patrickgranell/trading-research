@@ -6333,6 +6333,31 @@ const V314_DB_NAME='tradingResearchMarketDataV2';
 const V314_DB_VERSION=1;
 const v314MarketUi={metas:[],execSets:[],activeMarketId:'',activeExecId:'',loading:false,status:'',error:''};
 const v314TickCache=new Map();
+const V314_TICK_CACHE_MAX_DATASETS=2;
+const V314_TICK_CACHE_MAX_TICKS=2000000;
+let v314TickCacheTicks=0;
+let v314TickCacheEvictions=0;
+function v314TickCacheCount(ticks){return Math.max(0,Number(ticks?.length)||0);}
+function v314TickCacheGet(id){
+  if(!v314TickCache.has(id))return null;
+  const ticks=v314TickCache.get(id);v314TickCache.delete(id);v314TickCache.set(id,ticks);return ticks;
+}
+function v314TickCachePut(id,ticks){
+  const count=v314TickCacheCount(ticks);
+  if(v314TickCache.has(id)){v314TickCacheTicks=Math.max(0,v314TickCacheTicks-v314TickCacheCount(v314TickCache.get(id)));v314TickCache.delete(id);}
+  if(count>V314_TICK_CACHE_MAX_TICKS)return ticks;
+  v314TickCache.set(id,ticks);v314TickCacheTicks+=count;
+  while(v314TickCache.size>V314_TICK_CACHE_MAX_DATASETS||v314TickCacheTicks>V314_TICK_CACHE_MAX_TICKS){
+    const oldest=v314TickCache.keys().next().value;if(oldest===undefined)break;
+    const prior=v314TickCache.get(oldest);v314TickCache.delete(oldest);v314TickCacheTicks=Math.max(0,v314TickCacheTicks-v314TickCacheCount(prior));v314TickCacheEvictions++;
+  }
+  return ticks;
+}
+function v314TickCacheDelete(id){
+  if(!v314TickCache.has(id))return false;
+  v314TickCacheTicks=Math.max(0,v314TickCacheTicks-v314TickCacheCount(v314TickCache.get(id)));return v314TickCache.delete(id);
+}
+function v314TickCacheInfo(){return {datasets:v314TickCache.size,ticks:v314TickCacheTicks,maxDatasets:V314_TICK_CACHE_MAX_DATASETS,maxTicks:V314_TICK_CACHE_MAX_TICKS,evictions:v314TickCacheEvictions};}
 
 function v314Db(){
   return new Promise((resolve,reject)=>{
@@ -6476,15 +6501,15 @@ function v314CalculateTrade(trade,ticks,tickSize,offsetHours){
   const warnings=[];if(realizedTicks>0&&mfe+0.51<realizedTicks)warnings.push('MFE Last menor que el resultado realizado: revisar microestructura/fill.');if(realizedTicks<0&&mae+0.51<Math.abs(realizedTicks))warnings.push('MAE Last menor que la pérdida realizada: revisar microestructura/fill.');
   return {...trade,entryMatch:entry,exitMatch:exit,quality:q,realizedTicks,mfeTicks:mfe,maeTicks:mae,ticksProcessed:exit.i-entry.i+1,minLast:min,maxLast:max,warning:warnings.join(' ')};
 }
-async function v314LoadTicks(id){if(v314TickCache.has(id))return v314TickCache.get(id);const rec=await v314StoreGet('marketTicks',id),ticks=rec?.ticks||[];v314TickCache.set(id,ticks);return ticks;}
+async function v314LoadTicks(id){const cached=v314TickCacheGet(id);if(cached!==null)return cached;const rec=await v314StoreGet('marketTicks',id),ticks=rec?.ticks||[];v314TickCachePut(id,ticks);return ticks;}
 async function v314RefreshMarketDataState(){try{v314MarketUi.metas=(await v314StoreAll('marketMeta')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));v314MarketUi.execSets=(await v314StoreAll('execSets')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));if(!v314MarketUi.activeMarketId&&v314MarketUi.metas[0])v314MarketUi.activeMarketId=v314MarketUi.metas[0].id;if(!v314MarketUi.activeExecId&&v314MarketUi.execSets[0])v314MarketUi.activeExecId=v314MarketUi.execSets[0].id;}catch(e){v314MarketUi.error=e.message||String(e);}if(currentView==='market')render();}
 function v314SelectMarket(id){v314MarketUi.activeMarketId=id;render();}
 function v314SelectExec(id){v314MarketUi.activeExecId=id;render();}
-async function v314ImportMarketFile(file){if(!file)return;v314MarketUi.loading=true;v314MarketUi.status=`Leyendo ${file.name}…`;render();try{const text=await file.text(),lines=text.split(/\r?\n/),ticks=[];let bad=0;for(const line of lines){if(!line.trim())continue;const r=v314ParseMarketLine(line);if(r)ticks.push(r);else bad++;}if(ticks.length<10)throw new Error('No se reconoce el formato Tick/Tick Replay de NinjaTrader.');if(ticks.length>2000000)throw new Error('El archivo supera 2.000.000 de registros; divide el histórico antes de importarlo.');ticks.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const instrument=v314InstrumentFromFile(file.name),id=uid('MD'),tickSize=v314InferTickSize(instrument,ticks),meta={id,instrument,sourceFile:file.name,format:'NinjaTrader Tick Replay · Last/Bid/Ask/Vol',rowCount:ticks.length,badRows:bad,startMs:ticks[0][0],endMs:ticks[ticks.length-1][0],tickSize,createdAt:new Date().toISOString()};await v314StorePut('marketMeta',meta);await v314StorePut('marketTicks',{id,ticks});v314TickCache.set(id,ticks);v314MarketUi.activeMarketId=id;v314MarketUi.status=`${ticks.length.toLocaleString('es-ES')} ticks importados.`;await v314RefreshMarketDataState();}catch(e){v314MarketUi.error=e.message||String(e);}finally{v314MarketUi.loading=false;render();}}
+async function v314ImportMarketFile(file){if(!file)return;v314MarketUi.loading=true;v314MarketUi.status=`Leyendo ${file.name}…`;render();try{const text=await file.text(),lines=text.split(/\r?\n/),ticks=[];let bad=0;for(const line of lines){if(!line.trim())continue;const r=v314ParseMarketLine(line);if(r)ticks.push(r);else bad++;}if(ticks.length<10)throw new Error('No se reconoce el formato Tick/Tick Replay de NinjaTrader.');if(ticks.length>2000000)throw new Error('El archivo supera 2.000.000 de registros; divide el histórico antes de importarlo.');ticks.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const instrument=v314InstrumentFromFile(file.name),id=uid('MD'),tickSize=v314InferTickSize(instrument,ticks),meta={id,instrument,sourceFile:file.name,format:'NinjaTrader Tick Replay · Last/Bid/Ask/Vol',rowCount:ticks.length,badRows:bad,startMs:ticks[0][0],endMs:ticks[ticks.length-1][0],tickSize,createdAt:new Date().toISOString()};await v314StorePut('marketMeta',meta);await v314StorePut('marketTicks',{id,ticks});v314TickCachePut(id,ticks);v314MarketUi.activeMarketId=id;v314MarketUi.status=`${ticks.length.toLocaleString('es-ES')} ticks importados.`;await v314RefreshMarketDataState();}catch(e){v314MarketUi.error=e.message||String(e);}finally{v314MarketUi.loading=false;render();}}
 async function v314ImportExecFile(file){if(!file)return;v314MarketUi.loading=true;v314MarketUi.status=`Leyendo ${file.name}…`;render();try{const parsed=v314ParseExecutionCsv(await file.text(),file.name),env=parsed.executionEnvironment;if(env==='mixed')throw new Error('El Grid mezcla ejecuciones de más de un entorno (Replay/Sim/Live). Exporta e importa cada entorno por separado.');if(!['replay','sim','live'].includes(env))throw new Error('No se pudo determinar el entorno del Grid. Exporta desde NinjaTrader incluyendo las columnas Cuenta y Conexión.');const id=uid('EX'),set={id,sourceFile:file.name,createdAt:new Date().toISOString(),rows:parsed.rows,trades:parsed.trades,unclosed:parsed.unclosed,marketDatasetId:'',offsetHours:null,offsetDetection:null,results:[],executionEnvironment:env,environmentSchemaVersion:1,environmentSource:'ninjatrader_csv'};const market=v314MarketUi.metas.find(m=>parsed.trades.some(t=>v314NormInstrument(t.instrument)===v314NormInstrument(m.instrument)))||v314MarketUi.metas.find(m=>m.id===v314MarketUi.activeMarketId);if(market){const ticks=await v314LoadTicks(market.id),det=v314DetectOffset(parsed.rows,ticks,market.tickSize||.01);set.marketDatasetId=market.id;set.offsetHours=det.offset;set.offsetDetection=det;set.results=parsed.trades.map(t=>v314CalculateTrade(t,ticks,market.tickSize||.01,det.offset));v314MarketUi.activeMarketId=market.id;}await v314StorePut('execSets',set);v314MarketUi.activeExecId=id;v314MarketUi.status=`${parsed.trades.length} trades importados · ${env==='replay'?'Replay':env==='sim'?'Sim':'Live'}.`;await v314RefreshMarketDataState();}catch(e){v314MarketUi.error=e.message||String(e);}finally{v314MarketUi.loading=false;render();}}
 async function v314RecalculateExec(id=v314MarketUi.activeExecId,manualOffset=null){const set=await v314StoreGet('execSets',id),meta=v314MarketUi.metas.find(x=>x.id===v314MarketUi.activeMarketId)||v314MarketUi.metas.find(x=>x.id===set?.marketDatasetId);if(!set||!meta)return alert('Selecciona un Grid de ejecuciones y un histórico de mercado.');v314MarketUi.loading=true;render();try{const ticks=await v314LoadTicks(meta.id),det=manualOffset===null?v314DetectOffset(set.rows,ticks,meta.tickSize||.01):{offset:Number(manualOffset),matches:null,totalDelta:null};set.marketDatasetId=meta.id;set.offsetHours=det.offset;set.offsetDetection=det;set.results=set.trades.map(t=>v314CalculateTrade(t,ticks,meta.tickSize||.01,det.offset));await v314StorePut('execSets',set);await v314RefreshMarketDataState();}catch(e){alert('No se pudo recalcular: '+(e.message||e));}finally{v314MarketUi.loading=false;render();}}
 async function v314ApplyManualOffset(){const v=Number(document.getElementById('v314-offset')?.value);if(!Number.isFinite(v)||v<-12||v>14)return alert('Introduce un desfase entre −12 y +14 horas.');await v314RecalculateExec(v314MarketUi.activeExecId,v);}
-async function v314DeleteMarket(id){if(!confirm('¿Eliminar este histórico local? No afecta al Trading Plan ni a Supabase.'))return;await v314StoreDelete('marketMeta',id);await v314StoreDelete('marketTicks',id);v314TickCache.delete(id);if(v314MarketUi.activeMarketId===id)v314MarketUi.activeMarketId='';await v314RefreshMarketDataState();}
+async function v314DeleteMarket(id){if(!confirm('¿Eliminar este histórico local? No afecta al Trading Plan ni a Supabase.'))return;await v314StoreDelete('marketMeta',id);await v314StoreDelete('marketTicks',id);v314TickCacheDelete(id);if(v314MarketUi.activeMarketId===id)v314MarketUi.activeMarketId='';await v314RefreshMarketDataState();}
 async function v314DeleteExec(id){if(!confirm('¿Eliminar este Grid de calibración local?'))return;await v314StoreDelete('execSets',id);if(v314MarketUi.activeExecId===id)v314MarketUi.activeExecId='';await v314RefreshMarketDataState();}
 function v314FmtTicks(v){if(!Number.isFinite(Number(v)))return '—';const n=Number(v),txt=Math.abs(n-Math.round(n))<1e-7?String(Math.round(n)):n.toFixed(1);return `${txt}t`;}
 function v314SignedTicks(v){if(!Number.isFinite(Number(v)))return '—';const n=Number(v),s=v314FmtTicks(Math.abs(n));return `${n>0?'+':n<0?'-':''}${s}`;}
@@ -6515,8 +6540,10 @@ render();
 /* ===== V31.5 PATCH · Running P&L Intratrade ===== */
 const V315_APP_LABEL='V31.5 · Running P&L Intratrade';
 const v315RunningUi={tab:'calibration',tradeIndex:0,mode:'pnl',cursor:0,loading:false,error:'',series:null,metaId:'',execId:''};
+let v315LoadGeneration=0;
+let v315DiscardedLoads=0;
 
-function v315ResetRunning(){v315RunningUi.series=null;v315RunningUi.cursor=0;v315RunningUi.error='';v315RunningUi.metaId='';v315RunningUi.execId='';}
+function v315ResetRunning(){v315LoadGeneration++;v315RunningUi.series=null;v315RunningUi.cursor=0;v315RunningUi.error='';v315RunningUi.metaId='';v315RunningUi.execId='';}
 function v315PreciseMs(t){return Number(t?.[0]||0)+((Number(t?.[1]||0)/10000)-Math.floor(Number(t?.[1]||0)/10000));}
 function v315GridTime(ms,offsetHours,withMs=false){if(!Number.isFinite(ms))return '—';const d=new Date(ms+Number(offsetHours||0)*3600000),p=n=>String(n).padStart(2,'0'),base=`${p(d.getUTCDate())}/${p(d.getUTCMonth()+1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;return withMs?`${base}.${String(d.getUTCMilliseconds()).padStart(3,'0')}`:base;}
 function v315Duration(ms){if(!Number.isFinite(ms)||ms<0)return '—';const sec=ms/1000;if(sec<60)return `${sec.toFixed(sec<10?1:0)} s`;const m=Math.floor(sec/60),s=Math.round(sec-m*60);return `${m}m ${String(s).padStart(2,'0')}s`;}
@@ -6527,9 +6554,20 @@ function v315BuildSeries(result,ticks,tickSize,offsetHours){
   const startMs=v315PreciseMs(ticks[result.entryMatch.i]),endMs=v315PreciseMs(ticks[result.exitMatch.i]);return {points,mfePoint,maePoint,startMs,endMs,durationMs:Math.max(0,endMs-startMs),lastExitPnlTicks:points[points.length-1].pnlTicks,offsetHours,tickSize};
 }
 async function v315LoadTrade(index=v315RunningUi.tradeIndex){
+  const generation=++v315LoadGeneration;
   const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),meta=v314MarketUi.metas.find(x=>x.id===v314MarketUi.activeMarketId)||v314MarketUi.metas.find(x=>x.id===set?.marketDatasetId);if(!set||!meta)return;
   const i=Math.max(0,Math.min(Number(index)||0,(set.results||[]).length-1)),r=set.results?.[i];v315RunningUi.tradeIndex=i;v315RunningUi.loading=true;v315RunningUi.error='';render();
-  try{const ticks=await v314LoadTicks(meta.id),series=v315BuildSeries(r,ticks,meta.tickSize||.01,set.offsetHours||0);if(!series)throw new Error('No se pudo reconstruir el recorrido Last de esta operación.');v315RunningUi.series=series;v315RunningUi.cursor=series.points.length-1;v315RunningUi.metaId=meta.id;v315RunningUi.execId=set.id;}catch(e){v315RunningUi.error=e.message||String(e);v315RunningUi.series=null;}finally{v315RunningUi.loading=false;render();}
+  try{
+    const ticks=await v314LoadTicks(meta.id);
+    if(generation!==v315LoadGeneration){v315DiscardedLoads++;return;}
+    const series=v315BuildSeries(r,ticks,meta.tickSize||.01,set.offsetHours||0);if(!series)throw new Error('No se pudo reconstruir el recorrido Last de esta operación.');
+    v315RunningUi.series=series;v315RunningUi.cursor=series.points.length-1;v315RunningUi.metaId=meta.id;v315RunningUi.execId=set.id;
+  }catch(e){
+    if(generation!==v315LoadGeneration){v315DiscardedLoads++;return;}
+    v315RunningUi.error=e.message||String(e);v315RunningUi.series=null;
+  }finally{
+    if(generation===v315LoadGeneration){v315RunningUi.loading=false;render();}
+  }
 }
 function v315EnsureRunningLoaded(){const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),meta=v314MarketUi.metas.find(x=>x.id===v314MarketUi.activeMarketId)||v314MarketUi.metas.find(x=>x.id===set?.marketDatasetId);if(!set||!meta||!(set.results||[]).length)return;if(!v315RunningUi.series||v315RunningUi.execId!==set.id||v315RunningUi.metaId!==meta.id)v315LoadTrade(Math.min(v315RunningUi.tradeIndex,(set.results||[]).length-1));}
 function v315SetMarketTab(tab){v315RunningUi.tab=tab==='running'?'running':'calibration';render();if(v315RunningUi.tab==='running')setTimeout(v315EnsureRunningLoaded,0);}

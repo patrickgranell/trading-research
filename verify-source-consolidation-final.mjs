@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {transformStructuredEventSources} from './structured-event-transform.mjs';
 
 const PHASE='31.23.52';
 const fail=[];
@@ -60,7 +61,11 @@ need(Number(candidates.safeCandidateCount)===0,'Quedan candidatos de poda contra
 need(Number(dynamic.dynamicHandlerSlots)===0&&Number(dynamic.dynamicCandidateRoots)===8&&Number(dynamic.protectedDynamicGlobals)===3,'Inventario Dynamic Action Guard V31.24 cambió');
 need(Number(structuredEvents.converted)>=600&&Number(structuredEvents.uniquePlans)>=300&&Number(structuredEvents.dynamicSlots)>=200,'Inventario Structured Event Boundary insuficiente');
 need(Number(structuredEvents.dynamicActionRejected)===0&&Number(structuredEvents.legacyProgramHandlers)===0,'Structured Event Boundary conserva programas/acciones dinámicas rechazadas');
-need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(html),'El bundle final conserva programas click/change/input/submit');
+const finalStaticHtml=html.replace(/<script\s+[^>]*>[\s\S]*?<\/script>/gi,'');
+need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(finalStaticHtml),'El HTML estático final conserva programas click/change/input/submit');
+const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|backup-v2-runtime|security-runtime|event-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
+let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
+if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
 const appMatch=html.match(/<script\s+data-tr-build="31\.23\.0">([\s\S]*?)<\/script>/i);
 need(!!appMatch,'No se encontró el bloque app empaquetado');

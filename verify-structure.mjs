@@ -13,8 +13,8 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Full-source freeze: this proves exact source identity only. Storage Authority
  * semantics are verified independently by verify-storage-authority.mjs. Rebaseline
  * this hash only after reviewing the complete intended app.js delta. */
-const expectedAppSha='ff6e2637fc5d46a17156fbe8f2597f9904d87ed8fded4f906c71f3614bbabbc1';
-if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D01 auditado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
+const expectedAppSha='7d291f987fae0d37e839b57bbffe88265bdd168b3bf51dd39b15d9dc8f8c3781';
+if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D04 auditado (${sha(app).slice(0,10)} != ${expectedAppSha.slice(0,10)}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.23.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
@@ -64,9 +64,10 @@ if(!stateRuntime.includes("['setOpsUnit','operations.unit']"))fail.push('Operaci
 if(!index.includes('<script src="state-runtime.js"></script>'))fail.push('index.html no carga state-runtime.js.');
 if(!index.includes('<script src="security-runtime.js"></script>'))fail.push('index.html no carga security-runtime.js.');
 if(!index.includes('<script src="event-runtime.js"></script>'))fail.push('index.html no carga event-runtime.js.');
-if(!eventRuntime.includes("const TR_EVENT_RUNTIME_VERSION='31.23.4'"))fail.push('Falta Event Runtime V31.23.4.');
+if(!eventRuntime.includes("const TR_EVENT_RUNTIME_VERSION='31.24.0'"))fail.push('Falta Event Runtime V31.24 estructurado.');
 if(!eventRuntime.includes('document.addEventListener(t,trEventDispatch,false)'))fail.push('Falta delegación central de eventos.');
-if(!eventRuntime.includes('function trActionResolve(name)')||!eventRuntime.includes('window.TradingResearchActions'))fail.push('Falta Action Registry bridge V31.23.4.');
+if(!eventRuntime.includes('function trActionResolve(name)')||!eventRuntime.includes('window.TradingResearchActions'))fail.push('Falta Action Registry V31.24.');
+if(eventRuntime.includes('function trEventParser(')||eventRuntime.includes('function trEventTokenize(')||eventRuntime.includes('if(name in globalThis)'))fail.push('Event Runtime reabrió parser/tokenizer/fallback global.');
 if(/new\s+Function\s*\(/.test(eventRuntime)||/\beval\s*\(/.test(eventRuntime))fail.push('Event Runtime usa ejecución dinámica incompatible con CSP.');
 if(!securityRuntime.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"))fail.push('Falta Security Runtime V31.18.');
 if(!securityRuntime.includes('function trSecurityProbeModalTitle(')||!securityRuntime.includes('function trSecurityProbeFormData('))fail.push('Faltan sondas de seguridad de render/FormData.');
@@ -74,11 +75,11 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got.slice(0,10)} != ${want.slice(0,10)}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: exact-source freeze V31.24 D01 validated');
+console.log(' - app.js: exact-source freeze V31.24 D04 validated');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');
 console.log(' - Security runtime: modal-title text sink + safe handler tokens + FormData diagnostics');
-console.log(' - Event runtime: delegated DOM0 replacement + Action Registry bridge + restricted interpreter (no eval)');
+console.log(' - Event runtime: structured action IDs + encoded JSON args + own-property Action Registry; no runtime parser/global fallback');
 console.log(' - Direct state localStorage writes: 0');
 console.log(` - Financial regions unchanged vs ${baseline.sourceVersion}: ${Object.keys(baseline.hashes).length}/${Object.keys(baseline.hashes).length}`);

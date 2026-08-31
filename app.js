@@ -115,10 +115,15 @@ async function trCoreBootstrap(){
   try{
     await trCoreOpenDb();
     const existing=await trCoreGet(TR_CORE_STATE_STORE,TR_CORE_STATE_ID);
+    const hasDurableWorkspace=!!existing?.payload;
     let source=null,needsMarker=!trCoreBootHadMarker;
-    if(trCoreBootHadMarker){
-      if(existing?.payload)source=existing.payload;
-      else if(legacyStateText){source=JSON.parse(legacyStateText);}
+    if(hasDurableWorkspace){
+      /* Storage authority is determined by durable data, never by the migration marker.
+       * If the marker disappeared but the workspace survived, preserve IndexedDB and
+       * recreate the marker only after the normalized workspace is durably confirmed. */
+      source=existing.payload;
+    }else if(trCoreBootHadMarker){
+      if(legacyStateText){source=JSON.parse(legacyStateText);}
       else throw new Error('El marcador de migración existe, pero no se encuentra el estado durable en IndexedDB.');
     }else{
       source=trCorePendingState||clone(state);
@@ -130,7 +135,8 @@ async function trCoreBootstrap(){
     state=normalizeState(source);if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
     trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
     trCoreMode='indexeddb';trCoreHydrated=true;
-    const finalSaved=await trCorePersistNow(needsMarker?'migration-from-localStorage':'bootstrap-normalized');
+    const bootstrapReason=hasDurableWorkspace?(needsMarker?'bootstrap-recovered-marker':'bootstrap-normalized'):(needsMarker?'migration-from-localStorage':'bootstrap-normalized');
+    const finalSaved=await trCorePersistNow(bootstrapReason);
     if(!finalSaved)throw new Error('IndexedDB se abrió, pero no confirmó la escritura del workspace.');
     if(needsMarker&&!trCoreSafeLocalSet(TR_CORE_MIGRATION_KEY,JSON.stringify({migratedAt:new Date().toISOString(),db:TR_CORE_DB_NAME,version:TR_CORE_DB_VERSION}),'marcador de migración'))throw new Error('El estado ya está en IndexedDB, pero no se pudo registrar el marcador de migración.');
     trCoreSafeLocalRemove(STORAGE_KEY);trCoreSafeLocalRemove('tradingResearchCloudSnapshotHistory_v2');trCoreSafeLocalRemove('tradingResearchCloudSafetySnapshot_v1');

@@ -19,9 +19,10 @@ function extractFunction(src,name){
   throw new Error('Función sin cierre: '+name);
 }
 
-function historicalParser(){
+function actualLedgerApi(){
   const context={
-    uid:(p)=>p+'-TEST',
+    uid:(p)=>p+'-TEST-'+(++context.__uid),
+    __uid:0,
     v314CsvSplit:line=>String(line).split(','),
     v314ParseWallDate:s=>Number(s),
     v314Num:s=>Number(s),
@@ -29,10 +30,12 @@ function historicalParser(){
     v314DetectExecutionEnvironment:()=> 'sim'
   };
   vm.createContext(context);
-  vm.runInContext(extractFunction(app,'v314ParseExecutionCsv')+';globalThis.__parse=v314ParseExecutionCsv;',context);
-  return context.__parse;
+  const names=['v314ExecutionSide','v314LedgerPositionKey','v314LedgerFill','v314LedgerOpenPosition','v314LedgerFinalizePosition','v314BuildPositionLedger','v314ParseExecutionCsv'];
+  const source=names.map(n=>extractFunction(app,n)).join('\n')+';globalThis.__api={parse:v314ParseExecutionCsv,build:v314BuildPositionLedger,side:v314ExecutionSide};';
+  vm.runInContext(source,context);
+  return context.__api;
 }
-const parse=historicalParser();
+const api=actualLedgerApi(),parse=api.parse;
 const header='Instrumento,Acción,Cantidad,Precio,Tiempo,E/X,Cuenta,Conexión,ID';
 const csv=rows=>[header,...rows].join('\n');
 const row=(instrument,action,qty,price,time,exType,account,id)=>[instrument,action,qty,price,time,exType,account,'Simulated',id].join(',');
@@ -75,6 +78,32 @@ if(reversal){
   need(reversal.unclosed===1,`D05 reversal: debe quedar SHORT 1 abierta; unclosed=${reversal.unclosed}`);
   need(Number(reversal.trades[0]?.exitRows?.[0]?.qty)===1,
     `D05 reversal: el fill de cierre debe partirse a qty 1, obtenido ${reversal.trades[0]?.exitRows?.[0]?.qty}`);
+  need(reversal.openPositions?.[0]?.direction==='SHORT'&&Number(reversal.openPositions?.[0]?.openQuantity)===1,
+    'D05 reversal: el remainder no quedó como SHORT 1 en el ledger.');
+}
+
+let scaleOut=null;
+try{scaleOut=parse(csv([
+  row('MNQ 09-26','Comprar',2,100,1,'Entrada','SimA','P1'),
+  row('MNQ 09-26','Vender',1,102,2,'Salida','SimA','P2'),
+  row('MNQ 09-26','Vender',1,104,3,'Salida','SimA','P3')
+]),'scaleout.csv');}catch(e){fail.push('Scale-out fixture lanzó: '+e.message);}
+if(scaleOut){
+  need(scaleOut.unclosed===0&&scaleOut.trades.length===1,'D05 scale-out: BUY2 + SELL1 + SELL1 debe quedar flat con un trade.');
+  need(scaleOut.trades[0]?.exitRows?.length===2,'D05 scale-out: deben conservarse los dos fills de salida.');
+  need(Math.abs(Number(scaleOut.trades[0]?.exitPrice)-103)<1e-9,`D05 scale-out: exit VWAP esperado 103, obtenido ${scaleOut.trades[0]?.exitPrice}`);
+  need((scaleOut.trades[0]?.realizedMatches||[]).length===2,'D05 scale-out: faltan realizedMatches por fill.');
+}
+
+let instruments=null;
+try{instruments=parse(csv([
+  row('MNQ 09-26','Comprar',1,100,1,'Entrada','SimA','I1'),
+  row('MCL 10-26','Comprar',1,70,2,'Entrada','SimA','I2'),
+  row('MNQ 09-26','Vender',1,101,3,'Salida','SimA','I3')
+]),'instruments.csv');}catch(e){fail.push('Instrument isolation fixture lanzó: '+e.message);}
+if(instruments){
+  need(instruments.trades.length===1&&instruments.trades[0]?.instrument==='MNQ 09-26','D05 instrument isolation: se cerró el instrumento incorrecto.');
+  need(instruments.unclosed===1&&instruments.openPositions?.[0]?.instrument==='MCL 10-26','D05 instrument isolation: MCL debe permanecer abierto.');
 }
 
 let unknownRejected=false;
@@ -84,16 +113,15 @@ try{parse(csv([
 ]),'unknown.csv');}catch(e){unknownRejected=true;}
 need(unknownRejected,'D05 unknown action: una acción desconocida no fue rechazada y puede degradarse a SHORT.');
 
-need(fs.existsSync('position-ledger-runtime.js'),'Falta position-ledger-runtime.js V31.24.');
-if(fs.existsSync('position-ledger-runtime.js')){
-  const src=fs.readFileSync('position-ledger-runtime.js','utf8');
-  need(src.includes("const TR_POSITION_LEDGER_VERSION='31.24.0'"),'Position Ledger runtime no está en V31.24.');
-  need(src.includes('account')&&src.includes('instrument'),'Position key no declara account + instrument.');
-  need(src.includes('weightedEntryPrice')&&src.includes('openQuantity'),'Estado del ledger incompleto.');
-  need(src.includes('invalidRows'),'Falta observabilidad de filas inválidas.');
-}
+need(app.includes('function v314BuildPositionLedger('),'Falta el Position Ledger V31.24.');
+need(app.includes('function v314LedgerPositionKey(')&&app.includes("account+'\\u0000'+instrument"),'Position key no es account + instrument.');
+need(app.includes('weightedEntryPrice')&&app.includes('openQuantity'),'Estado del ledger incompleto.');
+need(app.includes('realizedMatches')&&app.includes('invalidRows'),'Ledger no conserva matches realizados / filas inválidas.');
+need(app.includes("throw new Error(`Acción de ejecución no reconocida"),'Acción desconocida no cancela explícitamente la importación.');
 need(!app.includes("const dir=r.action.toLowerCase().startsWith('compr')?'LONG':'SHORT'"),
   'El parser histórico aún contiene unknown action → SHORT.');
+need(app.includes('if(Array.isArray(trade?.realizedMatches)&&trade.realizedMatches.length)'),
+  'El P&L agregado no consume realizedMatches del ledger.');
 
 if(fail.length){
   console.error('Market Data Position Ledger verification FAILED');
@@ -102,6 +130,7 @@ if(fail.length){
 }
 console.log('Market Data Position Ledger verification OK');
 console.log(' - BUY1 + BUY1 + SELL2 => flat, one trade, weighted entry');
+console.log(' - BUY2 + SELL1 + SELL1 => partial exits preserved');
 console.log(' - account + instrument isolation');
 console.log(' - reversal splits closing quantity and opens opposite remainder');
 console.log(' - unknown action => rejected, never inferred SHORT');

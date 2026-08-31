@@ -130,7 +130,10 @@ need(app.includes("importDisposition:'insert'"),'D10: draft no declara política
 need(app.includes('sourceFingerprint'),'D10: fingerprint no se persiste con la operación.');
 need(app.includes('function importBatchOperations('),'D10: batches de actualización no pueden resolver operaciones afectadas.');
 need(app.includes('schemaVersion:5'),'D10: batch de reconciliación no está versionado como schema 5.');
-need(!app.includes('state.operations.push(...rows);'),'D10: confirmación sigue insertando todas las filas ciegamente.');
+const effectiveConfirm=extractFunction(app,'confirmImportPreview');
+need(!effectiveConfirm.includes('state.operations.push(...rows);'),'D10: confirmación efectiva sigue insertando todas las filas ciegamente.');
+need(effectiveConfirm.includes("['insert','update'].includes(d.importDisposition)")&&effectiveConfirm.includes('state.operations[index]=row'),
+  'D10: confirmación efectiva no aplica reconciliación insert/update explícita.');
 
 if(fail.length){
   console.error('Ankora idempotency verification FAILED');

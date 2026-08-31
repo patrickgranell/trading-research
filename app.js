@@ -6433,7 +6433,7 @@ function v314BuildPositionLedger(rows){
       pos.openQuantity=Math.max(0,pos.openQuantity-closingQty);remaining=Math.max(0,remaining-closingQty);
       if(pos.openQuantity<=EPS){
         trades.push(v314LedgerFinalizePosition(pos));positions.delete(key);pos=null;
-        if(remaining>EPS){pos=v314LedgerOpenPosition(row,side,remaining);positions.set(key,pos);}
+        if(remaining>EPS){pos=v314LedgerOpenPosition(row,side,remaining);positions.set(key,pos);remaining=0;}
       }
     }
   }

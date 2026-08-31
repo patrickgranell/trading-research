@@ -177,7 +177,7 @@ export function transformStructuredEventSources(entries){
 }
 
 export function injectStructuredEventPlans(source,plans){
-  const marker='/'+'*__TR_EVENT_COMPILED_PLANS__*'+'/{}';
+  const marker='__TR_EVENT_COMPILED_PLANS__';
   if(!String(source).includes(marker))throw new Error('Event Runtime plan marker no encontrado.');
   return String(source).replace(marker,JSON.stringify(plans));
 }

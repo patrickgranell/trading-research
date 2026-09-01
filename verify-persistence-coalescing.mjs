@@ -6,7 +6,7 @@ const index=fs.readFileSync('index.html','utf8');
 const runtimeCode=runtime.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 
-need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.25.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="persistence-coalescing-runtime.js"></script>'),'index.html no carga persistence-coalescing-runtime.js.');
 need(index.indexOf('persistence-coalescing-runtime.js')>index.indexOf('state-runtime.js'),'Persistence coalescer debe cargar después de State Runtime.');
 need(index.indexOf('persistence-coalescing-runtime.js')<index.indexOf('security-runtime.js'),'Persistence coalescer debe instalarse antes del runtime de seguridad/diagnóstico.');

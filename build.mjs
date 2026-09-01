@@ -61,6 +61,7 @@ const replacements=[
   ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledSource('event-runtime.js')],
   ['cloud-v10-runtime.js','data-tr-cloud-v10-runtime',bundledSource('cloud-v10-runtime.js')],
+  ['canonical-metrics-runtime.js','data-tr-canonical-metrics-runtime',bundledSource('canonical-metrics-runtime.js')],
   ['exit-lab-runtime.js','data-tr-exit-lab-runtime',bundledSource('exit-lab-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledSource('csp-runtime.js')],
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],

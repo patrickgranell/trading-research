@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
+import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
+import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
+import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
 import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
@@ -9,9 +12,12 @@ const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structu
 const raw=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
 const render=consolidateLegacyRenderAssignments(app,{expected:12});
 const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(raw)});
+const stateRegistry=migrateStateActionsToRegistry(pruned.source);
+const uiRegistry=migrateUiHandlersToRegistry(stateRegistry.source);
+const residualClosure=closeResidualDirectMirrors(uiRegistry.source);
 const transformedState=transformStateActions(raw['state-runtime.js']).source;
 const runtimes=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:raw[f]);
-const inv=remainingGlobalContractMap(pruned.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+const inv=remainingGlobalContractMap(residualClosure.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 need(inv.semantics?.scope==='remaining-explicit-object-assign-exports','El mapa no declara su scope explícito.');
 need(inv.semantics?.completeClassicScriptGlobalSurface===false,'El mapa no declara su límite frente a globals clásicos.');

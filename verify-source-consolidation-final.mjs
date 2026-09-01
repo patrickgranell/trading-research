@@ -33,7 +33,7 @@ const structuredEvents=readJson('dist/structured-event-inventory.json');
 const csp=readJson('dist/csp-manifest.json');
 const style=readJson('dist/style-inventory.json');
 
-need(pkg.version==='31.23.0',`package.json no está en la versión final 31.23.0: ${pkg.version}`);
+need(pkg.version==='31.24.0',`package.json no está en la versión final 31.24.0: ${pkg.version}`);
 
 need(Number(render.source?.assignments)===12&&Number(render.bundled?.assignments)===0,'Render legacy closure cambió');
 need(Number(render.source?.baseAliases)===5&&Number(render.bundled?.baseAliases)===0,'renderV*Base closure cambió');
@@ -109,7 +109,7 @@ need(structural.status===0,'verify-structure.mjs no está verde en Final Audit')
 need(String(structural.stdout||'').includes('Financial regions unchanged vs 31.10.4: 7/7'),'Final Audit no pudo confirmar las 7/7 regiones financieras');
 
 const invariants={
-  packageVersion:'31.23.0',
+  packageVersion:'31.24.0',
   explicitWindow:{blocks:0,entries:0,exports:0},
   registries:{state:56,ui:221,operationCleanup:2},
   finalBindings:{state:56,ui:221,residualMirrors:5,dashboardUnit:1,dynamicActions:3},
@@ -132,7 +132,7 @@ if(fail.length){
 const manifest={phase:PHASE,status:'PASS',generatedAt:new Date().toISOString(),invariants};
 fs.writeFileSync('dist/source-consolidation-final-audit.json',JSON.stringify(manifest,null,2)+'\n');
 console.log('Source Consolidation Final Audit V31.23.52 PASS');
-console.log(' - Package release version: 31.23.0');
+console.log(' - Package release version: 31.24.0');
 console.log(' - Explicit app window action surface: 0 blocks / 0 entries / 0 exports');
 console.log(' - Registry final bindings: State 56 / UI 221 / residual 5 / dashboard 1 / dynamic 3');
 console.log(' - Operation Cleanup Controls: delete operation + delete image registered, image blobs cleaned');

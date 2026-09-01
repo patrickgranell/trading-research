@@ -10,6 +10,7 @@ const TR_BACKUP_V2_VERSION='31.24.0';
 const TR_BACKUP_V2_SCHEMA=2;
 const TR_BACKUP_V2_JOURNAL_ID='backupV2RestoreJournal';
 const TR_BACKUP_V2_STAGE_PREFIX='__tr_backup_v2_stage__';
+const TR_BACKUP_V2_WRITE_BLOCK_PREFIX='backup-v2-restore-recovery';
 const TR_BACKUP_V2_MARKET_STORES=['marketMeta','marketTicks','execSets'];
 
 function trBackupV2Clone(value){return typeof clone==='function'?clone(value):JSON.parse(JSON.stringify(value));}
@@ -209,6 +210,21 @@ async function trBackupV2CoreMetaDelete(id){
 async function trBackupV2JournalPut(journal){return trBackupV2CoreMetaPut({...journal,id:TR_BACKUP_V2_JOURNAL_ID,updatedAt:new Date().toISOString()});}
 async function trBackupV2JournalGet(){return trBackupV2CoreMetaGet(TR_BACKUP_V2_JOURNAL_ID);}
 async function trBackupV2JournalDelete(){return trBackupV2CoreMetaDelete(TR_BACKUP_V2_JOURNAL_ID);}
+function trBackupV2RecoveryLockReason(journal){return `${TR_BACKUP_V2_WRITE_BLOCK_PREFIX}:${String(journal?.restoreId||'pending')}`;}
+function trBackupV2AcquireRecoveryLock(journal){
+  const reason=trBackupV2RecoveryLockReason(journal);
+  if(typeof trCoreSetWriteBlock==='function')trCoreSetWriteBlock(reason);
+  return reason;
+}
+function trBackupV2ReleaseRecoveryLock(lockOrJournal){
+  const reason=typeof lockOrJournal==='string'?lockOrJournal:trBackupV2RecoveryLockReason(lockOrJournal);
+  return typeof trCoreClearWriteBlock==='function'?trCoreClearWriteBlock(reason):true;
+}
+function trBackupV2SetRecoveryUiBlocked(blocked){
+  const effective=!!blocked||(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked());
+  try{document.documentElement.classList.toggle('tr-core-loading',effective);}catch{}
+  return effective;
+}
 function trBackupV2StageId(restoreId,id){return `${TR_BACKUP_V2_STAGE_PREFIX}${restoreId}::${id}`;}
 
 async function trBackupV2ImageWriteTransaction(puts=[],deletes=[]){
@@ -280,33 +296,47 @@ async function trBackupV2RestoreProtocol(prepared,io=trBackupV2RestoreIo()){
   const restoreId=(typeof uid==='function'?uid('RST2'):`RST2_${Date.now()}`),createdAt=new Date().toISOString();
   let journal={id:TR_BACKUP_V2_JOURNAL_ID,schema:TR_BACKUP_V2_SCHEMA,restoreId,phase:'prepared',createdAt,targetWorkspace:trBackupV2Clone(prepared.workspace),manifest:trBackupV2Clone(prepared.manifest)};
   await io.journalPut(journal);
-  await io.stageImages(prepared,journal);
-  await io.verifyStage(journal);
-  journal={...journal,phase:'images-staged'};await io.journalPut(journal);
-  await io.replaceMarketData(prepared.marketData);
-  journal={...journal,phase:'market-committed'};await io.journalPut(journal);
-  await io.finalizeImages(journal);
-  journal={...journal,phase:'images-committed'};await io.journalPut(journal);
-  await io.persistWorkspace(prepared.workspace);
-  journal={...journal,phase:'workspace-committed'};await io.journalPut(journal);
-  await io.cleanupStage(journal);
-  await io.journalDelete();
-  return {ok:true,restoreId};
+  const recoveryLock=trBackupV2AcquireRecoveryLock(journal);
+  try{
+    await io.stageImages(prepared,journal);
+    await io.verifyStage(journal);
+    journal={...journal,phase:'images-staged'};await io.journalPut(journal);
+    await io.replaceMarketData(prepared.marketData);
+    journal={...journal,phase:'market-committed'};await io.journalPut(journal);
+    await io.finalizeImages(journal);
+    journal={...journal,phase:'images-committed'};await io.journalPut(journal);
+    await io.persistWorkspace(prepared.workspace);
+    journal={...journal,phase:'workspace-committed'};await io.journalPut(journal);
+    await io.cleanupStage(journal);
+    await io.journalDelete();
+    trBackupV2ReleaseRecoveryLock(recoveryLock);
+    return {ok:true,restoreId};
+  }catch(e){
+    trBackupV2AcquireRecoveryLock(journal);
+    throw e;
+  }
 }
 
 async function trBackupV2RecoverPending(existingJournal=null){
   const journal=existingJournal||await trBackupV2JournalGet();if(!journal)return {status:'none'};
-  if(Number(journal.schema)!==TR_BACKUP_V2_SCHEMA||!journal.targetWorkspace||!journal.manifest)throw new Error('Restore journal V2 inválido.');
-  const marketMatches=await trBackupV2MarketMatchesManifest(journal.manifest);
-  const currentWorkspaceHash=await trBackupV2HashCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():state);
-  if(!marketMatches){
-    if(currentWorkspaceHash===journal.manifest.hashes.workspace)throw new Error('Restore inconsistente: workspace objetivo publicado pero Market Data no coincide.');
-    await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();return {status:'aborted-before-market'};
+  const recoveryLock=trBackupV2AcquireRecoveryLock(journal);
+  try{
+    if(Number(journal.schema)!==TR_BACKUP_V2_SCHEMA||!journal.targetWorkspace||!journal.manifest)throw new Error('Restore journal V2 inválido.');
+    const marketMatches=await trBackupV2MarketMatchesManifest(journal.manifest);
+    const currentWorkspaceHash=await trBackupV2HashCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():state);
+    if(!marketMatches){
+      if(currentWorkspaceHash===journal.manifest.hashes.workspace)throw new Error('Restore inconsistente: workspace objetivo publicado pero Market Data no coincide.');
+      await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();trBackupV2ReleaseRecoveryLock(recoveryLock);return {status:'aborted-before-market'};
+    }
+    if(!(await trBackupV2FinalImagesMatch(journal))){await trBackupV2VerifyStage(journal);await trBackupV2FinalizeImages(journal);}
+    await trBackupV2PersistWorkspace(journal.targetWorkspace);
+    await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();
+    trBackupV2ReleaseRecoveryLock(recoveryLock);
+    return {status:'completed-forward'};
+  }catch(e){
+    trBackupV2AcquireRecoveryLock(journal);
+    throw e;
   }
-  if(!(await trBackupV2FinalImagesMatch(journal))){await trBackupV2VerifyStage(journal);await trBackupV2FinalizeImages(journal);}
-  await trBackupV2PersistWorkspace(journal.targetWorkspace);
-  await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();
-  return {status:'completed-forward'};
 }
 
 async function trBackupV2RefreshUiAfterRestore(){
@@ -321,27 +351,33 @@ async function trBackupV2ImportFullBackup(file){
     const text=await file.text(),raw=JSON.parse(text),prepared=await trBackupV2Preflight(raw),c=prepared.manifest.counts;
     const legacyNote=prepared.legacySourceSchema?`\n\nNota: copia V${prepared.legacySourceSchema}; Market Data actual se conservará e integrará en el restore seguro.`:'';
     if(!confirm(`Esta restauración sustituirá el workspace local con una copia validada.\n\nPlanes: ${c.plans}\nOperaciones: ${c.operations}\nImágenes: ${c.images}/${c.imageReferences}\nMarket Data: ${c.marketMeta} histórico(s), ${c.execSets} Grid(s)\nFecha: ${prepared.exportedAt?fmtDate(prepared.exportedAt):'—'}${legacyNote}\n\n¿Continuar?`))return;
+    trBackupV2SetRecoveryUiBlocked(true);
     const run=()=>trBackupV2RestoreProtocol(prepared);
     if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2',run);else await run();
-    await trBackupV2RefreshUiAfterRestore();alert('Restauración Backup V2 completada y confirmada de forma durable.');
+    await trBackupV2RefreshUiAfterRestore();trBackupV2SetRecoveryUiBlocked(false);alert('Restauración Backup V2 completada y confirmada de forma durable.');
   }catch(e){
     const pending=await trBackupV2JournalGet().catch(()=>null);
-    alert(`No se pudo completar la restauración: ${e?.message||String(e)}${pending?'\n\nExiste un restore journal recuperable. No borres datos ni limpies IndexedDB; al recargar se intentará completar o abortar de forma segura.':''}`);
+    if(pending){trBackupV2AcquireRecoveryLock(pending);trBackupV2SetRecoveryUiBlocked(true);}else trBackupV2SetRecoveryUiBlocked(false);
+    alert(`No se pudo completar la restauración: ${e?.message||String(e)}${pending?'\n\nExiste un restore journal recuperable. La sesión queda bloqueada contra escrituras; no borres datos ni limpies IndexedDB y recarga para ejecutar la recuperación automática.':''}`);
   }finally{const input=document.getElementById('backupImportFile');if(input)input.value='';}
 }
 
 async function trBackupV2RecoverPendingOnLoad(){
   let journal=null;try{journal=await trBackupV2JournalGet();}catch{return;}if(!journal)return;
-  document.documentElement.classList.add('tr-core-loading');
+  trBackupV2SetRecoveryUiBlocked(true);
   try{
     for(let i=0;i<200&&typeof trCoreHydrated!=='undefined'&&!trCoreHydrated&&!trCoreFatal;i++)await new Promise(resolve=>setTimeout(resolve,25));
-    document.documentElement.classList.add('tr-core-loading');
     if(typeof trCoreFatal!=='undefined'&&trCoreFatal)throw new Error('El core durable no está disponible para recuperar el restore.');
+    if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)throw new Error('El core durable todavía no ha terminado de hidratar; la recuperación no puede empezar de forma segura.');
+    trBackupV2AcquireRecoveryLock(journal);
     const run=()=>trBackupV2RecoverPending(journal);
     if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.recovery',run);else await run();
-    await trBackupV2RefreshUiAfterRestore();document.documentElement.classList.remove('tr-core-loading');
+    await trBackupV2RefreshUiAfterRestore();trBackupV2SetRecoveryUiBlocked(false);
   }catch(e){
-    try{trCoreShowStorageWarning(`Restauración pendiente bloqueada: ${e?.message||String(e)}. No introduzcas datos nuevos hasta resolverla.`);}catch{}
+    const fatal=typeof trCoreFatal!=='undefined'&&trCoreFatal,hydrated=typeof trCoreHydrated==='undefined'||trCoreHydrated;
+    if(hydrated)trBackupV2AcquireRecoveryLock(journal);
+    trBackupV2SetRecoveryUiBlocked(!fatal);
+    try{trCoreShowStorageWarning(`Restauración pendiente bloqueada: ${e?.message||String(e)}. La sesión permanece protegida contra nuevas escrituras hasta completar o abortar la recuperación.`);}catch{}
     console.error('[Trading Research · Backup V2 recovery]',e);
   }
 }

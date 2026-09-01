@@ -17,9 +17,13 @@ need(index.indexOf('cloud-v10-runtime.js')>index.indexOf('event-runtime.js')&&in
 need(index.indexOf('style-attr-runtime.js')>index.indexOf('app.js'),'style-attr-runtime.js debe cargar después de app.js.');
 need(index.includes('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/dist/umd/supabase.js'),'Supabase SDK no está fijado a 2.112.3 UMD.');
 need(!index.includes('@supabase/supabase-js@2"></script>'),'Supabase conserva la versión flotante @2.');
-need(runtime.includes("const TR_CSP_RUNTIME_VERSION='31.22.0'"),'Runtime CSP con versión incorrecta.');
+need(runtime.includes("const TR_CSP_RUNTIME_VERSION='31.24.0'"),'Runtime CSP con versión incorrecta.');
 need(runtime.includes('styleAttrNone:true'),'El runtime CSP no exige style-src-attr none.');
 need(runtime.includes("fetch(location.href,{method:'HEAD'"),'Falta sonda runtime de cabecera CSP.');
+need(runtime.includes('headerMatchesExpectedPolicy'),'El diagnóstico CSP no nombra exactamente la evidencia de cabecera.');
+need(runtime.includes('ok:s.checked?'),'El diagnóstico CSP no conserva estado desconocido antes de la sonda.');
+need(!runtime.includes('strictExecutableBoundary'),'El diagnóstico CSP conserva un claim ejecutable más amplio que la evidencia.');
+need(!runtime.includes('fullStrictStyles'),'El diagnóstico CSP conserva un claim de estilos más amplio que la evidencia.');
 need(build.includes("fs.writeFileSync('dist/_headers'"),'Build no genera _headers.');
 need(build.includes("script-src-attr 'none'"),'Build no bloquea script-src-attr.');
 need(build.includes("style-src-attr 'none'"),'Build no bloquea style-src-attr.');
@@ -27,8 +31,9 @@ need(!build.includes("style-src-attr 'unsafe-inline'"),'Build conserva compatibi
 need(!/unsafe-eval/.test(build),'Build contiene unsafe-eval.');
 need(!/unsafe-inline[^'\"]*['\"]?[^\n]*script-src/.test(build),'Build parece permitir unsafe-inline para scripts.');
 if(fail.length){console.error('CSP source verification FAILED');for(const f of fail)console.error(' - '+f);process.exit(1);}
-console.log('CSP source verification OK');
+console.log('CSP policy source verification OK');
 console.log(' - Supabase SDK: pinned 2.112.3 UMD');
 console.log(' - script-src-attr: none');
 console.log(' - unsafe-eval: absent');
 console.log(' - style-src-attr: none');
+console.log(' - Runtime status: unknown until HEAD probe; success means header matches expected policy');

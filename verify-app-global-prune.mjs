@@ -5,7 +5,7 @@ import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
 import {pruneAppGlobalExports,TR_APP_GLOBAL_PRUNE_NAMES,TR_APP_GLOBAL_PRUNE_TARGETS} from './app-global-prune-transform.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const runtimeSources=runtimeFiles.map(file=>fs.readFileSync(file,'utf8'));
 const stateActionTransformSource=fs.readFileSync('state-action-transform.mjs','utf8');
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};

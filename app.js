@@ -24,6 +24,14 @@ let trCoreLastSavedAt='';
 let trCoreLastError='';
 let trCoreErrorAlerted=false;
 let trCoreFatal=false;
+let trCoreWriteBlockReason='';
+function trCoreSetWriteBlock(reason=''){trCoreWriteBlockReason=String(reason||'').trim();return trCoreWriteBlockReason;}
+function trCoreClearWriteBlock(reason=''){if(!reason||trCoreWriteBlockReason===String(reason))trCoreWriteBlockReason='';return !trCoreWriteBlockReason;}
+function trCoreWriteBlocked(){return !!trCoreWriteBlockReason;}
+function trCoreWriteAllowed(reason='persist'){
+  if(!trCoreWriteBlockReason)return true;
+  return String(reason||'').startsWith('backup-v2-restore');
+}
 const trCoreBootHadMarker=(()=>{try{return !!localStorage.getItem(TR_CORE_MIGRATION_KEY);}catch{return false;}})();
 
 function trCoreSafeLocalSet(key,value,context='localStorage'){
@@ -89,6 +97,7 @@ function trCoreIsValidWorkspacePayload(payload){
     &&Array.isArray(payload.tradingPlans)&&payload.tradingPlans.length>0;
 }
 async function trCorePersistNow(reason='persist'){
+  if(!trCoreWriteAllowed(reason)){trCoreLastError=`write blocked: ${trCoreWriteBlockReason}`;return false;}
   const snapshot=clone(state);
   if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return false;}
   if(trCoreMode==='indexeddb'){
@@ -98,6 +107,7 @@ async function trCorePersistNow(reason='persist'){
   const ok=trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason);if(ok)trCoreLastSavedAt=new Date().toISOString();return ok;
 }
 function trCoreQueueStateWrite(reason='persist'){
+  if(!trCoreWriteAllowed(reason)){trCoreLastError=`write blocked: ${trCoreWriteBlockReason}`;return Promise.resolve(false);}
   const snapshot=clone(state);
   if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return Promise.resolve(false);}
   if(trCoreMode!=='indexeddb')return Promise.resolve(trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason));
@@ -118,7 +128,7 @@ function trCoreQueueSnapshotHistory(items){
 function trCoreQueueSnapshotRecord(snap){
   const item={id:snap?.id||uid('SNAP'),...clone(snap)};const hist=[item,...trCoreSnapshotCache.filter(x=>x.id!==item.id)].slice(0,3);trCoreQueueSnapshotHistory(hist);return item;
 }
-function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length};}
+function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length,writeBlocked:trCoreWriteBlocked(),writeBlockReason:trCoreWriteBlockReason};}
 function trCoreSignalHydrated(){try{dispatchEvent(new CustomEvent('tradingresearch:core-hydrated'));}catch{}}
 async function trCoreBootstrap(){
   let legacyStateText='';try{legacyStateText=localStorage.getItem(STORAGE_KEY)||'';}catch{}

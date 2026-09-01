@@ -5501,7 +5501,7 @@ operationForm=function(o,r,p){
   v301NormalizeOperationExcursions(o);let html=operationFormV301Base(o,r,p);
   const make=(key,label)=>{
     const s=o?dqMetricStatus(o,key):'missing',ticks=s==='measured'?Number(o?.[`${key}Ticks`]??0):'',rv=s==='measured'?Number(o?.[key]||0):0;
-    return `<div class="field excursion-ticks-field"><label>${label} (ticks)</label><input id="f-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" data-tr-oninput="v301ExcursionInput('${key}');v302RefreshExcursionDefinition()"><input id="f-${key}" type="hidden" value="${esc(rv)}"><small id="f-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></div>`;
+    return `<div class="field excursion-ticks-field"><label>${label} (ticks)</label><input id="f-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" data-tr-oninput="v301ExcursionInput('${key}')"><input id="f-${key}" type="hidden" value="${esc(rv)}"><small id="f-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></div>`;
   };
   html=html.replace(/<div class="field [^"]*"><label>MFE \(R\)<\/label><input id="f-mfe"[^>]*><\/div>/,make('mfe','MFE'));
   html=html.replace(/<div class="field [^"]*"><label>MAE \(R\)<\/label><input id="f-mae"[^>]*><\/div>/,make('mae','MAE'));

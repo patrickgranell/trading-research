@@ -31,27 +31,82 @@ function extractFunction(src,name){
 // N01 · Running P&L must use the position that actually existed at each tick.
 {
   const ctx={console};vm.createContext(ctx);
-  vm.runInContext(extractFunction(app,'v315PreciseMs')+'\n'+extractFunction(app,'v315BuildSeries')+';globalThis.__build=v315BuildSeries;',ctx);
-  const result={
-    direction:'LONG',entryPrice:105,
+  vm.runInContext([
+    extractFunction(app,'v314LowerBoundTicks'),
+    extractFunction(app,'v314FindFill'),
+    extractFunction(app,'v314TickPreciseMs'),
+    extractFunction(app,'v314PositionAwarePath'),
+    extractFunction(app,'v315BuildSeries')
+  ].join('\n')+';globalThis.__build=v315BuildSeries;',ctx);
+
+  const scaleIn={
+    direction:'LONG',entryPrice:105,peakQuantity:2,totalEntryQuantity:2,
     entryMatch:{i:0},exitMatch:{i:4},
     entryRows:[
-      {wallMs:0,price:100,qty:1,action:'Comprar'},
-      {wallMs:10000,price:110,qty:1,action:'Comprar'}
+      {wallMs:0,price:100,qty:1,action:'Comprar',sourceLine:1},
+      {wallMs:10000,price:110,qty:1,action:'Comprar',sourceLine:2}
     ],
-    exitRows:[{wallMs:20000,price:108,qty:2,action:'Vender'}]
+    exitRows:[{wallMs:20000,price:108,qty:2,action:'Vender',sourceLine:3}]
   };
-  const ticks=[
-    [0,0,100,99,101],
+  const scaleTicks=[
+    [0,0,100,99,100],
     [5000,0,104,103,105],
-    [10000,0,110,109,111],
+    [10000,0,110,109,110],
     [15000,0,106,105,107],
-    [20000,0,108,107,109]
+    [20000,0,108,108,109]
   ];
-  const series=ctx.__build(result,ticks,1,0);
-  const beforeScaleIn=series?.points?.find(p=>p.i===1);
-  need(beforeScaleIn?.pnlTicks===4,
-    `N01: antes del segundo BUY, Last=104 sobre BUY1@100 debe ser +4t; obtenido ${beforeScaleIn?.pnlTicks}`);
+  const series=ctx.__build(scaleIn,scaleTicks,1,0);
+  const beforeScaleIn=series?.points?.find(p=>p.i===1),afterScaleIn=series?.points?.find(p=>p.i===2);
+  need(beforeScaleIn?.pnlTicks===4&&beforeScaleIn?.openQuantity===1&&beforeScaleIn?.averageEntry===100,
+    `N01 scale-in: antes del segundo BUY debe ser qty1 avg100 +4t; obtenido qty=${beforeScaleIn?.openQuantity}, avg=${beforeScaleIn?.averageEntry}, pnl=${beforeScaleIn?.pnlTicks}`);
+  need(afterScaleIn?.pnlTicks===10&&afterScaleIn?.openQuantity===2&&afterScaleIn?.averageEntry===105,
+    `N01 scale-in: después BUY@110 debe ser qty2 avg105 +10t agregados; obtenido qty=${afterScaleIn?.openQuantity}, avg=${afterScaleIn?.averageEntry}, pnl=${afterScaleIn?.pnlTicks}`);
+  need(series?.aggregateRealizedTicks===6&&series?.realizedTicks===3,
+    `N01 scale-in: cierre @108 debe realizar 6t agregados / 3t equivalentes; obtenido ${series?.aggregateRealizedTicks}/${series?.realizedTicks}`);
+
+  const reentry={
+    direction:'LONG',entryPrice:106.6666666667,peakQuantity:2,totalEntryQuantity:3,
+    entryMatch:{i:0},exitMatch:{i:3},
+    entryRows:[
+      {wallMs:0,price:100,qty:2,action:'Comprar',sourceLine:1},
+      {wallMs:2000,price:120,qty:1,action:'Comprar',sourceLine:3}
+    ],
+    exitRows:[
+      {wallMs:1000,price:110,qty:1,action:'Vender',sourceLine:2},
+      {wallMs:3000,price:115,qty:2,action:'Vender',sourceLine:4}
+    ]
+  };
+  const reTicks=[
+    [0,0,100,99,100],
+    [1000,0,110,110,111],
+    [2000,0,120,119,120],
+    [3000,0,115,115,116]
+  ];
+  const reSeries=ctx.__build(reentry,reTicks,1,0),atReentry=reSeries?.points?.find(p=>p.i===2);
+  need(atReentry?.openQuantity===2&&atReentry?.averageEntry===110&&atReentry?.realizedAggregateTicks===10&&atReentry?.pnlTicks===30,
+    `N01 re-entry: esperado qty2 avg110 realized10 total30; obtenido qty=${atReentry?.openQuantity}, avg=${atReentry?.averageEntry}, realized=${atReentry?.realizedAggregateTicks}, pnl=${atReentry?.pnlTicks}`);
+  need(reSeries?.aggregateRealizedTicks===20&&Math.abs(Number(reSeries?.realizedTicks)-20/3)<1e-9,
+    `N01 re-entry: cierre agregado esperado 20t; obtenido ${reSeries?.aggregateRealizedTicks}`);
+
+  const shortTrade={
+    direction:'SHORT',entryPrice:105,peakQuantity:2,totalEntryQuantity:2,
+    entryMatch:{i:0},exitMatch:{i:3},
+    entryRows:[
+      {wallMs:0,price:110,qty:1,action:'Vender',sourceLine:1},
+      {wallMs:2000,price:100,qty:1,action:'Vender',sourceLine:2}
+    ],
+    exitRows:[{wallMs:3000,price:105,qty:2,action:'Comprar',sourceLine:3}]
+  };
+  const shortTicks=[
+    [0,0,110,110,111],
+    [1000,0,106,106,107],
+    [2000,0,100,100,101],
+    [3000,0,105,104,105]
+  ];
+  const sh=ctx.__build(shortTrade,shortTicks,1,0),beforeSecondShort=sh?.points?.find(p=>p.i===1);
+  need(beforeSecondShort?.pnlTicks===4&&beforeSecondShort?.averageEntry===110,
+    `N01 SHORT: antes del segundo SELL debe ser +4t desde 110; obtenido ${beforeSecondShort?.pnlTicks}`);
+  need(sh?.aggregateRealizedTicks===0,'N01 SHORT: cierre simétrico esperado 0t agregados.');
 }
 
 // N02 · canonical outcome migration must run after durable hydration, not only at script load.

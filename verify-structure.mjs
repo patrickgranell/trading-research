@@ -76,7 +76,7 @@ if(/new\s+Function\s*\(/.test(eventRuntime)||/\beval\s*\(/.test(eventRuntime))fa
 if(!securityRuntime.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"))fail.push('Falta Security Runtime V31.18.');
 if(!securityRuntime.includes('function trSecurityProbeModalTitle(')||!securityRuntime.includes('function trSecurityProbeFormData('))fail.push('Faltan sondas de seguridad de render/FormData.');
 if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(stateRuntime))fail.push('State Runtime contiene un render global.');
-for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got.slice(0,10)} != ${want.slice(0,10)}).`);}
+for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got} != ${want}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
 console.log(' - app.js: exact-source freeze V31.25 restore-lock rebaseline validated');

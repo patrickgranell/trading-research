@@ -6,7 +6,7 @@ import {transformStateActions} from './state-action-transform.mjs';
 import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
 import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
 import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
-import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
+import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
 const canonical=fs.readFileSync('canonical-metrics-runtime.js','utf8');
@@ -83,18 +83,19 @@ need(app.includes('invalidNumeric')||app.includes('invalidNumbers')||app.include
 {
   const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
   const raw=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
+  const canonicalStage=prepareRemainingGlobalContractStage(app,{runtimeSources:Object.values(raw)});
   const render=consolidateLegacyRenderAssignments(app,{expected:12});
   const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(raw)});
-  const transformedState=transformStateActions(raw['state-runtime.js']).source;
-  const runtimes=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:raw[f]);
-  const cliLike=remainingGlobalContractMap(pruned.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
   const stateMigrated=migrateStateActionsToRegistry(pruned.source);
   const uiMigrated=migrateUiHandlersToRegistry(stateMigrated.source);
   const closed=closeResidualDirectMirrors(uiMigrated.source);
-  const buildLike=remainingGlobalContractMap(closed.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
-  const projection=x=>({remainingUnique:x.remainingUnique,classified:x.classified,unclassified:x.unclassified,multiContract:x.multiContract,coverage:x.coverage,byPrimary:x.byPrimary});
-  need(JSON.stringify(projection(cliLike))===JSON.stringify(projection(buildLike)),
-    'D18: contract-map CLI/check stage sigue sin coincidir con la etapa que analiza build.mjs.');
+  need(canonicalStage.source===closed.source,
+    'D18: la preparación canónica del contract-map no coincide byte a byte con la etapa real del build.');
+  const transformedState=transformStateActions(raw['state-runtime.js']).source;
+  const runtimes=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:raw[f]);
+  const inv=remainingGlobalContractMap(canonicalStage.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+  need(inv.remainingUnique===0&&inv.unclassified===0,
+    `D18: la etapa final debería cerrar exports explícitos; remaining=${inv.remainingUnique}, unclassified=${inv.unclassified}`);
 }
 
 if(fail.length){

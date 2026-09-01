@@ -8,7 +8,7 @@ const index=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const runtime=fs.existsSync('backup-v2-runtime.js')?fs.readFileSync('backup-v2-runtime.js','utf8'):'';
 
-need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.25.0',`Versión inesperada ${pkg.version}`);
 need(runtime.length>0,'Falta backup-v2-runtime.js.');
 need(index.includes('<script src="backup-v2-runtime.js"></script>'),'index.html no carga Backup V2 Runtime.');
 need(index.indexOf('backup-v2-runtime.js')>index.indexOf('persistence-coalescing-runtime.js'),'Backup V2 debe cargar después de persistencia/DomainStore.');

@@ -38,7 +38,7 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
 
 /* V31.24 D04/D11: compile historical handler programs at BUILD TIME only.
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
 preEventSources['app.js']=residualMirrorClosure.source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
@@ -61,8 +61,8 @@ const replacements=[
   ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledSource('event-runtime.js')],
   ['cloud-v10-runtime.js','data-tr-cloud-v10-runtime',bundledSource('cloud-v10-runtime.js')],
-  ['canonical-metrics-runtime.js','data-tr-canonical-metrics-runtime',bundledSource('canonical-metrics-runtime.js')],
   ['exit-lab-runtime.js','data-tr-exit-lab-runtime',bundledSource('exit-lab-runtime.js')],
+  ['canonical-metrics-runtime.js','data-tr-canonical-metrics-runtime',bundledSource('canonical-metrics-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledSource('csp-runtime.js')],
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
   ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],

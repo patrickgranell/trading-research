@@ -119,6 +119,7 @@ function trCoreQueueSnapshotRecord(snap){
   const item={id:snap?.id||uid('SNAP'),...clone(snap)};const hist=[item,...trCoreSnapshotCache.filter(x=>x.id!==item.id)].slice(0,3);trCoreQueueSnapshotHistory(hist);return item;
 }
 function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length};}
+function trCoreSignalHydrated(){try{dispatchEvent(new CustomEvent('tradingresearch:core-hydrated'));}catch{}}
 async function trCoreBootstrap(){
   let legacyStateText='';try{legacyStateText=localStorage.getItem(STORAGE_KEY)||'';}catch{}
   try{
@@ -143,7 +144,7 @@ async function trCoreBootstrap(){
     }
     state=normalizeState(source);if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
     trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
-    trCoreMode='indexeddb';trCoreHydrated=true;
+    trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();
     const bootstrapReason=hasDurableWorkspace?(needsMarker?'bootstrap-recovered-marker':'bootstrap-normalized'):(needsMarker?'migration-from-localStorage':'bootstrap-normalized');
     const finalSaved=await trCorePersistNow(bootstrapReason);
     if(!finalSaved)throw new Error('IndexedDB se abrió, pero no confirmó la escritura del workspace.');
@@ -154,7 +155,7 @@ async function trCoreBootstrap(){
     const canFallback=!!legacyStateText||!trCoreBootHadMarker;
     if(canFallback){
       if(legacyStateText){try{state=normalizeState(JSON.parse(legacyStateText));}catch{}}
-      trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreReportPersistenceError(e,'Inicialización IndexedDB');
+      trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreSignalHydrated();trCoreReportPersistenceError(e,'Inicialización IndexedDB');
     }else{
       trCoreFatal=true;trCoreMode='fatal';trCoreLastError=e?.message||String(e);trCoreHydrated=false;
     }

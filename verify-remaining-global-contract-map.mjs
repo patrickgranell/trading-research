@@ -5,7 +5,7 @@ import {transformStateActions} from './state-action-transform.mjs';
 import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const raw=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
 const render=consolidateLegacyRenderAssignments(app,{expected:12});
 const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(raw)});
@@ -13,6 +13,8 @@ const transformedState=transformStateActions(raw['state-runtime.js']).source;
 const runtimes=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:raw[f]);
 const inv=remainingGlobalContractMap(pruned.source,{runtimeSources:runtimes,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
+need(inv.semantics?.scope==='remaining-explicit-object-assign-exports','El mapa no declara su scope explícito.');
+need(inv.semantics?.completeClassicScriptGlobalSurface===false,'El mapa no declara su límite frente a globals clásicos.');
 need(inv.version==='31.23.11',`Versión del mapa inesperada: ${inv.version}`);
 need(inv.remainingUnique===286,`Exports restantes inesperados: ${inv.remainingUnique}`);
 need(inv.classified===286,`Clasificados inesperados: ${inv.classified}`);
@@ -32,7 +34,7 @@ need(inv.names.migrationFrontiers.handlerOnly.length===221,`Frontera handler-onl
 need(inv.names.migrationFrontiers.crossRuntime.length===0,`Frontera cross-runtime debería estar cerrada: ${inv.names.migrationFrontiers.crossRuntime.length}`);
 need(inv.names.unclassified.length===0,'El mapa contiene nombres sin clasificar.');
 if(fail.length){console.error('\nRemaining Global Contract Map verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
-console.log('Remaining Global Contract Map verification OK');
+console.log('Remaining Explicit Window Contract Map verification OK');
 console.log(` - Remaining explicit exports: ${inv.remainingUnique}; classified ${inv.classified}; unclassified ${inv.unclassified}`);
 console.log(` - Primary: State Action ${inv.byPrimary['state-action']}; UI handler ${inv.byPrimary['ui-handler']}; dynamic ${inv.byPrimary['dynamic-action']}`);
 console.log(` - Overlap/multi-contract: ${inv.multiContract}`);

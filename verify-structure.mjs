@@ -13,11 +13,15 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Full-source freeze: this proves exact source identity only. Storage Authority
  * semantics are verified independently by verify-storage-authority.mjs. Rebaseline
  * this hash only after reviewing the complete intended app.js delta. */
-const expectedAppSha='f17b9ebe1e73aa1463957709c96dd43475a2f03ad1047babd4979d1085510e33';
+const expectedAppSha='123b7d97843b0c4f5a98ec7174f5d32b8d7ea44a990d424394589a19e887ddf1';
 if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D09 auditado (${sha(app)} != ${expectedAppSha}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.24.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
+if(!app.includes("let trCoreWriteBlockReason=''"))fail.push('Falta recovery write lock del core durable.');
+if(!app.includes('function trCoreSetWriteBlock(')||!app.includes('function trCoreClearWriteBlock(')||!app.includes('function trCoreWriteBlocked('))fail.push('Falta ciclo set/clear/query del recovery write lock.');
+if(!app.includes("return String(reason||'').startsWith('backup-v2-restore');"))fail.push('El core write lock no reserva exclusivamente la persistencia Backup V2.');
+if((app.match(/if\(!trCoreWriteAllowed\(reason\)\)/g)||[]).length<2)fail.push('El core write lock no cubre persist-now y queue-state-write.');
 if(!app.includes("function persist(){return trCorePersistStateBridge('persist');}"))fail.push('persist() no usa el bridge durable.');
 if(/localStorage\.setItem\(STORAGE_KEY/.test(app))fail.push('Queda una escritura directa del estado a localStorage.');
 if(!app.includes('trCoreBootstrap();'))fail.push('Falta bootstrap IndexedDB.');
@@ -75,7 +79,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got.slice(0,10)} != ${want.slice(0,10)}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: exact-source freeze V31.24 D09 validated');
+console.log(' - app.js: exact-source freeze V31.25 restore-lock rebaseline validated');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

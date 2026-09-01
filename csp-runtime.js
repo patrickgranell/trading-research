@@ -26,11 +26,7 @@ if(typeof dataSecurityPanel==='function'){
     let html=trCspDataSecurityBase(),d=trCspDiagnostics();
     const mark=!d.headerChecked?'<strong>Comprobando…</strong>':d.headerMatchesExpectedPolicy?'<strong class="positive">Cabecera OK</strong>':'<strong class="negative">Revisar</strong>';
     const row=`<div><span>Cabecera CSP esperada</span>${mark}</div>`;
-    for(const old of [
-      '<div><span>CSP estricta</span><strong>Pendiente</strong></div>',
-      '<div><span>CSP ejecutable</span><strong class="positive">Enforced</strong></div>',
-      '<div><span>CSP completa</span><strong class="positive">Enforced</strong></div>'
-    ])html=html.replace(old,row);
+    html=html.replace(/<div><span>CSP (?:estricta|ejecutable|completa)<\/span><strong(?: class="positive")?>[^<]*<\/strong><\/div>/g,row);
     html=html
       .replace('Queda pendiente aplicar la CSP estricta a cabeceras/recursos externos.','La build configura una política CSP estricta; la sonda HEAD de esta vista comprueba si la cabecera observada coincide con la política esperada.')
       .replace('La CSP estricta sigue pendiente para la siguiente fase.','La build bloquea atributos de estilo inline; la sonda HEAD verifica la directiva observada.')

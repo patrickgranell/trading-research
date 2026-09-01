@@ -675,6 +675,16 @@ const ANKORA_COLUMN_MAP = {
   Custom1:'Contexto / Custom 1', Custom2:'Tipo de operación / Custom 2', Notes:'Notas', Contract:'Contrato', TimeFrame:'Timeframe'
 };
 function nnum(v){const x=Number(String(v??'').trim().replace(',','.'));return Number.isFinite(x)?x:0;}
+function parseImportNumber(v,field,{required=false,min=-Infinity,max=Infinity,integer=false}={}){
+  const raw=String(v??'').trim();
+  if(!raw){if(required)throw new Error(`${field}: valor numérico obligatorio ausente.`);return null;}
+  const normalized=raw.replace(/\s+/g,'').replace(',','.');
+  const x=Number(normalized);
+  if(!Number.isFinite(x))throw new Error(`${field}: "${raw}" no es un número válido.`);
+  if(integer&&!Number.isInteger(x))throw new Error(`${field}: "${raw}" debe ser un entero.`);
+  if(x<min||x>max)throw new Error(`${field}: ${x} está fuera del rango permitido.`);
+  return x;
+}
 function nullableImportDate(v){const x=String(v||'').trim();return (!x||x.startsWith('01/01/0001'))?'':parseDateTime(x);}
 function importKey(src){return [src.EntryDateTime,src.BuySell,src.Contract,src.EntryPrice,src.Setup,src.TotQuantity].map(x=>String(x||'').trim()).join('|');}
 function ankoraCanonicalSource(src){
@@ -727,16 +737,29 @@ function collectPreviewCategories(plan,drafts){
   return d;
 }
 function makeImportDraft(src,plan,line,rowIndex){
+  const field=name=>`Fila ${rowIndex} · ${name}`;
   const symbol=String(src.Contract||'').trim().split(/\s+/)[0].toUpperCase();
   const inst=state.settings.instruments.find(i=>i.symbol.toUpperCase()===symbol);
+  const q1=parseImportNumber(src.Lot1Quantity,field('Lot1Quantity'),{min:0})??0;
+  const q2=parseImportNumber(src.Lot2Quantity,field('Lot2Quantity'),{min:0})??0;
+  const t1=parseImportNumber(src.Lot1Ticks,field('Lot1Ticks'))??0;
+  const t2=parseImportNumber(src.Lot2Ticks,field('Lot2Ticks'))??0;
+  const totalRaw=parseImportNumber(src.TotQuantity,field('TotQuantity'),{min:0});
+  const totalQty=totalRaw??(q1+q2);
+  if(!(totalQty>0))throw new Error(`${field('TotQuantity')}: la cantidad total debe ser mayor que 0.`);
+  const stop=parseImportNumber(src.StopLossTicks,field('StopLossTicks'),{min:0})??0;
+  const entryPrice=parseImportNumber(src.EntryPrice,field('EntryPrice'),{required:true,min:Number.EPSILON});
+  const lot1Target=String(src.Lot1Type||'').toUpperCase()==='MANUAL'?null:parseImportNumber(src.Lot1TargetTicks,field('Lot1TargetTicks'),{min:0});
+  const lot2Target=String(src.Lot2Type||'').toUpperCase()==='MANUAL'?null:parseImportNumber(src.Lot2TargetTicks,field('Lot2TargetTicks'),{min:0});
+  const lot1Exit=parseImportNumber(src.Lot1ExitPrice,field('Lot1ExitPrice'),{min:0});
+  const lot2Exit=parseImportNumber(src.Lot2ExitPrice,field('Lot2ExitPrice'),{min:0});
   const matchedRisk=matchImportedStrategy(plan,src,symbol);
-  const q1=nnum(src.Lot1Quantity),q2=nnum(src.Lot2Quantity),t1=nnum(src.Lot1Ticks),t2=nnum(src.Lot2Ticks);
-  const totalQty=nnum(src.TotQuantity)||(q1+q2), stop=nnum(src.StopLossTicks), resultTickExposure=t1*q1+t2*q2;
+  const resultTickExposure=t1*q1+t2*q2;
   const hyp=src.Hypothesis?(String(src.Hypothesis).startsWith('H')?String(src.Hypothesis):`H${src.Hypothesis}`):'';
   const lots=[];
-  if(q1||String(src.Lot1Type||'').trim()) lots.push({number:1,quantity:q1,type:String(src.Lot1Type||'').trim(),targetTicks:String(src.Lot1Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot1TargetTicks),realizedTicks:t1,exitPrice:nnum(src.Lot1ExitPrice)||null,exitDate:nullableImportDate(src.Lot1ExitDateTime),stopTicks:stop});
-  if(q2||String(src.Lot2Type||'').trim()) lots.push({number:2,quantity:q2,type:String(src.Lot2Type||'').trim(),targetTicks:String(src.Lot2Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot2TargetTicks),realizedTicks:t2,exitPrice:nnum(src.Lot2ExitPrice)||null,exitDate:nullableImportDate(src.Lot2ExitDateTime),stopTicks:stop});
-  return {rowIndex,include:true,src,line,key:importKey(src),entryDate:parseDateTime(src.EntryDateTime),exitDate:parseDateTime(src.ExitDateTime),direction:src.BuySell==='BUY'?'LONG':src.BuySell==='SELL'?'SHORT':src.BuySell,contract:src.Contract||'',symbol,timeframe:src.TimeFrame||'',contracts:totalQty,setup:src.Setup||'',vd:src.VD||'',nr:src.NR||'',hypothesis:hyp,h4Context:src.Custom1||'',tradeType:src.Custom2||'',notes:src.Notes||'',entryType:src.LmtStp||'',entryPrice:nnum(src.EntryPrice)||null,stopTicks:stop,resultTicks:resultTickExposure,lots,instrumentId:inst?.id||'',riskStrategyId:matchedRisk?.id||'',riskStrategyName:matchedRisk?.name||'No clasificada',unknownInstrument:!inst&&!!symbol,sourceIdentity:ankoraSourceIdentity(src),sourceFingerprint:ankoraSourceFingerprint(src),importDisposition:'insert',existingOperationId:'',conflictOperationIds:[],skipReason:'',possibleUpdate:false};
+  if(q1||String(src.Lot1Type||'').trim())lots.push({number:1,quantity:q1,type:String(src.Lot1Type||'').trim(),targetTicks:lot1Target,realizedTicks:t1,exitPrice:lot1Exit,exitDate:nullableImportDate(src.Lot1ExitDateTime),stopTicks:stop});
+  if(q2||String(src.Lot2Type||'').trim())lots.push({number:2,quantity:q2,type:String(src.Lot2Type||'').trim(),targetTicks:lot2Target,realizedTicks:t2,exitPrice:lot2Exit,exitDate:nullableImportDate(src.Lot2ExitDateTime),stopTicks:stop});
+  return {rowIndex,include:true,src,line,key:importKey(src),entryDate:parseDateTime(src.EntryDateTime),exitDate:parseDateTime(src.ExitDateTime),direction:src.BuySell==='BUY'?'LONG':src.BuySell==='SELL'?'SHORT':src.BuySell,contract:src.Contract||'',symbol,timeframe:src.TimeFrame||'',contracts:totalQty,setup:src.Setup||'',vd:src.VD||'',nr:src.NR||'',hypothesis:hyp,h4Context:src.Custom1||'',tradeType:src.Custom2||'',notes:src.Notes||'',entryType:src.LmtStp||'',entryPrice,stopTicks:stop,resultTicks:resultTickExposure,lots,instrumentId:inst?.id||'',riskStrategyId:matchedRisk?.id||'',riskStrategyName:matchedRisk?.name||'No clasificada',unknownInstrument:!inst&&!!symbol,sourceIdentity:ankoraSourceIdentity(src),sourceFingerprint:ankoraSourceFingerprint(src),importDisposition:'insert',existingOperationId:'',conflictOperationIds:[],skipReason:'',possibleUpdate:false};
 }
 function buildPreviewFromText(text,file,plan){
   const lines=String(text).replace(/^\uFEFF/,'').trim().split(/\r?\n/).filter(Boolean);if(lines.length<2)throw new Error('No hay filas de datos');

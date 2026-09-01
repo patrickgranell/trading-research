@@ -1,5 +1,8 @@
 const TR_CANONICAL_METRICS_VERSION='31.24.0';
 
+let trCanonicalBootstrapNormalizations=0;
+let trCanonicalPersistNormalizations=0;
+
 function trCanonicalHasCloseEvidence(op){
   if(!op||typeof op!=='object')return false;
   if(String(op.exitDate??'').trim())return true;
@@ -25,6 +28,29 @@ function trCanonicalOperationOutcome(op,metricValue){
   const value=trCanonicalFiniteMetric(metricValue);
   if(value===null)return 'pending';
   return value>0?'win':value<0?'loss':'flat';
+}
+
+function trCanonicalOperationResultMetric(op){
+  for(const value of [op?.resultTicks,op?.rMultiple,op?.pnlGross]){
+    const n=trCanonicalFiniteMetric(value);
+    if(n!==null)return n;
+  }
+  return null;
+}
+
+function trCanonicalNormalizeOperationOutcome(op){
+  if(!op||typeof op!=='object')return false;
+  const outcome=trCanonicalOperationOutcome(op,trCanonicalOperationResultMetric(op));
+  if(op.result===outcome)return false;
+  op.result=outcome;
+  return true;
+}
+
+function trCanonicalNormalizeStateOutcomes(){
+  if(typeof state==='undefined'||!Array.isArray(state?.operations))return 0;
+  let changed=0;
+  for(const op of state.operations)if(trCanonicalNormalizeOperationOutcome(op))changed++;
+  return changed;
 }
 
 function trCanonicalStatsFromValues(values){
@@ -97,3 +123,32 @@ exitStats=function(vals){
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,equity:base.equity
   };
 };
+
+trCanonicalBootstrapNormalizations=trCanonicalNormalizeStateOutcomes();
+
+if(typeof persist==='function'){
+  const trCanonicalPersistBaseV31_24=persist;
+  persist=function(...args){
+    trCanonicalPersistNormalizations+=trCanonicalNormalizeStateOutcomes();
+    return trCanonicalPersistBaseV31_24.apply(this,args);
+  };
+}
+
+if(typeof window!=='undefined'){
+  window.TradingResearchCanonicalMetrics=Object.freeze({
+    version:TR_CANONICAL_METRICS_VERSION,
+    outcome:trCanonicalOperationOutcome,
+    stats:trCanonicalStatsFromValues,
+    diagnostics:()=>({
+      version:TR_CANONICAL_METRICS_VERSION,
+      bootstrapNormalizations:trCanonicalBootstrapNormalizations,
+      persistNormalizations:trCanonicalPersistNormalizations,
+      pfNoLoss:'Infinity',
+      zeroOutcome:'flat',
+      pendingRequiresCloseEvidence:false
+    })
+  });
+  if(trCanonicalBootstrapNormalizations&&typeof setTimeout==='function'){
+    setTimeout(()=>{try{if(typeof window.render==='function')window.render();}catch(_){}},0);
+  }
+}

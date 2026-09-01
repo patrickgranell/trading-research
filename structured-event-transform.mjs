@@ -152,7 +152,6 @@ export function transformStructuredEventSources(entries){
     const name=entry.name,src=String(entry.source??'');let out='',last=0,fileConverted=0;
     for(let i=0;i<src.length-10;i++){
       if(src[i]!=='d'||!src.startsWith('data-tr-on',i))continue;
-      if(openTagStartBefore(src,i)<0)continue;
       let attr;try{attr=readHandlerAttribute(src,i);}catch(e){errors.push({file:name,at:i,error:e.message});break;}
       if(!attr)continue;
       const runtimeRaw=attr.raw.replace(/\\(["'])/g,'$1');
@@ -171,10 +170,12 @@ export function transformStructuredEventSources(entries){
       }
       out+=src.slice(last,i)+repl;last=attr.end;converted++;fileConverted++;i=attr.end-1;
     }
-    sources[name]=out+src.slice(last);byFile[name]=fileConverted;
+    const finalSource=out+src.slice(last);const residualLegacy=(finalSource.match(/data-tr-on(?:click|change|input|submit)\s*=/g)||[]).length;
+    if(residualLegacy)errors.push({file:name,error:`Quedan ${residualLegacy} atributos legacy completos fuera de la compilación estructurada.`});
+    sources[name]=finalSource;byFile[name]=fileConverted;
   }
   if(errors.length){const e=new Error('Structured event transform rejected '+errors.length+' handler(s).');e.failures=errors;e.dynamicActionRejected=dynamicActionRejected;throw e;}
-  return {sources,plans,inventory:{converted,uniquePlans:Object.keys(plans).length,dynamicSlots,dynamicActionRejected,legacyProgramHandlers:0,byFile}};
+  return {sources,plans,inventory:{converted,uniquePlans:Object.keys(plans).length,dynamicSlots,dynamicActionRejected,legacyProgramHandlers:0,residualLegacyAttributeTokens:0,byFile}};
 }
 
 export function injectStructuredEventPlans(source,plans){

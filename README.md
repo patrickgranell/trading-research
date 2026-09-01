@@ -88,13 +88,16 @@ Los diagnósticos fallan cerrado: `OK` exige cero fallos locales y cloud pendien
 
 ### Supabase Cloud V10
 
-La migración versionada es:
+Las migraciones versionadas relevantes son:
 
-`supabase/migrations/202609010001_v31_24_cloud_v10.sql`
+- `supabase/migrations/202609010001_v31_24_cloud_v10.sql` — contrato transaccional V10;
+- `supabase/migrations/20260901202021_v31_25_cloud_v10_acl_hardening.sql` — hardening de EXECUTE del RPC.
 
 Cloud V10 usa `public.apply_trading_workspace(text,jsonb)` como boundary transaccional único para CAS + escrituras relacionales del workspace. La revisión se publica solo si la transacción completa tiene éxito. Si el RPC requerido no está disponible, el cliente falla cerrado; no existe fallback de escritura V9.2.
 
-El gate remoto es deliberadamente **manual**. La instalación fue comprobada contra el proyecto remoto durante el cierre de V31.24, pero debe poder repetirse antes de una promoción/release. Véase `SUPABASE_V10_REMOTE_GATE.md`.
+La verificación remota V31.25 detectó que el proyecto conservaba grants explícitos de `EXECUTE` para `anon` y `service_role` aunque `PUBLIC` ya estuviera revocado. El hardening posterior deja el ACL efectivo del RPC como `authenticated` únicamente; el guard interno `AUTH_REQUIRED` se mantiene como defensa adicional.
+
+El gate remoto sigue siendo deliberadamente **manual** para la parte que requiere identidad de usuario. La instalación y el ACL se han comprobado contra el proyecto remoto real y deben poder repetirse antes de una promoción/release. Véase `SUPABASE_V10_REMOTE_GATE.md`.
 
 No se deben almacenar tokens de usuario en el repositorio ni añadir un JWT de usuario a GitHub únicamente para convertir este control administrativo en un check automático.
 

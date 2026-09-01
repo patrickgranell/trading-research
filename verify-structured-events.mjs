@@ -10,7 +10,7 @@ const build=fs.readFileSync('build.mjs','utf8');
 const app=fs.readFileSync('app.js','utf8');
 const transform=fs.readFileSync('structured-event-transform.mjs','utf8');
 
-need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.25.0',`Versión inesperada ${pkg.version}`);
 need(build.includes('transformStructuredEventSources'),'Build no compila handlers históricos a frontera estructurada.');
 need(build.includes('structuredEventInventory'),'Build no emite inventario de la nueva frontera.');
 need(build.includes("dist/structured-event-inventory.json"),'Build no persiste inventario estructurado.');

@@ -197,7 +197,7 @@ export function structuredEventTransformSelfTest(){
     const planText=JSON.stringify(got.plans);if((planText.match(/viewOperation/g)||[]).length!==1||planText.includes('PWN'))failures.push('malicious value altered compiled plan');
   }catch(e){failures.push('basic fixture: '+e.message);}
   try{
-    const fragment="const field='setup';const handler=`data-tr-onclick=\\\"trLegacyStateCommand('lab-clear','${field}')\\\"`;";
+    const fragment="const field='setup';const handler=`data-tr-onclick=\"trLegacyStateCommand('lab-clear','${field}')\"`;";
     const got=transformStructuredEventSources([{name:'fragment.js',source:fragment}]),src=got.sources['fragment.js'];
     if(!src.includes('data-tr-action-click=\"__tr_evt_'))failures.push('standalone handler attribute fragment was not compiled');
     if(src.includes('data-tr-onclick='))failures.push('standalone handler attribute fragment remained legacy');

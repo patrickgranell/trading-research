@@ -42,8 +42,13 @@ const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structu
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
 preEventSources['app.js']=residualMirrorClosure.source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
-structuredEventTransform.sources['event-runtime.js']=injectStructuredEventPlans(structuredEventTransform.sources['event-runtime.js'],structuredEventTransform.plans);
-const structuredEventInventory={version:v,selfTest:true,...structuredEventTransform.inventory};
+const trEventBuildFingerprint=crypto.createHash('sha256')
+  .update(Object.entries(preEventSources).map(([name,source])=>name+'\0'+source).join('\0')+'\0structured-event-transform.mjs\0'+rawScript('structured-event-transform.mjs'),'utf8')
+  .digest('hex').slice(0,16);
+structuredEventTransform.sources['event-runtime.js']=injectStructuredEventPlans(structuredEventTransform.sources['event-runtime.js'],structuredEventTransform.plans)
+  .replace('__TR_EVENT_BUILD_FINGERPRINT__',trEventBuildFingerprint)
+  .replace('__TR_EVENT_EXPECTED_PLAN_COUNT__',String(structuredEventTransform.inventory.uniquePlans));
+const structuredEventInventory={version:v,selfTest:true,artifactFingerprint:trEventBuildFingerprint,...structuredEventTransform.inventory};
 const styleTransformedSources=Object.fromEntries(Object.entries(structuredEventTransform.sources).map(([file,source])=>[file,transformStyleAttrs(source)]));
 const bundledSource=file=>safeScript(styleTransformedSources[file].source);
 const appStyleTransform=styleTransformedSources['app.js'];
@@ -134,4 +139,4 @@ console.log(`Residual Mirror Closure V31.23.48 -> ${residualMirrorClosure.invent
 console.log(`Prune Candidate Closure -> ${pruneCandidates.safeCandidateCount} contract-safe explicit candidates remain`);
 console.log(`Remaining Global Contract Map -> ${remainingContracts.classified}/${remainingContracts.remainingUnique} classified; primary State ${remainingContracts.byPrimary['state-action']||0}, handler ${remainingContracts.byPrimary['ui-handler']||0}, dynamic ${remainingContracts.byPrimary['dynamic-action']||0}; State frontier ${remainingContracts.names.migrationFrontiers.stateOnly.length}; handler frontier ${remainingContracts.names.migrationFrontiers.handlerOnly.length}; cross-runtime ${remainingContracts.coverage.crossRuntimeRead}`);
 console.log(`Dynamic Action Guard -> ${dynamicActionInventory.dynamicHandlerSlots} dynamic handler slots; ${dynamicActionInventory.dynamicCandidateRoots} candidate roots; ${dynamicActionInventory.protectedDynamicGlobals} protected exported globals`);
-console.log(`Structured Event Boundary -> ${structuredEventInventory.converted} handlers compiled to ${structuredEventInventory.uniquePlans} static plans; ${structuredEventInventory.dynamicSlots} value slots; ${structuredEventInventory.dynamicActionRejected} dynamic actions rejected`);
+console.log(`Structured Event Boundary -> ${structuredEventInventory.converted} handlers compiled to ${structuredEventInventory.uniquePlans} static plans; ${structuredEventInventory.dynamicSlots} value slots; ${structuredEventInventory.dynamicActionRejected} dynamic actions rejected; fingerprint ${trEventBuildFingerprint}`);

@@ -23,7 +23,7 @@ const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});

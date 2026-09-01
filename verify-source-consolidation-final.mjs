@@ -33,7 +33,7 @@ const structuredEvents=readJson('dist/structured-event-inventory.json');
 const csp=readJson('dist/csp-manifest.json');
 const style=readJson('dist/style-inventory.json');
 
-need(pkg.version==='31.23.0',`package.json no está en la versión final 31.23.0: ${pkg.version}`);
+need(pkg.version==='31.24.0',`package.json no está en la versión final 31.24.0: ${pkg.version}`);
 
 need(Number(render.source?.assignments)===12&&Number(render.bundled?.assignments)===0,'Render legacy closure cambió');
 need(Number(render.source?.baseAliases)===5&&Number(render.bundled?.baseAliases)===0,'renderV*Base closure cambió');
@@ -68,7 +68,8 @@ need(finalScriptBlocks.length===17,`Structured Event second-pass cubre ${finalSc
 let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
 if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
-const appMatch=html.match(/<script\s+data-tr-build="31\.23\.0">([\s\S]*?)<\/script>/i);
+const releaseRegex=pkg.version.replace(/\\./g,'\\\\.');
+const appMatch=html.match(new RegExp(`<script\\s+data-tr-build="${releaseRegex}">([\\s\\S]*?)<\\/script>`,'i'));
 need(!!appMatch,'No se encontró el bloque app empaquetado');
 const app=appMatch?.[1]||'';
 need((app.match(/Object\.assign\(window,\{/g)||[]).length===0,'El app bundle volvió a publicar Object.assign(window,{...})');
@@ -85,7 +86,7 @@ need(app.includes('__trDynamicDragDiagnostics'),'Falta diagnóstico delegado del
 for(const type of ['dragstart','dragend','dragover','drop'])need((app.match(new RegExp(`data-tr-on${type}=`,`g`))||[]).length===1,`data-tr-on${type} no aparece exactamente una vez`);
 need((app.match(/(?:^|[\s<])(?:ondragstart|ondragend|ondragover|ondrop)\s*=/gm)||[]).length===0,'Quedan handlers drag DOM0 efectivos');
 
-const cleanupMatch=html.match(/<script\s+data-tr-operation-cleanup-runtime="31\.23\.0">([\s\S]*?)<\/script>/i);
+const cleanupMatch=html.match(new RegExp(`<script\\s+data-tr-operation-cleanup-runtime="${releaseRegex}">([\\s\\S]*?)<\\/script>`,'i'));
 need(!!cleanupMatch,'No se encontró Operation Cleanup Runtime');
 const cleanup=cleanupMatch?.[1]||'';
 need(cleanup.includes("const TR_OPERATION_CLEANUP_VERSION='31.23.52'"),'Operation Cleanup Runtime no es V31.23.52');
@@ -109,7 +110,7 @@ need(structural.status===0,'verify-structure.mjs no está verde en Final Audit')
 need(String(structural.stdout||'').includes('Financial regions unchanged vs 31.10.4: 7/7'),'Final Audit no pudo confirmar las 7/7 regiones financieras');
 
 const invariants={
-  packageVersion:'31.23.0',
+  packageVersion:'31.24.0',
   explicitWindow:{blocks:0,entries:0,exports:0},
   registries:{state:56,ui:221,operationCleanup:2},
   finalBindings:{state:56,ui:221,residualMirrors:5,dashboardUnit:1,dynamicActions:3},
@@ -132,7 +133,7 @@ if(fail.length){
 const manifest={phase:PHASE,status:'PASS',generatedAt:new Date().toISOString(),invariants};
 fs.writeFileSync('dist/source-consolidation-final-audit.json',JSON.stringify(manifest,null,2)+'\n');
 console.log('Source Consolidation Final Audit V31.23.52 PASS');
-console.log(' - Package release version: 31.23.0');
+console.log(' - Package release version: 31.24.0');
 console.log(' - Explicit app window action surface: 0 blocks / 0 entries / 0 exports');
 console.log(' - Registry final bindings: State 56 / UI 221 / residual 5 / dashboard 1 / dynamic 3');
 console.log(' - Operation Cleanup Controls: delete operation + delete image registered, image blobs cleaned');

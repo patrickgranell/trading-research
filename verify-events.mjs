@@ -15,7 +15,7 @@ const executableAttr=/\s(?:onclick|onchange|oninput|onsubmit)\s*=/g;
 const legacyProgramAttr=/\sdata-tr-on(?:click|change|input|submit)\s*=/g;
 const structuredAttr=/\sdata-tr-action-(?:click|change|input|submit)\s*=/g;
 
-need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
 need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');
 need(index.indexOf('event-runtime.js')>index.indexOf('security-runtime.js'),'event-runtime.js debe cargar después de security-runtime.js.');

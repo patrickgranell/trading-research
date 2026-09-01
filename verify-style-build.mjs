@@ -6,7 +6,7 @@ const inventory=JSON.parse(fs.readFileSync('dist/style-inventory.json','utf8'));
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 const executableStyleAttrs=[...h.matchAll(/(?:<|\s)style\s*=\s*["']/gi)].length;
 const transformedAttrs=[...h.matchAll(/data-tr-style\s*=\s*["']/gi)].length;
-need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
 need(inventory.inlineAttributes>0,'La build esperaba deuda histórica de atributos style en fuente para transformar.');
 need(inventory.effectiveInlineAttributes===0,`Quedan ${inventory.effectiveInlineAttributes} atributos style efectivos tras la transformación.`);
 need(inventory.transform?.kind==='open-tag-context-scanner','La build no declara el scanner context-aware de style attrs.');
@@ -14,7 +14,7 @@ need(inventory.transform?.selfTest===true,'El build no ejecutó el self-test del
 need(Number(inventory.transform?.appConverted)>0,'El scanner no convirtió atributos style del app bundle.');
 need(executableStyleAttrs===0,`dist/index.html conserva ${executableStyleAttrs} atributos style ejecutables.`);
 need(transformedAttrs>0,'No se detectan atributos data-tr-style transformados en el bundle.');
-need(h.includes('data-tr-style-attr-runtime="31.23.0"'),'Falta el runtime de hidratación style-attr en el bundle.');
+need(h.includes('data-tr-style-attr-runtime="31.24.0"'),'Falta el runtime de hidratación style-attr en el bundle.');
 need(h.includes("const TR_STYLE_ATTR_VERSION='31.22.0'"),'Runtime style-attr con versión inesperada.');
 need(/style-src-attr 'none'/.test(headers),'La CSP construida no bloquea style-src-attr.');
 need(!/style-src-attr[^\n;]*'unsafe-inline'/.test(headers),'La excepción unsafe-inline de style attrs sigue publicada.');

@@ -7,10 +7,10 @@ const fail=[];
 const need=(cond,msg)=>{if(!cond)fail.push(msg);};
 const region=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);return a>=0&&b>=0?app.slice(a,b):'';};
 
-need(pkg.version==='31.23.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="security-runtime.js"></script>'),'index.html no carga security-runtime.js.');
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
-need(index.includes('trading-research-source-version" content="31.22.0"'),'source-version no es 31.22.0.');
+need(index.includes('trading-research-source-version" content="31.24.0"'),'source-version no es 31.24.0.');
 need(app.includes('function inlineUriToken(value){return globalThis.encodeURIComponent'), 'Falta token URI seguro para contexto inline.');
 need(app.includes(".replace(/'/g,'%27')"),'inlineUriToken no codifica el apóstrofo.');
 need(app.includes('function modalShell(title,body,footer){return `<div class="modal-backdrop"')&&app.includes('<div class="modal-head"><h3>${esc(title)}</h3>'),'modalShell no escapa el título en el sink.');

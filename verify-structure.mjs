@@ -16,7 +16,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 const expectedAppSha='334ce6e39aec5d2d12fd9e4d3754a061de1792818b9dbabb84112626e47f557b';
 if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D09 auditado (${sha(app)} != ${expectedAppSha}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.24.0')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.25.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("let trCoreWriteBlockReason=''"))fail.push('Falta recovery write lock del core durable.');
 if(!app.includes('function trCoreSetWriteBlock(')||!app.includes('function trCoreClearWriteBlock(')||!app.includes('function trCoreWriteBlocked('))fail.push('Falta ciclo set/clear/query del recovery write lock.');

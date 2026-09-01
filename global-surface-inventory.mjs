@@ -3,6 +3,14 @@ import fs from 'node:fs';
 const ID=/^[A-Za-z_$][\w$]*$/;
 const HANDLER_ATTR=/\bdata-tr-on(?:click|change|input|submit)\s*=\s*(["'])([\s\S]*?)\1/g;
 const ROOT_CALL=/(?<![\w$.])([A-Za-z_$][\w$]*)\s*\(/g;
+export const TR_EXPLICIT_WINDOW_INVENTORY_SEMANTICS=Object.freeze({
+  scope:'explicit-window-assignments',
+  completeClassicScriptGlobalSurface:false,
+  topLevelClassicDeclarationsIncluded:false,
+  method:'quote-aware source scanner',
+  note:'Counts explicit Object.assign(window, ...) and window/globalThis property assignments only.'
+});
+
 const BUILTIN_ROOTS=new Set([
   'if','for','while','switch','catch','function','return','typeof','void','delete','new',
   'Math','Number','String','Boolean','Array','Object','Date','JSON','RegExp','Set','Map','Promise',
@@ -105,12 +113,14 @@ export function globalSurfaceInventory(source){
   const eventBacked=eventRoots.filter(x=>uniqueAll.includes(x));
   const exportedNotSeenInHandlers=uniqueAll.filter(x=>!eventRoots.includes(x));
   return {
+    semantics:TR_EXPLICIT_WINDOW_INVENTORY_SEMANTICS,
     objectAssignBlocks:blocks.length,
     objectAssignEntries:assignNames.length,
     objectAssignUnique:uniqueAssign.length,
     directWindowAssignments:direct.length,
     directWindowUnique:uniqueDirect.length,
-    totalUniqueGlobals:uniqueAll.length,
+    explicitWindowUnique:uniqueAll.length,
+    totalUniqueGlobals:uniqueAll.length, /* deprecated compatibility alias: NOT complete classic-script globals */
     windowReads:reads.count,
     windowReadUnique:reads.unique.length,
     handlerDeclarations:handlers.handlers,
@@ -132,11 +142,12 @@ if(import.meta.url===`file://${process.argv[1]}`){
   const files=process.argv.slice(2);
   if(!files.length)throw new Error('Usage: node global-surface-inventory.mjs <file...>');
   const report=projectGlobalSurface(files),d=report.combined;
-  console.log('Global surface inventory OK');
+  console.log('Explicit window export inventory OK');
   console.log(` - Object.assign(window, ...) blocks: ${d.objectAssignBlocks}`);
   console.log(` - Object.assign exported entries: ${d.objectAssignEntries} (${d.objectAssignUnique} unique)`);
   console.log(` - Direct window/globalThis assignments: ${d.directWindowAssignments} (${d.directWindowUnique} unique)`);
-  console.log(` - Total unique explicit globals: ${d.totalUniqueGlobals}`);
+  console.log(` - Total unique explicit window exports: ${d.explicitWindowUnique}`);
+  console.log(' - Scope: explicit window/globalThis publications only; top-level classic declarations are intentionally out of scope');
   console.log(` - Declarative handlers scanned: ${d.handlerDeclarations}`);
   console.log(` - Handler root calls matching explicit globals: ${d.handlerBackedGlobals}/${d.handlerRootCalls}`);
   console.log(` - Top handler-backed globals: ${d.names.eventBacked.slice(0,30).join(', ')||'none'}`);

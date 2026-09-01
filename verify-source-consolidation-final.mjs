@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {transformStructuredEventSources} from './structured-event-transform.mjs';
 
 const PHASE='31.23.52';
 const fail=[];
@@ -12,7 +13,7 @@ for(const path of [
   'dist/app-global-prune-inventory.json','dist/state-registry-migration-inventory.json',
   'dist/ui-registry-migration-inventory.json','dist/residual-mirror-closure-inventory.json',
   'dist/dynamic-action-inventory.json','dist/prune-candidate-inventory.json',
-  'dist/remaining-global-contract-map.json','dist/csp-manifest.json','dist/style-inventory.json'
+  'dist/remaining-global-contract-map.json','dist/structured-event-inventory.json','dist/csp-manifest.json','dist/style-inventory.json'
 ])need(exists(path),`Falta ${path}`);
 
 if(fail.length){console.error('Source Consolidation Final Audit FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
@@ -28,6 +29,7 @@ const residual=readJson('dist/residual-mirror-closure-inventory.json');
 const dynamic=readJson('dist/dynamic-action-inventory.json');
 const candidates=readJson('dist/prune-candidate-inventory.json');
 const contracts=readJson('dist/remaining-global-contract-map.json');
+const structuredEvents=readJson('dist/structured-event-inventory.json');
 const csp=readJson('dist/csp-manifest.json');
 const style=readJson('dist/style-inventory.json');
 
@@ -56,7 +58,15 @@ need(Number(contracts.byPrimary?.['state-action']||0)===0&&Number(contracts.byPr
 need(Number(contracts.names?.migrationFrontiers?.stateOnly?.length||0)===0&&Number(contracts.names?.migrationFrontiers?.handlerOnly?.length||0)===0,'Se reabrió una frontera State/UI');
 need(Number(contracts.coverage?.crossRuntimeRead||0)===0,'Se reabrió cross-runtime');
 need(Number(candidates.safeCandidateCount)===0,'Quedan candidatos de poda contract-safe');
-need(Number(dynamic.dynamicHandlerSlots)===4&&Number(dynamic.dynamicCandidateRoots)===8&&Number(dynamic.protectedDynamicGlobals)===3,'Inventario histórico Dynamic Action Guard cambió');
+need(Number(dynamic.dynamicHandlerSlots)===0&&Number(dynamic.dynamicCandidateRoots)===8&&Number(dynamic.protectedDynamicGlobals)===3,'Inventario Dynamic Action Guard V31.24 cambió');
+need(Number(structuredEvents.converted)>=600&&Number(structuredEvents.uniquePlans)>=300&&Number(structuredEvents.dynamicSlots)>=200,'Inventario Structured Event Boundary insuficiente');
+need(Number(structuredEvents.dynamicActionRejected)===0&&Number(structuredEvents.legacyProgramHandlers)===0,'Structured Event Boundary conserva programas/acciones dinámicas rechazadas');
+const finalStaticHtml=html.replace(/<script\s+[^>]*>[\s\S]*?<\/script>/gi,'');
+need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(finalStaticHtml),'El HTML estático final conserva programas click/change/input/submit');
+const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|exit-lab-runtime|canonical-metrics-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
+need(finalScriptBlocks.length===17,`Structured Event second-pass cubre ${finalScriptBlocks.length}/17 scripts propios.`);
+let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
+if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
 const appMatch=html.match(/<script\s+data-tr-build="31\.23\.0">([\s\S]*?)<\/script>/i);
 need(!!appMatch,'No se encontró el bloque app empaquetado');
@@ -109,7 +119,8 @@ const invariants={
   render:{legacyAssignments:0,baseAliases:0,rootWrites:1},
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
-  financialRegions:'7/7'
+  financialRegions:'7/7',
+  structuredEventSecondPass:{ownScripts:17,legacyHandlersConverted:0}
 };
 
 if(fail.length){
@@ -128,4 +139,5 @@ console.log(' - Operation Cleanup Controls: delete operation + delete image regi
 console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");
+console.log(' - Structured Event second-pass coverage: 17/17 own scripts; 0 legacy handlers converted');
 console.log(' - Financial regions unchanged: 7/7');

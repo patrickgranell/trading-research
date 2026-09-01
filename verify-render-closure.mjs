@@ -34,7 +34,7 @@ need(closure.includes('removedBlocks===51&&removedEntries===375&&removedUnique==
 need(closure.includes('contractRemaining===0&&contractClassified===0&&contractUnclassified===0&&contractMulti===0'),'contract coverage guard changed');
 need(closure.includes('primaryState===0&&primaryHandler===0&&primaryDynamic===0'),'primary contract guard changed');
 need(closure.includes('stateFrontier===0&&handlerFrontier===0&&crossRuntime===0'),'frontier guard changed');
-need(closure.includes('dynamicSlots===4&&dynamicCandidates===8&&dynamicProtected===3'),'Dynamic Action source guard changed');
+need(closure.includes('dynamicSlots===0&&dynamicCandidates===8&&dynamicProtected===3'),'Dynamic Action source guard changed');
 need(closure.includes('dynamicActionBindings=Number(actions?.__trDynamicActionContractClosure||0)')&&closure.includes("drag=typeof actions?.__trDynamicDragDiagnostics==='function'?actions.__trDynamicDragDiagnostics():null")&&closure.includes('finalBindingOk=stateFinalBindings===56&&uiFinalBindings===221&&residualMirrorBindings===5&&dashboardUnitBinding===1&&dynamicActionBindings===3'),'runtime dynamic/final-binding diagnostics missing');
 need(closure.includes("cleanup=typeof actions?.__trOperationCleanupDiagnostics==='function'?actions.__trOperationCleanupDiagnostics():null"),'Operation Cleanup diagnostics missing');
 need(closure.includes("cleanupOk=!!cleanup&&cleanup.version==='31.23.52'&&cleanup.registeredActions===2&&cleanup.ok===true"),'Operation Cleanup runtime guard missing');

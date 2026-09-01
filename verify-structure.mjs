@@ -13,7 +13,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Full-source freeze: this proves exact source identity only. Storage Authority
  * semantics are verified independently by verify-storage-authority.mjs. Rebaseline
  * this hash only after reviewing the complete intended app.js delta. */
-const expectedAppSha='123b7d97843b0c4f5a98ec7174f5d32b8d7ea44a990d424394589a19e887ddf1';
+const expectedAppSha='334ce6e39aec5d2d12fd9e4d3754a061de1792818b9dbabb84112626e47f557b';
 if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D09 auditado (${sha(app)} != ${expectedAppSha}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.24.0')fail.push(`Versión inesperada: ${pkg.version}`);
@@ -79,7 +79,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got} != ${want}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: exact-source freeze V31.25 restore-lock rebaseline validated');
+console.log(' - app.js: exact-source freeze V31.25 restore-lock + D12 compact rebaseline validated');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

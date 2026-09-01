@@ -25,6 +25,10 @@ need(evt.includes('data-tr-action-')&&evt.includes('data-tr-args-'),'Event Runti
 need(evt.includes('JSON.parse(decodeURIComponent(raw))'),'Argumentos estructurados no se decodifican desde datos serializados.');
 need(evt.includes('Promise.resolve(p).catch')&&evt.includes('trEventAsyncRejections++'),'D11: handlers async no quedan observados/contabilizados.');
 need(evt.includes('structuredHandlers')&&evt.includes('legacyProgramHandlers'),'Diagnóstico no distingue frontera estructurada de programas legacy.');
+need(evt.includes('__TR_EVENT_BUILD_FINGERPRINT__'),'Event Runtime no contiene marker de fingerprint de artefacto.');
+need(evt.includes('__TR_EVENT_EXPECTED_PLAN_COUNT__'),'Event Runtime no contiene marker de plan-count esperado.');
+need(evt.includes('buildFingerprint')&&evt.includes('expectedCompiledPlans'),'Diagnóstico no expone procedencia del artefacto.');
+need(build.includes('trEventBuildFingerprint'),'Build no calcula/injecta fingerprint estructurado de artefacto.');
 
 need(transform.includes('encodeURIComponent(JSON.stringify('),'Transform no serializa valores dinámicos como datos seguros.');
 need(transform.includes('dynamicActionRejected'),'Transform no bloquea nombres de acción construidos desde datos.');

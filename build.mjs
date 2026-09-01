@@ -4,7 +4,7 @@ import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-s
 import {transformStateActions} from './state-action-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
-import {remainingGlobalContractMap} from './remaining-global-contract-map.mjs';
+import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
 import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
 import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
 import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
@@ -30,6 +30,8 @@ const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSourc
 const stateRegistryMigration=migrateStateActionsToRegistry(appGlobalPrune.source);
 const uiRegistryMigration=migrateUiHandlersToRegistry(stateRegistryMigration.source);
 const residualMirrorClosure=closeResidualDirectMirrors(uiRegistryMigration.source);
+const canonicalContractStage=prepareRemainingGlobalContractStage(appSource,{runtimeSources:appGlobalPruneRuntimeSources});
+if(canonicalContractStage.source!==residualMirrorClosure.source)throw new Error('D18 contract-map stage diverges from build transformation stage.');
 const dynamicActionInventory=appGlobalPrune.inventory.dynamicActionGuard;
 const stateSource=rawScript('state-runtime.js');
 const stateActionBridge=transformStateActions(stateSource);

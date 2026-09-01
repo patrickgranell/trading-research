@@ -21,6 +21,15 @@ function primaryContract(labels){
   return 'unclassified';
 }
 
+export function prepareRemainingGlobalContractStage(appSource,{runtimeSources=[]}={}){
+  const render=consolidateLegacyRenderAssignments(String(appSource),{expected:12});
+  const pruned=pruneAppGlobalExports(render.source,{runtimeSources});
+  const stateRegistry=migrateStateActionsToRegistry(pruned.source);
+  const uiRegistry=migrateUiHandlersToRegistry(stateRegistry.source);
+  const residualClosure=closeResidualDirectMirrors(uiRegistry.source);
+  return {source:residualClosure.source,render,pruned,stateRegistry,uiRegistry,residualClosure};
+}
+
 export function remainingGlobalContractMap(appSource,{runtimeSources=[],stateActionTransformSource=''}={}){
   const app=String(appSource),surface=globalSurfaceInventory(app),remaining=surface.names.objectAssign;
   const remainingSet=new Set(remaining),handlers=handlerRootInventory(app),dynamic=dynamicActionInventory(app);
@@ -82,14 +91,10 @@ if(import.meta.url===`file://${process.argv[1]}`){
   const app=fs.readFileSync(process.argv[2]||'app.js','utf8');
   const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
   const rawRuntimes=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
-  const render=consolidateLegacyRenderAssignments(app,{expected:12});
-  const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(rawRuntimes)});
-  const stateRegistry=migrateStateActionsToRegistry(pruned.source);
-  const uiRegistry=migrateUiHandlersToRegistry(stateRegistry.source);
-  const residualClosure=closeResidualDirectMirrors(uiRegistry.source);
+  const stage=prepareRemainingGlobalContractStage(app,{runtimeSources:Object.values(rawRuntimes)});
   const transformedState=transformStateActions(rawRuntimes['state-runtime.js']).source;
   const runtimeSources=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:rawRuntimes[f]);
-  const inv=remainingGlobalContractMap(residualClosure.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+  const inv=remainingGlobalContractMap(stage.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
   console.log('Remaining Explicit Window Contract Map OK');
   console.log(` - Remaining explicit Object.assign exports: ${inv.remainingUnique}`);
   console.log(` - Classified: ${inv.classified}; unclassified: ${inv.unclassified}; multi-contract: ${inv.multiContract}`);

@@ -145,7 +145,7 @@ if(typeof window!=='undefined'){
       persistNormalizations:trCanonicalPersistNormalizations,
       pfNoLoss:'Infinity',
       zeroOutcome:'flat',
-      pendingRequiresCloseEvidence:false
+      settledRequiresCloseEvidence:true
     })
   });
   if(trCanonicalBootstrapNormalizations&&typeof setTimeout==='function'){

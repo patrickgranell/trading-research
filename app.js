@@ -792,6 +792,14 @@ function confirmImportPreview(){
   state.importBatches.push(batch);plan.updatedAt=new Date().toISOString();state.currentPlanId=plan.id;pendingImportPreview=null;persist();closeModal();currentView='plans';render();setTimeout(()=>openImportBatchInspector(batchId),50);
 }
 function handleImport(file){const plan=getPlan(pendingImportPlanId||state.currentPlanId);pendingImportPlanId=null;if(!plan)return alert('No se encontró el Trading Plan seleccionado.');const reader=new FileReader();reader.onload=()=>{try{pendingImportPreview=buildPreviewFromText(reader.result,file,plan);openImportPreviewModal();}catch(e){alert('No se pudo leer el fichero: '+e.message);}};reader.readAsText(file,'utf-8');}
+function importBatchOperations(batch){
+  if(!batch)return [];
+  if(Number(batch.schemaVersion)>=5&&Array.isArray(batch.operationIds)){
+    const ids=new Set(batch.operationIds.map(String));
+    return (state.operations||[]).filter(o=>ids.has(String(o?.id||'')));
+  }
+  return (state.operations||[]).filter(o=>o?.importBatchId===batch.id);
+}
 function importBatchTable(batches){if(!batches.length)return '<div class="empty">Todavía no hay importaciones registradas.</div>';return `<div class="table-wrap"><table class="table"><thead><tr><th>Fecha</th><th>Archivo</th><th>Trading Plan</th><th>Filas RAW</th><th>Aplicadas</th><th>Nuevos datos</th><th>Advertencias</th><th>Acciones</th></tr></thead><tbody>${batches.map(b=>{const p=getPlan(b.tradingPlanId),newCount=(b.detected?.setups?.length||0)+(b.detected?.vd?.length||0)+(b.detected?.nr?.length||0)+(b.detected?.hypotheses?.length||0),warn=(b.unknownInstruments?.length||0)+(b.unmatchedStrategies||0)+(b.possibleUpdates||0),applied=b.schemaVersion>=5?`${b.insertedCount||0} nuevas · ${b.updatedCount||0} actualizadas`:(b.operationCount||0),extraWarnings=b.schemaVersion>=5?(b.skippedCount||0)+(b.conflictCount||0):0;return `<tr><td>${fmtDate(b.importedAt)}</td><td>${esc(b.fileName)}</td><td>${esc(planLabel(p))}</td><td>${b.rawRowCount||b.operationCount||0}</td><td>${applied}</td><td>${newCount}</td><td>${warn+extraWarnings}</td><td><button class="btn small primary" data-tr-onclick="openImportBatchInspector('${b.id}')">Revisar dataset</button> <button class="btn small" data-tr-onclick="viewImportBatchTrades('${b.id}')">Ver trades</button> <button class="btn small danger" data-tr-onclick="deleteImportBatch('${b.id}')">Eliminar</button></td></tr>`}).join('')}</tbody></table></div>`;}
 function viewImportBatchTrades(id){const b=state.importBatches.find(x=>x.id===id);if(!b)return;state.currentPlanId=b.tradingPlanId;currentView='operations';persist();render();setTimeout(()=>document.getElementById('opsTable').innerHTML=opsTable(importBatchOperations(b).sort((a,b)=>v3194CompareOps(b,a))),0);}
 function openImportBatchInspector(id){

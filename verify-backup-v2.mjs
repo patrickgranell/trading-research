@@ -62,7 +62,9 @@ if(pStart>=0&&pEnd>pStart){
     TR_BACKUP_V2_SCHEMA:2,
     uid:()=> 'RST2_TEST',
     trBackupV2Clone:v=>JSON.parse(JSON.stringify(v)),
-    trBackupV2RestoreIo:()=>{throw new Error('default IO no debe usarse en test');}
+    trBackupV2RestoreIo:()=>{throw new Error('default IO no debe usarse en test');},
+    trBackupV2AcquireRecoveryLock:()=> 'verify-backup-v2-lock',
+    trBackupV2ReleaseRecoveryLock:()=>true
   };
   vm.createContext(context);
   vm.runInContext(protocolSrc+'\nthis.protocol=trBackupV2RestoreProtocol;',context);

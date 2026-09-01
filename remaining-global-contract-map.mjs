@@ -56,6 +56,12 @@ export function remainingGlobalContractMap(appSource,{runtimeSources=[],stateAct
     directMirrors:rows.filter(r=>r.contracts.includes('direct-global-mirror')).map(r=>r.name)
   };
   return {
+    semantics:{
+      scope:'remaining-explicit-object-assign-exports',
+      completeClassicScriptGlobalSurface:false,
+      topLevelClassicDeclarationsIncluded:false,
+      method:'explicit export + handler/read source inventory'
+    },
     version:TR_REMAINING_GLOBAL_CONTRACT_MAP_VERSION,
     remainingUnique:remaining.length,
     classified:rows.length-unclassified.length,
@@ -71,14 +77,14 @@ export function remainingGlobalContractMap(appSource,{runtimeSources=[],stateAct
 
 if(import.meta.url===`file://${process.argv[1]}`){
   const app=fs.readFileSync(process.argv[2]||'app.js','utf8');
-  const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+  const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
   const rawRuntimes=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
   const render=consolidateLegacyRenderAssignments(app,{expected:12});
   const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(rawRuntimes)});
   const transformedState=transformStateActions(rawRuntimes['state-runtime.js']).source;
   const runtimeSources=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:rawRuntimes[f]);
   const inv=remainingGlobalContractMap(pruned.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
-  console.log('Remaining Global Contract Map OK');
+  console.log('Remaining Explicit Window Contract Map OK');
   console.log(` - Remaining explicit Object.assign exports: ${inv.remainingUnique}`);
   console.log(` - Classified: ${inv.classified}; unclassified: ${inv.unclassified}; multi-contract: ${inv.multiContract}`);
   console.log(` - Coverage: handler ${inv.coverage.uiHandler}; dynamic ${inv.coverage.dynamicAction}; state ${inv.coverage.stateAction}; same-app read ${inv.coverage.sameAppGlobalRead}; cross-runtime ${inv.coverage.crossRuntimeRead}; direct mirror ${inv.coverage.directGlobalMirror}`);

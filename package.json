@@ -1,7 +1,7 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.24.0",
+  "version": "31.25.0",
   "scripts": {
     "build": "node build.mjs && node verify-build.mjs && node verify-csp-build.mjs && node verify-style-build.mjs && node verify-source-consolidation-final.mjs",
     "deploy": "npm run build && wrangler deploy",

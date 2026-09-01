@@ -5,10 +5,10 @@ Trading Research es una aplicación local-first para registrar operaciones, anal
 ## Estado de release
 
 - **Producción / `main`**: V31.24.0.
-- **Rama de hardening**: `v31.25-reaudit-hardening`.
+- **Rama de hardening / release candidate**: `v31.25-reaudit-hardening` · V31.25.0.
 - **PR de trabajo**: V31.25 · Reaudit Hardening.
 - La rama de hardening no debe promoverse a producción hasta que el **mismo SHA** tenga CI completo verde, preview Cloudflare correcta, smoke test y gate remoto Supabase V10 cuando corresponda.
-- El número visible de producto permanece en V31.24.0 mientras V31.25 siga siendo candidato y no haya sido promovido formalmente.
+- La versión visible de la rama candidata se promociona a V31.25.0 en este release candidate; producción continúa en V31.24.0 hasta merge y despliegue controlados.
 
 ## Arquitectura actual
 
@@ -131,7 +131,7 @@ La reauditoría no se acepta por autoridad: cada hallazgo se reproduce o se desc
 | D04 · Event Boundary injection | Cerrado; no reabierto |
 | D14 · Supabase V10 atomicidad | Cerrado; no reabierto |
 | D17 · global-surface overclaim | Cerrado como overclaim |
-| Remote Supabase gate | Gate manual de release, no bug de datos |
+| Remote Supabase gate | Verificado en producción; ACL V10 endurecido y probe con cero escrituras |
 | README | Actualizado en esta ronda |
 
 ## Verificación local y CI

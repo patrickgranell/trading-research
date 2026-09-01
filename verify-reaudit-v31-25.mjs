@@ -37,7 +37,7 @@ function extractFunction(src,name){
     extractFunction(app,'v314TickPreciseMs'),
     extractFunction(app,'v314PositionAwarePath'),
     extractFunction(app,'v315BuildSeries')
-  ].join('\n')+';globalThis.__build=v315BuildSeries;',ctx);
+  ].join('\n')+';globalThis.__path=v314PositionAwarePath;globalThis.__build=v315BuildSeries;',ctx);
 
   const scaleIn={
     direction:'LONG',entryPrice:105,peakQuantity:2,totalEntryQuantity:2,
@@ -55,8 +55,8 @@ function extractFunction(src,name){
     [15000,0,106,105,107],
     [20000,0,108,108,109]
   ];
-  const series=ctx.__build(scaleIn,scaleTicks,1,0);
-  const beforeScaleIn=series?.points?.find(p=>p.i===1),afterScaleIn=series?.points?.find(p=>p.i===2);
+  const path=ctx.__path(scaleIn,scaleTicks,1,0),series=ctx.__build(scaleIn,scaleTicks,1,0);
+  const beforeScaleIn=path?.points?.find(p=>p.i===1),afterScaleIn=path?.points?.find(p=>p.i===2);
   need(beforeScaleIn?.pnlTicks===4&&beforeScaleIn?.openQuantity===1&&beforeScaleIn?.averageEntry===100,
     `N01 scale-in: antes del segundo BUY debe ser qty1 avg100 +4t; obtenido qty=${beforeScaleIn?.openQuantity}, avg=${beforeScaleIn?.averageEntry}, pnl=${beforeScaleIn?.pnlTicks}`);
   need(afterScaleIn?.pnlTicks===10&&afterScaleIn?.openQuantity===2&&afterScaleIn?.averageEntry===105,
@@ -82,7 +82,7 @@ function extractFunction(src,name){
     [2000,0,120,119,120],
     [3000,0,115,115,116]
   ];
-  const reSeries=ctx.__build(reentry,reTicks,1,0),atReentry=reSeries?.points?.find(p=>p.i===2);
+  const rePath=ctx.__path(reentry,reTicks,1,0),reSeries=ctx.__build(reentry,reTicks,1,0),atReentry=rePath?.points?.find(p=>p.i===2);
   need(atReentry?.openQuantity===2&&atReentry?.averageEntry===110&&atReentry?.realizedAggregateTicks===10&&atReentry?.pnlTicks===30,
     `N01 re-entry: esperado qty2 avg110 realized10 total30; obtenido qty=${atReentry?.openQuantity}, avg=${atReentry?.averageEntry}, realized=${atReentry?.realizedAggregateTicks}, pnl=${atReentry?.pnlTicks}`);
   need(reSeries?.aggregateRealizedTicks===20&&Math.abs(Number(reSeries?.realizedTicks)-20/3)<1e-9,
@@ -103,7 +103,7 @@ function extractFunction(src,name){
     [2000,0,100,100,101],
     [3000,0,105,104,105]
   ];
-  const sh=ctx.__build(shortTrade,shortTicks,1,0),beforeSecondShort=sh?.points?.find(p=>p.i===1);
+  const shPath=ctx.__path(shortTrade,shortTicks,1,0),sh=ctx.__build(shortTrade,shortTicks,1,0),beforeSecondShort=shPath?.points?.find(p=>p.i===1);
   need(beforeSecondShort?.pnlTicks===4&&beforeSecondShort?.averageEntry===110,
     `N01 SHORT: antes del segundo SELL debe ser +4t desde 110; obtenido ${beforeSecondShort?.pnlTicks}`);
   need(sh?.aggregateRealizedTicks===0,'N01 SHORT: cierre simétrico esperado 0t agregados.');

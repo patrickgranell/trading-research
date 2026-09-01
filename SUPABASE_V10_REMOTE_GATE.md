@@ -2,11 +2,24 @@
 
 ## Estado
 
-La migración V10 versionada:
+La migración V10 base:
 
 `supabase/migrations/202609010001_v31_24_cloud_v10.sql`
 
-fue instalada y verificada contra el proyecto Supabase real durante el cierre de V31.24.
+fue instalada durante el cierre de V31.24.
+
+Durante la verificación remota V31.25 se detectó además un ACL efectivo demasiado amplio para `apply_trading_workspace(text,jsonb)`: el proyecto conservaba grants explícitos para `anon` y `service_role`. Se aplicó y versionó:
+
+`supabase/migrations/20260901202021_v31_25_cloud_v10_acl_hardening.sql`
+
+El ACL esperado del RPC queda:
+
+```text
+authenticated  EXECUTE
+anon           NO EXECUTE
+service_role   NO EXECUTE
+PUBLIC         NO EXECUTE
+```
 
 Este documento **no significa que la migración esté pendiente**. Define un gate remoto repetible que debe volver a ejecutarse cuando una promoción/release necesite certificar que el entorno remoto objetivo sigue exponiendo exactamente el contrato esperado.
 
@@ -29,8 +42,9 @@ La migración V10 instala:
 - lock de usuario con alcance transaccional;
 - validación CAS de revisión;
 - escrituras/deletes relacionales dentro de una única transacción;
-- publicación de la revisión solo después del éxito de la transacción;
-- permiso de ejecución para `authenticated`.
+- publicación de la revisión solo después del éxito de la transacción.
+
+La migración ACL posterior elimina grants explícitos heredados y deja `EXECUTE` únicamente a `authenticated`.
 
 ## 2. Credenciales efímeras
 

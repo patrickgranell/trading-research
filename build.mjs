@@ -23,7 +23,7 @@ const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
@@ -60,6 +60,7 @@ const replacements=[
   ['backup-v2-runtime.js','data-tr-backup-v2-runtime',bundledSource('backup-v2-runtime.js')],
   ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledSource('event-runtime.js')],
+  ['cloud-v10-runtime.js','data-tr-cloud-v10-runtime',bundledSource('cloud-v10-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledSource('csp-runtime.js')],
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
   ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],

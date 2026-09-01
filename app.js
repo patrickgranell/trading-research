@@ -5501,7 +5501,7 @@ operationForm=function(o,r,p){
   v301NormalizeOperationExcursions(o);let html=operationFormV301Base(o,r,p);
   const make=(key,label)=>{
     const s=o?dqMetricStatus(o,key):'missing',ticks=s==='measured'?Number(o?.[`${key}Ticks`]??0):'',rv=s==='measured'?Number(o?.[key]||0):0;
-    return `<div class="field excursion-ticks-field"><label>${label} (ticks)</label><input id="f-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" data-tr-oninput="v301ExcursionInput('${key}')"><input id="f-${key}" type="hidden" value="${esc(rv)}"><small id="f-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></div>`;
+    return `<div class="field excursion-ticks-field"><label>${label} (ticks)</label><input id="f-${key}Ticks" class="input" type="number" min="0" step="any" value="${ticks===''?'':esc(ticks)}" data-tr-oninput="v301ExcursionInput('${key}');v302RefreshExcursionDefinition()"><input id="f-${key}" type="hidden" value="${esc(rv)}"><small id="f-${key}-equivalent" class="excursion-equivalent">${esc(v301ExcursionEqHtml(ticks,rv))}</small></div>`;
   };
   html=html.replace(/<div class="field [^"]*"><label>MFE \(R\)<\/label><input id="f-mfe"[^>]*><\/div>/,make('mfe','MFE'));
   html=html.replace(/<div class="field [^"]*"><label>MAE \(R\)<\/label><input id="f-mae"[^>]*><\/div>/,make('mae','MAE'));
@@ -5692,7 +5692,6 @@ const operationFormV302Base=operationForm;
 operationForm=function(o,r,p){
   let html=operationFormV302Base(o,r,p);
   html=html.replace('<label>MFE (ticks)</label>','<label>MFE real (ticks)</label>').replace('<label>MAE (ticks)</label>','<label>MAE real (ticks)</label>');
-  html=html.replace("data-tr-oninput=\"v301ExcursionInput('mfe')\"","data-tr-oninput=\"v301ExcursionInput('mfe');v302RefreshExcursionDefinition()\"").replace("data-tr-oninput=\"v301ExcursionInput('mae')\"","data-tr-oninput=\"v301ExcursionInput('mae');v302RefreshExcursionDefinition()\"");
   const marker='<div class="notice" style="margin-top:12px">La R mostrada aquí es bruta:';
   const i=html.indexOf(marker);if(i>=0)html=html.slice(0,i)+v302DefinitionBox(r)+html.slice(i);
   return html;
@@ -5707,7 +5706,6 @@ const dqWorkbenchBodyV302Base=dqWorkbenchBody;
 dqWorkbenchBody=function(o,index,total){
   let html=dqWorkbenchBodyV302Base(o,index,total);
   html=html.replace('<span>MFE (ticks)</span>','<span>MFE real (ticks)</span>').replace('<span>MAE (ticks)</span>','<span>MAE real (ticks)</span>');
-  html=html.replace("data-tr-oninput=\"v301WorkbenchExcursionInput('mfe'","data-tr-oninput=\"v301WorkbenchExcursionInput('mfe'").replace("data-tr-oninput=\"v301WorkbenchExcursionInput('mae'","data-tr-oninput=\"v301WorkbenchExcursionInput('mae'");
   const help='“Medido” permite guardar 0 ticks como cero real. La R se deriva del riesgo inicial de la operación.';
   const wbAnchor=help+' “No aplicable / no recuperable” resuelve la cola de limpieza, aunque ese trade no contará como dato utilizable en Exit Lab.</div>';
   html=html.replace(wbAnchor,wbAnchor+v302DefinitionBox(o,'dqWorkbenchExcursionDefinition'));

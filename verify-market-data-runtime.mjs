@@ -77,7 +77,8 @@ function extractDeclaration(src,name){
       metas:[{id:'MD',tickSize:1}]
     },
     v314LoadTicks:()=>new Promise(resolve=>deferred.push(resolve)),
-    v315BuildSeries:r=>({points:[{id:r.id}],marker:r.id}),
+    v315BuildSeries:r=>({pointCount:1,marker:r.id}),
+    v315SeriesLength:series=>Math.max(0,Number(series?.pointCount)||0),
     render(){},
     console
   };

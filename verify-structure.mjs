@@ -13,7 +13,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Full-source freeze: this proves exact source identity only. Storage Authority
  * semantics are verified independently by verify-storage-authority.mjs. Rebaseline
  * this hash only after reviewing the complete intended app.js delta. */
-const expectedAppSha='b09cda2b99631ed737ed23be04f1c8e515582829442809b98be6d895ac17d089';
+const expectedAppSha='f17b9ebe1e73aa1463957709c96dd43475a2f03ad1047babd4979d1085510e33';
 if(sha(app)!==expectedAppSha)fail.push(`app.js no coincide con el baseline de fuente V31.24 D09 auditado (${sha(app)} != ${expectedAppSha}).`);
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.24.0')fail.push(`Versión inesperada: ${pkg.version}`);

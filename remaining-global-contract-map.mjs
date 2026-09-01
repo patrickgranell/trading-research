@@ -4,6 +4,9 @@ import {dynamicActionInventory} from './dynamic-action-inventory.mjs';
 import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
+import {migrateStateActionsToRegistry} from './state-registry-migration-transform.mjs';
+import {migrateUiHandlersToRegistry} from './ui-registry-migration-transform.mjs';
+import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mjs';
 
 export const TR_REMAINING_GLOBAL_CONTRACT_MAP_VERSION='31.23.11';
 
@@ -81,9 +84,12 @@ if(import.meta.url===`file://${process.argv[1]}`){
   const rawRuntimes=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
   const render=consolidateLegacyRenderAssignments(app,{expected:12});
   const pruned=pruneAppGlobalExports(render.source,{runtimeSources:Object.values(rawRuntimes)});
+  const stateRegistry=migrateStateActionsToRegistry(pruned.source);
+  const uiRegistry=migrateUiHandlersToRegistry(stateRegistry.source);
+  const residualClosure=closeResidualDirectMirrors(uiRegistry.source);
   const transformedState=transformStateActions(rawRuntimes['state-runtime.js']).source;
   const runtimeSources=runtimeFiles.map(f=>f==='state-runtime.js'?transformedState:rawRuntimes[f]);
-  const inv=remainingGlobalContractMap(pruned.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
+  const inv=remainingGlobalContractMap(residualClosure.source,{runtimeSources,stateActionTransformSource:fs.readFileSync('state-action-transform.mjs','utf8')});
   console.log('Remaining Explicit Window Contract Map OK');
   console.log(` - Remaining explicit Object.assign exports: ${inv.remainingUnique}`);
   console.log(` - Classified: ${inv.classified}; unclassified: ${inv.unclassified}; multi-contract: ${inv.multiContract}`);

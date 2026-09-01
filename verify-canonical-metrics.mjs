@@ -52,6 +52,24 @@ const loss={id:'loss',entryDate:'2026-09-01T11:00',exitDate:'2026-09-01T11:04',r
 const flatLegacy={id:'flat',entryDate:'2026-09-01T12:00',exitDate:'2026-09-01T12:03',result:'pending',resultTicks:0,rMultiple:0,mfe:.4,mae:.4,pnlGross:0,pnlNet:-10,commission:10};
 const pending={id:'pending',entryDate:'2026-09-01T13:00',exitDate:'',result:'pending',resultTicks:50,rMultiple:5,mfe:7,mae:.1,pnlGross:500,pnlNet:490,commission:10};
 
+const legacyCtx={console};
+vm.createContext(legacyCtx);
+vm.runInContext([
+  extractFunction('opMetricValue'),
+  extractFunction('calcStats'),
+  extractFunction('calcMetricStats'),
+  extractFunction('exitStats')
+].join('\n'),legacyCtx,{filename:'legacy-red-reproduction.js'});
+legacyCtx.__win=win;legacyCtx.__pending=pending;legacyCtx.__flat=flatLegacy;
+const legacyRed=vm.runInContext(`({
+  pfNoLoss:calcStats([__win]).pf,
+  pendingN:calcMetricStats([__pending],'r','gross').n,
+  zeroStoredResult:__flat.result
+})`,legacyCtx);
+assert(legacyRed.pfNoLoss===0,'Reproducción legado: calcStats debe demostrar el bug histórico PF=0 sin pérdidas.');
+assert(legacyRed.pendingN===1,'Reproducción legado: calcMetricStats histórico debe demostrar que pending entraba en n.');
+assert(legacyRed.zeroStoredResult==='pending','Reproducción legado: un cierre 0 histórico debe estar representado como pending antes del runtime canónico.');
+
 assert(typeof ctx.trCanonicalOperationOutcome==='function','Falta la autoridad trCanonicalOperationOutcome().');
 if(typeof ctx.trCanonicalOperationOutcome==='function'){
   assert(ctx.trCanonicalOperationOutcome(win,2)==='win','Cierre positivo debe clasificar win.');
@@ -115,6 +133,7 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Canonical metrics verification OK');
+console.log(' - legacy red reproduced: PF=0 without losses + pending included before canonical authority');
 console.log(' - pending excluded from n / PF / expectancy / win rate');
 console.log(' - closed zero => flat in stats, in-memory state and future persistence');
 console.log(' - PF: gain/no-loss => Infinity; zero/zero => 0');

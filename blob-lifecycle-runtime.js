@@ -302,7 +302,7 @@ try{deleteSavedLibraryItem=trBlobDeleteSavedLibraryItem;}catch{}
 Object.defineProperty(registry,'__trBlobLifecycleDiagnostics',{value:()=>({
   version:TR_BLOB_LIFECYCLE_VERSION,durableDeletes,localGcDeleted,localGcKept,localGcFailures,cloudGcDeleted,cloudGcKept,cloudGcFailures,lastGcAt,lastError,
   policy:'metadata -> persist+flush -> mark-and-sweep',snapshotRoots:typeof trCoreSnapshotCache!=='undefined'?(trCoreSnapshotCache||[]).length:0,
-  ok:!lastError||localGcFailures>0||cloudGcFailures>0
+  ok:!lastError&&localGcFailures===0&&cloudGcFailures===0
 }),writable:false,enumerable:false,configurable:true});
 registry.runLocalBlobGarbageCollection=async function(){
   try{const result=await TRDomainStore.exclusive('blob.gc.local.manual',()=>trBlobGcSweepLocalAll());trBlobGcRender();return result;}

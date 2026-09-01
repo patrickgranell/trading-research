@@ -63,7 +63,7 @@ need(Number(structuredEvents.converted)>=600&&Number(structuredEvents.uniquePlan
 need(Number(structuredEvents.dynamicActionRejected)===0&&Number(structuredEvents.legacyProgramHandlers)===0,'Structured Event Boundary conserva programas/acciones dinámicas rechazadas');
 const finalStaticHtml=html.replace(/<script\s+[^>]*>[\s\S]*?<\/script>/gi,'');
 need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(finalStaticHtml),'El HTML estático final conserva programas click/change/input/submit');
-const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|backup-v2-runtime|security-runtime|event-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
+const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
 let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
 if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 

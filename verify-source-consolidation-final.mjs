@@ -32,6 +32,9 @@ const contracts=readJson('dist/remaining-global-contract-map.json');
 const structuredEvents=readJson('dist/structured-event-inventory.json');
 const csp=readJson('dist/csp-manifest.json');
 const style=readJson('dist/style-inventory.json');
+const financialBaseline=readJson('financial-regression-baseline.json');
+const financialRegionCount=Object.keys(financialBaseline.hashes||{}).length;
+const financialMarker=`Financial regions unchanged vs ${financialBaseline.sourceVersion}: ${financialRegionCount}/${financialRegionCount}`;
 
 need(pkg.version==='31.24.0',`package.json no está en la versión final 31.24.0: ${pkg.version}`);
 
@@ -107,7 +110,7 @@ need(!String(csp.csp||'').includes("'unsafe-eval'"),'CSP manifest contiene unsaf
 
 const structural=spawnSync(process.execPath,['verify-structure.mjs'],{encoding:'utf8'});
 need(structural.status===0,'verify-structure.mjs no está verde en Final Audit');
-need(String(structural.stdout||'').includes('Financial regions unchanged vs 31.10.4: 7/7'),'Final Audit no pudo confirmar las 7/7 regiones financieras');
+need(String(structural.stdout||'').includes(financialMarker),`Final Audit no pudo confirmar ${financialRegionCount}/${financialRegionCount} regiones financieras`);
 
 const invariants={
   packageVersion:'31.24.0',
@@ -120,7 +123,7 @@ const invariants={
   render:{legacyAssignments:0,baseAliases:0,rootWrites:1},
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
-  financialRegions:'7/7',
+  financialRegions:`${financialRegionCount}/${financialRegionCount}`,
   structuredEventSecondPass:{ownScripts:17,legacyHandlersConverted:0}
 };
 
@@ -141,4 +144,4 @@ console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");
 console.log(' - Structured Event second-pass coverage: 17/17 own scripts; 0 legacy handlers converted');
-console.log(' - Financial regions unchanged: 7/7');
+console.log(` - Financial regions unchanged: ${financialRegionCount}/${financialRegionCount}`);

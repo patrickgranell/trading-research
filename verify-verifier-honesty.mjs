@@ -10,6 +10,7 @@ const globalVerifySource=fs.readFileSync('verify-global-surface.mjs','utf8');
 const contractSource=fs.readFileSync('remaining-global-contract-map.mjs','utf8');
 const finalAudit=fs.readFileSync('verify-source-consolidation-final.mjs','utf8');
 const csp=fs.readFileSync('csp-runtime.js','utf8');
+const renderClosure=fs.readFileSync('render-closure-runtime.js','utf8');
 const buildSource=fs.readFileSync('build.mjs','utf8');
 const appPruneVerify=fs.readFileSync('verify-app-global-prune.mjs','utf8');
 const remainingVerify=fs.readFileSync('verify-remaining-global-contract-map.mjs','utf8');
@@ -51,6 +52,11 @@ need(finalAudit.includes("persistence-coalescing-runtime"),
   'Final Audit second-pass no incluye persistence-coalescing-runtime.js.');
 need(/finalScriptBlocks\.length\)===17|finalScriptBlocks\.length===17/.test(finalAudit),
   'Final Audit debe afirmar explícitamente cobertura 17/17 de scripts propios antes del second-pass.');
+
+need(!renderClosure.includes('dynamicSlots===4'),
+  'Source Consolidation runtime conserva el gate histórico dynamicSlots===4 aunque D04 exige 0 slots ejecutables.');
+need(renderClosure.includes('dynamicSlots===0'),
+  'Source Consolidation runtime debe certificar dynamic handler slots = 0 tras D04.');
 
 need(!csp.includes('ok:s.ok!==false'),
   'CSP diagnostics convierte estado no comprobado en ok=true.');

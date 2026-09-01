@@ -1,5 +1,5 @@
 {
-  "sourceVersion": "31.10.4",
+  "sourceVersion": "31.25-reaudit",
   "algorithm": "sha256",
   "regions": {
     "riskCalc": [
@@ -29,15 +29,20 @@
     "v3110TrailScenario": [
       "function v3110TrailScenario(",
       "function v3110FmtPct"
+    ],
+    "v314PositionAwarePath": [
+      "function v314PositionAwarePath(",
+      "function v314CalculateTrade("
     ]
   },
   "hashes": {
     "riskCalc": "f7af969cd616a922c01cbf32d0dc2123cda7417e556c52ca6edaf6ef8f17d6a9",
-    "v314CalculateTrade": "25af53a5f7752de74e51adba72534a000fc377ce4914d601f367b8c756d49eb7",
-    "v315BuildSeries": "dace2c46c3534770cb83ab81a680edff36db230bc49b0600f0b1fa3b66ec8f41",
+    "v314CalculateTrade": "997eccff630500ea9f20d68bdbcebd7cf925c9f996078b2f8cbbf3f031e0dcc2",
+    "v315BuildSeries": "48a03669b53327e1766ccece0a5bc5c87c93d3fa3acad5c93523b97ce5532e89",
     "v3194Chronology": "5cca6fb022ed62ebcf1df44717b428522550ee8c14bd5efc663d85c01ee88dc4",
     "v3110ObservedEvidence": "3160424acdd6fc429e529f6acaeaa7c91cda822ac7b55ef7ddbdb0b4eda626f8",
     "v3110TargetScenario": "2bd698697f69c92aa1221057bd55d4d4018f348c4e625ef69fa82f99d045ab61",
-    "v3110TrailScenario": "92f2bf1583a34e76026743c485b9277b5b197ca96ae56cfa4135dfbe5fe62082"
+    "v3110TrailScenario": "92f2bf1583a34e76026743c485b9277b5b197ca96ae56cfa4135dfbe5fe62082",
+    "v314PositionAwarePath": "db092396f67d5b9f81de7898f0e984fcf9f418a45798d2aa434ab401e88e4b69"
   }
 }

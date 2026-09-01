@@ -68,7 +68,8 @@ need(finalScriptBlocks.length===17,`Structured Event second-pass cubre ${finalSc
 let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
 if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
-const appMatch=html.match(/<script\s+data-tr-build="31\.23\.0">([\s\S]*?)<\/script>/i);
+const releaseRegex=pkg.version.replace(/\\./g,'\\\\.');
+const appMatch=html.match(new RegExp(`<script\\s+data-tr-build="${releaseRegex}">([\\s\\S]*?)<\\/script>`,'i'));
 need(!!appMatch,'No se encontró el bloque app empaquetado');
 const app=appMatch?.[1]||'';
 need((app.match(/Object\.assign\(window,\{/g)||[]).length===0,'El app bundle volvió a publicar Object.assign(window,{...})');
@@ -85,7 +86,7 @@ need(app.includes('__trDynamicDragDiagnostics'),'Falta diagnóstico delegado del
 for(const type of ['dragstart','dragend','dragover','drop'])need((app.match(new RegExp(`data-tr-on${type}=`,`g`))||[]).length===1,`data-tr-on${type} no aparece exactamente una vez`);
 need((app.match(/(?:^|[\s<])(?:ondragstart|ondragend|ondragover|ondrop)\s*=/gm)||[]).length===0,'Quedan handlers drag DOM0 efectivos');
 
-const cleanupMatch=html.match(/<script\s+data-tr-operation-cleanup-runtime="31\.23\.0">([\s\S]*?)<\/script>/i);
+const cleanupMatch=html.match(new RegExp(`<script\\s+data-tr-operation-cleanup-runtime="${releaseRegex}">([\\s\\S]*?)<\\/script>`,'i'));
 need(!!cleanupMatch,'No se encontró Operation Cleanup Runtime');
 const cleanup=cleanupMatch?.[1]||'';
 need(cleanup.includes("const TR_OPERATION_CLEANUP_VERSION='31.23.52'"),'Operation Cleanup Runtime no es V31.23.52');

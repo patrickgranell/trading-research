@@ -27,7 +27,10 @@ function extractFunction(name){
   throw new Error('Función sin cierre: '+name);
 }
 
-const ctx={console};
+const bootstrapFlat={id:'bootstrap-flat',exitDate:'2026-09-01T09:05',result:'pending',resultTicks:0,rMultiple:0};
+const bootstrapPending={id:'bootstrap-pending',exitDate:'',result:'pending',resultTicks:0,rMultiple:0};
+const persistSnapshots=[];
+const ctx={console,state:{operations:[bootstrapFlat,bootstrapPending]},persist(){persistSnapshots.push(ctx.state.operations.map(o=>o.result));return true;},setTimeout(){return 0;}};
 vm.createContext(ctx);
 vm.runInContext([
   extractFunction('opMetricValue'),
@@ -39,6 +42,10 @@ vm.runInContext([
 if(fs.existsSync('canonical-metrics-runtime.js')){
   vm.runInContext(fs.readFileSync('canonical-metrics-runtime.js','utf8'),ctx,{filename:'canonical-metrics-runtime.js'});
 }
+
+assert(bootstrapFlat.result==='flat','Bootstrap en memoria debe elevar pending cerrado 0 a flat.');
+assert(bootstrapPending.result==='pending','Bootstrap no debe convertir un pending real en flat.');
+assert(persistSnapshots.length===0,'La normalización bootstrap no debe persistir ni migrar el dataset por sí sola.');
 
 const win={id:'win',entryDate:'2026-09-01T10:00',exitDate:'2026-09-01T10:05',result:'win',resultTicks:20,rMultiple:2,mfe:3,mae:.5,pnlGross:200,pnlNet:190,commission:10};
 const loss={id:'loss',entryDate:'2026-09-01T11:00',exitDate:'2026-09-01T11:04',result:'loss',resultTicks:-10,rMultiple:-1,mfe:.2,mae:1.2,pnlGross:-100,pnlNet:-110,commission:10};
@@ -85,6 +92,18 @@ const flatOnly=ctx.calcMetricStats([flatLegacy],'r','gross');
 assert(flatOnly.n===1&&flatOnly.flats===1&&flatOnly.wins===0&&flatOnly.losses===0,'Flat cerrado debe contar en n, no como win/loss.');
 assert(flatOnly.expectancy===0&&flatOnly.pf===0,'Flat-only debe tener expectancy 0 y PF 0.');
 
+const futureFlat={id:'future-flat',exitDate:'2026-09-01T14:05',result:'pending',resultTicks:0,rMultiple:0};
+const futurePending={id:'future-pending',exitDate:'',result:'pending',resultTicks:0,rMultiple:0};
+ctx.state.operations=[futureFlat,futurePending];
+ctx.persist();
+assert(futureFlat.result==='flat','Antes de persistir, un cierre 0 debe canonicalizarse como flat.');
+assert(futurePending.result==='pending','Antes de persistir, un pending real debe permanecer pending.');
+assert(persistSnapshots.at(-1)?.[0]==='flat'&&persistSnapshots.at(-1)?.[1]==='pending','El persist base debe recibir outcomes ya canonicalizados.');
+
+assert((app.match(/value:'flat',label:'Flat'/g)||[]).length>=3,'Los filtros principales deben exponer Flat.');
+assert((app.match(/o\.result==='flat'\?'Flat':'Pendiente'/g)||[]).length>=2,'Las tablas/dimensiones deben distinguir Flat de Pendiente.');
+assert(app.includes('<option value="flat"'),'El filtro de Mistakes debe exponer Flat.');
+
 const metricWins=ctx.calcMetricStats([win],'r','gross');
 assert(metricWins.pf===Infinity,'calcMetricStats(): ganancias > 0 y pérdidas = 0 debe dar PF=Infinity.');
 const exitWins=ctx.exitStats([1,2]);
@@ -97,6 +116,6 @@ if(fail.length){
 }
 console.log('Canonical metrics verification OK');
 console.log(' - pending excluded from n / PF / expectancy / win rate');
-console.log(' - closed zero => flat and included in n / expectancy');
+console.log(' - closed zero => flat in stats, in-memory state and future persistence');
 console.log(' - PF: gain/no-loss => Infinity; zero/zero => 0');
 console.log(' - calcStats / calcMetricStats / exitStats share canonical semantics');

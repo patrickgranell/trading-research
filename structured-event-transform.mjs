@@ -195,6 +195,12 @@ export function structuredEventTransformSelfTest(){
     try{const decoded=JSON.parse(decodeURIComponent(encoded));if(decoded[0]!==malicious)failures.push('malicious value did not round-trip as literal data');}catch(e){failures.push('encoded args are not valid URI JSON');}
     const planText=JSON.stringify(got.plans);if((planText.match(/viewOperation/g)||[]).length!==1||planText.includes('PWN'))failures.push('malicious value altered compiled plan');
   }catch(e){failures.push('basic fixture: '+e.message);}
+  try{
+    const fragment="const field='setup';const handler=`data-tr-onclick=\\\"trLegacyStateCommand('lab-clear','${field}')\\\"`;";
+    const got=transformStructuredEventSources([{name:'fragment.js',source:fragment}]),src=got.sources['fragment.js'];
+    if(!src.includes('data-tr-action-click=\"__tr_evt_'))failures.push('standalone handler attribute fragment was not compiled');
+    if(src.includes('data-tr-onclick='))failures.push('standalone handler attribute fragment remained legacy');
+  }catch(e){failures.push('standalone attribute fragment: '+e.message);}
   try{transformStructuredEventSources([{name:'dynamic.js',source:"const x=`<button data-tr-onclick=\"${action}\">X</button>`;"}]);failures.push('dynamic action was accepted');}
   catch(e){dynamicActionRejected=Number(e.dynamicActionRejected)||1;}
   return {ok:failures.length===0,failures,dynamicActionRejected};

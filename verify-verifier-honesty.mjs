@@ -10,6 +10,17 @@ const globalVerifySource=fs.readFileSync('verify-global-surface.mjs','utf8');
 const contractSource=fs.readFileSync('remaining-global-contract-map.mjs','utf8');
 const finalAudit=fs.readFileSync('verify-source-consolidation-final.mjs','utf8');
 const csp=fs.readFileSync('csp-runtime.js','utf8');
+const buildSource=fs.readFileSync('build.mjs','utf8');
+const appPruneVerify=fs.readFileSync('verify-app-global-prune.mjs','utf8');
+const remainingVerify=fs.readFileSync('verify-remaining-global-contract-map.mjs','utf8');
+const ownRuntimes=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+for(const file of ownRuntimes){
+  need(globalVerifySource.includes(file),`verify-global-surface omite ${file}.`);
+  need(contractSource.includes(file),`remaining-global-contract-map CLI omite ${file}.`);
+  need(remainingVerify.includes(file),`verify-remaining-global-contract-map omite ${file}.`);
+  need(appPruneVerify.includes(file),`verify-app-global-prune omite ${file}.`);
+  need(buildSource.includes(file),`build pruning/contract coverage omite ${file}.`);
+}
 
 const fixture=globalSurfaceInventory(`
 function classicTopLevelGlobal(){}
@@ -62,6 +73,6 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Verifier honesty gate OK');
-console.log(' - explicit-window tooling declares its limited classic-script scope');
+console.log(' - explicit-window tooling declares its limited classic-script scope and covers 16/16 runtime source files');
 console.log(' - Final Audit Structured Event second-pass covers 17/17 own script blocks');
 console.log(' - CSP runtime reports header-policy evidence, never unchecked/broad Enforced claims');

@@ -1,5 +1,3 @@
-const trStatePlanRead=globalThis.TradingResearchPlanReadContract;
-if(!trStatePlanRead)throw new Error('TradingResearchPlanReadContract unavailable');
 /* ===== V31.17.1 STATE RUNTIME · Structural Foundation III-B3.1a =====
  * Transitional state boundary:
  * - durable/domain state is deep-proxied so legacy direct mutations are observable
@@ -343,10 +341,10 @@ trCorePersistNow=async function(reason='persist'){
 };
 
 /* First explicitly migrated durable command: active Trading Plan selection. */
-switchPlan=function(id){if(!trStatePlanRead.byId(id))return;return TRDomainStore.commit('plan.switch',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(trStatePlanRead.byId(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();},{persist:true,render:true});};
+switchPlan=function(id){if(!globalThis.TradingResearchPlanReadContract.byId(id))return;return TRDomainStore.commit('plan.switch',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(globalThis.TradingResearchPlanReadContract.byId(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();},{persist:true,render:true});};
 window.switchPlan=switchPlan;
 if(typeof switchPlanAndOpen==='function'){
-  switchPlanAndOpen=function(id){if(!trStatePlanRead.byId(id))return;return TRDomainStore.commit('plan.switch-open',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(trStatePlanRead.byId(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();currentView='dashboard';},{persist:true,render:true});};
+  switchPlanAndOpen=function(id){if(!globalThis.TradingResearchPlanReadContract.byId(id))return;return TRDomainStore.commit('plan.switch-open',()=>{state.currentPlanId=id;trDomainNormalizePlanSchema(globalThis.TradingResearchPlanReadContract.byId(id));if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();currentView='dashboard';},{persist:true,render:true});};
   window.switchPlanAndOpen=switchPlanAndOpen;
 }
 

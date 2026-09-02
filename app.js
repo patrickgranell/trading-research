@@ -7398,22 +7398,34 @@ function v3110SetTrailTrigger(v){v3110Ui.trailTriggerTicks=v3110ClampTicks(v,10)
 function v3110SetTrailGiveback(v){v3110Ui.trailGivebackTicks=v3110ClampTicks(v,5);render();}
 function v3110QuotePrice(result,p){const dir=String(result?.direction||'').toUpperCase();const px=dir==='LONG'?Number(p?.bid):Number(p?.ask);return Number.isFinite(px)&&px>0?px:NaN;}
 function v3110QuotePnlTicks(result,p,tickSize){const px=v3110QuotePrice(result,p),entry=Number(result?.entryPrice),ts=Number(tickSize)||.01;if(!Number.isFinite(px)||!Number.isFinite(entry)||!Number.isFinite(ts)||ts<=0)return NaN;return String(result?.direction||'').toUpperCase()==='LONG'?(px-entry)/ts:(entry-px)/ts;}
-function v3110QuotePoints(result,series){const ts=Number(series?.tickSize)||.01;return (series?.points||[]).map(p=>({...p,exitQuote:v3110QuotePrice(result,p),exitPnlTicks:v3110QuotePnlTicks(result,p,ts)})).filter(p=>Number.isFinite(p.exitQuote)&&Number.isFinite(p.exitPnlTicks));}
-function v3110PointAtOrAfter(points,ms){if(!points?.length)return null;let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>1;if(points[mid].ms<ms)lo=mid+1;else hi=mid;}return points[Math.min(lo,points.length-1)]||null;}
-function v3110ObservedEvidence(result,series){
-  const points=v3110QuotePoints(result,series);if(!points.length)return null;
-  let best=points[0],worst=points[0];for(const p of points){if(p.exitPnlTicks>best.exitPnlTicks)best=p;if(p.exitPnlTicks<worst.exitPnlTicks)worst=p;}
-  const actual=Number(result?.realizedTicks)||0,end=points[points.length-1];
-  const windowStart=Number(series?.startMs)||points[0].ms,windowEnd=Number(series?.endMs)||points[points.length-1].ms,windowMs=Math.max(0,windowEnd-windowStart);
-  let positiveMs=0;
-  for(let i=0;i<points.length;i++){const segStart=Math.max(windowStart,points[i].ms),segEnd=Math.min(windowEnd,i+1<points.length?points[i+1].ms:windowEnd);if(segEnd>segStart&&points[i].exitPnlTicks>0)positiveMs+=segEnd-segStart;}
-  return {points,best,worst,end,actual,gap:best.exitPnlTicks-actual,capturePct:best.exitPnlTicks>0?actual/best.exitPnlTicks*100:null,positiveMs,positivePct:windowMs?positiveMs/windowMs*100:0,timeToBest:Math.max(0,best.ms-series.startMs),afterBest:Math.max(0,series.endMs-best.ms)};
+function v3110QuotePoints(result,series){
+  const n=v315SeriesLength(series),pointIndex=new Int32Array(n),exitPnlTicks=new Float64Array(n),ts=Number(series?.tickSize)||.01;let count=0;
+  for(let i=0;i<n;i++){const p=v315SeriesPoint(series,i);if(!p)continue;const quote=v3110QuotePrice(result,p),pnl=v3110QuotePnlTicks(result,p,ts);if(!Number.isFinite(quote)||!Number.isFinite(pnl))continue;pointIndex[count]=i;exitPnlTicks[count]=pnl;count++;}
+  return {result,series,pointIndex,exitPnlTicks,count};
 }
-function v3110TimeExit(result,series,evidence,fraction){const targetMs=series.startMs+series.durationMs*fraction,p=v3110PointAtOrAfter(evidence.points,targetMs);return p?{kind:'time',label:`Salida al ${Math.round(fraction*100)}%`,point:p,resultTicks:p.exitPnlTicks,price:p.exitQuote,ms:p.ms,detail:'marketable · Bid/Ask'}:null;}
+function v3110EvidenceLength(evidence){return Math.max(0,Number(evidence?.count)||0);}
+function v3110EvidencePoint(evidence,index){
+  const n=v3110EvidenceLength(evidence),i=Math.max(0,Math.min(Number(index)||0,n-1));if(!n)return null;
+  const seriesIndex=Number(evidence.pointIndex?.[i]),p=v315SeriesPoint(evidence.series,seriesIndex),exitPnlTicks=Number(evidence.exitPnlTicks?.[i]);if(!p||!Number.isFinite(exitPnlTicks))return null;
+  const exitQuote=v3110QuotePrice(evidence.result,p);if(!Number.isFinite(exitQuote))return null;
+  return {...p,seriesIndex,exitQuote,exitPnlTicks};
+}
+function v3110EvidenceFind(evidence,predicate){const n=v3110EvidenceLength(evidence);for(let i=0;i<n;i++){const p=v3110EvidencePoint(evidence,i);if(p&&predicate(p,i))return p;}return null;}
+function v3110PointAtOrAfter(evidence,ms){const n=v3110EvidenceLength(evidence);if(!n)return null;let lo=0,hi=n;while(lo<hi){const mid=(lo+hi)>>1,p=v3110EvidencePoint(evidence,mid);if(!p||p.ms<ms)lo=mid+1;else hi=mid;}return v3110EvidencePoint(evidence,Math.min(lo,n-1));}
+function v3110ObservedEvidence(result,series){
+  const compact=v3110QuotePoints(result,series),n=v3110EvidenceLength(compact);if(!n)return null;
+  let bestIndex=0,worstIndex=0;for(let i=1;i<n;i++){if(compact.exitPnlTicks[i]>compact.exitPnlTicks[bestIndex])bestIndex=i;if(compact.exitPnlTicks[i]<compact.exitPnlTicks[worstIndex])worstIndex=i;}
+  const best=v3110EvidencePoint(compact,bestIndex),worst=v3110EvidencePoint(compact,worstIndex),end=v3110EvidencePoint(compact,n-1);if(!best||!worst||!end)return null;
+  const first=v3110EvidencePoint(compact,0),actual=Number(result?.realizedTicks)||0,windowStart=Number(series?.startMs)||first.ms,windowEnd=Number(series?.endMs)||end.ms,windowMs=Math.max(0,windowEnd-windowStart);
+  let positiveMs=0;
+  for(let i=0;i<n;i++){const p=v3110EvidencePoint(compact,i),next=i+1<n?v3110EvidencePoint(compact,i+1):null;if(!p)continue;const segStart=Math.max(windowStart,p.ms),segEnd=Math.min(windowEnd,next?.ms??windowEnd);if(segEnd>segStart&&p.exitPnlTicks>0)positiveMs+=segEnd-segStart;}
+  return {...compact,best,worst,end,actual,gap:best.exitPnlTicks-actual,capturePct:best.exitPnlTicks>0?actual/best.exitPnlTicks*100:null,positiveMs,positivePct:windowMs?positiveMs/windowMs*100:0,timeToBest:Math.max(0,best.ms-series.startMs),afterBest:Math.max(0,series.endMs-best.ms)};
+}
+function v3110TimeExit(result,series,evidence,fraction){const targetMs=series.startMs+series.durationMs*fraction,p=v3110PointAtOrAfter(evidence,targetMs);return p?{kind:'time',label:`Salida al ${Math.round(fraction*100)}%`,point:p,resultTicks:p.exitPnlTicks,price:p.exitQuote,ms:p.ms,detail:'marketable · Bid/Ask'}:null;}
 function v3110TargetScenario(result,series,evidence,targetTicks=v3110Ui.targetTicks){
   const t=v3110ClampTicks(targetTicks,20),ts=Number(series.tickSize)||.01,entry=Number(result.entryPrice),dir=String(result.direction||'').toUpperCase(),targetPrice=dir==='LONG'?entry+t*ts:entry-t*ts;
-  const quoteHit=evidence.points.find(p=>p.exitPnlTicks>=t)||null;
-  const tradeHit=(series?.points||[]).find(p=>{const last=Number(p?.last);return Number.isFinite(last)&&(dir==='LONG'?last>=targetPrice:last<=targetPrice);})||null;
+  const quoteHit=v3110EvidenceFind(evidence,p=>p.exitPnlTicks>=t);
+  let tradeHit=null;for(let i=0,n=v315SeriesLength(series);i<n;i++){const p=v315SeriesPoint(series,i),last=Number(p?.last);if(Number.isFinite(last)&&(dir==='LONG'?last>=targetPrice:last<=targetPrice)){tradeHit=p;break;}}
   let hit=null,evidenceType='none';
   if(quoteHit&&tradeHit){hit=quoteHit.ms<=tradeHit.ms?quoteHit:tradeHit;evidenceType=hit===quoteHit?'marketable':'traded';}
   else if(quoteHit){hit=quoteHit;evidenceType='marketable';}
@@ -7423,7 +7435,8 @@ function v3110TargetScenario(result,series,evidence,targetTicks=v3110Ui.targetTi
 }
 function v3110TrailScenario(result,series,evidence,triggerTicks=v3110Ui.trailTriggerTicks,givebackTicks=v3110Ui.trailGivebackTicks){
   const trigger=v3110ClampTicks(triggerTicks,10),giveback=v3110ClampTicks(givebackTicks,5);let armed=false,armedAt=null,peak=-Infinity,peakPoint=null,exit=null;
-  for(const p of evidence.points){
+  for(let i=0,n=v3110EvidenceLength(evidence);i<n;i++){
+    const p=v3110EvidencePoint(evidence,i);if(!p)continue;
     if(!armed){if(p.exitPnlTicks>=trigger){armed=true;armedAt=p;peak=p.exitPnlTicks;peakPoint=p;}continue;}
     if(p.exitPnlTicks>peak){peak=p.exitPnlTicks;peakPoint=p;continue;}
     if(p.exitPnlTicks<=peak-giveback){exit=p;break;}
@@ -7441,13 +7454,13 @@ function v3110ScenarioRow(s,actual,series){
 }
 function v3110TargetMap(evidence,series){
   const best=Math.max(0,Number(evidence?.best?.exitPnlTicks)||0),base=[5,10,15,20,30,40,60],ceil=Math.ceil(best/10)*10,levels=[...new Set([...base,...(ceil>0?[ceil]:[])])].filter(x=>x<=Math.max(60,ceil)).sort((a,b)=>a-b);
-  return levels.map(t=>{const hit=evidence.points.find(p=>p.exitPnlTicks>=t);return `<tr><th>+${t}t</th><td>${hit?'<span class="badge good">Sí</span>':'<span class="badge">No</span>'}</td><td>${hit?esc(v3110When(hit.ms,series)):'—'}</td><td>${hit?esc(v3110FmtPrice(hit.exitQuote,series)):'—'}</td></tr>`;}).join('');
+  return levels.map(t=>{const hit=v3110EvidenceFind(evidence,p=>p.exitPnlTicks>=t);return `<tr><th>+${t}t</th><td>${hit?'<span class="badge good">Sí</span>':'<span class="badge">No</span>'}</td><td>${hit?esc(v3110When(hit.ms,series)):'—'}</td><td>${hit?esc(v3110FmtPrice(hit.exitQuote,series)):'—'}</td></tr>`;}).join('');
 }
 function v3110ExitChart(result,series,evidence,target,trail){
-  const pts=evidence?.points||[];if(!pts.length)return '<div class="empty">No hay Bid/Ask utilizable dentro de la operación.</div>';
-  const W=1000,H=330,L=62,R=26,T=24,B=48,iw=W-L-R,ih=H-T-B,t0=pts[0].ms,t1=pts[pts.length-1].ms,span=Math.max(1,t1-t0),actual=Number(result.realizedTicks)||0;
-  const vals=pts.map(p=>p.exitPnlTicks).concat([actual,0]);if(target?.hit&&Number.isFinite(Number(target.targetTicks)))vals.push(Number(target.targetTicks));let ymin=Math.min(...vals),ymax=Math.max(...vals),pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
-  const x=p=>L+((p.ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih,maxRender=1600,step=Math.max(1,Math.ceil(pts.length/maxRender)),rp=[];for(let i=0;i<pts.length;i+=step)rp.push(pts[i]);if(rp[rp.length-1]!==pts[pts.length-1])rp.push(pts[pts.length-1]);const poly=rp.map(p=>`${x(p).toFixed(2)},${y(p.exitPnlTicks).toFixed(2)}`).join(' ');
+  const n=v3110EvidenceLength(evidence),first=v3110EvidencePoint(evidence,0),last=v3110EvidencePoint(evidence,n-1);if(!n||!first||!last)return '<div class="empty">No hay Bid/Ask utilizable dentro de la operación.</div>';
+  const W=1000,H=330,L=62,R=26,T=24,B=48,iw=W-L-R,ih=H-T-B,t0=first.ms,t1=last.ms,span=Math.max(1,t1-t0),actual=Number(result.realizedTicks)||0;
+  let ymin=Math.min(Number(evidence.worst?.exitPnlTicks),actual,0),ymax=Math.max(Number(evidence.best?.exitPnlTicks),actual,0);if(target?.hit&&Number.isFinite(Number(target.targetTicks))){ymin=Math.min(ymin,Number(target.targetTicks));ymax=Math.max(ymax,Number(target.targetTicks));}let pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
+  const x=p=>L+((p.ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih,maxRender=1600,step=Math.max(1,Math.ceil(n/maxRender)),rp=[];for(let i=0;i<n;i+=step){const p=v3110EvidencePoint(evidence,i);if(p)rp.push(p);}if(rp[rp.length-1]?.seriesIndex!==last.seriesIndex)rp.push(last);const poly=rp.map(p=>`${x(p).toFixed(2)},${y(p.exitPnlTicks).toFixed(2)}`).join(' ');
   const grids=[];for(let j=0;j<=4;j++){const val=ymin+(ymax-ymin)*(4-j)/4,yy=T+j*ih/4;grids.push(`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="rp-grid"/><text x="${L-9}" y="${yy+4}" text-anchor="end" class="rp-axis-label">${v315Nice(val,1)}t</text>`);}const xTimes=[0,.5,1].map(f=>{const ms=t0+span*f,xx=L+iw*f,d=new Date(ms+Number(series.offsetHours||0)*3600000),p=n=>String(n).padStart(2,'0');return `<text x="${xx}" y="${H-17}" text-anchor="${f===0?'start':f===1?'end':'middle'}" class="rp-axis-label">${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}</text>`;}).join('');
   const targetInScale=Number.isFinite(Number(target?.targetTicks))&&target.targetTicks>=ymin&&target.targetTicks<=ymax,targetLine=targetInScale?`<line x1="${L}" y1="${y(target.targetTicks)}" x2="${W-R}" y2="${y(target.targetTicks)}" class="be-target-line"/><text x="${W-R-5}" y="${y(target.targetTicks)-5}" text-anchor="end" class="be-target-label">TP +${v315Nice(target.targetTicks,1)}t</text>`:'';
   const best=evidence.best,bestMark=`<circle cx="${x(best)}" cy="${y(best.exitPnlTicks)}" r="6" class="be-best"/><text x="${x(best)+8}" y="${y(best.exitPnlTicks)-8}" class="be-best-label">mejor marketable ${v314SignedTicks(best.exitPnlTicks)}</text>`;
@@ -7466,7 +7479,7 @@ function v3110BestExitPanel(set,meta){
   if(v315RunningUi.error)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3></div></div>${selector}<div class="notice danger">${esc(v315RunningUi.error)}</div></section>`;
   if(!s)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3><small>Selecciona una operación reconstruida.</small></div></div>${selector}</section>`;
   const e=v3110ObservedEvidence(r,s);if(!e)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3></div></div>${selector}<div class="notice danger">El histórico no contiene Bid/Ask utilizable en la ventana de esta operación.</div></section>`;
-  const target=v3110TargetScenario(r,s,e),trail=v3110TrailScenario(r,s,e),timeScenarios=[.25,.5,.75].map(f=>v3110TimeExit(r,s,e,f)).filter(Boolean),actual=Number(r.realizedTicks)||0,quoteCoverage=s.points.length?e.points.length/s.points.length*100:0;
+  const target=v3110TargetScenario(r,s,e),trail=v3110TrailScenario(r,s,e),timeScenarios=[.25,.5,.75].map(f=>v3110TimeExit(r,s,e,f)).filter(Boolean),actual=Number(r.realizedTicks)||0,seriesCount=v315SeriesLength(s),quoteCoverage=seriesCount?v3110EvidenceLength(e)/seriesCount*100:0;
   const fillVsMarketable=actual-Number(e.best.exitPnlTicks||0);
   const gapText=fillVsMarketable>0?`fill real ${v314SignedTicks(fillVsMarketable)} mejor que el mejor cierre marketable observado`:fillVsMarketable<0?`${v314SignedTicks(fillVsMarketable)} frente al mejor cierre marketable observado`:'fill real igual al mejor cierre marketable observado';
   const bestPositive=Number(e.best.exitPnlTicks)>0,retentionPct=bestPositive?Math.max(0,Math.min(100,(actual/Number(e.best.exitPnlTicks))*100)):null;

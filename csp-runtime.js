@@ -3,7 +3,7 @@
 'use strict';
 const TR_CSP_RUNTIME_VERSION='31.24.0';
 const TR_CSP_APP_LABEL='V31.24 · CSP Header Evidence Diagnostics';
-const TR_CSP_EXPECTED=Object.freeze({scriptAttrNone:true,unsafeEval:false,objectNone:true,baseNone:true,frameAncestorsNone:true,styleAttrNone:true,supabaseOnly:true});
+const TR_CSP_EXPECTED=Object.freeze({scriptAttrNone:true,unsafeEval:false,objectNone:true,baseNone:true,frameAncestorsNone:true,styleAttrNone:true,supabaseConnectRequired:true,supabaseSdkPinned:true});
 let trCspHeaderState={checked:false,ok:null,header:'',error:'',checkedAt:''};
 let trCspHeaderPromise=null;
 function trCspNormalizeHeader(v){return String(v||'').replace(/\s+/g,' ').trim();}

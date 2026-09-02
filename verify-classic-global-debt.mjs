@@ -126,8 +126,8 @@ if(classicTag&&!moduleTag){
   }
   need(app.includes(`Object.defineProperty(globalThis,'${EXIT_PRESENTATION_CONTRACT}'`),
     'Falta el contrato explícito de presentación de Exit Lab en app.js.');
-  need(app.includes('grossR:exitGrossR')&&app.includes('resultClass:exitResultClass')&&app.includes('formatR:exitFmtR')&&app.includes('formatPct:exitFmtPct')&&app.includes('formatPf:exitPf'),
-    'El contrato Exit no publica exactamente grossR/resultClass/formatR/formatPct/formatPf.');
+  need(app.includes('readGrossR:exitGrossR')&&app.includes('classifyResult:exitResultClass')&&app.includes('formatRValue:exitFmtR')&&app.includes('formatPercentValue:exitFmtPct')&&app.includes('formatProfitFactorValue:exitPf'),
+    'El contrato Exit no publica exactamente readGrossR/classifyResult/formatRValue/formatPercentValue/formatProfitFactorValue.');
 
   for(const name of EXIT_PRESENTATION_LEGACY){
     need(!runtimeTokens.has(name),
@@ -137,7 +137,7 @@ if(classicTag&&!moduleTag){
     'El contrato Exit no debe introducir aliases léxicos globales en runtimes clásicos.');
 
   const exitSrc=runtimeSources.get(EXIT_PRESENTATION_CONSUMER)||'';
-  for(const method of ['grossR','resultClass','formatR','formatPct','formatPf']){
+  for(const method of ['readGrossR','classifyResult','formatRValue','formatPercentValue','formatProfitFactorValue']){
     need(exitSrc.includes(`globalThis.${EXIT_PRESENTATION_CONTRACT}.${method}(`),
       `${EXIT_PRESENTATION_CONSUMER} no consume directamente ${EXIT_PRESENTATION_CONTRACT}.${method}().`);
   }

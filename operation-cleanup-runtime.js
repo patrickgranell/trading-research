@@ -47,7 +47,7 @@ function trCleanupDecorateOperationModal(id){
   if(foot&&!foot.querySelector('[data-tr-operation-delete]'))foot.insertAdjacentHTML('afterbegin',`<button class="btn danger" type="button" data-tr-operation-delete="1" data-tr-onclick="deleteOperation('${id}')">Eliminar operación</button>`);
   const existing=modal.querySelector('.existing-images');
   if(existing&&(o.images||[]).length&&!existing.querySelector('[data-tr-operation-image-cleanup]')){
-    const controls=`<div data-tr-operation-image-cleanup="1"><div class="help">Eliminar capturas existentes</div><div class="actions">${o.images.map((im,i)=>`<button class="btn small danger" type="button" data-tr-cleanup-image="${im.id}" data-tr-onclick="deleteOperationImage('${id}','${im.id}')">Eliminar ${i+1}: ${esc(im.caption||im.name||'Captura')}</button>`).join('')}</div></div>`;
+    const controls=`<div data-tr-operation-image-cleanup="1"><div class="help">Eliminar capturas existentes</div><div class="actions">${o.images.map((im,i)=>`<button class="btn small danger" type="button" data-tr-cleanup-image="${im.id}" data-tr-onclick="deleteOperationImage('${id}','${im.id}')">Eliminar ${i+1}: ${globalThis.TradingResearchContentEncodingContract.html(im.caption||im.name||'Captura')}</button>`).join('')}</div></div>`;
     existing.insertAdjacentHTML('beforeend',controls);
   }
 }

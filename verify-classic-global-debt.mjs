@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=238;
+const MAX_RUNTIME_NAME_OVERLAP=233;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -29,6 +29,10 @@ const CONTENT_ENCODING_CONSUMERS={
   ],
   inlineUriToken:['security-runtime.js']
 };
+
+const EXIT_PRESENTATION_CONTRACT='TradingResearchExitPresentationContract';
+const EXIT_PRESENTATION_LEGACY=['exitGrossR','exitResultClass','exitFmtR','exitFmtPct','exitPf'];
+const EXIT_PRESENTATION_CONSUMER='exit-lab-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -120,6 +124,45 @@ if(classicTag&&!moduleTag){
     need(ctx.__uri(`x');PWN();String('x`)===`x%27)%3BPWN()%3BString(%27x`,
       'La semántica adversarial de token URI cambió.');
   }
+  need(app.includes(`Object.defineProperty(globalThis,'${EXIT_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de Exit Lab en app.js.');
+  need(app.includes('readGrossR:exitGrossR')&&app.includes('classifyResult:exitResultClass')&&app.includes('formatRValue:exitFmtR')&&app.includes('formatPercentValue:exitFmtPct')&&app.includes('formatProfitFactorValue:exitPf'),
+    'El contrato Exit no publica exactamente readGrossR/classifyResult/formatRValue/formatPercentValue/formatProfitFactorValue.');
+
+  for(const name of EXIT_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ExitPresentation\w*\s*=/.test(src)),
+    'El contrato Exit no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const exitSrc=runtimeSources.get(EXIT_PRESENTATION_CONSUMER)||'';
+  for(const method of ['readGrossR','classifyResult','formatRValue','formatPercentValue','formatProfitFactorValue']){
+    need(exitSrc.includes(`globalThis.${EXIT_PRESENTATION_CONTRACT}.${method}(`),
+      `${EXIT_PRESENTATION_CONSUMER} no consume directamente ${EXIT_PRESENTATION_CONTRACT}.${method}().`);
+  }
+  const unexpectedExitConsumers=runtimeFiles.filter(file=>
+    file!==EXIT_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${EXIT_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedExitConsumers.length===0,
+    `Consumidores inesperados del contrato Exit: ${unexpectedExitConsumers.join(', ')}.`);
+
+  const exitGrossRSource=app.match(/function exitGrossR\(o\)\{[^\n]+\}/)?.[0]||'';
+  const exitResultClassSource=app.match(/function exitResultClass\(v\)\{[^\n]+\}/)?.[0]||'';
+  const exitFmtRSource=app.match(/function exitFmtR\(v,\{signed=true,dec=2\}=\{\}\)\{[^\n]+\}/)?.[0]||'';
+  const exitFmtPctSource=app.match(/function exitFmtPct\(v\)\{[^\n]+\}/)?.[0]||'';
+  const exitPfSource=app.match(/function exitPf\(v\)\{[^\n]+\}/)?.[0]||'';
+  const exitSources=[exitGrossRSource,exitResultClassSource,exitFmtRSource,exitFmtPctSource,exitPfSource];
+  need(exitSources.every(Boolean),'No se pudieron extraer todos los helpers puros de Exit Lab.');
+  if(exitSources.every(Boolean)){
+    const ctx=vm.createContext({});
+    vm.runInContext(exitSources.join('\n')+'\nthis.__grossR=exitGrossR;this.__resultClass=exitResultClass;this.__formatR=exitFmtR;this.__formatPct=exitFmtPct;this.__formatPf=exitPf;',ctx);
+    need(ctx.__grossR({rMultiple:'1.25'})===1.25&&ctx.__grossR(null)===0,'La semántica de exitGrossR cambió.');
+    need(ctx.__resultClass(1)==='positive'&&ctx.__resultClass(-1)==='negative'&&ctx.__resultClass(0)==='','La semántica de exitResultClass cambió.');
+    need(ctx.__formatR(1.234,{signed:true,dec:2})==='+1.23R'&&ctx.__formatR(-1.234,{signed:true,dec:1})==='-1.2R','La semántica de exitFmtR cambió.');
+    need(ctx.__formatPct(12.34)==='12.3%','La semántica de exitFmtPct cambió.');
+    need(ctx.__formatPf(1.234)==='1.23'&&ctx.__formatPf(Infinity)==='∞','La semántica de exitPf cambió.');
+  }
 }
 
 if(fail.length){
@@ -135,6 +178,7 @@ if(classicTag&&!moduleTag){
   console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
   console.log(` - explicit plan-read contract: ${PLAN_READ_LEGACY.length} legacy bindings removed across ${PLAN_READ_CONSUMERS.length} runtimes`);
   console.log(` - explicit content-encoding contract: ${CONTENT_ENCODING_LEGACY.length} legacy bindings removed; html across ${CONTENT_ENCODING_CONSUMERS.esc.length} runtimes + uri in security runtime`);
+  console.log(` - explicit exit-presentation contract: ${EXIT_PRESENTATION_LEGACY.length} legacy bindings removed from ${EXIT_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

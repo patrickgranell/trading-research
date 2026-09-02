@@ -45,6 +45,20 @@ if(v317){
     'V31.7 efectivo no consume la serie compacta mediante los accessors finales.');
 }
 
+
+const v3110Start=app.indexOf('/* ===== V31.10 PATCH · Best Exit / What-if sobre microestructura intratrade ===== */');
+const v3110End=v3110Start<0?-1:app.indexOf('/* ===== V31.11 PATCH',v3110Start);
+const v3110=v3110Start>=0&&v3110End>v3110Start?app.slice(v3110Start,v3110End):'';
+need(!!v3110,'No se pudo aislar Best Exit V31.10 efectivo.');
+if(v3110){
+  need(!/\bseries\?*\.points\b|\bs\.points\b/.test(v3110),
+    'Best Exit V31.10 todavía depende de series.points/s.points y pierde Bid/Ask tras D12.');
+  need(v3110.includes('v315SeriesLength(')&&v3110.includes('v315SeriesPoint('),
+    'Best Exit V31.10 no consume la serie compacta mediante los accessors finales.');
+  need(/new Int32Array\(/.test(v3110)&&/new Float64Array\(/.test(v3110),
+    'Best Exit V31.10 no conserva evidencia Bid/Ask en columnas tipadas compactas.');
+}
+
 const start=app.indexOf('function v314PositionAwarePath(');
 const end=start<0?-1:app.indexOf('\nfunction v314CalculateTrade(',start);
 need(start>=0&&end>start,'No se pudo aislar v314PositionAwarePath para equivalencia funcional.');
@@ -162,4 +176,5 @@ console.log(' - Running P&L: full-resolution tickIndex Int32Array + pnlTicks Flo
 console.log(' - 2,000,000-point column budget: 24,000,000 bytes (~22.9 MiB) plus shared raw tick dataset');
 console.log(' - chart: <= 1,500 rendered points only; cursor/extrema retain full resolution');
 console.log(' - final V31.7 candles/panel consume compact series through v315SeriesLength/v315SeriesPoint');
+console.log(' - Best Exit V31.10 consumes compact Bid/Ask evidence without series.points');
 console.log(' - Exit Lab: independent raw-tick first-touch path, no Running P&L downsample dependency');

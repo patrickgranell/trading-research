@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=228;
+const MAX_RUNTIME_NAME_OVERLAP=225;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -41,6 +41,10 @@ const FORM_BOUNDARY_CONSUMER='security-runtime.js';
 const REPORTS_PRESENTATION_CONTRACT='TradingResearchReportsPresentationContract';
 const REPORTS_PRESENTATION_LEGACY=['metricUnitLabel','v313DateRangeText'];
 const REPORTS_PRESENTATION_CONSUMER='reports-purity-runtime.js';
+
+const TIMELINE_PRESENTATION_CONTRACT='TradingResearchTimelinePresentationContract';
+const TIMELINE_PRESENTATION_LEGACY=['v314SignedTicks','v315Duration','v315GridTime'];
+const TIMELINE_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -264,6 +268,48 @@ if(classicTag&&!moduleTag){
       'La semántica de v313DateRangeText cambió.');
   }
 
+  need(app.includes(`Object.defineProperty(globalThis,'${TIMELINE_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación temporal/ticks en app.js.');
+  need(app.includes('formatSignedTicks:v314SignedTicks')&&app.includes('formatElapsedDuration:v315Duration')&&app.includes('formatGridTimestamp:v315GridTime'),
+    'El contrato Timeline no publica exactamente formatSignedTicks/formatElapsedDuration/formatGridTimestamp.');
+
+  for(const name of TIMELINE_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*TimelinePresentation\w*\s*=/.test(src)),
+    'El contrato Timeline no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const timelineSrc=runtimeSources.get(TIMELINE_PRESENTATION_CONSUMER)||'';
+  for(const method of ['formatSignedTicks','formatElapsedDuration','formatGridTimestamp']){
+    need(timelineSrc.includes(`globalThis.${TIMELINE_PRESENTATION_CONTRACT}.${method}(`),
+      `${TIMELINE_PRESENTATION_CONSUMER} no consume directamente ${TIMELINE_PRESENTATION_CONTRACT}.${method}().`);
+  }
+  const unexpectedTimelineConsumers=runtimeFiles.filter(file=>
+    file!==TIMELINE_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${TIMELINE_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedTimelineConsumers.length===0,
+    `Consumidores inesperados del contrato Timeline: ${unexpectedTimelineConsumers.join(', ')}.`);
+
+  const fmtTicksSource=app.match(/function v314FmtTicks\(v\)\{[^\n]+\}/)?.[0]||'';
+  const signedTicksSource=app.match(/function v314SignedTicks\(v\)\{[^\n]+\}/)?.[0]||'';
+  const durationSource=app.match(/function v315Duration\(ms\)\{[^\n]+\}/)?.[0]||'';
+  const gridTimeSource=app.match(/function v315GridTime\(ms,offsetHours,withMs=false\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(fmtTicksSource&&signedTicksSource&&durationSource&&gridTimeSource),
+    'No se pudieron extraer los helpers puros de presentación Timeline.');
+  if(fmtTicksSource&&signedTicksSource&&durationSource&&gridTimeSource){
+    const ctx=vm.createContext({});
+    vm.runInContext([fmtTicksSource,signedTicksSource,durationSource,gridTimeSource,
+      'this.__signed=v314SignedTicks;this.__duration=v315Duration;this.__grid=v315GridTime;'].join('\n'),ctx);
+    need(ctx.__signed(1)==='+1t'&&ctx.__signed(-1.5)==='-1.5t'&&ctx.__signed(NaN)==='—',
+      'La semántica de v314SignedTicks cambió.');
+    need(ctx.__duration(9000)==='9.0 s'&&ctx.__duration(60000)==='1m 00s'&&ctx.__duration(-1)==='—',
+      'La semántica de v315Duration cambió.');
+    const ts=Date.UTC(2026,8,2,10,11,12,345);
+    need(ctx.__grid(ts,2,true)==='02/09/2026 12:11:12.345'&&ctx.__grid(NaN,0)==='—',
+      'La semántica de v315GridTime cambió.');
+  }
+
 }
 
 if(fail.length){
@@ -282,6 +328,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit exit-presentation contract: ${EXIT_PRESENTATION_LEGACY.length} legacy bindings removed from ${EXIT_PRESENTATION_CONSUMER}`);
   console.log(` - explicit form-boundary contract: ${FORM_BOUNDARY_LEGACY.length} legacy bindings removed from ${FORM_BOUNDARY_CONSUMER}`);
   console.log(` - explicit reports-presentation contract: ${REPORTS_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit timeline-presentation contract: ${TIMELINE_PRESENTATION_LEGACY.length} legacy bindings removed from ${TIMELINE_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

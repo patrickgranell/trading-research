@@ -1,5 +1,5 @@
-const trPlanRead=globalThis.TradingResearchPlanReadContract;
-if(!trPlanRead)throw new Error('TradingResearchPlanReadContract unavailable');
+const trBlobPlanRead=globalThis.TradingResearchPlanReadContract;
+if(!trBlobPlanRead)throw new Error('TradingResearchPlanReadContract unavailable');
 /* ===== V31.24 BLOB LIFECYCLE RUNTIME · D07/D08/D15 ===== */
 const TR_BLOB_LIFECYCLE_VERSION='31.24.0';
 
@@ -152,7 +152,7 @@ function trBlobGcRender(){try{if(typeof render==='function')render();}catch{}}
 
 async function trBlobDeleteOperation(id){
   const op=(state.operations||[]).find(o=>o.id===id);if(!op)return;
-  const imageIds=(op.images||[]).map(x=>x?.id).filter(Boolean),reviews=(typeof trPlanRead.byId==='function'?(trPlanRead.byId(op.tradingPlanId)?.reviewNotes||[]):[]).filter(n=>n?.operationId===op.id).length,imported=!!op.importBatchId;
+  const imageIds=(op.images||[]).map(x=>x?.id).filter(Boolean),reviews=(typeof trBlobPlanRead.byId==='function'?(trBlobPlanRead.byId(op.tradingPlanId)?.reviewNotes||[]):[]).filter(n=>n?.operationId===op.id).length,imported=!!op.importBatchId;
   const extra=[imageIds.length?`También se retirarán ${imageIds.length} referencia(s) de captura; el blob solo se borrará tras persist + flush y si ya no es alcanzable.`:'',reviews?`${reviews} review(s) se conservarán como historial.`:'',imported?'El lote se conservará y actualizará su contador.':''].filter(Boolean).join('\n');
   if(!confirm(`¿Eliminar esta operación definitivamente?${extra?`\n\n${extra}`:''}`))return;
   try{
@@ -201,24 +201,24 @@ async function trBlobDeleteImportBatch(id){
 }
 
 async function trBlobDeleteVisualReference(id){
-  const plan=trPlanRead.current(),ref=(plan?.visualReferences||[]).find(x=>x.id===id);if(!plan||!ref)return;
+  const plan=trBlobPlanRead.current(),ref=(plan?.visualReferences||[]).find(x=>x.id===id);if(!plan||!ref)return;
   const imageIds=(ref.images||[]).map(x=>x?.id).filter(Boolean);
   if(!confirm('¿Eliminar esta referencia visual y sus imágenes?'))return;
   try{
     const result=await TRDomainStore.exclusive('blob.delete.visual-reference',()=>trBlobGcRunMutation('plan.visual-reference.delete.safe',()=>{
-      const p=trPlanRead.current();p.visualReferences=(p.visualReferences||[]).filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();
+      const p=trBlobPlanRead.current();p.visualReferences=(p.visualReferences||[]).filter(x=>x.id!==id);p.updatedAt=new Date().toISOString();
     },imageIds));
     durableDeletes++;trBlobGcReportGcPending(result,'deleteVisualReference');trBlobGcRender();return result;
   }catch(e){lastError=e?.message||String(e);console.error('[Trading Research · safe visual reference delete]',e);alert('No se pudo eliminar la referencia de forma durable: '+lastError);}
 }
 
 async function trBlobDeleteTaxonomyAsset(type,key){
-  const plan=trPlanRead.current();if(!plan)return;ensurePlanV8Structure(plan);const clean=decodeURIComponent(key||''),collName=defCollectionName(type),item=(plan[collName]||[]).find(d=>d.key===clean);
+  const plan=trBlobPlanRead.current();if(!plan)return;ensurePlanV8Structure(plan);const clean=decodeURIComponent(key||''),collName=defCollectionName(type),item=(plan[collName]||[]).find(d=>d.key===clean);
   const imageIds=item?[...(item.images||[]),...(item.imagesLong||[]),...(item.imagesShort||[])].map(x=>x?.id).filter(Boolean):[];
   if(!confirm(`¿Eliminar ${taxonomyLabel(type).toLowerCase()} "${clean}"? Las operaciones históricas no se borrarán.`))return;
   try{
     const result=await TRDomainStore.exclusive('blob.delete.taxonomy',()=>trBlobGcRunMutation('plan.taxonomy.asset.delete.safe',()=>{
-      const p=trPlanRead.current();ensurePlanV8Structure(p);p[collName]=(p[collName]||[]).filter(d=>d.key!==clean);
+      const p=trBlobPlanRead.current();ensurePlanV8Structure(p);p[collName]=(p[collName]||[]).filter(d=>d.key!==clean);
       if(type==='setup')p.setups=(p.setups||[]).filter(x=>x!==clean);if(type==='vd')p.vd=(p.vd||[]).filter(x=>x!==clean);p.updatedAt=new Date().toISOString();
     },imageIds));
     durableDeletes++;trBlobGcReportGcPending(result,'deleteTaxonomyAsset');trBlobGcRender();return result;

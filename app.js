@@ -7559,3 +7559,5 @@ window.trLegacyStateCommand=trLegacyStateCommand;
 
 /* V31.25 · bounded classic-global debt · explicit read-only Plan contract */
 Object.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});
+/* V31.25 · bounded classic-global debt · explicit content encoding contract */
+Object.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});

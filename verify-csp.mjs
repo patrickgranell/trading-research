@@ -19,6 +19,9 @@ need(index.includes('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.3/
 need(!index.includes('@supabase/supabase-js@2"></script>'),'Supabase conserva la versión flotante @2.');
 need(runtime.includes("const TR_CSP_RUNTIME_VERSION='31.24.0'"),'Runtime CSP con versión incorrecta.');
 need(runtime.includes('styleAttrNone:true'),'El runtime CSP no exige style-src-attr none.');
+need(!runtime.includes('supabaseOnly'),'El contrato CSP conserva el nombre engañoso supabaseOnly.');
+need(runtime.includes('supabaseConnectRequired:true'),'El contrato CSP no declara explícitamente que requiere conexión Supabase.');
+need(runtime.includes('supabaseSdkPinned:true'),'El contrato CSP no declara explícitamente que requiere SDK Supabase fijado.');
 need(runtime.includes("fetch(location.href,{method:'HEAD'"),'Falta sonda runtime de cabecera CSP.');
 need(runtime.includes('headerMatchesExpectedPolicy'),'El diagnóstico CSP no nombra exactamente la evidencia de cabecera.');
 need(runtime.includes('ok:s.checked?'),'El diagnóstico CSP no conserva estado desconocido antes de la sonda.');

@@ -183,6 +183,31 @@ El access token debe pertenecer a un usuario autenticado normal, porque el RPC d
 
 Los secretos nunca se imprimen y no deben persistirse en el repositorio.
 
+## Deuda técnica acotada
+
+### Namespace clásico de `app.js`
+
+`app.js` sigue cargándose como script clásico. No se convierte a ES module de forma cosmética porque los runtimes posteriores todavía comparten una superficie amplia de nombres con el archivo principal.
+
+El gate `verify-classic-global-debt.mjs` convierte esta deuda en **bounded debt**:
+
+- proxy de bindings top-level de `app.js`: máximo 1431;
+- proxy de nombres compartidos con runtimes: máximo 243;
+- cualquier reducción es válida;
+- cualquier crecimiento hace fallar CI;
+- si `app.js` pasa a ES module, el gate considera retirada esta deuda.
+
+La gravedad de seguridad es limitada porque el Event Runtime no resuelve acciones mediante `globalThis`; la eventual migración a módulos debe hacerse como una fase arquitectónica específica, no como un cambio incidental de release.
+
+### CSP · contrato Supabase
+
+El contrato público de expectativas CSP usa nombres precisos:
+
+- `supabaseConnectRequired`;
+- `supabaseSdkPinned`.
+
+El antiguo nombre `supabaseOnly` se ha eliminado porque el diagnóstico comprueba presencia de la conectividad Supabase permitida y del SDK fijado, no exclusividad absoluta de `connect-src`.
+
 ## Protocolo de promoción
 
 Un candidato de release solo puede promoverse cuando:

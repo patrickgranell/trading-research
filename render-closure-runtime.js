@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.24.0';
-const TR_RELEASE_LABEL='V31.24 · Data Integrity Hardening';
+const TR_RELEASE_VERSION='31.25.0';
+const TR_RELEASE_LABEL='V31.25 · Reaudit Hardening';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';
@@ -38,7 +38,7 @@ function trRenderClosurePanel(){
 const TradingResearchRender=Object.freeze({version:TR_RENDER_CLOSURE_VERSION,label:TR_RENDER_CLOSURE_LABEL,render:trCanonicalRenderEntry,ensureOwnership:trRenderClosureEnsureOwnership,diagnostics:trRenderClosureDiagnostics,sourceConsolidation:trSourceConsolidationDiagnostics,sourceDebtBudget:TR_RENDER_SOURCE_DEBT_BUDGET});
 window.TradingResearchRender=TradingResearchRender;
 if(typeof dataSecurityPanel==='function'){const trRenderClosureDataSecurityBase=dataSecurityPanel;dataSecurityPanel=function(){return trSourceConsolidationPanel()+trRenderClosurePanel()+trRenderClosureDataSecurityBase();};}
-if(typeof v30ModeCard==='function')v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.24.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
+if(typeof v30ModeCard==='function')v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.25.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
 trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
 try{const side=document.querySelector('.side-bottom');if(side&&typeof v30ModeCard==='function')side.outerHTML=v30ModeCard();}catch(_){}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>window.render(),0);}catch(_){}

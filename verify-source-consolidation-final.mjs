@@ -32,8 +32,11 @@ const contracts=readJson('dist/remaining-global-contract-map.json');
 const structuredEvents=readJson('dist/structured-event-inventory.json');
 const csp=readJson('dist/csp-manifest.json');
 const style=readJson('dist/style-inventory.json');
+const financialBaseline=readJson('financial-regression-baseline.json');
+const financialRegionCount=Object.keys(financialBaseline.hashes||{}).length;
+const financialMarker=`Financial regions unchanged vs ${financialBaseline.sourceVersion}: ${financialRegionCount}/${financialRegionCount}`;
 
-need(pkg.version==='31.24.0',`package.json no está en la versión final 31.24.0: ${pkg.version}`);
+need(pkg.version==='31.25.0',`package.json no está en la versión final 31.25.0: ${pkg.version}`);
 
 need(Number(render.source?.assignments)===12&&Number(render.bundled?.assignments)===0,'Render legacy closure cambió');
 need(Number(render.source?.baseAliases)===5&&Number(render.bundled?.baseAliases)===0,'renderV*Base closure cambió');
@@ -107,10 +110,10 @@ need(!String(csp.csp||'').includes("'unsafe-eval'"),'CSP manifest contiene unsaf
 
 const structural=spawnSync(process.execPath,['verify-structure.mjs'],{encoding:'utf8'});
 need(structural.status===0,'verify-structure.mjs no está verde en Final Audit');
-need(String(structural.stdout||'').includes('Financial regions unchanged vs 31.10.4: 7/7'),'Final Audit no pudo confirmar las 7/7 regiones financieras');
+need(String(structural.stdout||'').includes(financialMarker),`Final Audit no pudo confirmar ${financialRegionCount}/${financialRegionCount} regiones financieras`);
 
 const invariants={
-  packageVersion:'31.24.0',
+  packageVersion:'31.25.0',
   explicitWindow:{blocks:0,entries:0,exports:0},
   registries:{state:56,ui:221,operationCleanup:2},
   finalBindings:{state:56,ui:221,residualMirrors:5,dashboardUnit:1,dynamicActions:3},
@@ -120,7 +123,7 @@ const invariants={
   render:{legacyAssignments:0,baseAliases:0,rootWrites:1},
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
-  financialRegions:'7/7',
+  financialRegions:`${financialRegionCount}/${financialRegionCount}`,
   structuredEventSecondPass:{ownScripts:17,legacyHandlersConverted:0}
 };
 
@@ -133,7 +136,7 @@ if(fail.length){
 const manifest={phase:PHASE,status:'PASS',generatedAt:new Date().toISOString(),invariants};
 fs.writeFileSync('dist/source-consolidation-final-audit.json',JSON.stringify(manifest,null,2)+'\n');
 console.log('Source Consolidation Final Audit V31.23.52 PASS');
-console.log(' - Package release version: 31.24.0');
+console.log(' - Package release version: 31.25.0');
 console.log(' - Explicit app window action surface: 0 blocks / 0 entries / 0 exports');
 console.log(' - Registry final bindings: State 56 / UI 221 / residual 5 / dashboard 1 / dynamic 3');
 console.log(' - Operation Cleanup Controls: delete operation + delete image registered, image blobs cleaned');
@@ -141,4 +144,4 @@ console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");
 console.log(' - Structured Event second-pass coverage: 17/17 own scripts; 0 legacy handlers converted');
-console.log(' - Financial regions unchanged: 7/7');
+console.log(` - Financial regions unchanged: ${financialRegionCount}/${financialRegionCount}`);

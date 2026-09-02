@@ -24,6 +24,14 @@ let trCoreLastSavedAt='';
 let trCoreLastError='';
 let trCoreErrorAlerted=false;
 let trCoreFatal=false;
+let trCoreWriteBlockReason='';
+function trCoreSetWriteBlock(reason=''){trCoreWriteBlockReason=String(reason||'').trim();return trCoreWriteBlockReason;}
+function trCoreClearWriteBlock(reason=''){if(!reason||trCoreWriteBlockReason===String(reason))trCoreWriteBlockReason='';return !trCoreWriteBlockReason;}
+function trCoreWriteBlocked(){return !!trCoreWriteBlockReason;}
+function trCoreWriteAllowed(reason='persist'){
+  if(!trCoreWriteBlockReason)return true;
+  return String(reason||'').startsWith('backup-v2-restore');
+}
 const trCoreBootHadMarker=(()=>{try{return !!localStorage.getItem(TR_CORE_MIGRATION_KEY);}catch{return false;}})();
 
 function trCoreSafeLocalSet(key,value,context='localStorage'){
@@ -89,6 +97,7 @@ function trCoreIsValidWorkspacePayload(payload){
     &&Array.isArray(payload.tradingPlans)&&payload.tradingPlans.length>0;
 }
 async function trCorePersistNow(reason='persist'){
+  if(!trCoreWriteAllowed(reason)){trCoreLastError=`write blocked: ${trCoreWriteBlockReason}`;return false;}
   const snapshot=clone(state);
   if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return false;}
   if(trCoreMode==='indexeddb'){
@@ -98,6 +107,7 @@ async function trCorePersistNow(reason='persist'){
   const ok=trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason);if(ok)trCoreLastSavedAt=new Date().toISOString();return ok;
 }
 function trCoreQueueStateWrite(reason='persist'){
+  if(!trCoreWriteAllowed(reason)){trCoreLastError=`write blocked: ${trCoreWriteBlockReason}`;return Promise.resolve(false);}
   const snapshot=clone(state);
   if(!trCoreHydrated){if(!trCoreBootHadMarker)trCorePendingState=snapshot;return Promise.resolve(false);}
   if(trCoreMode!=='indexeddb')return Promise.resolve(trCoreSafeLocalSet(STORAGE_KEY,JSON.stringify(snapshot),reason));
@@ -118,7 +128,8 @@ function trCoreQueueSnapshotHistory(items){
 function trCoreQueueSnapshotRecord(snap){
   const item={id:snap?.id||uid('SNAP'),...clone(snap)};const hist=[item,...trCoreSnapshotCache.filter(x=>x.id!==item.id)].slice(0,3);trCoreQueueSnapshotHistory(hist);return item;
 }
-function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length};}
+function trCorePersistenceInfo(){return {mode:trCoreMode,hydrated:trCoreHydrated,lastSavedAt:trCoreLastSavedAt,lastError:trCoreLastError,snapshots:trCoreSnapshotCache.length,writeBlocked:trCoreWriteBlocked(),writeBlockReason:trCoreWriteBlockReason};}
+function trCoreSignalHydrated(){try{dispatchEvent(new CustomEvent('tradingresearch:core-hydrated'));}catch{}}
 async function trCoreBootstrap(){
   let legacyStateText='';try{legacyStateText=localStorage.getItem(STORAGE_KEY)||'';}catch{}
   try{
@@ -143,7 +154,7 @@ async function trCoreBootstrap(){
     }
     state=normalizeState(source);if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
     trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
-    trCoreMode='indexeddb';trCoreHydrated=true;
+    trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();
     const bootstrapReason=hasDurableWorkspace?(needsMarker?'bootstrap-recovered-marker':'bootstrap-normalized'):(needsMarker?'migration-from-localStorage':'bootstrap-normalized');
     const finalSaved=await trCorePersistNow(bootstrapReason);
     if(!finalSaved)throw new Error('IndexedDB se abrió, pero no confirmó la escritura del workspace.');
@@ -154,7 +165,7 @@ async function trCoreBootstrap(){
     const canFallback=!!legacyStateText||!trCoreBootHadMarker;
     if(canFallback){
       if(legacyStateText){try{state=normalizeState(JSON.parse(legacyStateText));}catch{}}
-      trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreReportPersistenceError(e,'Inicialización IndexedDB');
+      trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreSignalHydrated();trCoreReportPersistenceError(e,'Inicialización IndexedDB');
     }else{
       trCoreFatal=true;trCoreMode='fatal';trCoreLastError=e?.message||String(e);trCoreHydrated=false;
     }
@@ -647,8 +658,8 @@ function saveRiskStrategy(){const p=getCurrentPlan(),get=n=>document.getElementB
 function openOperationModal(id=null){const p=getCurrentPlan();if(!p)return;if(!(p.riskStrategies||[]).length)return alert('Este Trading Plan todavía no tiene estrategias de gestión. Configura al menos una estrategia antes de registrar operaciones.');editingId=id;const o=id?state.operations.find(x=>x.id===id):null;if(o&&o.tradingPlanId!==p.id)return alert('Esa operación pertenece a otro Trading Plan. Abre primero ese plan.');const r=o?.riskStrategyId?getRisk(o.riskStrategyId,p):p.riskStrategies.find(x=>x.active)||p.riskStrategies[0];document.body.insertAdjacentHTML('beforeend',modalShell(id?'Editar operación':'Nueva operación',operationForm(o,r,p),`<button class="btn" data-tr-onclick="closeModal()">Cancelar</button><button class="btn primary" data-tr-onclick="saveOperationFromForm()">Guardar operación</button>`));setTimeout(()=>{applyRiskToOperation(false);hydrateImageElements();},0);}
 function operationForm(o,r,p){const v=(k,d='')=>esc(o?.[k]??d),riskOptions=p.riskStrategies.filter(x=>x.active||x.id===o?.riskStrategyId).map(x=>({value:x.id,label:x.name})),hypOpts=(p.hypotheses||[]).map(x=>({value:x.id,label:x.name}));return `<form id="operationForm" data-tr-onsubmit="return false"><div class="form-section"><h4>0 · Trading Plan</h4><div class="plan-readonly"><strong>${esc(planLabel(p))}</strong><span>${esc(p.description||'Sin descripción')}</span></div></div><div class="form-section"><h4>1 · Sesión y régimen</h4><div class="form-grid">${field('Fecha/hora de entrada','entryDate','datetime-local',v('entryDate',new Date().toISOString().slice(0,16)))}${field('Fecha/hora de salida','exitDate','datetime-local',v('exitDate',''))}${selectField('Muestra','sample',['A','B'],v('sample','B'))}${selectObjField('Régimen de gestión','riskStrategyId',riskOptions,o?.riskStrategyId||r?.id,`data-tr-onchange="applyRiskToOperation(true)"`)}${field('ATR observado (opcional)','atr','number',v('atr',''),'','step="any"')}${hypOpts.length?selectObjField('Hipótesis','hypothesis',hypOpts,v('hypothesis',hypOpts[0]?.value||'')):field('Hipótesis','hypothesis','text',v('hypothesis',''))}${field('Contexto H4','h4Context','text',v('h4Context',''))}${selectField('Fase H4','h4Phase',['Impulso','Retroceso','No definida'],v('h4Phase','Impulso'))}</div><div id="opRiskPreview" class="strategy-preview"></div></div><div class="form-section"><h4>2 · Oportunidad</h4><div class="form-grid">${p.setups.length?selectField('Setup','setup',p.setups,v('setup',p.setups[0])):field('Setup','setup','text',v('setup',''))}${p.vd.length?selectField('VD','vd',p.vd,v('vd',p.vd[0])):field('VD','vd','text',v('vd',''))}${p.nr.length?selectField('NR','nr',p.nr,v('nr',p.nr[0])):field('NR','nr','text',v('nr',''))}${selectField('Tipo de operación','tradeType',['Rápida','Liquidez','Otra'],v('tradeType','Rápida'))}${selectField('Dirección','direction',['LONG','SHORT'],v('direction','LONG'))}${field('Timeframe','timeframe','text',v('timeframe','5M'))}${field('Precio dinámico / objetivo','dtPrice','number',v('dtPrice',''),'','step="any"')}${field('Notas','notes','textarea',v('notes',''),'full')}</div></div><div class="form-section"><h4>3 · Ejecución y resultado</h4><div class="form-grid">${field('Contrato / vencimiento','contract','text',v('contract',getInstrument(r?.instrumentId)?.symbol||''))}${field('Contratos totales','contracts','number',v('contracts',riskCalc(r).contracts),'','readonly')}${selectField('Tipo de entrada','entryType',['LMT','STP'],v('entryType','LMT'))}${field('Precio de entrada','entryPrice','number',v('entryPrice',''),'','step="any"')}${field('Ticks resultado agregados','resultTicks','number',v('resultTicks',''),'','step="any" data-tr-oninput="recalcOperation()"')}${field('Comisiones','commission','number',v('commission',''),'','readonly step="any"')}${field('P&L bruto','pnlGross','number',v('pnlGross',''),'','readonly step="any"')}${field('P&L neto','pnlNet','number',v('pnlNet',''),'','readonly step="any"')}${field('R múltiple bruta','rMultiple','number',v('rMultiple',''),'','readonly step="any"')}${field('MFE (R)','mfe','number',v('mfe',''),'','step="any"')}${field('MAE (R)','mae','number',v('mae',''),'','step="any"')}${selectField('Disciplina','discipline',['Sí','No'],v('discipline','Sí'))}${field('Motivo de indisciplina','disciplineReason','text',v('disciplineReason',''),'span2')}<div class="field span2"><label>Nuevas capturas</label><input id="screens" name="screens" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="image-upload-meta"><select id="screenCategory" name="screenCategory" class="select">${imageLabelOptions('Contexto')}</select><input id="screenCaption" name="screenCaption" class="input" placeholder="Nota común para estas imágenes (opcional)"></div><div class="help">Puedes añadir varias imágenes. Se guardan localmente en IndexedDB hasta conectar Supabase.</div>${o?.images?.length?`<div class="existing-images"><span>${o.images.length} imagen(es) ya asociadas</span><div class="thumb-strip">${o.images.map(x=>imageThumb(x,'mini')).join('')}</div></div>`:''}</div></div><div class="notice" style="margin-top:12px">La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial. Las comisiones se conservan separadas para las métricas netas.</div></div></form>`;}
 function applyRiskToOperation(overwrite=true){const p=getCurrentPlan(),risk=getRisk(document.getElementById('f-riskStrategyId')?.value,p),c=riskCalc(risk),inst=c.inst;if(!risk)return;const preview=document.getElementById('opRiskPreview');if(preview)preview.innerHTML=`<strong>${esc(risk.name)}</strong> · ${esc(inst?.symbol||'—')} · ${c.contracts} contratos · riesgo ${money(c.riskUsd,inst?.currency)} · comisión estimada ${money(c.commission,inst?.currency)}<div class="chips">${risk.lots.map((l,i)=>`<span class="tag">L${i+1}: ${l.quantity} ct · SL ${l.stopTicks}t · ${l.targetType==='ticks'?`TP ${l.targetTicks}t`:esc(l.targetRule)}</span>`).join('')}</div>`;const set=(n,val,force=overwrite)=>{const el=document.getElementById(`f-${n}`);if(el&&(force||!el.value))el.value=val??'';};set('contracts',c.contracts,true);set('commission',c.commission,true);if(overwrite){const contractEl=document.getElementById('f-contract');if(contractEl&&(contractEl.value.trim()===''||/^[A-Z0-9]+(?:\s+\d{2}-\d{2})?$/.test(contractEl.value.trim())))contractEl.value=inst?.symbol||'';}recalcOperation();}
-function recalcOperation(){const p=getCurrentPlan(),risk=getRisk(document.getElementById('f-riskStrategyId')?.value,p),c=riskCalc(risk),ticks=Number(document.getElementById('f-resultTicks')?.value||0),tv=Number(c.inst?.tickValue)||0,gross=ticks*tv,net=gross-c.commission,r=c.riskTickExposure?ticks/c.riskTickExposure:0;const set=(n,val)=>{const el=document.getElementById(`f-${n}`);if(el)el.value=Number.isFinite(val)?Number(val.toFixed(4)):'';};set('commission',c.commission);set('pnlGross',gross);set('pnlNet',net);set('rMultiple',r);}
-async function saveOperationFromForm(){const p=getCurrentPlan(),form=document.getElementById('operationForm'),fd=formDataFrom(form),get=n=>formDataValue(fd,n),risk=getRisk(get('riskStrategyId'),p),c=riskCalc(risk),inst=c.inst,ticks=Number(get('resultTicks')||0),gross=ticks*(Number(inst?.tickValue)||0),commission=c.commission,net=gross-commission,rMultiple=c.riskTickExposure?ticks/c.riskTickExposure:0,result=ticks>0?'win':ticks<0?'loss':'pending',previous=state.operations.find(x=>x.id===(editingId||'')),images=clone(previous?.images||[]);const files=fd?[...fd.getAll('screens')].filter(x=>typeof File!=='undefined'&&x instanceof File&&x.size):[...(document.getElementById('screens')?.files||[])],label=formDataValue(fd,'screenCategory','Contexto')||'Contexto',caption=formDataValue(fd,'screenCaption','').trim();for(const file of files){const id=uid('IMG');await storeImageFile(file,id);images.push({id,label,caption:caption||file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()});}const op={id:editingId||uid('op'),tradingPlanId:p.id,tradingPlanName:p.name,tradingPlanVersion:p.version,tradingPlanSnapshot:planSnapshot(p),entryDate:get('entryDate'),exitDate:get('exitDate'),sample:get('sample'),riskStrategyId:risk?.id||'',riskStrategyName:risk?.name||'',strategyPlanSnapshot:strategySnapshot(risk),instrumentId:inst?.id||'',instrumentSnapshot:instrumentSnapshot(inst),atr:Number(get('atr')||0)||null,hypothesis:get('hypothesis'),h4Context:get('h4Context'),h4Phase:get('h4Phase'),setup:get('setup'),vd:get('vd'),nr:get('nr'),tradeType:get('tradeType'),direction:get('direction'),timeframe:get('timeframe'),dtPrice:Number(get('dtPrice')||0)||null,notes:get('notes'),contract:get('contract'),contracts:c.contracts,entryType:get('entryType'),entryPrice:Number(get('entryPrice')||0)||null,resultTicks:ticks,riskTickExposure:c.riskTickExposure,riskUsd:c.riskUsd,pnlGross:gross,commission,pnlNet:net,mfe:Number(get('mfe')||0)||0,mae:Number(get('mae')||0)||0,discipline:get('discipline')==='Sí',disciplineReason:get('disciplineReason'),result,rMultiple,emotional:clone(previous?.emotional||{}),images,raw:previous?.raw||{source:'manual'},updatedAt:new Date().toISOString()};const idx=state.operations.findIndex(x=>x.id===op.id);if(idx>=0)state.operations[idx]=op;else state.operations.push(op);persist();closeModal();render();}
+function recalcOperation(){const p=getCurrentPlan(),risk=getRisk(document.getElementById('f-riskStrategyId')?.value,p),c=riskCalc(risk),resultTicksRaw=String(document.getElementById('f-resultTicks')?.value??'').trim(),hasResult=resultTicksRaw!=='',ticks=hasResult?Number(resultTicksRaw):null,tv=Number(c.inst?.tickValue)||0,gross=hasResult&&Number.isFinite(ticks)?ticks*tv:null,net=gross===null?null:gross-c.commission,r=hasResult&&Number.isFinite(ticks)&&c.riskTickExposure?ticks/c.riskTickExposure:null;const set=(n,val)=>{const el=document.getElementById(`f-${n}`);if(el)el.value=val!==null&&val!==undefined&&Number.isFinite(Number(val))?Number(Number(val).toFixed(4)):'';};set('commission',c.commission);set('pnlGross',gross);set('pnlNet',net);set('rMultiple',r);}
+async function saveOperationFromForm(){const p=getCurrentPlan(),form=document.getElementById('operationForm'),fd=formDataFrom(form),get=n=>formDataValue(fd,n),risk=getRisk(get('riskStrategyId'),p),c=riskCalc(risk),inst=c.inst,resultTicksRaw=String(get('resultTicks')??'').trim(),hasResult=resultTicksRaw!=='',ticks=hasResult?Number(resultTicksRaw):null;if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');const gross=hasResult?ticks*(Number(inst?.tickValue)||0):null,commission=c.commission,net=hasResult?gross-commission:null,rMultiple=hasResult&&c.riskTickExposure?ticks/c.riskTickExposure:null,result=hasResult?(ticks>0?'win':ticks<0?'loss':'pending'):'pending',previous=state.operations.find(x=>x.id===(editingId||'')),images=clone(previous?.images||[]);const files=fd?[...fd.getAll('screens')].filter(x=>typeof File!=='undefined'&&x instanceof File&&x.size):[...(document.getElementById('screens')?.files||[])],label=formDataValue(fd,'screenCategory','Contexto')||'Contexto',caption=formDataValue(fd,'screenCaption','').trim();for(const file of files){const id=uid('IMG');await storeImageFile(file,id);images.push({id,label,caption:caption||file.name,name:file.name,type:file.type,createdAt:new Date().toISOString()});}const op={id:editingId||uid('op'),tradingPlanId:p.id,tradingPlanName:p.name,tradingPlanVersion:p.version,tradingPlanSnapshot:planSnapshot(p),entryDate:get('entryDate'),exitDate:get('exitDate'),sample:get('sample'),riskStrategyId:risk?.id||'',riskStrategyName:risk?.name||'',strategyPlanSnapshot:strategySnapshot(risk),instrumentId:inst?.id||'',instrumentSnapshot:instrumentSnapshot(inst),atr:Number(get('atr')||0)||null,hypothesis:get('hypothesis'),h4Context:get('h4Context'),h4Phase:get('h4Phase'),setup:get('setup'),vd:get('vd'),nr:get('nr'),tradeType:get('tradeType'),direction:get('direction'),timeframe:get('timeframe'),dtPrice:Number(get('dtPrice')||0)||null,notes:get('notes'),contract:get('contract'),contracts:c.contracts,entryType:get('entryType'),entryPrice:Number(get('entryPrice')||0)||null,resultTicks:ticks,riskTickExposure:c.riskTickExposure,riskUsd:c.riskUsd,pnlGross:gross,commission,pnlNet:net,mfe:Number(get('mfe')||0)||0,mae:Number(get('mae')||0)||0,discipline:get('discipline')==='Sí',disciplineReason:get('disciplineReason'),result,rMultiple,emotional:clone(previous?.emotional||{}),images,raw:previous?.raw||{source:'manual'},updatedAt:new Date().toISOString()};const idx=state.operations.findIndex(x=>x.id===op.id);if(idx>=0)state.operations[idx]=op;else state.operations.push(op);persist();closeModal();render();}
 function editOperation(id){const o=state.operations.find(x=>x.id===id);if(!o)return;if(o.tradingPlanId!==state.currentPlanId){state.currentPlanId=o.tradingPlanId;persist();render();setTimeout(()=>openOperationModal(id),0);}else openOperationModal(id);}
 function viewOperation(id){const o=state.operations.find(x=>x.id===id);if(!o)return;const p=getPlan(o.tradingPlanId),currency=o.instrumentSnapshot?.currency||'USD',body=`<div class="trade-detail-hero"><div><span>${fmtDate(o.entryDate)}</span><h3>${esc(o.contract||o.instrumentSnapshot?.symbol||'Trade')} · ${esc(o.direction||'—')}</h3><p>${esc(o.setup||'—')} · ${esc(o.vd||'—')} · ${esc(o.nr||'—')} · ${esc(o.hypothesis||'—')}</p></div><div class="trade-detail-result ${Number(o.rMultiple)>=0?'positive':'negative'}">${Number(o.rMultiple)>=0?'+':''}${Number(o.rMultiple||0).toFixed(2)}R <small>${money(o.pnlNet||0,currency)} neto</small></div></div><div class="trade-detail-kpis"><div><span>Ticks</span><strong>${Number(o.resultTicks)>=0?'+':''}${Number(o.resultTicks||0).toFixed(1)}t</strong></div><div><span>Comisión</span><strong>${money(o.commission||0,currency)}</strong></div><div><span>Régimen</span><strong>${esc(o.riskStrategyName||'—')}</strong></div><div><span>Disciplina</span><strong>${o.discipline?'Sí':'No'}</strong></div><div><span>MFE</span><strong>${Number(o.mfe||0).toFixed(2)}R</strong></div><div><span>MAE</span><strong>${Number(o.mae||0).toFixed(2)}R</strong></div></div><section class="form-section"><div class="panel-title"><div><h3>Contexto técnico</h3><small>${esc(planLabel(p))}</small></div></div><div class="trade-facts"><div><span>Contexto H4</span><strong>${esc(o.h4Context||'—')}</strong></div><div><span>Fase H4</span><strong>${esc(o.h4Phase||'—')}</strong></div><div><span>Tipo de operación</span><strong>${esc(o.tradeType||'—')}</strong></div><div><span>Timeframe</span><strong>${esc(o.timeframe||'—')}</strong></div><div><span>Notas</span><strong>${esc(o.notes||'—')}</strong></div></div></section><section class="form-section"><div class="panel-title"><div><h3>Capturas de la operación</h3><small>${(o.images||[]).length} imagen(es)</small></div></div>${operationImagesHtml(o)}</section><section class="form-section"><div class="panel-title"><div><h3>Referencias visuales relacionadas</h3><small>Ejemplos del Trading Plan para este Setup / VD / NR / contexto.</small></div></div>${relatedReferenceHtml(o)}</section>`;document.body.insertAdjacentHTML('beforeend',modalShell('Ficha visual de operación',body,`<button class="btn" data-tr-onclick="closeModal()">Cerrar</button><button class="btn primary" data-tr-onclick="closeModal();editOperation('${id}')">Editar operación</button>`));setTimeout(hydrateImageElements,0);}
 
@@ -674,6 +685,16 @@ const ANKORA_COLUMN_MAP = {
   Custom1:'Contexto / Custom 1', Custom2:'Tipo de operación / Custom 2', Notes:'Notas', Contract:'Contrato', TimeFrame:'Timeframe'
 };
 function nnum(v){const x=Number(String(v??'').trim().replace(',','.'));return Number.isFinite(x)?x:0;}
+function parseImportNumber(v,field,{required=false,min=-Infinity,max=Infinity,integer=false}={}){
+  const raw=String(v??'').trim();
+  if(!raw){if(required)throw new Error(`${field}: valor numérico obligatorio ausente.`);return null;}
+  const normalized=raw.replace(/\s+/g,'').replace(',','.');
+  const x=Number(normalized);
+  if(!Number.isFinite(x))throw new Error(`${field}: "${raw}" no es un número válido.`);
+  if(integer&&!Number.isInteger(x))throw new Error(`${field}: "${raw}" debe ser un entero.`);
+  if(x<min||x>max)throw new Error(`${field}: ${x} está fuera del rango permitido.`);
+  return x;
+}
 function nullableImportDate(v){const x=String(v||'').trim();return (!x||x.startsWith('01/01/0001'))?'':parseDateTime(x);}
 function importKey(src){return [src.EntryDateTime,src.BuySell,src.Contract,src.EntryPrice,src.Setup,src.TotQuantity].map(x=>String(x||'').trim()).join('|');}
 function ankoraCanonicalSource(src){
@@ -726,16 +747,29 @@ function collectPreviewCategories(plan,drafts){
   return d;
 }
 function makeImportDraft(src,plan,line,rowIndex){
+  const field=name=>`Fila ${rowIndex} · ${name}`;
   const symbol=String(src.Contract||'').trim().split(/\s+/)[0].toUpperCase();
   const inst=state.settings.instruments.find(i=>i.symbol.toUpperCase()===symbol);
+  const q1=parseImportNumber(src.Lot1Quantity,field('Lot1Quantity'),{min:0})??0;
+  const q2=parseImportNumber(src.Lot2Quantity,field('Lot2Quantity'),{min:0})??0;
+  const t1=parseImportNumber(src.Lot1Ticks,field('Lot1Ticks'))??0;
+  const t2=parseImportNumber(src.Lot2Ticks,field('Lot2Ticks'))??0;
+  const totalRaw=parseImportNumber(src.TotQuantity,field('TotQuantity'),{min:0});
+  const totalQty=totalRaw??(q1+q2);
+  if(!(totalQty>0))throw new Error(`${field('TotQuantity')}: la cantidad total debe ser mayor que 0.`);
+  const stop=parseImportNumber(src.StopLossTicks,field('StopLossTicks'),{min:0})??0;
+  const entryPrice=parseImportNumber(src.EntryPrice,field('EntryPrice'),{required:true,min:Number.EPSILON});
+  const lot1Target=String(src.Lot1Type||'').toUpperCase()==='MANUAL'?null:parseImportNumber(src.Lot1TargetTicks,field('Lot1TargetTicks'),{min:0});
+  const lot2Target=String(src.Lot2Type||'').toUpperCase()==='MANUAL'?null:parseImportNumber(src.Lot2TargetTicks,field('Lot2TargetTicks'),{min:0});
+  const lot1Exit=parseImportNumber(src.Lot1ExitPrice,field('Lot1ExitPrice'),{min:0});
+  const lot2Exit=parseImportNumber(src.Lot2ExitPrice,field('Lot2ExitPrice'),{min:0});
   const matchedRisk=matchImportedStrategy(plan,src,symbol);
-  const q1=nnum(src.Lot1Quantity),q2=nnum(src.Lot2Quantity),t1=nnum(src.Lot1Ticks),t2=nnum(src.Lot2Ticks);
-  const totalQty=nnum(src.TotQuantity)||(q1+q2), stop=nnum(src.StopLossTicks), resultTickExposure=t1*q1+t2*q2;
+  const resultTickExposure=t1*q1+t2*q2;
   const hyp=src.Hypothesis?(String(src.Hypothesis).startsWith('H')?String(src.Hypothesis):`H${src.Hypothesis}`):'';
   const lots=[];
-  if(q1||String(src.Lot1Type||'').trim()) lots.push({number:1,quantity:q1,type:String(src.Lot1Type||'').trim(),targetTicks:String(src.Lot1Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot1TargetTicks),realizedTicks:t1,exitPrice:nnum(src.Lot1ExitPrice)||null,exitDate:nullableImportDate(src.Lot1ExitDateTime),stopTicks:stop});
-  if(q2||String(src.Lot2Type||'').trim()) lots.push({number:2,quantity:q2,type:String(src.Lot2Type||'').trim(),targetTicks:String(src.Lot2Type||'').toUpperCase()==='MANUAL'?null:nnum(src.Lot2TargetTicks),realizedTicks:t2,exitPrice:nnum(src.Lot2ExitPrice)||null,exitDate:nullableImportDate(src.Lot2ExitDateTime),stopTicks:stop});
-  return {rowIndex,include:true,src,line,key:importKey(src),entryDate:parseDateTime(src.EntryDateTime),exitDate:parseDateTime(src.ExitDateTime),direction:src.BuySell==='BUY'?'LONG':src.BuySell==='SELL'?'SHORT':src.BuySell,contract:src.Contract||'',symbol,timeframe:src.TimeFrame||'',contracts:totalQty,setup:src.Setup||'',vd:src.VD||'',nr:src.NR||'',hypothesis:hyp,h4Context:src.Custom1||'',tradeType:src.Custom2||'',notes:src.Notes||'',entryType:src.LmtStp||'',entryPrice:nnum(src.EntryPrice)||null,stopTicks:stop,resultTicks:resultTickExposure,lots,instrumentId:inst?.id||'',riskStrategyId:matchedRisk?.id||'',riskStrategyName:matchedRisk?.name||'No clasificada',unknownInstrument:!inst&&!!symbol,sourceIdentity:ankoraSourceIdentity(src),sourceFingerprint:ankoraSourceFingerprint(src),importDisposition:'insert',existingOperationId:'',conflictOperationIds:[],skipReason:'',possibleUpdate:false};
+  if(q1||String(src.Lot1Type||'').trim())lots.push({number:1,quantity:q1,type:String(src.Lot1Type||'').trim(),targetTicks:lot1Target,realizedTicks:t1,exitPrice:lot1Exit,exitDate:nullableImportDate(src.Lot1ExitDateTime),stopTicks:stop});
+  if(q2||String(src.Lot2Type||'').trim())lots.push({number:2,quantity:q2,type:String(src.Lot2Type||'').trim(),targetTicks:lot2Target,realizedTicks:t2,exitPrice:lot2Exit,exitDate:nullableImportDate(src.Lot2ExitDateTime),stopTicks:stop});
+  return {rowIndex,include:true,src,line,key:importKey(src),entryDate:parseDateTime(src.EntryDateTime),exitDate:parseDateTime(src.ExitDateTime),direction:src.BuySell==='BUY'?'LONG':src.BuySell==='SELL'?'SHORT':src.BuySell,contract:src.Contract||'',symbol,timeframe:src.TimeFrame||'',contracts:totalQty,setup:src.Setup||'',vd:src.VD||'',nr:src.NR||'',hypothesis:hyp,h4Context:src.Custom1||'',tradeType:src.Custom2||'',notes:src.Notes||'',entryType:src.LmtStp||'',entryPrice,stopTicks:stop,resultTicks:resultTickExposure,lots,instrumentId:inst?.id||'',riskStrategyId:matchedRisk?.id||'',riskStrategyName:matchedRisk?.name||'No clasificada',unknownInstrument:!inst&&!!symbol,sourceIdentity:ankoraSourceIdentity(src),sourceFingerprint:ankoraSourceFingerprint(src),importDisposition:'insert',existingOperationId:'',conflictOperationIds:[],skipReason:'',possibleUpdate:false};
 }
 function buildPreviewFromText(text,file,plan){
   const lines=String(text).replace(/^\uFEFF/,'').trim().split(/\r?\n/).filter(Boolean);if(lines.length<2)throw new Error('No hay filas de datos');
@@ -6553,14 +6587,75 @@ function v314DetectOffset(rows,ticks,tickSize){
   let best={offset:0,matches:-1,totalDelta:Infinity};const sample=rows.slice(0,Math.min(40,rows.length));for(let step=-24;step<=28;step++){const off=step/2;let matches=0,total=0;for(const r of sample){const m=v314FindFill(ticks,r.wallMs-off*3600000,r.price,r.action,tickSize,3);if(m){matches++;total+=Math.abs(m.deltaMs);}}if(matches>best.matches||(matches===best.matches&&total<best.totalDelta))best={offset:off,matches,totalDelta:total};}return best;
 }
 function v314Quality(entry,exit){if(!entry||!exit)return {label:'Sin match',cls:'bad'};const m=Math.max(Math.abs(entry.deltaMs),Math.abs(exit.deltaMs));if(m<=500)return {label:'Alta',cls:'good'};if(m<=1500)return {label:'Buena',cls:'good'};if(m<=3000)return {label:'Tolerable',cls:'mid'};return {label:'Débil',cls:'bad'};}
+function v314TickPreciseMs(t){return Number(t?.[0]||0)+((Number(t?.[1]||0)/10000)-Math.floor(Number(t?.[1]||0)/10000));}
+function v314PositionAwarePath(trade,ticks,tickSize,offsetHours,mode='points'){
+  const size=Number(tickSize)||.01,sign=trade?.direction==='SHORT'?-1:1,entries=trade?.entryRows||[],exits=trade?.exitRows||[];
+  if(!entries.length||!exits.length||!ticks?.length)return {ok:false,reason:'missing_execution_rows',points:[],events:[]};
+  const events=[],missing=[];
+  const add=(row,kind)=>{
+    const nominal=Number(row?.wallMs)-Number(offsetHours||0)*3600000,match=v314FindFill(ticks,nominal,Number(row?.price),row?.action,size,3);
+    if(!match){missing.push({kind,row});return;}
+    events.push({kind,row,match,i:match.i,wallMs:Number(row?.wallMs)||0,sourceLine:Number(row?.sourceLine)||0,qty:Number(row?.qty)||0,price:Number(row?.price)||0});
+  };
+  entries.forEach(r=>add(r,'entry'));exits.forEach(r=>add(r,'exit'));
+  if(missing.length)return {ok:false,reason:'unmatched_intermediate_fill',missingRows:missing,points:[],events};
+  events.sort((a,b)=>a.i-b.i||a.wallMs-b.wallMs||a.sourceLine-b.sourceLine||(a.kind==='entry'?-1:1));
+  const start=events[0]?.i,end=events[events.length-1]?.i;
+  if(!Number.isInteger(start)||!Number.isInteger(end)||end<start)return {ok:false,reason:'invalid_window',points:[],events};
+  const peakQuantity=Math.max(1,Number(trade?.peakQuantity)||Number(trade?.quantity)||1);
+  const totalEntryQuantity=Math.max(1e-9,Number(trade?.totalEntryQuantity)||entries.reduce((a,r)=>a+(Number(r?.qty)||0),0)||peakQuantity);
+  const collectMode=mode==='columns'?'columns':mode==='summary'?'summary':'points';
+  const capacity=Math.max(0,end-start+1),points=[],columns=collectMode==='columns'?{tickIndex:new Int32Array(capacity),pnlTicks:new Float64Array(capacity)}:null;
+  let openQuantity=0,averageEntry=0,realizedAggregateTicks=0,cumulativeEntryQuantity=0,eventIndex=0,pointCount=0;
+  let mfeExcursionTicks=-Infinity,maeExcursionTicks=Infinity,mfeIndex=-1,maeIndex=-1,minLast=Infinity,maxLast=-Infinity,minPnlTicks=Infinity,maxPnlTicks=-Infinity,startMs=NaN,endMs=NaN,lastPnlTicks=0;
+  for(let i=start;i<=end;i++){
+    while(eventIndex<events.length&&events[eventIndex].i===i){
+      const ev=events[eventIndex++],qty=Math.max(0,Number(ev.qty)||0);
+      if(ev.kind==='entry'&&qty>0){
+        const next=openQuantity+qty;
+        averageEntry=next>0?((averageEntry*openQuantity)+(ev.price*qty))/next:ev.price;
+        openQuantity=next;cumulativeEntryQuantity+=qty;
+      }else if(ev.kind==='exit'&&qty>0&&openQuantity>0){
+        const closing=Math.min(openQuantity,qty);
+        realizedAggregateTicks+=sign*((ev.price-averageEntry)/size)*closing;
+        openQuantity=Math.max(0,openQuantity-closing);
+        if(openQuantity<=1e-9){openQuantity=0;averageEntry=0;}
+      }
+    }
+    const x=ticks[i],last=Number(x?.[2]);if(!Number.isFinite(last))continue;
+    const ms=v314TickPreciseMs(x),unrealizedAggregateTicks=openQuantity>0?sign*((last-averageEntry)/size)*openQuantity:0,totalAggregateTicks=realizedAggregateTicks+unrealizedAggregateTicks,excursionTicks=totalAggregateTicks/peakQuantity;
+    if(collectMode==='points'){
+      points.push({
+        i,ms,frac:x?.[1],last,bid:Number(x?.[3]),ask:Number(x?.[4]),
+        openQuantity,averageEntry:openQuantity>0?averageEntry:null,cumulativeEntryQuantity,
+        realizedAggregateTicks,unrealizedAggregateTicks,pnlTicks:totalAggregateTicks,excursionTicks
+      });
+    }else if(collectMode==='columns'){
+      columns.tickIndex[pointCount]=i;columns.pnlTicks[pointCount]=totalAggregateTicks;
+    }
+    if(pointCount===0)startMs=ms;endMs=ms;lastPnlTicks=totalAggregateTicks;
+    if(last<minLast)minLast=last;if(last>maxLast)maxLast=last;
+    if(totalAggregateTicks<minPnlTicks)minPnlTicks=totalAggregateTicks;if(totalAggregateTicks>maxPnlTicks)maxPnlTicks=totalAggregateTicks;
+    if(excursionTicks>mfeExcursionTicks){mfeExcursionTicks=excursionTicks;mfeIndex=pointCount;}
+    if(excursionTicks<maeExcursionTicks){maeExcursionTicks=excursionTicks;maeIndex=pointCount;}
+    pointCount++;
+  }
+  return {ok:pointCount>0,reason:pointCount?'':'no_market_points',points,columns,pointCount,events,peakQuantity,totalEntryQuantity,
+    aggregateRealizedTicks:realizedAggregateTicks,realizedTicks:realizedAggregateTicks/totalEntryQuantity,start,end,startMs,endMs,lastPnlTicks,
+    mfeExcursionTicks,maeExcursionTicks,mfeIndex,maeIndex,minLast,maxLast,minPnlTicks,maxPnlTicks};
+}
 function v314CalculateTrade(trade,ticks,tickSize,offsetHours){
   const eRow=trade.entryRows[0],xRow=trade.exitRows[trade.exitRows.length-1],eNom=eRow.wallMs-offsetHours*3600000,xNom=xRow.wallMs-offsetHours*3600000,entry=v314FindFill(ticks,eNom,eRow.price,eRow.action,tickSize,3),exit=v314FindFill(ticks,xNom,xRow.price,xRow.action,tickSize,3),q=v314Quality(entry,exit);
-  const realizedRaw=trade.direction==='LONG'?trade.exitPrice-trade.entryPrice:trade.entryPrice-trade.exitPrice,realizedTicks=realizedRaw/tickSize;
-  if(!entry||!exit||exit.i<entry.i)return {...trade,entryMatch:entry,exitMatch:exit,quality:q,realizedTicks,mfeTicks:null,maeTicks:null,ticksProcessed:0,warning:'No se pudo delimitar una ventana entrada → salida válida.'};
-  let min=Infinity,max=-Infinity;for(let i=entry.i;i<=exit.i;i++){const p=Number(ticks[i][2]);if(Number.isFinite(p)){if(p<min)min=p;if(p>max)max=p;}}
-  let mfe=trade.direction==='LONG'?(max-trade.entryPrice):(trade.entryPrice-min),mae=trade.direction==='LONG'?(trade.entryPrice-min):(max-trade.entryPrice);mfe=Math.max(0,mfe/tickSize);mae=Math.max(0,mae/tickSize);
-  const warnings=[];if(realizedTicks>0&&mfe+0.51<realizedTicks)warnings.push('MFE Last menor que el resultado realizado: revisar microestructura/fill.');if(realizedTicks<0&&mae+0.51<Math.abs(realizedTicks))warnings.push('MAE Last menor que la pérdida realizada: revisar microestructura/fill.');
-  return {...trade,entryMatch:entry,exitMatch:exit,quality:q,realizedTicks,mfeTicks:mfe,maeTicks:mae,ticksProcessed:exit.i-entry.i+1,minLast:min,maxLast:max,warning:warnings.join(' ')};
+  if(!entry||!exit||exit.i<entry.i)return {...trade,entryMatch:entry,exitMatch:exit,quality:q,realizedTicks:null,aggregateRealizedTicks:null,mfeTicks:null,maeTicks:null,ticksProcessed:0,warning:'No se pudo delimitar una ventana entrada → salida válida.'};
+  const path=v314PositionAwarePath(trade,ticks,tickSize,offsetHours,'summary');
+  if(!path.ok)return {...trade,entryMatch:entry,exitMatch:exit,quality:{label:'Fills incompletos',cls:'bad'},realizedTicks:null,aggregateRealizedTicks:null,mfeTicks:null,maeTicks:null,ticksProcessed:0,warning:'No se pudieron localizar todos los fills intermedios necesarios para reconstruir la posición.'};
+  const mfe=Math.max(0,path.mfeExcursionTicks),mae=Math.max(0,-path.maeExcursionTicks),realizedTicks=path.realizedTicks,aggregateRealizedTicks=path.aggregateRealizedTicks;
+  const warnings=[],aggregateMfe=mfe*path.peakQuantity,aggregateMae=mae*path.peakQuantity;
+  if(aggregateRealizedTicks>0&&aggregateMfe+0.51<aggregateRealizedTicks)warnings.push('MFE position-aware menor que el resultado realizado: revisar microestructura/fill.');
+  if(aggregateRealizedTicks<0&&aggregateMae+0.51<Math.abs(aggregateRealizedTicks))warnings.push('MAE position-aware menor que la pérdida realizada: revisar microestructura/fill.');
+  return {...trade,entryMatch:entry,exitMatch:exit,quality:q,realizedTicks,aggregateRealizedTicks,mfeTicks:mfe,maeTicks:mae,
+    ticksProcessed:path.pointCount,minLast:path.minLast,maxLast:path.maxLast,positionAware:true,positionPeakQuantity:path.peakQuantity,
+    positionTotalEntryQuantity:path.totalEntryQuantity,warning:warnings.join(' ')};
 }
 async function v314LoadTicks(id){const cached=v314TickCacheGet(id);if(cached!==null)return cached;const rec=await v314StoreGet('marketTicks',id),ticks=rec?.ticks||[];v314TickCachePut(id,ticks);return ticks;}
 async function v314RefreshMarketDataState(){try{v314MarketUi.metas=(await v314StoreAll('marketMeta')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));v314MarketUi.execSets=(await v314StoreAll('execSets')).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));if(!v314MarketUi.activeMarketId&&v314MarketUi.metas[0])v314MarketUi.activeMarketId=v314MarketUi.metas[0].id;if(!v314MarketUi.activeExecId&&v314MarketUi.execSets[0])v314MarketUi.activeExecId=v314MarketUi.execSets[0].id;}catch(e){v314MarketUi.error=e.message||String(e);}if(currentView==='market')render();}
@@ -6608,11 +6703,23 @@ function v315ResetRunning(){v315LoadGeneration++;v315RunningUi.series=null;v315R
 function v315PreciseMs(t){return Number(t?.[0]||0)+((Number(t?.[1]||0)/10000)-Math.floor(Number(t?.[1]||0)/10000));}
 function v315GridTime(ms,offsetHours,withMs=false){if(!Number.isFinite(ms))return '—';const d=new Date(ms+Number(offsetHours||0)*3600000),p=n=>String(n).padStart(2,'0'),base=`${p(d.getUTCDate())}/${p(d.getUTCMonth()+1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;return withMs?`${base}.${String(d.getUTCMilliseconds()).padStart(3,'0')}`:base;}
 function v315Duration(ms){if(!Number.isFinite(ms)||ms<0)return '—';const sec=ms/1000;if(sec<60)return `${sec.toFixed(sec<10?1:0)} s`;const m=Math.floor(sec/60),s=Math.round(sec-m*60);return `${m}m ${String(s).padStart(2,'0')}s`;}
+function v315SeriesLength(series){return Math.max(0,Number(series?.pointCount)||0);}
+function v315SeriesPoint(series,index){
+  const n=v315SeriesLength(series),i=Math.max(0,Math.min(Number(index)||0,n-1));if(!n)return null;
+  const tickIndex=series.tickIndex?.[i],tick=series.ticks?.[tickIndex],pnlTicks=Number(series.pnlTicks?.[i]);
+  if(!tick)return null;
+  return {i:tickIndex,ms:v314TickPreciseMs(tick),last:Number(tick?.[2]),bid:Number(tick?.[3]),ask:Number(tick?.[4]),pnlTicks,
+    excursionTicks:pnlTicks/Math.max(1,Number(series.peakQuantity)||1)};
+}
 function v315BuildSeries(result,ticks,tickSize,offsetHours){
   if(!result?.entryMatch||!result?.exitMatch||result.exitMatch.i<result.entryMatch.i)return null;
-  const points=[];for(let i=result.entryMatch.i;i<=result.exitMatch.i;i++){const x=ticks[i],last=Number(x?.[2]);if(!Number.isFinite(last))continue;const pnl=result.direction==='LONG'?(last-result.entryPrice)/tickSize:(result.entryPrice-last)/tickSize;points.push({i,ms:v315PreciseMs(x),frac:x[1],last,bid:Number(x[3]),ask:Number(x[4]),pnlTicks:pnl});}
-  if(!points.length)return null;let mfePoint=points[0],maePoint=points[0];for(const p of points){if(p.pnlTicks>mfePoint.pnlTicks)mfePoint=p;if(p.pnlTicks<maePoint.pnlTicks)maePoint=p;}
-  const startMs=v315PreciseMs(ticks[result.entryMatch.i]),endMs=v315PreciseMs(ticks[result.exitMatch.i]);return {points,mfePoint,maePoint,startMs,endMs,durationMs:Math.max(0,endMs-startMs),lastExitPnlTicks:points[points.length-1].pnlTicks,offsetHours,tickSize};
+  const path=v314PositionAwarePath(result,ticks,tickSize,offsetHours,'columns');if(!path.ok||!path.columns)return null;
+  const pointCount=path.pointCount;if(!pointCount)return null;
+  return {ticks,tickIndex:path.columns.tickIndex,pnlTicks:path.columns.pnlTicks,pointCount,
+    mfeIndex:path.mfeIndex,maeIndex:path.maeIndex,mfeExcursionTicks:path.mfeExcursionTicks,maeExcursionTicks:path.maeExcursionTicks,
+    startMs:path.startMs,endMs:path.endMs,durationMs:Math.max(0,path.endMs-path.startMs),lastExitPnlTicks:path.lastPnlTicks,
+    aggregateRealizedTicks:path.aggregateRealizedTicks,realizedTicks:path.realizedTicks,peakQuantity:path.peakQuantity,totalEntryQuantity:path.totalEntryQuantity,
+    minLast:path.minLast,maxLast:path.maxLast,minPnlTicks:path.minPnlTicks,maxPnlTicks:path.maxPnlTicks,offsetHours,tickSize};
 }
 async function v315LoadTrade(index=v315RunningUi.tradeIndex){
   const generation=++v315LoadGeneration;
@@ -6622,7 +6729,7 @@ async function v315LoadTrade(index=v315RunningUi.tradeIndex){
     const ticks=await v314LoadTicks(meta.id);
     if(generation!==v315LoadGeneration){v315DiscardedLoads++;return;}
     const series=v315BuildSeries(r,ticks,meta.tickSize||.01,set.offsetHours||0);if(!series)throw new Error('No se pudo reconstruir el recorrido Last de esta operación.');
-    v315RunningUi.series=series;v315RunningUi.cursor=series.points.length-1;v315RunningUi.metaId=meta.id;v315RunningUi.execId=set.id;
+    v315RunningUi.series=series;v315RunningUi.cursor=v315SeriesLength(series)-1;v315RunningUi.metaId=meta.id;v315RunningUi.execId=set.id;
   }catch(e){
     if(generation!==v315LoadGeneration){v315DiscardedLoads++;return;}
     v315RunningUi.error=e.message||String(e);v315RunningUi.series=null;
@@ -6635,33 +6742,38 @@ function v315SetMarketTab(tab){v315RunningUi.tab=tab==='running'?'running':'cali
 function v315OpenRunning(index){v315RunningUi.tradeIndex=Number(index)||0;v315RunningUi.tab='running';v315ResetRunning();render();setTimeout(()=>v315LoadTrade(v315RunningUi.tradeIndex),0);}
 function v315SetRunningTrade(index){v315ResetRunning();v315RunningUi.tradeIndex=Number(index)||0;v315LoadTrade(v315RunningUi.tradeIndex);}
 function v315SetRunningMode(mode){v315RunningUi.mode=mode==='price'?'price':'pnl';render();}
-function v315SetCursor(v){const s=v315RunningUi.series;if(!s?.points?.length)return;v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,s.points.length-1));render();}
+function v315SetCursor(v){const s=v315RunningUi.series,n=v315SeriesLength(s);if(!n)return;v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,n-1));render();}
 function v315PrevTrade(){const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),n=set?.results?.length||0;if(!n)return;v315SetRunningTrade((v315RunningUi.tradeIndex-1+n)%n);}
 function v315NextTrade(){const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),n=set?.results?.length||0;if(!n)return;v315SetRunningTrade((v315RunningUi.tradeIndex+1)%n);}
 function v315Nice(v,d=1){if(!Number.isFinite(Number(v)))return '—';const n=Number(v);return Math.abs(n-Math.round(n))<1e-7?String(Math.round(n)):n.toFixed(d);}
 function v315RenderChart(result,series){
-  if(!series?.points?.length)return '<div class="empty">Selecciona una operación reconstruida.</div>';
-  const mode=v315RunningUi.mode,pts=series.points,W=1000,H=350,L=62,R=26,T=24,B=50,iw=W-L-R,ih=H-T-B,t0=pts[0].ms,t1=pts[pts.length-1].ms,span=Math.max(1,t1-t0),tickSize=series.tickSize||.01;
-  let vals=mode==='price'?pts.map(p=>p.last):pts.map(p=>p.pnlTicks);if(mode==='price')vals.push(result.entryPrice,result.exitPrice);else vals.push(0,result.realizedTicks);
-  let ymin=Math.min(...vals),ymax=Math.max(...vals);if(mode==='pnl'){ymin=Math.min(ymin,-Math.max(0,result.maeTicks||0));ymax=Math.max(ymax,Math.max(0,result.mfeTicks||0));const pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;}else{const pad=Math.max(tickSize*2,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;}if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
+  const n=v315SeriesLength(series);if(!n)return '<div class="empty">Selecciona una operación reconstruida.</div>';
+  const mode=v315RunningUi.mode,W=1000,H=350,L=62,R=26,T=24,B=50,iw=W-L-R,ih=H-T-B,t0=series.startMs,t1=series.endMs,span=Math.max(1,t1-t0),tickSize=series.tickSize||.01;
+  let ymin=mode==='price'?Math.min(series.minLast,result.entryPrice,result.exitPrice):Math.min(series.minPnlTicks,0,Number.isFinite(Number(series.aggregateRealizedTicks))?Number(series.aggregateRealizedTicks):Number(result.realizedTicks)||0);
+  let ymax=mode==='price'?Math.max(series.maxLast,result.entryPrice,result.exitPrice):Math.max(series.maxPnlTicks,0,Number.isFinite(Number(series.aggregateRealizedTicks))?Number(series.aggregateRealizedTicks):Number(result.realizedTicks)||0);
+  if(mode==='pnl'){ymin=Math.min(ymin,-Math.max(0,result.maeTicks||0));ymax=Math.max(ymax,Math.max(0,result.mfeTicks||0));const pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;}else{const pad=Math.max(tickSize*2,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;}if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
   const x=p=>L+((p.ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih;
-  const maxRender=1500,step=Math.max(1,Math.ceil(pts.length/maxRender)),rp=[];for(let i=0;i<pts.length;i+=step)rp.push(pts[i]);if(rp[rp.length-1]!==pts[pts.length-1])rp.push(pts[pts.length-1]);const poly=rp.map(p=>`${x(p).toFixed(2)},${y(mode==='price'?p.last:p.pnlTicks).toFixed(2)}`).join(' ');
+  const maxRender=1500,step=Math.max(1,Math.ceil(n/maxRender)),polyPoints=[];
+  for(let i=0;i<n;i+=step){const p=v315SeriesPoint(series,i);if(p)polyPoints.push(`${x(p).toFixed(2)},${y(mode==='price'?p.last:p.pnlTicks).toFixed(2)}`);}
+  if((n-1)%step!==0){const p=v315SeriesPoint(series,n-1);if(p)polyPoints.push(`${x(p).toFixed(2)},${y(mode==='price'?p.last:p.pnlTicks).toFixed(2)}`);}
+  const poly=polyPoints.join(' ');
   const yLines=[];for(let j=0;j<=4;j++){const val=ymin+(ymax-ymin)*(4-j)/4,yy=T+j*ih/4,label=mode==='price'?val.toFixed(Math.max(2,String(tickSize).split('.')[1]?.length||2)):`${v315Nice(val,1)}t`;yLines.push(`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="rp-grid"/><text x="${L-9}" y="${yy+4}" text-anchor="end" class="rp-axis-label">${label}</text>`);}
   const xTimes=[0,.5,1].map(f=>{const ms=t0+span*f,xx=L+iw*f,d=new Date(ms+Number(series.offsetHours||0)*3600000),p=n=>String(n).padStart(2,'0');return `<text x="${xx}" y="${H-18}" text-anchor="${f===0?'start':f===1?'end':'middle'}" class="rp-axis-label">${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}</text>`;}).join('');
-  const mfe=series.mfePoint,mae=series.maePoint,cursor=pts[Math.max(0,Math.min(v315RunningUi.cursor,pts.length-1))],cyVal=mode==='price'?cursor.last:cursor.pnlTicks,mfeVal=mode==='price'?mfe.last:mfe.pnlTicks,maeVal=mode==='price'?mae.last:mae.pnlTicks,entryY=y(mode==='price'?result.entryPrice:0),exitY=y(mode==='price'?result.exitPrice:result.realizedTicks),lastY=y(mode==='price'?pts[pts.length-1].last:series.lastExitPnlTicks);
+  const mfe=v315SeriesPoint(series,series.mfeIndex),mae=v315SeriesPoint(series,series.maeIndex),cursor=v315SeriesPoint(series,v315RunningUi.cursor),last=v315SeriesPoint(series,n-1);
+  const cyVal=mode==='price'?cursor.last:cursor.pnlTicks,mfeVal=mode==='price'?mfe.last:mfe.pnlTicks,maeVal=mode==='price'?mae.last:mae.pnlTicks,entryY=y(mode==='price'?result.entryPrice:0),exitY=y(mode==='price'?result.exitPrice:(Number.isFinite(Number(series.aggregateRealizedTicks))?Number(series.aggregateRealizedTicks):result.realizedTicks)),lastY=y(mode==='price'?last.last:series.lastExitPnlTicks);
   const zeroLine=mode==='pnl'&&ymin<=0&&ymax>=0?`<line x1="${L}" y1="${y(0)}" x2="${W-R}" y2="${y(0)}" class="rp-zero"/>`:'';
   return `<div class="rp-chart-wrap"><svg class="rp-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Running P&L intratrade">${yLines.join('')}${xTimes}${zeroLine}<polyline points="${poly}" class="rp-line"/><line x1="${L}" y1="${entryY}" x2="${L+12}" y2="${entryY}" class="rp-entry-mark"/><circle cx="${x(mfe)}" cy="${y(mfeVal)}" r="5" class="rp-mfe"/><circle cx="${x(mae)}" cy="${y(maeVal)}" r="5" class="rp-mae"/><circle cx="${W-R}" cy="${lastY}" r="4" class="rp-last"/><path d="M ${W-R-6} ${exitY} L ${W-R} ${exitY-6} L ${W-R+6} ${exitY} L ${W-R} ${exitY+6} Z" class="rp-exit"/><line x1="${x(cursor)}" y1="${T}" x2="${x(cursor)}" y2="${H-B}" class="rp-cursor-line"/><circle cx="${x(cursor)}" cy="${y(cyVal)}" r="5" class="rp-cursor"/></svg><div class="rp-legend"><span><i class="line"></i>${mode==='price'?'Last':'P&L marcado a Last'}</span><span><i class="mfe"></i>MFE</span><span><i class="mae"></i>MAE</span><span><i class="exit"></i>Fill salida</span></div></div>`;
 }
 function v315RunningPanel(set,meta){
   const rows=set?.results||[];if(!set||!meta||!rows.length)return '<section class="card panel"><div class="empty">Importa primero un histórico y un Grid de ejecuciones en la pestaña Calibración.</div></section>';
-  const idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),r=rows[idx],s=v315RunningUi.series,cursor=s?.points?.[Math.max(0,Math.min(v315RunningUi.cursor,s.points.length-1))];
+  const idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),r=rows[idx],s=v315RunningUi.series,n=v315SeriesLength(s),cursor=n?v315SeriesPoint(s,v315RunningUi.cursor):null;
   const selector=`<div class="rp-toolbar"><div class="rp-trade-nav"><button class="btn small" data-tr-onclick="v315PrevTrade()">←</button><label><span>Operación calibrada</span><select class="input" data-tr-onchange="v315SetRunningTrade(this.value)">${rows.map((x,i)=>`<option value="${i}" ${i===idx?'selected':''}>#${i+1} · ${x.direction} · ${Number(x.entryPrice).toFixed(2)} → ${Number(x.exitPrice).toFixed(2)} · ${v314SignedTicks(x.realizedTicks)}</option>`).join('')}</select></label><button class="btn small" data-tr-onclick="v315NextTrade()">→</button></div><div class="seg"><button class="${v315RunningUi.mode==='pnl'?'active':''}" data-tr-onclick="v315SetRunningMode('pnl')">P&L · ticks</button><button class="${v315RunningUi.mode==='price'?'active':''}" data-tr-onclick="v315SetRunningMode('price')">Precio · Last</button></div></div>`;
   if(v315RunningUi.loading)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Running P&L intratrade</h3><small>Reconstrucción tick a tick entre entrada y salida final.</small></div></div>${selector}<div class="md-status">Reconstruyendo recorrido…</div></section>`;
   if(v315RunningUi.error)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Running P&L intratrade</h3></div></div>${selector}<div class="notice danger">${esc(v315RunningUi.error)}</div></section>`;
-  if(!s)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Running P&L intratrade</h3><small>Selecciona una operación para reconstruirla.</small></div></div>${selector}</section>`;
-  const closeDelta=s.lastExitPnlTicks-r.realizedTicks,matchOk=Math.abs((r.mfeTicks||0)-Math.max(0,s.mfePoint.pnlTicks))<.05&&Math.abs((r.maeTicks||0)-Math.max(0,-s.maePoint.pnlTicks))<.05;
-  const kpis=`<div class="rp-kpis"><div><span>Dirección</span><strong>${esc(r.direction)}</strong><small>${esc(r.instrument)}</small></div><div><span>Duración</span><strong>${v315Duration(s.durationMs)}</strong><small>${s.points.length.toLocaleString('es-ES')} observaciones Last</small></div><div><span>Resultado fill</span><strong class="${r.realizedTicks>0?'positive':r.realizedTicks<0?'negative':''}">${v314SignedTicks(r.realizedTicks)}</strong><small>${Number(r.entryPrice).toFixed(2)} → ${Number(r.exitPrice).toFixed(2)}</small></div><div><span>MFE</span><strong>${v314FmtTicks(r.mfeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>MAE</span><strong>${v314FmtTicks(r.maeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>Last en salida</span><strong>${v314SignedTicks(s.lastExitPnlTicks)}</strong><small>Δ fill ${v314SignedTicks(closeDelta)}</small></div></div>`;
-  const inspector=cursor?`<div class="rp-inspector"><div class="rp-slider"><span>Inspector del recorrido</span><input type="range" min="0" max="${Math.max(0,s.points.length-1)}" value="${Math.max(0,Math.min(v315RunningUi.cursor,s.points.length-1))}" data-tr-oninput="v315SetCursor(this.value)"></div><div class="rp-inspect-grid"><div><span>Hora Grid</span><strong>${esc(v315GridTime(cursor.ms,s.offsetHours,true))}</strong></div><div><span>Transcurrido</span><strong>${v315Duration(cursor.ms-s.startMs)}</strong></div><div><span>Last</span><strong>${Number(cursor.last).toFixed(2)}</strong></div><div><span>Bid / Ask</span><strong>${Number(cursor.bid).toFixed(2)} / ${Number(cursor.ask).toFixed(2)}</strong></div><div><span>P&L Last</span><strong class="${cursor.pnlTicks>0?'positive':cursor.pnlTicks<0?'negative':''}">${v314SignedTicks(cursor.pnlTicks)}</strong></div></div></div>`:'';
+  if(!s||!n)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Running P&L intratrade</h3><small>Selecciona una operación para reconstruirla.</small></div></div>${selector}</section>`;
+  const mfePoint=v315SeriesPoint(s,s.mfeIndex),maePoint=v315SeriesPoint(s,s.maeIndex),finalFillTicks=Number.isFinite(Number(s.aggregateRealizedTicks))?Number(s.aggregateRealizedTicks):Number(r.realizedTicks)||0,closeDelta=s.lastExitPnlTicks-finalFillTicks,matchOk=Math.abs((r.mfeTicks||0)-Math.max(0,mfePoint.excursionTicks))<.05&&Math.abs((r.maeTicks||0)-Math.max(0,-maePoint.excursionTicks))<.05;
+  const kpis=`<div class="rp-kpis"><div><span>Dirección</span><strong>${esc(r.direction)}</strong><small>${esc(r.instrument)}</small></div><div><span>Duración</span><strong>${v315Duration(s.durationMs)}</strong><small>${n.toLocaleString('es-ES')} observaciones Last</small></div><div><span>Resultado fill</span><strong class="${r.realizedTicks>0?'positive':r.realizedTicks<0?'negative':''}">${v314SignedTicks(r.realizedTicks)}</strong><small>${Number(r.entryPrice).toFixed(2)} → ${Number(r.exitPrice).toFixed(2)}</small></div><div><span>MFE</span><strong>${v314FmtTicks(r.mfeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>MAE</span><strong>${v314FmtTicks(r.maeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>Last en salida</span><strong>${v314SignedTicks(s.lastExitPnlTicks)}</strong><small>Δ fill ${v314SignedTicks(closeDelta)}</small></div></div>`;
+  const inspector=cursor?`<div class="rp-inspector"><div class="rp-slider"><span>Inspector del recorrido</span><input type="range" min="0" max="${Math.max(0,n-1)}" value="${Math.max(0,Math.min(v315RunningUi.cursor,n-1))}" data-tr-oninput="v315SetCursor(this.value)"></div><div class="rp-inspect-grid"><div><span>Hora Grid</span><strong>${esc(v315GridTime(cursor.ms,s.offsetHours,true))}</strong></div><div><span>Transcurrido</span><strong>${v315Duration(cursor.ms-s.startMs)}</strong></div><div><span>Last</span><strong>${Number(cursor.last).toFixed(2)}</strong></div><div><span>Bid / Ask</span><strong>${Number(cursor.bid).toFixed(2)} / ${Number(cursor.ask).toFixed(2)}</strong></div><div><span>P&L Last</span><strong class="${cursor.pnlTicks>0?'positive':cursor.pnlTicks<0?'negative':''}">${v314SignedTicks(cursor.pnlTicks)}</strong></div></div></div>`:'';
   return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Running P&L intratrade</h3><small>Mark-to-market con Last desde el fill de entrada localizado hasta el fill de salida final. No continúa después del cierre.</small></div><span>#${idx+1} / ${rows.length}</span></div>${selector}${kpis}${v315RenderChart(r,s)}${inspector}<div class="notice rp-method"><strong>Lectura correcta:</strong> la curva usa <b>Last</b>, mientras que el resultado final usa el <b>precio real del fill</b>. Por eso el último punto Last puede diferir del resultado ejecutado por spread o microestructura. El rombo de salida muestra el fill real y no fuerza la curva a coincidir artificialmente. Esto todavía no es Market Replay.</div></section>`;
 }
 function v315CalibrationTable(set,meta){const rows=set?.results||[];if(!rows.length)return '<div class="empty">Importa el Grid de ejecuciones y crúzalo con el histórico para obtener la calibración.</div>';return `<div class="table-wrap"><table class="table md-cal-table"><thead><tr><th>#</th><th>Dirección</th><th>Entrada</th><th>Salida</th><th>Resultado</th><th>Match entrada</th><th>Match salida</th><th>Ticks procesados</th><th>MFE Last</th><th>MAE Last</th><th>Calidad</th><th></th></tr></thead><tbody>${rows.map((r,i)=>{const qc=r.quality?.cls||'',d1=r.entryMatch?`${r.entryMatch.deltaMs>=0?'+':''}${(r.entryMatch.deltaMs/1000).toFixed(3)}s · ${r.entryMatch.field}`:'—',d2=r.exitMatch?`${r.exitMatch.deltaMs>=0?'+':''}${(r.exitMatch.deltaMs/1000).toFixed(3)}s · ${r.exitMatch.field}`:'—';return `<tr class="${v315RunningUi.tradeIndex===i?'rp-selected-row':''}"><td>${i+1}</td><td><strong>${r.direction}</strong><small>${esc(r.instrument)}</small></td><td>${Number(r.entryPrice).toFixed(2)}<small>${esc(r.entryTimeText)}</small></td><td>${Number(r.exitPrice).toFixed(2)}<small>${esc(r.exitTimeText)} · ${esc(r.exitName||'')}</small></td><td class="${r.realizedTicks>0?'positive':r.realizedTicks<0?'negative':''}">${v314SignedTicks(r.realizedTicks)}</td><td>${d1}</td><td>${d2}</td><td>${Number(r.ticksProcessed||0).toLocaleString('es-ES')}</td><td>${v314FmtTicks(r.mfeTicks)}</td><td>${v314FmtTicks(r.maeTicks)}</td><td><span class="md-quality ${qc}">${esc(r.quality?.label||'—')}</span>${r.warning?`<small class="negative">${esc(r.warning)}</small>`:''}</td><td><button class="btn tiny" data-tr-onclick="v315OpenRunning(${i})">Recorrido</button></td></tr>`;}).join('')}</tbody></table></div><div class="notice"><strong>Definición de calibración:</strong> MFE/MAE se calculan con <b>Last</b> desde el fill de entrada localizado hasta el fill de salida final localizado. Se expresan como magnitud positiva en ticks y nunca continúan después del cierre. Bid/Ask se utilizan para ayudar a localizar los fills, no para sustituir el recorrido Last.</div>`;}
@@ -6752,9 +6864,11 @@ function v317ChooseCandleMs(durationMs){
 }
 function v317CandleLabel(ms){if(ms<60000)return `${ms/1000}s`;if(ms%60000===0)return `${ms/60000}m`;return `${(ms/60000).toFixed(1)}m`;}
 function v317BuildCandles(series){
-  const pts=series?.points||[];if(!pts.length)return {candles:[],intervalMs:1000};
-  const intervalMs=v317ChooseCandleMs(series.durationMs),origin=pts[0].ms,map=new Map();
-  for(const p of pts){
+  const n=v315SeriesLength(series);if(!n)return {candles:[],intervalMs:1000};
+  const first=v315SeriesPoint(series,0);if(!first)return {candles:[],intervalMs:1000};
+  const intervalMs=v317ChooseCandleMs(series.durationMs),origin=first.ms,map=new Map();
+  for(let i=0;i<n;i++){
+    const p=v315SeriesPoint(series,i);if(!p)continue;
     const k=Math.floor(Math.max(0,p.ms-origin)/intervalMs),bucket=origin+k*intervalMs;
     let c=map.get(k);if(!c){c={k,startMs:bucket,endMs:bucket+intervalMs,open:p.last,high:p.last,low:p.last,close:p.last,volume:0,count:0,firstMs:p.ms,lastMs:p.ms};map.set(k,c);}
     c.high=Math.max(c.high,p.last);c.low=Math.min(c.low,p.last);c.close=p.last;c.lastMs=p.ms;c.count++;
@@ -6763,9 +6877,10 @@ function v317BuildCandles(series){
 }
 function v317PriceDecimals(tickSize){const s=String(Number(tickSize)||.01);return s.includes('.')?Math.max(2,Math.min(6,s.split('.')[1].length)):2;}
 function v317RenderCandles(result,series){
-  if(!series?.points?.length)return '<div class="empty">Selecciona una operación reconstruida.</div>';
-  const pts=series.points,{candles,intervalMs}=v317BuildCandles(series);if(!candles.length)return '<div class="empty">No hay datos suficientes para construir velas.</div>';
-  const W=1000,H=370,L=66,R=32,T=24,B=56,iw=W-L-R,ih=H-T-B,t0=pts[0].ms,t1=pts[pts.length-1].ms,span=Math.max(intervalMs,t1-t0),tickSize=Number(series.tickSize)||.01,dec=v317PriceDecimals(tickSize);
+  const n=v315SeriesLength(series);if(!n)return '<div class="empty">Selecciona una operación reconstruida.</div>';
+  const first=v315SeriesPoint(series,0),lastPoint=v315SeriesPoint(series,n-1),built=v317BuildCandles(series),candles=built.candles,intervalMs=built.intervalMs;
+  if(!first||!lastPoint||!candles.length)return '<div class="empty">No hay datos suficientes para construir velas.</div>';
+  const W=1000,H=370,L=66,R=32,T=24,B=56,iw=W-L-R,ih=H-T-B,t0=first.ms,t1=lastPoint.ms,span=Math.max(intervalMs,t1-t0),tickSize=Number(series.tickSize)||.01,dec=v317PriceDecimals(tickSize);
   const vals=[];for(const c of candles){vals.push(c.high,c.low);}vals.push(Number(result.entryPrice),Number(result.exitPrice));
   let ymin=Math.min(...vals),ymax=Math.max(...vals),pad=Math.max(tickSize*3,(ymax-ymin)*.10);ymin-=pad;ymax+=pad;if(Math.abs(ymax-ymin)<1e-9){ymin-=tickSize*5;ymax+=tickSize*5;}
   const xms=ms=>L+((ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih;
@@ -6773,7 +6888,7 @@ function v317RenderCandles(result,series){
   const candleSvg=candles.map(c=>{const cx=xms(Math.min(t1,c.startMs+intervalMs/2)),yo=y(c.open),yc=y(c.close),yh=y(c.high),yl=y(c.low),top=Math.min(yo,yc),bh=Math.max(1.5,Math.abs(yc-yo)),cls=c.close>c.open?'up':c.close<c.open?'down':'flat';return `<g class="rp-candle ${cls}"><line class="wick" x1="${cx.toFixed(2)}" y1="${yh.toFixed(2)}" x2="${cx.toFixed(2)}" y2="${yl.toFixed(2)}"/><rect class="body" x="${(cx-candleWidth/2).toFixed(2)}" y="${top.toFixed(2)}" width="${candleWidth.toFixed(2)}" height="${bh.toFixed(2)}" rx=".7"/></g>`;}).join('');
   const yLines=[];for(let j=0;j<=4;j++){const val=ymax-(ymax-ymin)*j/4,yy=T+ih*j/4;yLines.push(`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="rp-grid"/><text x="${L-9}" y="${yy+4}" text-anchor="end" class="rp-axis-label">${val.toFixed(dec)}</text>`);}
   const p2=n=>String(n).padStart(2,'0'),xTimes=[0,.5,1].map(f=>{const ms=t0+(t1-t0)*f,xx=xms(ms),d=new Date(ms+Number(series.offsetHours||0)*3600000);return `<text x="${xx}" y="${H-18}" text-anchor="${f===0?'start':f===1?'end':'middle'}" class="rp-axis-label">${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}:${p2(d.getUTCSeconds())}</text>`;}).join('');
-  const mfe=series.mfePoint,mae=series.maePoint,cursor=pts[Math.max(0,Math.min(v315RunningUi.cursor,pts.length-1))],entryX=xms(t0),exitX=xms(t1),entryY=y(result.entryPrice),exitY=y(result.exitPrice),mfeY=y(mfe.last),maeY=y(mae.last),cursorX=xms(cursor.ms),cursorY=y(cursor.last);
+  const mfe=v315SeriesPoint(series,series.mfeIndex),mae=v315SeriesPoint(series,series.maeIndex),cursor=v315SeriesPoint(series,Math.max(0,Math.min(v315RunningUi.cursor,n-1)));if(!mfe||!mae||!cursor)return '<div class="empty">No hay datos suficientes para marcar MFE/MAE.</div>';const entryX=xms(t0),exitX=xms(t1),entryY=y(result.entryPrice),exitY=y(result.exitPrice),mfeY=y(mfe.last),maeY=y(mae.last),cursorX=xms(cursor.ms),cursorY=y(cursor.last);
   const entryLabelY=Math.max(T+12,entryY-6),exitLabelY=Math.min(H-B-4,exitY+15);
   return `<div class="rp-chart-wrap rp-price-chart-wrap"><div class="rp-chart-meta"><strong>Precio real · Last</strong><span>Velas ${v317CandleLabel(intervalMs)} · ${candles.length} barras · ventana exacta entrada → salida</span></div><svg class="rp-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Recorrido de precio intratrade en velas">${yLines.join('')}${xTimes}<line x1="${L}" y1="${entryY}" x2="${W-R}" y2="${entryY}" class="rp-entry-level"/><line x1="${L}" y1="${exitY}" x2="${W-R}" y2="${exitY}" class="rp-exit-level"/>${candleSvg}<path d="M ${entryX} ${entryY-7} L ${entryX-6} ${entryY+5} L ${entryX+6} ${entryY+5} Z" class="rp-entry-fill"/><path d="M ${exitX-6} ${exitY} L ${exitX} ${exitY-6} L ${exitX+6} ${exitY} L ${exitX} ${exitY+6} Z" class="rp-exit"/><circle cx="${xms(mfe.ms)}" cy="${mfeY}" r="5" class="rp-mfe"/><circle cx="${xms(mae.ms)}" cy="${maeY}" r="5" class="rp-mae"/><line x1="${cursorX}" y1="${T}" x2="${cursorX}" y2="${H-B}" class="rp-cursor-line"/><circle cx="${cursorX}" cy="${cursorY}" r="4.5" class="rp-cursor"/><text x="${L+7}" y="${entryLabelY}" class="rp-level-label entry">Entrada ${Number(result.entryPrice).toFixed(dec)}</text><text x="${W-R-7}" y="${exitLabelY}" text-anchor="end" class="rp-level-label exit">Salida ${Number(result.exitPrice).toFixed(dec)}</text></svg><div class="rp-legend"><span><i class="candle-up"></i>Vela alcista</span><span><i class="candle-down"></i>Vela bajista</span><span><i class="entry"></i>Fill entrada</span><span><i class="exit"></i>Fill salida</span><span><i class="mfe"></i>MFE</span><span><i class="mae"></i>MAE</span></div></div>`;
 }
@@ -6783,14 +6898,14 @@ v315RunningUi.mode='price';
 
 v315RunningPanel=function(set,meta){
   const rows=set?.results||[];if(!set||!meta||!rows.length)return '<section class="card panel"><div class="empty">Importa primero un histórico y un Grid de ejecuciones en la pestaña Calibración.</div></section>';
-  const idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),r=rows[idx],s=v315RunningUi.series,cursor=s?.points?.[Math.max(0,Math.min(v315RunningUi.cursor,s.points.length-1))];
+  const idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),r=rows[idx],s=v315RunningUi.series,n=v315SeriesLength(s),cursor=n?v315SeriesPoint(s,Math.max(0,Math.min(v315RunningUi.cursor,n-1))):null;
   const selector=`<div class="rp-toolbar"><div class="rp-trade-nav"><button class="btn small" data-tr-onclick="v315PrevTrade()">←</button><label><span>Operación calibrada</span><select class="input" data-tr-onchange="v315SetRunningTrade(this.value)">${rows.map((x,i)=>`<option value="${i}" ${i===idx?'selected':''}>#${i+1} · ${x.direction} · ${Number(x.entryPrice).toFixed(2)} → ${Number(x.exitPrice).toFixed(2)} · ${v314SignedTicks(x.realizedTicks)}</option>`).join('')}</select></label><button class="btn small" data-tr-onclick="v315NextTrade()">→</button></div><div class="seg"><button class="${v315RunningUi.mode!=='pnl'?'active':''}" data-tr-onclick="v315SetRunningMode('price')">Velas · precio</button><button class="${v315RunningUi.mode==='pnl'?'active':''}" data-tr-onclick="v315SetRunningMode('pnl')">P&amp;L auxiliar · ticks</button></div></div>`;
   if(v315RunningUi.loading)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Recorrido de precio intratrade</h3><small>Reconstrucción del mercado entre entrada y salida final.</small></div></div>${selector}<div class="md-status">Reconstruyendo recorrido…</div></section>`;
   if(v315RunningUi.error)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Recorrido de precio intratrade</h3></div></div>${selector}<div class="notice danger">${esc(v315RunningUi.error)}</div></section>`;
-  if(!s)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Recorrido de precio intratrade</h3><small>Selecciona una operación para reconstruirla.</small></div></div>${selector}</section>`;
-  const closeDelta=s.lastExitPnlTicks-r.realizedTicks,matchOk=Math.abs((r.mfeTicks||0)-Math.max(0,s.mfePoint.pnlTicks))<.05&&Math.abs((r.maeTicks||0)-Math.max(0,-s.maePoint.pnlTicks))<.05,last=s.points[s.points.length-1],priceDeltaFill=(Number(last.last)-Number(r.exitPrice))/(Number(s.tickSize)||.01),candleInfo=v317BuildCandles(s);
-  const kpis=`<div class="rp-kpis"><div><span>Dirección</span><strong>${esc(r.direction)}</strong><small>${esc(r.instrument)}</small></div><div><span>Duración</span><strong>${v315Duration(s.durationMs)}</strong><small>${s.points.length.toLocaleString('es-ES')} ticks Last</small></div><div><span>Resultado fill</span><strong class="${r.realizedTicks>0?'positive':r.realizedTicks<0?'negative':''}">${v314SignedTicks(r.realizedTicks)}</strong><small>${Number(r.entryPrice).toFixed(2)} → ${Number(r.exitPrice).toFixed(2)}</small></div><div><span>MFE</span><strong>${v314FmtTicks(r.mfeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>MAE</span><strong>${v314FmtTicks(r.maeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>${v315RunningUi.mode==='pnl'?'Last en salida':'Velas'}</span><strong>${v315RunningUi.mode==='pnl'?v314SignedTicks(s.lastExitPnlTicks):v317CandleLabel(candleInfo.intervalMs)}</strong><small>${v315RunningUi.mode==='pnl'?`Δ fill ${v314SignedTicks(closeDelta)}`:`${candleInfo.candles.length} barras · Last final ${Number(last.last).toFixed(2)} (${priceDeltaFill>=0?'+':''}${v315Nice(priceDeltaFill,1)}t vs fill)`}</small></div></div>`;
-  const inspector=cursor?`<div class="rp-inspector"><div class="rp-slider"><span>Inspector tick a tick</span><input type="range" min="0" max="${Math.max(0,s.points.length-1)}" value="${Math.max(0,Math.min(v315RunningUi.cursor,s.points.length-1))}" data-tr-oninput="v315SetCursor(this.value)"></div><div class="rp-inspect-grid"><div><span>Hora Grid</span><strong>${esc(v315GridTime(cursor.ms,s.offsetHours,true))}</strong></div><div><span>Transcurrido</span><strong>${v315Duration(cursor.ms-s.startMs)}</strong></div><div><span>Last</span><strong>${Number(cursor.last).toFixed(2)}</strong></div><div><span>Bid / Ask</span><strong>${Number(cursor.bid).toFixed(2)} / ${Number(cursor.ask).toFixed(2)}</strong></div><div><span>P&amp;L Last</span><strong class="${cursor.pnlTicks>0?'positive':cursor.pnlTicks<0?'negative':''}">${v314SignedTicks(cursor.pnlTicks)}</strong></div></div></div>`:'';
+  if(!s||!n)return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Recorrido de precio intratrade</h3><small>Selecciona una operación para reconstruirla.</small></div></div>${selector}</section>`;
+  const mfePoint=v315SeriesPoint(s,s.mfeIndex),maePoint=v315SeriesPoint(s,s.maeIndex),last=v315SeriesPoint(s,n-1),finalFillTicks=Number.isFinite(Number(s.aggregateRealizedTicks))?Number(s.aggregateRealizedTicks):Number(r.realizedTicks)||0,closeDelta=s.lastExitPnlTicks-finalFillTicks,matchOk=!!mfePoint&&!!maePoint&&Math.abs((r.mfeTicks||0)-Math.max(0,mfePoint.excursionTicks))<.05&&Math.abs((r.maeTicks||0)-Math.max(0,-maePoint.excursionTicks))<.05,priceDeltaFill=last?(Number(last.last)-Number(r.exitPrice))/(Number(s.tickSize)||.01):0,candleInfo=v317BuildCandles(s);
+  const kpis=`<div class="rp-kpis"><div><span>Dirección</span><strong>${esc(r.direction)}</strong><small>${esc(r.instrument)}</small></div><div><span>Duración</span><strong>${v315Duration(s.durationMs)}</strong><small>${n.toLocaleString('es-ES')} ticks Last</small></div><div><span>Resultado fill</span><strong class="${r.realizedTicks>0?'positive':r.realizedTicks<0?'negative':''}">${v314SignedTicks(r.realizedTicks)}</strong><small>${Number(r.entryPrice).toFixed(2)} → ${Number(r.exitPrice).toFixed(2)}</small></div><div><span>MFE</span><strong>${v314FmtTicks(r.mfeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>MAE</span><strong>${v314FmtTicks(r.maeTicks)}</strong><small>${matchOk?'coincide con calibración':'revisar'}</small></div><div><span>${v315RunningUi.mode==='pnl'?'Last en salida':'Velas'}</span><strong>${v315RunningUi.mode==='pnl'?v314SignedTicks(s.lastExitPnlTicks):v317CandleLabel(candleInfo.intervalMs)}</strong><small>${v315RunningUi.mode==='pnl'?`Δ fill ${v314SignedTicks(closeDelta)}`:`${candleInfo.candles.length} barras · Last final ${last?Number(last.last).toFixed(2):'—'} (${priceDeltaFill>=0?'+':''}${v315Nice(priceDeltaFill,1)}t vs fill)`}</small></div></div>`;
+  const inspector=cursor?`<div class="rp-inspector"><div class="rp-slider"><span>Inspector tick a tick</span><input type="range" min="0" max="${Math.max(0,n-1)}" value="${Math.max(0,Math.min(v315RunningUi.cursor,n-1))}" data-tr-oninput="v315SetCursor(this.value)"></div><div class="rp-inspect-grid"><div><span>Hora Grid</span><strong>${esc(v315GridTime(cursor.ms,s.offsetHours,true))}</strong></div><div><span>Transcurrido</span><strong>${v315Duration(cursor.ms-s.startMs)}</strong></div><div><span>Last</span><strong>${Number(cursor.last).toFixed(2)}</strong></div><div><span>Bid / Ask</span><strong>${Number(cursor.bid).toFixed(2)} / ${Number(cursor.ask).toFixed(2)}</strong></div><div><span>P&amp;L Last</span><strong class="${cursor.pnlTicks>0?'positive':cursor.pnlTicks<0?'negative':''}">${v314SignedTicks(cursor.pnlTicks)}</strong></div></div></div>`:'';
   const method=v315RunningUi.mode==='pnl'?`<div class="notice rp-method"><strong>Vista auxiliar:</strong> aquí sí transformamos el movimiento del precio a resultado latente. En un SHORT ganador la curva subirá porque representa beneficio, no precio. Se conserva solo como herramienta analítica secundaria.</div>`:`<div class="notice rp-method"><strong>Lectura del gráfico:</strong> esta vista representa <b>precio de mercado</b>, no beneficio. Las velas OHLC se construyen con los ticks <b>Last</b> exclusivamente entre el fill de entrada localizado y el fill de salida final. Por tanto, un SHORT ganador mostrará normalmente caída de precio y un LONG ganador subida. MFE/MAE y los fills quedan superpuestos sobre el mismo recorrido.</div>`;
   return `<section class="card panel rp-panel"><div class="panel-title"><div><h3>Recorrido de precio intratrade</h3><small>Velas de Last + fills reales + MFE/MAE dentro de la operación. No continúa después del cierre.</small></div><span>#${idx+1} / ${rows.length}</span></div>${selector}${kpis}${v315RenderChart(r,s)}${inspector}${method}</section>`;
 };
@@ -7283,22 +7398,34 @@ function v3110SetTrailTrigger(v){v3110Ui.trailTriggerTicks=v3110ClampTicks(v,10)
 function v3110SetTrailGiveback(v){v3110Ui.trailGivebackTicks=v3110ClampTicks(v,5);render();}
 function v3110QuotePrice(result,p){const dir=String(result?.direction||'').toUpperCase();const px=dir==='LONG'?Number(p?.bid):Number(p?.ask);return Number.isFinite(px)&&px>0?px:NaN;}
 function v3110QuotePnlTicks(result,p,tickSize){const px=v3110QuotePrice(result,p),entry=Number(result?.entryPrice),ts=Number(tickSize)||.01;if(!Number.isFinite(px)||!Number.isFinite(entry)||!Number.isFinite(ts)||ts<=0)return NaN;return String(result?.direction||'').toUpperCase()==='LONG'?(px-entry)/ts:(entry-px)/ts;}
-function v3110QuotePoints(result,series){const ts=Number(series?.tickSize)||.01;return (series?.points||[]).map(p=>({...p,exitQuote:v3110QuotePrice(result,p),exitPnlTicks:v3110QuotePnlTicks(result,p,ts)})).filter(p=>Number.isFinite(p.exitQuote)&&Number.isFinite(p.exitPnlTicks));}
-function v3110PointAtOrAfter(points,ms){if(!points?.length)return null;let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>1;if(points[mid].ms<ms)lo=mid+1;else hi=mid;}return points[Math.min(lo,points.length-1)]||null;}
-function v3110ObservedEvidence(result,series){
-  const points=v3110QuotePoints(result,series);if(!points.length)return null;
-  let best=points[0],worst=points[0];for(const p of points){if(p.exitPnlTicks>best.exitPnlTicks)best=p;if(p.exitPnlTicks<worst.exitPnlTicks)worst=p;}
-  const actual=Number(result?.realizedTicks)||0,end=points[points.length-1];
-  const windowStart=Number(series?.startMs)||points[0].ms,windowEnd=Number(series?.endMs)||points[points.length-1].ms,windowMs=Math.max(0,windowEnd-windowStart);
-  let positiveMs=0;
-  for(let i=0;i<points.length;i++){const segStart=Math.max(windowStart,points[i].ms),segEnd=Math.min(windowEnd,i+1<points.length?points[i+1].ms:windowEnd);if(segEnd>segStart&&points[i].exitPnlTicks>0)positiveMs+=segEnd-segStart;}
-  return {points,best,worst,end,actual,gap:best.exitPnlTicks-actual,capturePct:best.exitPnlTicks>0?actual/best.exitPnlTicks*100:null,positiveMs,positivePct:windowMs?positiveMs/windowMs*100:0,timeToBest:Math.max(0,best.ms-series.startMs),afterBest:Math.max(0,series.endMs-best.ms)};
+function v3110QuotePoints(result,series){
+  const n=v315SeriesLength(series),pointIndex=new Int32Array(n),exitPnlTicks=new Float64Array(n),ts=Number(series?.tickSize)||.01;let count=0;
+  for(let i=0;i<n;i++){const p=v315SeriesPoint(series,i);if(!p)continue;const quote=v3110QuotePrice(result,p),pnl=v3110QuotePnlTicks(result,p,ts);if(!Number.isFinite(quote)||!Number.isFinite(pnl))continue;pointIndex[count]=i;exitPnlTicks[count]=pnl;count++;}
+  return {result,series,pointIndex,exitPnlTicks,count};
 }
-function v3110TimeExit(result,series,evidence,fraction){const targetMs=series.startMs+series.durationMs*fraction,p=v3110PointAtOrAfter(evidence.points,targetMs);return p?{kind:'time',label:`Salida al ${Math.round(fraction*100)}%`,point:p,resultTicks:p.exitPnlTicks,price:p.exitQuote,ms:p.ms,detail:'marketable · Bid/Ask'}:null;}
+function v3110EvidenceLength(evidence){return Math.max(0,Number(evidence?.count)||0);}
+function v3110EvidencePoint(evidence,index){
+  const n=v3110EvidenceLength(evidence),i=Math.max(0,Math.min(Number(index)||0,n-1));if(!n)return null;
+  const seriesIndex=Number(evidence.pointIndex?.[i]),p=v315SeriesPoint(evidence.series,seriesIndex),exitPnlTicks=Number(evidence.exitPnlTicks?.[i]);if(!p||!Number.isFinite(exitPnlTicks))return null;
+  const exitQuote=v3110QuotePrice(evidence.result,p);if(!Number.isFinite(exitQuote))return null;
+  return {...p,seriesIndex,exitQuote,exitPnlTicks};
+}
+function v3110EvidenceFind(evidence,predicate){const n=v3110EvidenceLength(evidence);for(let i=0;i<n;i++){const p=v3110EvidencePoint(evidence,i);if(p&&predicate(p,i))return p;}return null;}
+function v3110PointAtOrAfter(evidence,ms){const n=v3110EvidenceLength(evidence);if(!n)return null;let lo=0,hi=n;while(lo<hi){const mid=(lo+hi)>>1,p=v3110EvidencePoint(evidence,mid);if(!p||p.ms<ms)lo=mid+1;else hi=mid;}return v3110EvidencePoint(evidence,Math.min(lo,n-1));}
+function v3110ObservedEvidence(result,series){
+  const compact=v3110QuotePoints(result,series),n=v3110EvidenceLength(compact);if(!n)return null;
+  let bestIndex=0,worstIndex=0;for(let i=1;i<n;i++){if(compact.exitPnlTicks[i]>compact.exitPnlTicks[bestIndex])bestIndex=i;if(compact.exitPnlTicks[i]<compact.exitPnlTicks[worstIndex])worstIndex=i;}
+  const best=v3110EvidencePoint(compact,bestIndex),worst=v3110EvidencePoint(compact,worstIndex),end=v3110EvidencePoint(compact,n-1);if(!best||!worst||!end)return null;
+  const first=v3110EvidencePoint(compact,0),actual=Number(result?.realizedTicks)||0,windowStart=Number(series?.startMs)||first.ms,windowEnd=Number(series?.endMs)||end.ms,windowMs=Math.max(0,windowEnd-windowStart);
+  let positiveMs=0;
+  for(let i=0;i<n;i++){const p=v3110EvidencePoint(compact,i),next=i+1<n?v3110EvidencePoint(compact,i+1):null;if(!p)continue;const segStart=Math.max(windowStart,p.ms),segEnd=Math.min(windowEnd,next?.ms??windowEnd);if(segEnd>segStart&&p.exitPnlTicks>0)positiveMs+=segEnd-segStart;}
+  return {...compact,best,worst,end,actual,gap:best.exitPnlTicks-actual,capturePct:best.exitPnlTicks>0?actual/best.exitPnlTicks*100:null,positiveMs,positivePct:windowMs?positiveMs/windowMs*100:0,timeToBest:Math.max(0,best.ms-series.startMs),afterBest:Math.max(0,series.endMs-best.ms)};
+}
+function v3110TimeExit(result,series,evidence,fraction){const targetMs=series.startMs+series.durationMs*fraction,p=v3110PointAtOrAfter(evidence,targetMs);return p?{kind:'time',label:`Salida al ${Math.round(fraction*100)}%`,point:p,resultTicks:p.exitPnlTicks,price:p.exitQuote,ms:p.ms,detail:'marketable · Bid/Ask'}:null;}
 function v3110TargetScenario(result,series,evidence,targetTicks=v3110Ui.targetTicks){
   const t=v3110ClampTicks(targetTicks,20),ts=Number(series.tickSize)||.01,entry=Number(result.entryPrice),dir=String(result.direction||'').toUpperCase(),targetPrice=dir==='LONG'?entry+t*ts:entry-t*ts;
-  const quoteHit=evidence.points.find(p=>p.exitPnlTicks>=t)||null;
-  const tradeHit=(series?.points||[]).find(p=>{const last=Number(p?.last);return Number.isFinite(last)&&(dir==='LONG'?last>=targetPrice:last<=targetPrice);})||null;
+  const quoteHit=v3110EvidenceFind(evidence,p=>p.exitPnlTicks>=t);
+  let tradeHit=null;for(let i=0,n=v315SeriesLength(series);i<n;i++){const p=v315SeriesPoint(series,i),last=Number(p?.last);if(Number.isFinite(last)&&(dir==='LONG'?last>=targetPrice:last<=targetPrice)){tradeHit=p;break;}}
   let hit=null,evidenceType='none';
   if(quoteHit&&tradeHit){hit=quoteHit.ms<=tradeHit.ms?quoteHit:tradeHit;evidenceType=hit===quoteHit?'marketable':'traded';}
   else if(quoteHit){hit=quoteHit;evidenceType='marketable';}
@@ -7308,7 +7435,8 @@ function v3110TargetScenario(result,series,evidence,targetTicks=v3110Ui.targetTi
 }
 function v3110TrailScenario(result,series,evidence,triggerTicks=v3110Ui.trailTriggerTicks,givebackTicks=v3110Ui.trailGivebackTicks){
   const trigger=v3110ClampTicks(triggerTicks,10),giveback=v3110ClampTicks(givebackTicks,5);let armed=false,armedAt=null,peak=-Infinity,peakPoint=null,exit=null;
-  for(const p of evidence.points){
+  for(let i=0,n=v3110EvidenceLength(evidence);i<n;i++){
+    const p=v3110EvidencePoint(evidence,i);if(!p)continue;
     if(!armed){if(p.exitPnlTicks>=trigger){armed=true;armedAt=p;peak=p.exitPnlTicks;peakPoint=p;}continue;}
     if(p.exitPnlTicks>peak){peak=p.exitPnlTicks;peakPoint=p;continue;}
     if(p.exitPnlTicks<=peak-giveback){exit=p;break;}
@@ -7326,13 +7454,13 @@ function v3110ScenarioRow(s,actual,series){
 }
 function v3110TargetMap(evidence,series){
   const best=Math.max(0,Number(evidence?.best?.exitPnlTicks)||0),base=[5,10,15,20,30,40,60],ceil=Math.ceil(best/10)*10,levels=[...new Set([...base,...(ceil>0?[ceil]:[])])].filter(x=>x<=Math.max(60,ceil)).sort((a,b)=>a-b);
-  return levels.map(t=>{const hit=evidence.points.find(p=>p.exitPnlTicks>=t);return `<tr><th>+${t}t</th><td>${hit?'<span class="badge good">Sí</span>':'<span class="badge">No</span>'}</td><td>${hit?esc(v3110When(hit.ms,series)):'—'}</td><td>${hit?esc(v3110FmtPrice(hit.exitQuote,series)):'—'}</td></tr>`;}).join('');
+  return levels.map(t=>{const hit=v3110EvidenceFind(evidence,p=>p.exitPnlTicks>=t);return `<tr><th>+${t}t</th><td>${hit?'<span class="badge good">Sí</span>':'<span class="badge">No</span>'}</td><td>${hit?esc(v3110When(hit.ms,series)):'—'}</td><td>${hit?esc(v3110FmtPrice(hit.exitQuote,series)):'—'}</td></tr>`;}).join('');
 }
 function v3110ExitChart(result,series,evidence,target,trail){
-  const pts=evidence?.points||[];if(!pts.length)return '<div class="empty">No hay Bid/Ask utilizable dentro de la operación.</div>';
-  const W=1000,H=330,L=62,R=26,T=24,B=48,iw=W-L-R,ih=H-T-B,t0=pts[0].ms,t1=pts[pts.length-1].ms,span=Math.max(1,t1-t0),actual=Number(result.realizedTicks)||0;
-  const vals=pts.map(p=>p.exitPnlTicks).concat([actual,0]);if(target?.hit&&Number.isFinite(Number(target.targetTicks)))vals.push(Number(target.targetTicks));let ymin=Math.min(...vals),ymax=Math.max(...vals),pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
-  const x=p=>L+((p.ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih,maxRender=1600,step=Math.max(1,Math.ceil(pts.length/maxRender)),rp=[];for(let i=0;i<pts.length;i+=step)rp.push(pts[i]);if(rp[rp.length-1]!==pts[pts.length-1])rp.push(pts[pts.length-1]);const poly=rp.map(p=>`${x(p).toFixed(2)},${y(p.exitPnlTicks).toFixed(2)}`).join(' ');
+  const n=v3110EvidenceLength(evidence),first=v3110EvidencePoint(evidence,0),last=v3110EvidencePoint(evidence,n-1);if(!n||!first||!last)return '<div class="empty">No hay Bid/Ask utilizable dentro de la operación.</div>';
+  const W=1000,H=330,L=62,R=26,T=24,B=48,iw=W-L-R,ih=H-T-B,t0=first.ms,t1=last.ms,span=Math.max(1,t1-t0),actual=Number(result.realizedTicks)||0;
+  let ymin=Math.min(Number(evidence.worst?.exitPnlTicks),actual,0),ymax=Math.max(Number(evidence.best?.exitPnlTicks),actual,0);if(target?.hit&&Number.isFinite(Number(target.targetTicks))){ymin=Math.min(ymin,Number(target.targetTicks));ymax=Math.max(ymax,Number(target.targetTicks));}let pad=Math.max(1,(ymax-ymin)*.12);ymin-=pad;ymax+=pad;if(Math.abs(ymax-ymin)<1e-9){ymin-=1;ymax+=1;}
+  const x=p=>L+((p.ms-t0)/span)*iw,y=v=>T+(ymax-v)/(ymax-ymin)*ih,maxRender=1600,step=Math.max(1,Math.ceil(n/maxRender)),rp=[];for(let i=0;i<n;i+=step){const p=v3110EvidencePoint(evidence,i);if(p)rp.push(p);}if(rp[rp.length-1]?.seriesIndex!==last.seriesIndex)rp.push(last);const poly=rp.map(p=>`${x(p).toFixed(2)},${y(p.exitPnlTicks).toFixed(2)}`).join(' ');
   const grids=[];for(let j=0;j<=4;j++){const val=ymin+(ymax-ymin)*(4-j)/4,yy=T+j*ih/4;grids.push(`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" class="rp-grid"/><text x="${L-9}" y="${yy+4}" text-anchor="end" class="rp-axis-label">${v315Nice(val,1)}t</text>`);}const xTimes=[0,.5,1].map(f=>{const ms=t0+span*f,xx=L+iw*f,d=new Date(ms+Number(series.offsetHours||0)*3600000),p=n=>String(n).padStart(2,'0');return `<text x="${xx}" y="${H-17}" text-anchor="${f===0?'start':f===1?'end':'middle'}" class="rp-axis-label">${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}</text>`;}).join('');
   const targetInScale=Number.isFinite(Number(target?.targetTicks))&&target.targetTicks>=ymin&&target.targetTicks<=ymax,targetLine=targetInScale?`<line x1="${L}" y1="${y(target.targetTicks)}" x2="${W-R}" y2="${y(target.targetTicks)}" class="be-target-line"/><text x="${W-R-5}" y="${y(target.targetTicks)-5}" text-anchor="end" class="be-target-label">TP +${v315Nice(target.targetTicks,1)}t</text>`:'';
   const best=evidence.best,bestMark=`<circle cx="${x(best)}" cy="${y(best.exitPnlTicks)}" r="6" class="be-best"/><text x="${x(best)+8}" y="${y(best.exitPnlTicks)-8}" class="be-best-label">mejor marketable ${v314SignedTicks(best.exitPnlTicks)}</text>`;
@@ -7351,7 +7479,7 @@ function v3110BestExitPanel(set,meta){
   if(v315RunningUi.error)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3></div></div>${selector}<div class="notice danger">${esc(v315RunningUi.error)}</div></section>`;
   if(!s)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3><small>Selecciona una operación reconstruida.</small></div></div>${selector}</section>`;
   const e=v3110ObservedEvidence(r,s);if(!e)return `<section class="card panel be-panel"><div class="panel-title"><div><h3>Best Exit / What-if</h3></div></div>${selector}<div class="notice danger">El histórico no contiene Bid/Ask utilizable en la ventana de esta operación.</div></section>`;
-  const target=v3110TargetScenario(r,s,e),trail=v3110TrailScenario(r,s,e),timeScenarios=[.25,.5,.75].map(f=>v3110TimeExit(r,s,e,f)).filter(Boolean),actual=Number(r.realizedTicks)||0,quoteCoverage=s.points.length?e.points.length/s.points.length*100:0;
+  const target=v3110TargetScenario(r,s,e),trail=v3110TrailScenario(r,s,e),timeScenarios=[.25,.5,.75].map(f=>v3110TimeExit(r,s,e,f)).filter(Boolean),actual=Number(r.realizedTicks)||0,seriesCount=v315SeriesLength(s),quoteCoverage=seriesCount?v3110EvidenceLength(e)/seriesCount*100:0;
   const fillVsMarketable=actual-Number(e.best.exitPnlTicks||0);
   const gapText=fillVsMarketable>0?`fill real ${v314SignedTicks(fillVsMarketable)} mejor que el mejor cierre marketable observado`:fillVsMarketable<0?`${v314SignedTicks(fillVsMarketable)} frente al mejor cierre marketable observado`:'fill real igual al mejor cierre marketable observado';
   const bestPositive=Number(e.best.exitPnlTicks)>0,retentionPct=bestPositive?Math.max(0,Math.min(100,(actual/Number(e.best.exitPnlTicks))*100)):null;

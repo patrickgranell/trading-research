@@ -29,8 +29,8 @@ function extractFunction(name){
 
 const bootstrapFlat={id:'bootstrap-flat',exitDate:'2026-09-01T09:05',result:'pending',resultTicks:0,rMultiple:0};
 const bootstrapPending={id:'bootstrap-pending',exitDate:'',result:'pending',resultTicks:0,rMultiple:0};
-const persistSnapshots=[];
-const ctx={console,state:{operations:[bootstrapFlat,bootstrapPending]},persist(){persistSnapshots.push(ctx.state.operations.map(o=>o.result));return true;},setTimeout(){return 0;}};
+const persistSnapshots=[],hydrationListeners={};
+const ctx={console,trCoreHydrated:false,state:{operations:[bootstrapFlat,bootstrapPending]},persist(){persistSnapshots.push(ctx.state.operations.map(o=>o.result));return true;},setTimeout(){return 0;},addEventListener(name,fn){hydrationListeners[name]=fn;}};
 vm.createContext(ctx);
 vm.runInContext([
   extractFunction('opMetricValue'),
@@ -43,9 +43,13 @@ if(fs.existsSync('canonical-metrics-runtime.js')){
   vm.runInContext(fs.readFileSync('canonical-metrics-runtime.js','utf8'),ctx,{filename:'canonical-metrics-runtime.js'});
 }
 
-assert(bootstrapFlat.result==='flat','Bootstrap en memoria debe elevar pending cerrado 0 a flat.');
-assert(bootstrapPending.result==='pending','Bootstrap no debe convertir un pending real en flat.');
-assert(persistSnapshots.length===0,'La normalización bootstrap no debe persistir ni migrar el dataset por sí sola.');
+assert(bootstrapFlat.result==='pending','Antes de hidratar, Canonical Metrics no debe normalizar el estado provisional.');
+assert(typeof hydrationListeners['tradingresearch:core-hydrated']==='function','Canonical Metrics debe esperar la señal de hidratación durable.');
+ctx.trCoreHydrated=true;
+hydrationListeners['tradingresearch:core-hydrated']?.();
+assert(bootstrapFlat.result==='flat','Tras la hidratación durable, un cierre 0 debe elevarse a flat.');
+assert(bootstrapPending.result==='pending','Tras la hidratación, un pending real debe permanecer pending.');
+assert(persistSnapshots.length===0,'La normalización post-hydration no debe invocar persist() por sí sola; el bootstrap durable la recoge antes de su commit.');
 
 const win={id:'win',entryDate:'2026-09-01T10:00',exitDate:'2026-09-01T10:05',result:'win',resultTicks:20,rMultiple:2,mfe:3,mae:.5,pnlGross:200,pnlNet:190,commission:10};
 const loss={id:'loss',entryDate:'2026-09-01T11:00',exitDate:'2026-09-01T11:04',result:'loss',resultTicks:-10,rMultiple:-1,mfe:.2,mae:1.2,pnlGross:-100,pnlNet:-110,commission:10};
@@ -135,6 +139,6 @@ if(fail.length){
 console.log('Canonical metrics verification OK');
 console.log(' - legacy red reproduced: PF=0 without losses + pending included before canonical authority');
 console.log(' - pending excluded from n / PF / expectancy / win rate');
-console.log(' - closed zero => flat in stats, in-memory state and future persistence');
+console.log(' - durable hydration gate: provisional state untouched; hydrated closed zero => flat');
 console.log(' - PF: gain/no-loss => Infinity; zero/zero => 0');
 console.log(' - calcStats / calcMetricStats / exitStats share canonical semantics');

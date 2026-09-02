@@ -2,6 +2,16 @@ import fs from 'node:fs';
 
 const source=fs.readFileSync('verify-supabase-v10-remote.mjs','utf8');
 const migration=fs.readFileSync('supabase/migrations/202609010001_v31_24_cloud_v10.sql','utf8');
+const migrationDir='supabase/migrations';
+const laterMigrations=fs.readdirSync(migrationDir)
+  .filter(name=>name.endsWith('.sql')&&name!=='202609010001_v31_24_cloud_v10.sql')
+  .map(name=>({name,source:fs.readFileSync(migrationDir+'/'+name,'utf8')}));
+const aclHardening=laterMigrations.find(x=>
+  /revoke\s+execute\s+on\s+function\s+public\.apply_trading_workspace\s*\(\s*text\s*,\s*jsonb\s*\)\s+from\s+[^;]*anon/i.test(x.source)
+  &&/service_role/i.test(x.source)
+  &&/public/i.test(x.source)
+  &&/grant\s+execute\s+on\s+function\s+public\.apply_trading_workspace\s*\(\s*text\s*,\s*jsonb\s*\)\s+to\s+authenticated/i.test(x.source)
+);
 const fail=[];
 const need=(c,m)=>{if(!c)fail.push(m);};
 
@@ -25,6 +35,7 @@ need(lockAt>bundleAt,'Migration moved advisory lock before invalid-bundle reject
 need(firstDml>bundleAt,'Migration moved DML before invalid-bundle rejection.');
 need(migration.includes("raise exception 'INVALID_WORKSPACE_BUNDLE';"),'Migration lost INVALID_WORKSPACE_BUNDLE rejection.');
 need(migration.includes('grant execute on function public.apply_trading_workspace(text,jsonb) to authenticated;'),'Migration no longer grants authenticated execution.');
+need(!!aclHardening,'Missing follow-up ACL hardening migration: apply_trading_workspace must revoke EXECUTE from anon + service_role + PUBLIC and re-grant only authenticated.');
 
 if(fail.length){
   console.error('Supabase V10 remote gate contract FAILED');
@@ -36,3 +47,4 @@ console.log(' - probe payload: null bundle only');
 console.log(' - HTTP surface: one zero-row GET + one aborting RPC POST');
 console.log(' - migration rejects invalid bundle before lock/DML');
 console.log(' - authenticated execution grant preserved');
+console.log(' - follow-up ACL hardening revokes anon + service_role + PUBLIC');

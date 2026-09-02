@@ -9,7 +9,7 @@ const cleanup=fs.readFileSync('operation-cleanup-runtime.js','utf8');
 const app=fs.readFileSync('app.js','utf8');
 const runtime=fs.existsSync('blob-lifecycle-runtime.js')?fs.readFileSync('blob-lifecycle-runtime.js','utf8'):'';
 
-need(pkg.version==='31.24.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.25.0',`Versión inesperada ${pkg.version}`);
 
 /* Reproduction must remain explicit until the new effective runtime supersedes it. */
 need(cleanup.includes('for(const im of o.images||[])await deleteImageBlob(im.id);')&&cleanup.indexOf('deleteImageBlob(im.id)')<cleanup.indexOf('state.operations=state.operations.filter'),

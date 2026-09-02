@@ -124,7 +124,17 @@ exitStats=function(vals){
   };
 };
 
-trCanonicalBootstrapNormalizations=trCanonicalNormalizeStateOutcomes();
+function trCanonicalNormalizeAfterHydration(){
+  if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return 0;
+  const changed=trCanonicalNormalizeStateOutcomes();
+  trCanonicalBootstrapNormalizations+=changed;
+  return changed;
+}
+if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated){
+  trCanonicalNormalizeAfterHydration();
+}else if(typeof addEventListener==='function'){
+  addEventListener('tradingresearch:core-hydrated',()=>trCanonicalNormalizeAfterHydration(),{once:true});
+}
 
 if(typeof persist==='function'){
   const trCanonicalPersistBaseV31_24=persist;

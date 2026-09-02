@@ -95,6 +95,10 @@ function trStateChanged(oldValue,nextValue){
   if(trStateIsObject(oldRaw)&&trStateIsObject(nextRaw)&&trStateSemanticEqual(oldRaw,nextRaw)){trDomainSuppressedNoopWrites++;return false;}return true;
 }
 function trStatePath(base,key){if(typeof key==='symbol')return base||'$';const k=String(key);return base?`${base}.${k}`:k;}
+function trStateAssertWritable(label='domain'){
+  if(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked())throw new Error(`Workspace bloqueado por recuperación pendiente (${typeof trCoreWriteBlockReason!=='undefined'?trCoreWriteBlockReason:'restore'}): ${label}`);
+  return true;
+}
 function trStateRecordMutation(path,kind='set'){
   trDomainMutationCount++;trDomainPendingMutationCount++;trDomainLastMutationAt=new Date().toISOString();
   if(trDomainPendingPaths.size<80)trDomainPendingPaths.add(path||'$');
@@ -140,18 +144,18 @@ function trStateProxy(value,path='$'){
       /* A semantic no-op must also be a referential no-op. */
       if(!changed)return true;
       if(trDomainRenderGuardDepth){trDomainRenderGuardRemember(target,key,p);return Reflect.set(target,key,raw,target);}
-      const ok=Reflect.set(target,key,raw,target);if(ok)trStateRecordMutation(p,'set');return ok;
+      trStateAssertWritable(`set ${p}`);const ok=Reflect.set(target,key,raw,target);if(ok)trStateRecordMutation(p,'set');return ok;
     },
     deleteProperty(target,key){
       const had=Object.prototype.hasOwnProperty.call(target,key);if(!had)return true;const p=trStatePath(path,key);
       if(trDomainRenderGuardDepth){trDomainRenderGuardRemember(target,key,p);return Reflect.deleteProperty(target,key);}
-      const ok=Reflect.deleteProperty(target,key);if(ok)trStateRecordMutation(p,'delete');return ok;
+      trStateAssertWritable(`delete ${p}`);const ok=Reflect.deleteProperty(target,key);if(ok)trStateRecordMutation(p,'delete');return ok;
     },
     defineProperty(target,key,desc){
       const old=target[key],next=('value' in desc)?trStateUnwrap(desc.value):old,changed=('value' in desc)&&trStateChanged(old,next),clean=('value' in desc)?{...desc,value:next}:desc,p=trStatePath(path,key);
       if(('value' in desc)&&!changed)return true;
       if(trDomainRenderGuardDepth){trDomainRenderGuardRemember(target,key,p);return Reflect.defineProperty(target,key,clean);}
-      const ok=Reflect.defineProperty(target,key,clean);if(ok&&changed)trStateRecordMutation(p,'define');return ok;
+      trStateAssertWritable(`define ${p}`);const ok=Reflect.defineProperty(target,key,clean);if(ok&&changed)trStateRecordMutation(p,'define');return ok;
     }
   });
   trDomainProxyCache.set(value,proxy);trDomainRawByProxy.set(proxy,value);return proxy;
@@ -257,7 +261,7 @@ function trStateEnsureAttached(reason='runtime'){
   try{return trStateAttach(reason);}catch(e){trDomainLastError=e?.message||String(e);console.error('[Trading Research · DomainStore attach]',e);return false;}
 }
 function trDomainCommit(label,mutator,options={}){
-  trStateEnsureAttached('commit');
+  trStateAssertWritable(`commit.${label||'domain'}`);trStateEnsureAttached('commit');
   /* An explicit commit invoked from inside a larger command must join the outer
    * transaction instead of flushing a second controlled revision mid-command. */
   if(trDomainCommandDepth)return mutator?.(state);
@@ -281,7 +285,7 @@ function trDomainCommit(label,mutator,options={}){
   }catch(e){trDomainActiveLabel=previous;throw e;}
 }
 function trDomainCommand(label,task,options={}){
-  trStateEnsureAttached(`command.${label||'domain'}`);
+  trStateAssertWritable(`command.${label||'domain'}`);trStateEnsureAttached(`command.${label||'domain'}`);
   /* Nested migrated commands participate in the outer atomic boundary. */
   if(trDomainCommandDepth)return task?.();
   const commandLabel=String(label||'domain.command'),previousLabel=trDomainActiveLabel;
@@ -312,6 +316,7 @@ function trDomainCommand(label,task,options={}){
   }catch(e){return finish(undefined,e);}
 }
 function trDomainExclusive(label,task){
+  if(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked()&&!String(label||'').startsWith('backup.restore-v2'))trStateAssertWritable(`exclusive.${label||'domain'}`);
   const run=async()=>{trDomainExclusiveBusy=true;try{if(typeof trCoreFlush==='function')await trCoreFlush();return await task();}finally{trDomainExclusiveBusy=false;trStateEnsureAttached(`exclusive.${label}`);}};
   trDomainExclusiveChain=trDomainExclusiveChain.catch(()=>{}).then(run);return trDomainExclusiveChain;
 }

@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=233;
+const MAX_RUNTIME_NAME_OVERLAP=230;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -33,6 +33,10 @@ const CONTENT_ENCODING_CONSUMERS={
 const EXIT_PRESENTATION_CONTRACT='TradingResearchExitPresentationContract';
 const EXIT_PRESENTATION_LEGACY=['exitGrossR','exitResultClass','exitFmtR','exitFmtPct','exitPf'];
 const EXIT_PRESENTATION_CONSUMER='exit-lab-runtime.js';
+
+const FORM_BOUNDARY_CONTRACT='TradingResearchFormBoundaryContract';
+const FORM_BOUNDARY_LEGACY=['formDataFrom','formDataValue','modalShell'];
+const FORM_BOUNDARY_CONSUMER='security-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -163,6 +167,56 @@ if(classicTag&&!moduleTag){
     need(ctx.__formatPct(12.34)==='12.3%','La semántica de exitFmtPct cambió.');
     need(ctx.__formatPf(1.234)==='1.23'&&ctx.__formatPf(Infinity)==='∞','La semántica de exitPf cambió.');
   }
+  need(app.includes(`Object.defineProperty(globalThis,'${FORM_BOUNDARY_CONTRACT}'`),
+    'Falta el contrato explícito de formularios/modales en app.js.');
+  need(app.includes('captureFormData:formDataFrom')&&app.includes('readFormValue:formDataValue')&&app.includes('renderLockedModal:modalShell'),
+    'El contrato de formularios no publica exactamente captureFormData/readFormValue/renderLockedModal.');
+
+  for(const name of FORM_BOUNDARY_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*FormBoundary\w*\s*=/.test(src)),
+    'El contrato Form Boundary no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const formSrc=runtimeSources.get(FORM_BOUNDARY_CONSUMER)||'';
+  for(const method of ['captureFormData','readFormValue','renderLockedModal']){
+    need(formSrc.includes(`globalThis.${FORM_BOUNDARY_CONTRACT}.${method}(`),
+      `${FORM_BOUNDARY_CONSUMER} no consume directamente ${FORM_BOUNDARY_CONTRACT}.${method}().`);
+  }
+  const unexpectedFormConsumers=runtimeFiles.filter(file=>
+    file!==FORM_BOUNDARY_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${FORM_BOUNDARY_CONTRACT}.`)
+  );
+  need(unexpectedFormConsumers.length===0,
+    `Consumidores inesperados del contrato Form Boundary: ${unexpectedFormConsumers.join(', ')}.`);
+
+  const escSource2=app.match(/function esc\(s\)\{[^\n]+\}/)?.[0]||'';
+  const formDataFromSource=app.match(/function formDataFrom\(formOrSelector\)\{[^\n]+\}/)?.[0]||'';
+  const formDataValueSource=app.match(/function formDataValue\(fd,name,fallback=''\)\{[^\n]+\}/)?.[0]||'';
+  const modalShellSource=app.match(/function modalShell\(title,body,footer\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(escSource2&&formDataFromSource&&formDataValueSource&&modalShellSource),
+    'No se pudieron extraer los helpers del Form Boundary.');
+  if(escSource2&&formDataFromSource&&formDataValueSource&&modalShellSource){
+    class TestFormData{constructor(form){this.form=form;}}
+    const selected={id:'selected'};
+    const ctx=vm.createContext({
+      document:{querySelector:q=>q==='#f'?selected:null},
+      FormData:TestFormData
+    });
+    vm.runInContext([escSource2,formDataFromSource,formDataValueSource,modalShellSource,
+      'this.__from=formDataFrom;this.__value=formDataValue;this.__modal=modalShell;'].join('\n'),ctx);
+    const fdBySelector=ctx.__from('#f');
+    const direct={id:'direct'};
+    const fdDirect=ctx.__from(direct);
+    need(fdBySelector instanceof TestFormData&&fdBySelector.form===selected&&fdDirect instanceof TestFormData&&fdDirect.form===direct,
+      'La semántica de formDataFrom cambió.');
+    need(ctx.__value({get:n=>n==='ok'?'value':42},'ok','fallback')==='value'&&ctx.__value({get:()=>42},'x','fallback')==='fallback',
+      'La semántica de formDataValue cambió.');
+    const modal=ctx.__modal(`A&B<`, '<p>body</p>', '<button>ok</button>');
+    need(modal.includes('<h3>A&amp;B&lt;</h3>')&&modal.includes('data-modal-locked="true"')&&modal.includes('<p>body</p>')&&modal.includes('<button>ok</button>'),
+      'La semántica de modalShell cambió.');
+  }
+
 }
 
 if(fail.length){
@@ -179,6 +233,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit plan-read contract: ${PLAN_READ_LEGACY.length} legacy bindings removed across ${PLAN_READ_CONSUMERS.length} runtimes`);
   console.log(` - explicit content-encoding contract: ${CONTENT_ENCODING_LEGACY.length} legacy bindings removed; html across ${CONTENT_ENCODING_CONSUMERS.esc.length} runtimes + uri in security runtime`);
   console.log(` - explicit exit-presentation contract: ${EXIT_PRESENTATION_LEGACY.length} legacy bindings removed from ${EXIT_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit form-boundary contract: ${FORM_BOUNDARY_LEGACY.length} legacy bindings removed from ${FORM_BOUNDARY_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

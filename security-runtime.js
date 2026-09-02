@@ -23,7 +23,7 @@ function trSecurityProbeModalTitle(){
   try{
     const payload=`</h3><img src=x onerror="window.__tr_security_probe=2">`;
     const host=document.createElement('div');
-    host.innerHTML=modalShell(payload,'','');
+    host.innerHTML=globalThis.TradingResearchFormBoundaryContract.renderLockedModal(payload,'','');
     const title=host.querySelector('.modal-head h3');
     return !!title&&title.textContent===payload&&!title.querySelector('*')&&!host.querySelector('.modal-head img,.modal-head script');
   }catch(_){return false;}
@@ -39,8 +39,8 @@ function trSecurityProbeFormData(){
   try{
     const form=document.createElement('form');
     form.innerHTML='<input name="alpha" value="uno"><textarea name="beta">dos</textarea><input type="checkbox" name="flags" value="A" checked><input type="checkbox" name="flags" value="B" checked>';
-    const fd=formDataFrom(form);
-    return formDataValue(fd,'alpha')==='uno'&&formDataValue(fd,'beta')==='dos'&&fd?.getAll('flags').join(',')==='A,B';
+    const fd=globalThis.TradingResearchFormBoundaryContract.captureFormData(form);
+    return globalThis.TradingResearchFormBoundaryContract.readFormValue(fd,'alpha')==='uno'&&globalThis.TradingResearchFormBoundaryContract.readFormValue(fd,'beta')==='dos'&&fd?.getAll('flags').join(',')==='A,B';
   }catch(_){return false;}
 }
 function trSecurityDiagnostics(){

@@ -12,7 +12,7 @@ if(!render.includes(`const TR_RELEASE_VERSION='${EXPECTED}'`))fail.push('falta T
 if(!render.includes("const TR_RELEASE_LABEL='V31.25 · Reaudit Hardening'"))fail.push('falta label global V31.25');
 if(!render.includes("<small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong>"))fail.push('Modo actual no usa la versión global de release');
 if(render.includes("<small>Modo actual</small><strong>V${TR_SOURCE_CONSOLIDATION_PHASE}</strong>"))fail.push('Modo actual sigue acoplado a Source Consolidation');
-if(!render.includes("<span>Release</span><strong>V${esc(d.releaseVersion)}</strong>"))fail.push('Source Consolidation no expone la versión global');
+if(!render.includes("<span>Release</span><strong>V${globalThis.TradingResearchContentEncodingContract.html(d.releaseVersion)}</strong>"))fail.push('Source Consolidation no expone la versión global a través del contrato de encoding');
 if(!render.includes("releaseVersion:TR_RELEASE_VERSION"))fail.push('diagnóstico Source Consolidation no publica releaseVersion');
 
 if(fail.length){

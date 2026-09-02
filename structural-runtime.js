@@ -1,3 +1,5 @@
+const trPlanRead=globalThis.TradingResearchPlanReadContract;
+if(!trPlanRead)throw new Error('TradingResearchPlanReadContract unavailable');
 /* ===== V31.13 RUNTIME · Structural Foundation II-B · Partial Rendering ===== */
 const V3112_APP_LABEL='V31.13 · Structural Foundation II-B · Partial Operations + Market Data';
 const TR_RENDER_RUNTIME_VERSION='31.13';
@@ -139,12 +141,12 @@ function trRenderEnsureShell(force=false){
 }
 function trRenderSyncPlanSelector(){
   const select=document.querySelector('.sidebar .plan-switch select');if(!select)return;
-  const p=getCurrentPlan();
+  const p=trPlanRead.current();
   const plans=(state.tradingPlans||[]).filter(x=>x.status!=='archived'||x.id===p?.id);
-  const signature=plans.map(x=>`${x.id}\u0000${planLabel(x)}`).join('\u0001');
+  const signature=plans.map(x=>`${x.id}\u0000${trPlanRead.label(x)}`).join('\u0001');
   if(select.dataset.trSignature!==signature){
     const frag=document.createDocumentFragment();
-    for(const plan of plans){const o=document.createElement('option');o.value=plan.id;o.textContent=planLabel(plan);frag.appendChild(o);}
+    for(const plan of plans){const o=document.createElement('option');o.value=plan.id;o.textContent=trPlanRead.label(plan);frag.appendChild(o);}
     select.replaceChildren(frag);select.dataset.trSignature=signature;
   }
   if(p&&select.value!==p.id)select.value=p.id;

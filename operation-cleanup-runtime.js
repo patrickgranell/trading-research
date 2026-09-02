@@ -1,3 +1,5 @@
+const trPlanRead=globalThis.TradingResearchPlanReadContract;
+if(!trPlanRead)throw new Error('TradingResearchPlanReadContract unavailable');
 /* ===== V31.23.52 RUNTIME · Operation Cleanup Controls ===== */
 (()=>{
 'use strict';
@@ -7,7 +9,7 @@ if(!registry||typeof registry!=='object')throw new Error('Operation Cleanup: Tra
 let deletedOperations=0,deletedImages=0,lastError='';
 
 function trCleanupOperation(id){return state.operations.find(o=>o.id===id)||null;}
-function trCleanupReviewCount(o){const p=typeof getPlan==='function'?getPlan(o?.tradingPlanId):null;return (p?.reviewNotes||[]).filter(n=>n?.operationId===o?.id).length;}
+function trCleanupReviewCount(o){const p=typeof trPlanRead.byId==='function'?trPlanRead.byId(o?.tradingPlanId):null;return (p?.reviewNotes||[]).filter(n=>n?.operationId===o?.id).length;}
 function trCleanupUpdateImportBatch(o){if(!o?.importBatchId)return;const b=state.importBatches.find(x=>x.id===o.importBatchId);if(b)b.operationCount=state.operations.filter(x=>x.importBatchId===o.importBatchId).length;}
 
 async function deleteOperation(id){

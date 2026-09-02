@@ -4,11 +4,11 @@ Trading Research es una aplicación local-first para registrar operaciones, anal
 
 ## Estado de release
 
-- **Producción / `main`**: V31.24.0.
-- **Rama de hardening / release candidate**: `v31.25-reaudit-hardening` · V31.25.0.
+- **Producción / `main`**: V31.25.0.
+- **Release V31.25**: PR #7 mergeado desde `v31.25-reaudit-hardening` en `ae370346b19bea6630d95383e9c1870a7950239d`.
 - **PR de trabajo**: V31.25 · Reaudit Hardening.
-- La rama de hardening no debe promoverse a producción hasta que el **mismo SHA** tenga CI completo verde, preview Cloudflare correcta, smoke test y gate remoto Supabase V10 cuando corresponda.
-- La versión visible de la rama candidata se promociona a V31.25.0 en este release candidate; producción continúa en V31.24.0 hasta merge y despliegue controlados.
+- Política de promoción: una rama de hardening no debe pasar a producción hasta que el **mismo SHA** tenga CI completo verde, preview Cloudflare correcta, smoke test y gate remoto Supabase V10 cuando corresponda.
+- V31.25.0 fue promovida tras CI exact-head, Cloudflare exact-head, smoke interactivo y cierre del gate remoto Supabase V10; `main` y producción ya corresponden a V31.25.0.
 
 ## Arquitectura actual
 

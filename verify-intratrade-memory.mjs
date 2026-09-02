@@ -31,6 +31,20 @@ need(exitRuntime.includes("ticks=await v314LoadTicks(ev.marketDatasetId)")&&exit
 need(!exitRuntime.includes('v315RunningUi')&&!exitRuntime.includes('v315BuildSeries'),
   'Exit Lab quedó acoplado a la representación/render de Running P&L.');
 
+
+const v317Start=app.indexOf('/* ===== V31.7 PATCH · Intratrade Candlestick Price Evidence ===== */');
+const v317End=v317Start<0?-1:app.indexOf('/* ===== V31.8.1 PATCH',v317Start);
+const v317=v317Start>=0&&v317End>v317Start?app.slice(v317Start,v317End):'';
+need(!!v317,'No se pudo aislar la capa efectiva V31.7 de recorrido intratrade.');
+if(v317){
+  need(!/\bseries\?*\.points\b|\bs\.points\b/.test(v317),
+    'V31.7 efectivo todavía depende de series.points y rompe la representación compacta D12.');
+  need(!/\bs\.(?:mfePoint|maePoint)\b|\bseries\.(?:mfePoint|maePoint)\b/.test(v317),
+    'V31.7 efectivo todavía depende de mfePoint/maePoint materializados.');
+  need(v317.includes('v315SeriesLength(')&&v317.includes('v315SeriesPoint('),
+    'V31.7 efectivo no consume la serie compacta mediante los accessors finales.');
+}
+
 const start=app.indexOf('function v314PositionAwarePath(');
 const end=start<0?-1:app.indexOf('\nfunction v314CalculateTrade(',start);
 need(start>=0&&end>start,'No se pudo aislar v314PositionAwarePath para equivalencia funcional.');
@@ -97,6 +111,45 @@ if(start>=0&&end>start){
   need(compactBytes===24_000_000,'Presupuesto columnar máximo inesperado.');
 }
 
+
+if(v317){
+  const startBuild=v317.indexOf('function v317BuildCandles(');
+  const endBuild=startBuild<0?-1:v317.indexOf('\nfunction v317PriceDecimals(',startBuild);
+  need(startBuild>=0&&endBuild>startBuild,'No se pudo aislar v317BuildCandles.');
+  if(startBuild>=0&&endBuild>startBuild){
+    const source=v317.slice(startBuild,endBuild);
+    const context={
+      v317ChooseCandleMs:()=>1000,
+      v315SeriesLength:series=>Math.max(0,Number(series?.pointCount)||0),
+      v315SeriesPoint:(series,index)=>{
+        const n=Math.max(0,Number(series?.pointCount)||0);
+        if(!n)return null;
+        const i=Math.max(0,Math.min(Number(index)||0,n-1));
+        const ti=series.tickIndex[i],tick=series.ticks[ti],pnlTicks=Number(series.pnlTicks[i]);
+        return {i:ti,ms:Number(tick[0]),last:Number(tick[2]),bid:Number(tick[3]),ask:Number(tick[4]),pnlTicks,
+          excursionTicks:pnlTicks/Math.max(1,Number(series.peakQuantity)||1)};
+      }
+    };
+    vm.createContext(context);
+    try{
+      vm.runInContext(source+'\nthis.buildCandles=v317BuildCandles;',context);
+      const compact={
+        pointCount:4,
+        tickIndex:new Int32Array([0,1,2,3]),
+        pnlTicks:new Float64Array([0,1,2,3]),
+        ticks:[[1000,0,100,99,101],[1500,0,101,100,102],[2100,0,99,98,100],[2600,0,102,101,103]],
+        peakQuantity:1,durationMs:1600
+      };
+      const out=context.buildCandles(compact);
+      need(out.candles.length===2,'V31.7 compact candle fixture no produjo las 2 velas esperadas.');
+      need(out.candles[0].open===100&&out.candles[0].close===101&&out.candles[0].high===101&&out.candles[0].low===100,
+        'V31.7 compact candle fixture alteró OHLC de la primera vela.');
+      need(out.candles[1].open===99&&out.candles[1].close===102&&out.candles[1].high===102&&out.candles[1].low===99,
+        'V31.7 compact candle fixture alteró OHLC de la segunda vela.');
+    }catch(e){fail.push('V31.7 compact candle execution: '+e.message);}
+  }
+}
+
 if(fail.length){
   console.error('Intratrade Memory verification FAILED');
   for(const item of fail)console.error(' - '+item);
@@ -108,4 +161,5 @@ console.log(' - calibration: exact position-aware scan, O(1) per-trade path memo
 console.log(' - Running P&L: full-resolution tickIndex Int32Array + pnlTicks Float64Array');
 console.log(' - 2,000,000-point column budget: 24,000,000 bytes (~22.9 MiB) plus shared raw tick dataset');
 console.log(' - chart: <= 1,500 rendered points only; cursor/extrema retain full resolution');
+console.log(' - final V31.7 candles/panel consume compact series through v315SeriesLength/v315SeriesPoint');
 console.log(' - Exit Lab: independent raw-tick first-touch path, no Running P&L downsample dependency');

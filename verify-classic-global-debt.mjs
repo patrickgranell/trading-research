@@ -13,13 +13,10 @@ const MAX_TOP_LEVEL_UNIQUE=1431;
 const MAX_RUNTIME_NAME_OVERLAP=240;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
-const PLAN_READ_CONSUMERS=Object.freeze({
-  'reports-purity-runtime.js':'trReportsPlanRead',
-  'structural-runtime.js':'trStructuralPlanRead',
-  'state-runtime.js':'trStatePlanRead',
-  'operation-cleanup-runtime.js':'trCleanupPlanRead',
-  'blob-lifecycle-runtime.js':'trBlobPlanRead'
-});
+const PLAN_READ_CONSUMERS=[
+  'reports-purity-runtime.js','structural-runtime.js','state-runtime.js',
+  'operation-cleanup-runtime.js','blob-lifecycle-runtime.js'
+];
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -56,17 +53,16 @@ if(classicTag&&!moduleTag){
     need(!runtimeTokens.has(name),
       `El runtime todavía consume el binding clásico ${name} directamente.`);
   }
-  const aliases=Object.values(PLAN_READ_CONSUMERS);
-  need(new Set(aliases).size===aliases.length,'Los aliases del contrato Plan deben ser únicos entre classic scripts.');
-  need(!runtimeTokens.has('trPlanRead'),'Persiste el alias global duplicable trPlanRead.');
-  for(const [file,alias] of Object.entries(PLAN_READ_CONSUMERS)){
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*PlanRead\w*\s*=/.test(src)),
+    'El contrato Plan no debe introducir aliases léxicos globales en runtimes clásicos.');
+  for(const file of PLAN_READ_CONSUMERS){
     const src=runtimeSources.get(file)||'';
-    need(src.includes(`const ${alias}=globalThis.${PLAN_READ_CONTRACT};`),
-      `${file} no consume el contrato explícito ${PLAN_READ_CONTRACT} mediante su alias aislado.`);
+    need(src.includes(`globalThis.${PLAN_READ_CONTRACT}.`),
+      `${file} no consume directamente el contrato explícito ${PLAN_READ_CONTRACT}.`);
   }
-  const expectedFiles=new Set(Object.keys(PLAN_READ_CONSUMERS));
+  const expectedFiles=new Set(PLAN_READ_CONSUMERS);
   const unexpectedConsumers=runtimeFiles.filter(file=>
-    !expectedFiles.has(file)&&(runtimeSources.get(file)||'').includes(`globalThis.${PLAN_READ_CONTRACT}`)
+    !expectedFiles.has(file)&&(runtimeSources.get(file)||'').includes(`globalThis.${PLAN_READ_CONTRACT}.`)
   );
   need(unexpectedConsumers.length===0,
     `Consumidores inesperados del contrato de Plan: ${unexpectedConsumers.join(', ')}.`);
@@ -83,7 +79,7 @@ if(classicTag&&!moduleTag){
   console.log(' - status: BOUNDED DEBT (app.js remains a classic script)');
   console.log(` - top-level app bindings proxy: ${topNames.length} <= ${MAX_TOP_LEVEL_UNIQUE}`);
   console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-  console.log(` - explicit plan-read contract: ${PLAN_READ_LEGACY.length} legacy bindings removed across ${Object.keys(PLAN_READ_CONSUMERS).length} runtimes`);
+  console.log(` - explicit plan-read contract: ${PLAN_READ_LEGACY.length} legacy bindings removed across ${PLAN_READ_CONSUMERS.length} runtimes`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

@@ -7556,3 +7556,6 @@ function trLegacyStateCommand(command,a,b){
 }
 window.trLegacyStateCommand=trLegacyStateCommand;
 /* ===== END V31.19 compatibility commands ===== */
+
+/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */
+Object.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});

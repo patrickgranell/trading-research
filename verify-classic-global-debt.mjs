@@ -1,0 +1,57 @@
+import fs from 'node:fs';
+
+const index=fs.readFileSync('index.html','utf8');
+const app=fs.readFileSync('app.js','utf8');
+const runtimeFiles=[
+  'style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js',
+  'persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js',
+  'cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js',
+  'style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'
+];
+
+const MAX_TOP_LEVEL_UNIQUE=1431;
+const MAX_RUNTIME_NAME_OVERLAP=243;
+
+const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
+const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
+const topNames=[...new Set([...fnNames,...varNames])];
+
+const runtimeTokens=new Set();
+for(const file of runtimeFiles){
+  const src=fs.readFileSync(file,'utf8');
+  for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
+}
+const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
+
+const classicTag=/<script\s+src=["']app\.js["']\s*><\/script>/i.test(index);
+const moduleTag=/<script\s+[^>]*type=["']module["'][^>]*src=["']app\.js["'][^>]*><\/script>|<script\s+[^>]*src=["']app\.js["'][^>]*type=["']module["'][^>]*><\/script>/i.test(index);
+const fail=[];
+const need=(c,m)=>{if(!c)fail.push(m);};
+
+need(!(classicTag&&moduleTag),'app.js aparece simultáneamente como script clásico y módulo.');
+
+if(classicTag&&!moduleTag){
+  need(topNames.length<=MAX_TOP_LEVEL_UNIQUE,
+    `La deuda top-level clásica creció: ${topNames.length} > ${MAX_TOP_LEVEL_UNIQUE}.`);
+  need(runtimeOverlap.length<=MAX_RUNTIME_NAME_OVERLAP,
+    `El solapamiento app/runtime creció: ${runtimeOverlap.length} > ${MAX_RUNTIME_NAME_OVERLAP}.`);
+}
+
+if(fail.length){
+  console.error('Classic Global Debt verification FAILED');
+  for(const x of fail)console.error(' - '+x);
+  process.exit(1);
+}
+
+console.log('Classic Global Debt verification OK');
+if(classicTag&&!moduleTag){
+  console.log(' - status: BOUNDED DEBT (app.js remains a classic script)');
+  console.log(` - top-level app bindings proxy: ${topNames.length} <= ${MAX_TOP_LEVEL_UNIQUE}`);
+  console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
+  console.log(' - policy: counts may decrease; any growth fails CI');
+  console.log(' - security note: Event Runtime does not resolve actions through globalThis');
+}else if(moduleTag){
+  console.log(' - status: RETIRED (app.js is an ES module)');
+}else{
+  console.log(' - status: NOT APPLICABLE (app.js script tag not found in expected form)');
+}

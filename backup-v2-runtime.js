@@ -350,7 +350,7 @@ async function trBackupV2ImportFullBackup(file){
   try{
     const text=await file.text(),raw=JSON.parse(text),prepared=await trBackupV2Preflight(raw),c=prepared.manifest.counts;
     const legacyNote=prepared.legacySourceSchema?`\n\nNota: copia V${prepared.legacySourceSchema}; Market Data actual se conservará e integrará en el restore seguro.`:'';
-    if(!confirm(`Esta restauración sustituirá el workspace local con una copia validada.\n\nPlanes: ${c.plans}\nOperaciones: ${c.operations}\nImágenes: ${c.images}/${c.imageReferences}\nMarket Data: ${c.marketMeta} histórico(s), ${c.execSets} Grid(s)\nFecha: ${prepared.exportedAt?fmtDate(prepared.exportedAt):'—'}${legacyNote}\n\n¿Continuar?`))return;
+    if(!confirm(`Esta restauración sustituirá el workspace local con una copia validada.\n\nPlanes: ${c.plans}\nOperaciones: ${c.operations}\nImágenes: ${c.images}/${c.imageReferences}\nMarket Data: ${c.marketMeta} histórico(s), ${c.execSets} Grid(s)\nFecha: ${prepared.exportedAt?globalThis.TradingResearchDatePresentationContract.formatLocalDateTime(prepared.exportedAt):'—'}${legacyNote}\n\n¿Continuar?`))return;
     trBackupV2SetRecoveryUiBlocked(true);
     const run=()=>trBackupV2RestoreProtocol(prepared);
     if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2',run);else await run();

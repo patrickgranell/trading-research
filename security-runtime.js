@@ -14,7 +14,7 @@ function trSecurityProbeEscaping(){
   try{
     const payload=`<img src=x onerror="window.__tr_security_probe=1">'&\"</img>`;
     const host=document.createElement('div');
-    host.innerHTML=`<span>${esc(payload)}</span>`;
+    host.innerHTML=`<span>${globalThis.TradingResearchContentEncodingContract.html(payload)}</span>`;
     const span=host.firstElementChild;
     return !!span&&span.textContent===payload&&!span.querySelector('img,script,iframe,object,embed,svg,math');
   }catch(_){return false;}
@@ -31,7 +31,7 @@ function trSecurityProbeModalTitle(){
 function trSecurityProbeInlineToken(){
   try{
     const payload=`')-alert(1)-('`;
-    const token=inlineUriToken(payload);
+    const token=globalThis.TradingResearchContentEncodingContract.uri(payload);
     return !token.includes("'")&&decodeURIComponent(token)===payload;
   }catch(_){return false;}
 }
@@ -67,7 +67,7 @@ function trSecurityRuntimePanel(){
 const trSecurityDataSecurityBase=dataSecurityPanel;
 dataSecurityPanel=function(){return trSecurityRuntimePanel()+trSecurityDataSecurityBase();};
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.18</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${esc(TR_SECURITY_APP_LABEL)}</div><div class="help">Boundary de contenido de usuario + FormData en editores principales. Títulos de modal y tokens dinámicos quedan endurecidos contra inyección. La migración completa de handlers inline a delegación de eventos continúa en la siguiente fase; la lógica financiera permanece congelada.</div></div></div></div>`;};
+v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.18</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_SECURITY_APP_LABEL)}</div><div class="help">Boundary de contenido de usuario + FormData en editores principales. Títulos de modal y tokens dinámicos quedan endurecidos contra inyección. La migración completa de handlers inline a delegación de eventos continúa en la siguiente fase; la lógica financiera permanece congelada.</div></div></div></div>`;};
 
 window.TradingResearchSecurity=Object.freeze({version:TR_SECURITY_RUNTIME_VERSION,diagnostics:trSecurityDiagnostics,formDataBoundaries:TR_SECURITY_FORMDATA_BOUNDARIES});
 Object.assign(window,{trSecurityDiagnostics,trSecurityRuntimePanel});

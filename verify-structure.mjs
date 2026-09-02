@@ -12,17 +12,19 @@ const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Preserve the audited V31.25 Best Exit source baseline byte-for-byte.
  * The only permitted architectural delta is the exact terminal contract chain:
- * Plan read, content encoding, Exit Lab presentation, then Form Boundary.
- * Removing all four suffixes must reproduce the audited app.js exactly; this is
- * intentionally stronger than replacing the historical baseline hash. */
+ * Plan read, content encoding, Exit Lab presentation, Form Boundary, then
+ * Reports Presentation. Removing all five suffixes must reproduce the audited
+ * app.js exactly; this is intentionally stronger than replacing the historical
+ * baseline hash. */
 const expectedAuditedAppSha='a0c92b82d73b55d30ecd9f6388d1424fdce3f209356ae15391f3ba2182bbb98d';
 const planReadContractSuffix="\n/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */\nObject.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});\n";
 const contentEncodingContractSuffix="/* V31.25 · bounded classic-global debt · explicit content encoding contract */\nObject.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});\n";
 const exitPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Exit Lab presentation contract */\nObject.defineProperty(globalThis,'TradingResearchExitPresentationContract',{value:Object.freeze({readGrossR:exitGrossR,classifyResult:exitResultClass,formatRValue:exitFmtR,formatPercentValue:exitFmtPct,formatProfitFactorValue:exitPf}),writable:false,enumerable:false,configurable:false});\n";
 const formBoundaryContractSuffix="/* V31.25 · bounded classic-global debt · explicit form boundary contract */\nObject.defineProperty(globalThis,'TradingResearchFormBoundaryContract',{value:Object.freeze({captureFormData:formDataFrom,readFormValue:formDataValue,renderLockedModal:modalShell}),writable:false,enumerable:false,configurable:false});\n";
-const architecturalContractSuffix=planReadContractSuffix+contentEncodingContractSuffix+exitPresentationContractSuffix+formBoundaryContractSuffix;
+const reportsPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Reports presentation contract */\nObject.defineProperty(globalThis,'TradingResearchReportsPresentationContract',{value:Object.freeze({formatUnitLabel:metricUnitLabel,describeOperationDateRange:v313DateRangeText}),writable:false,enumerable:false,configurable:false});\n";
+const architecturalContractSuffix=planReadContractSuffix+contentEncodingContractSuffix+exitPresentationContractSuffix+formBoundaryContractSuffix+reportsPresentationContractSuffix;
 if(!app.endsWith(architecturalContractSuffix)){
-  fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary permitida.');
+  fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation permitida.');
 }else{
   const auditedApp=app.slice(0,-architecturalContractSuffix.length);
   if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.25 Best Exit auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
@@ -31,6 +33,7 @@ if((app.match(/TradingResearchPlanReadContract/g)||[]).length!==1)fail.push('Tra
 if((app.match(/TradingResearchContentEncodingContract/g)||[]).length!==1)fail.push('TradingResearchContentEncodingContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchExitPresentationContract/g)||[]).length!==1)fail.push('TradingResearchExitPresentationContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchFormBoundaryContract/g)||[]).length!==1)fail.push('TradingResearchFormBoundaryContract debe publicarse exactamente una vez en app.js.');
+if((app.match(/TradingResearchReportsPresentationContract/g)||[]).length!==1)fail.push('TradingResearchReportsPresentationContract debe publicarse exactamente una vez en app.js.');
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.25.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
@@ -95,7 +98,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got} != ${want}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: audited V31.25 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary contracts');
+console.log(' - app.js: audited V31.25 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary + Reports-presentation contracts');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

@@ -7569,3 +7569,6 @@ Object.defineProperty(globalThis,'TradingResearchFormBoundaryContract',{value:Ob
 Object.defineProperty(globalThis,'TradingResearchReportsPresentationContract',{value:Object.freeze({formatUnitLabel:metricUnitLabel,describeOperationDateRange:v313DateRangeText}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Timeline presentation contract */
 Object.defineProperty(globalThis,'TradingResearchTimelinePresentationContract',{value:Object.freeze({formatSignedTicks:v314SignedTicks,formatElapsedDuration:v315Duration,formatGridTimestamp:v315GridTime}),writable:false,enumerable:false,configurable:false});
+
+/* V31.25 · bounded classic-global debt · explicit Date presentation contract */
+Object.defineProperty(globalThis,'TradingResearchDatePresentationContract',{value:Object.freeze({formatLocalDateTime:fmtDate}),writable:false,enumerable:false,configurable:false});

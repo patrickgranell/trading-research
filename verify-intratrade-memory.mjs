@@ -126,6 +126,53 @@ if(start>=0&&end>start){
 }
 
 
+if(v3110){
+  const sliceFn=(name,next)=>{const a=v3110.indexOf('function '+name+'('),b=a<0?-1:v3110.indexOf('\nfunction '+next+'(',a);if(a<0||b<0)throw new Error('No se pudo aislar '+name);return v3110.slice(a,b);};
+  const context={
+    v315SeriesLength:series=>Math.max(0,Number(series?.pointCount)||0),
+    v315SeriesPoint:(series,index)=>{
+      const n=Math.max(0,Number(series?.pointCount)||0);if(!n)return null;
+      const i=Math.max(0,Math.min(Number(index)||0,n-1)),ti=series.tickIndex[i],tick=series.ticks[ti],pnlTicks=Number(series.pnlTicks[i]);
+      return {i:ti,ms:Number(tick[0]),last:Number(tick[2]),bid:Number(tick[3]),ask:Number(tick[4]),pnlTicks,excursionTicks:pnlTicks/Math.max(1,Number(series.peakQuantity)||1)};
+    },
+    v315Nice:(v,d=1)=>Number(v).toFixed(d),
+    v3110ClampTicks:(v,fallback=1)=>{const n=Number(v);return Number.isFinite(n)?Math.max(1,Math.min(500,n)):fallback;}
+  };
+  vm.createContext(context);
+  try{
+    const source=[
+      sliceFn('v3110QuotePrice','v3110QuotePnlTicks'),
+      sliceFn('v3110QuotePnlTicks','v3110QuotePoints'),
+      sliceFn('v3110QuotePoints','v3110EvidenceLength'),
+      sliceFn('v3110EvidenceLength','v3110EvidencePoint'),
+      sliceFn('v3110EvidencePoint','v3110EvidenceFind'),
+      sliceFn('v3110EvidenceFind','v3110PointAtOrAfter'),
+      sliceFn('v3110PointAtOrAfter','v3110ObservedEvidence'),
+      sliceFn('v3110ObservedEvidence','v3110TimeExit'),
+      sliceFn('v3110TimeExit','v3110TargetScenario'),
+      sliceFn('v3110TargetScenario','v3110TrailScenario'),
+      sliceFn('v3110TrailScenario','v3110FmtPct')
+    ].join('\n');
+    vm.runInContext(source+'\nthis.observed=v3110ObservedEvidence;this.timeExit=v3110TimeExit;this.target=v3110TargetScenario;this.trail=v3110TrailScenario;this.quote=v3110QuotePrice;',context);
+    const ticks=[[0,0,100,99,101],[1000,0,102,101,103],[2000,0,104,103,105],[3000,0,103,102,104],[4000,0,105,104,106],[5000,0,103,102,104]];
+    const series={ticks,tickIndex:new Int32Array([0,1,2,3,4,5]),pnlTicks:new Float64Array([0,2,4,3,5,3]),pointCount:6,peakQuantity:1,tickSize:1,startMs:0,endMs:5000,durationMs:5000};
+    const result={direction:'LONG',entryPrice:100,realizedTicks:2};
+    const e=context.observed(result,series);
+    need(!!e&&e.count===6,'Best Exit compact fixture no conserva las 6 quotes válidas.');
+    need(Object.prototype.toString.call(e?.pointIndex)==='[object Int32Array]'&&Object.prototype.toString.call(e?.exitPnlTicks)==='[object Float64Array]','Best Exit compact fixture no usa Int32Array + Float64Array.');
+    need(e?.best?.exitPnlTicks===4&&e?.best?.ms===4000&&e?.worst?.exitPnlTicks===-1&&e?.end?.exitPnlTicks===2,'Best Exit compact fixture altera best/worst/end frente a semántica legacy.');
+    need(e?.gap===2&&e?.capturePct===50&&e?.positiveMs===4000&&e?.positivePct===80,'Best Exit compact fixture altera gap/capture/tiempo positivo.');
+    const half=context.timeExit(result,series,e,.5);
+    need(half?.ms===3000&&half?.resultTicks===2&&half?.price===102,'Best Exit compact fixture altera salida temporal al 50%.');
+    const target=context.target(result,series,e,3);
+    need(target?.hit?.ms===2000&&target?.resultTicks===3&&target?.targetPrice===103,'Best Exit compact fixture altera TP +3t.');
+    const trail=context.trail(result,series,e,3,1);
+    need(trail?.armed&&trail?.armedAt?.ms===2000&&trail?.exit?.ms===3000&&trail?.resultTicks===2,'Best Exit compact fixture altera giveback tras trigger.');
+    const q={bid:99,ask:101};
+    need(context.quote(result,q)===99&&context.quote({direction:'SHORT'},q)===101,'Best Exit compact fixture altera LONG Bid / SHORT Ask.');
+  }catch(e){fail.push('Best Exit compact functional equivalence: '+e.message);}
+}
+
 if(v317){
   const startBuild=v317.indexOf('function v317BuildCandles(');
   const endBuild=startBuild<0?-1:v317.indexOf('\nfunction v317PriceDecimals(',startBuild);
@@ -177,4 +224,5 @@ console.log(' - 2,000,000-point column budget: 24,000,000 bytes (~22.9 MiB) plus
 console.log(' - chart: <= 1,500 rendered points only; cursor/extrema retain full resolution');
 console.log(' - final V31.7 candles/panel consume compact series through v315SeriesLength/v315SeriesPoint');
 console.log(' - Best Exit V31.10 consumes compact Bid/Ask evidence without series.points');
+console.log(' - Best Exit compact fixture preserves best/worst/time/TP/giveback and LONG Bid / SHORT Ask semantics');
 console.log(' - Exit Lab: independent raw-tick first-touch path, no Running P&L downsample dependency');

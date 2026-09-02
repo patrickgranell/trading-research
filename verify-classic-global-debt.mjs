@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=230;
+const MAX_RUNTIME_NAME_OVERLAP=228;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -37,6 +37,10 @@ const EXIT_PRESENTATION_CONSUMER='exit-lab-runtime.js';
 const FORM_BOUNDARY_CONTRACT='TradingResearchFormBoundaryContract';
 const FORM_BOUNDARY_LEGACY=['formDataFrom','formDataValue','modalShell'];
 const FORM_BOUNDARY_CONSUMER='security-runtime.js';
+
+const REPORTS_PRESENTATION_CONTRACT='TradingResearchReportsPresentationContract';
+const REPORTS_PRESENTATION_LEGACY=['metricUnitLabel','v313DateRangeText'];
+const REPORTS_PRESENTATION_CONSUMER='reports-purity-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -217,6 +221,49 @@ if(classicTag&&!moduleTag){
       'La semántica de modalShell cambió.');
   }
 
+  need(app.includes(`Object.defineProperty(globalThis,'${REPORTS_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de Reports en app.js.');
+  need(app.includes('formatUnitLabel:metricUnitLabel')&&app.includes('describeOperationDateRange:v313DateRangeText'),
+    'El contrato Reports no publica exactamente formatUnitLabel/describeOperationDateRange.');
+
+  for(const name of REPORTS_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ReportsPresentation\w*\s*=/.test(src)),
+    'El contrato Reports no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const reportsSrc=runtimeSources.get(REPORTS_PRESENTATION_CONSUMER)||'';
+  for(const method of ['formatUnitLabel','describeOperationDateRange']){
+    need(reportsSrc.includes(`globalThis.${REPORTS_PRESENTATION_CONTRACT}.${method}(`),
+      `${REPORTS_PRESENTATION_CONSUMER} no consume directamente ${REPORTS_PRESENTATION_CONTRACT}.${method}().`);
+  }
+  const unexpectedReportsConsumers=runtimeFiles.filter(file=>
+    file!==REPORTS_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${REPORTS_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedReportsConsumers.length===0,
+    `Consumidores inesperados del contrato Reports: ${unexpectedReportsConsumers.join(', ')}.`);
+
+  const metricUnitLabelSource=app.match(/function metricUnitLabel\(unit\)\{[^\n]+\}/)?.[0]||'';
+  const dateRangeSource=app.match(/function v313DateRangeText\(ops\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(metricUnitLabelSource&&dateRangeSource),
+    'No se pudieron extraer los helpers puros de presentación de Reports.');
+  if(metricUnitLabelSource&&dateRangeSource){
+    const ctx=vm.createContext({
+      v3194CompareOps:(a,b)=>String(a.entryDate).localeCompare(String(b.entryDate)),
+      fmtDateOnly:v=>String(v).slice(0,10)
+    });
+    vm.runInContext([metricUnitLabelSource,dateRangeSource,
+      'this.__unit=metricUnitLabel;this.__range=v313DateRangeText;'].join('\n'),ctx);
+    need(ctx.__unit('ticks')==='ticks'&&ctx.__unit('usd')==='US$'&&ctx.__unit('r')==='R'&&ctx.__unit('other')==='R',
+      'La semántica de metricUnitLabel cambió.');
+    need(ctx.__range([])==='Sin operaciones',
+      'v313DateRangeText debe mantener el caso vacío.');
+    const range=ctx.__range([{entryDate:'2026-09-02T10:00:00Z'},{entryDate:'2026-08-31T10:00:00Z'}]);
+    need(range==='2026-08-31 → 2026-09-02',
+      'La semántica de v313DateRangeText cambió.');
+  }
+
 }
 
 if(fail.length){
@@ -234,6 +281,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit content-encoding contract: ${CONTENT_ENCODING_LEGACY.length} legacy bindings removed; html across ${CONTENT_ENCODING_CONSUMERS.esc.length} runtimes + uri in security runtime`);
   console.log(` - explicit exit-presentation contract: ${EXIT_PRESENTATION_LEGACY.length} legacy bindings removed from ${EXIT_PRESENTATION_CONSUMER}`);
   console.log(` - explicit form-boundary contract: ${FORM_BOUNDARY_LEGACY.length} legacy bindings removed from ${FORM_BOUNDARY_CONSUMER}`);
+  console.log(` - explicit reports-presentation contract: ${REPORTS_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

@@ -175,7 +175,7 @@ function trRenderSyncSidebar(){
     const toggle=group.querySelector(':scope > .nav-group-toggle');
     if(toggle){toggle.setAttribute('aria-expanded',open?'true':'false');const arrow=toggle.querySelector('.nav-group-arrow');if(arrow)arrow.textContent=open?'▾':'▸';}
   });
-  const unread=typeof researchUnreadCount==='function'?Number(researchUnreadCount())||0:0;
+  const unread=Number(globalThis.TradingResearchResearchStatusContract.unreadCount())||0;
   trRenderSetBadge(document.querySelector('.nav-organized [data-view="changes"]'),unread);
   trRenderSetBadge(document.querySelector('.nav-group[data-nav-group="research"] > .nav-group-toggle'),unread,'nav-group-count');
   trRenderSyncPlanSelector();trRenderSyncTheme();

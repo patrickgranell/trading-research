@@ -675,7 +675,7 @@ if(classicTag&&!moduleTag){
     'Falta el contrato explícito de runtime state de navegación en app.js.');
   const navRuntimeFields=[
     'isGroupOpen:id=>v318OpenGroups.has(id)',
-    'ensureGroupOpen:id=>{if(v318OpenGroups.has(id))return false;v318OpenGroups.add(id);v318SaveOpenGroups();return true;}',
+    'ensureGroupOpen:id=>{if(v318OpenGroups.has(id))return false;v318OpenGroups.add(id);return true;}',
     'setLastView:view=>{v318LastView=view;}'
   ];
   for(const field of navRuntimeFields){
@@ -689,7 +689,7 @@ if(classicTag&&!moduleTag){
   }
 
   const navRuntimeSrc=runtimeSources.get(NAVIGATION_RUNTIME_STATE_CONSUMER)||'';
-  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.ensureGroupOpen(activeGroup)`),
+  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.ensureGroupOpen(activeGroup))globalThis.${NAVIGATION_STATE_CONTRACT}.saveOpenGroups()`),
     `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume ensureGroupOpen(activeGroup).`);
   need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(currentView)`),
     `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView(currentView).`);

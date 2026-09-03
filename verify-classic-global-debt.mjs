@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=201;
+const MAX_RUNTIME_NAME_OVERLAP=199;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -73,6 +73,10 @@ const RESEARCH_STATUS_CONSUMER='structural-runtime.js';
 const REPORTS_SECTION_PRESENTATION_CONTRACT='TradingResearchReportsSectionPresentationContract';
 const REPORTS_SECTION_PRESENTATION_LEGACY=['v313ReportSummary','v313ReportConfidence','v313ReportProcess','v313ReportQuality','v313ReportBreakdowns','v313SectionsControls'];
 const REPORTS_SECTION_PRESENTATION_CONSUMER='reports-purity-runtime.js';
+
+const OPERATIONS_PRESENTATION_CONTRACT='TradingResearchOperationsPresentationContract';
+const OPERATIONS_PRESENTATION_LEGACY=['operationsFilterPanel','opsAnalyticsHtml'];
+const OPERATIONS_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -594,6 +598,31 @@ if(classicTag&&!moduleTag){
   need(unexpectedReportSectionConsumers.length===0,
     `Consumidores inesperados del contrato Reports Section Presentation: ${unexpectedReportSectionConsumers.join(', ')}.`);
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${OPERATIONS_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de Operaciones en app.js.');
+  need(app.includes('filterPanel:operationsFilterPanel')&&app.includes('analytics:opsAnalyticsHtml'),
+    'El contrato Operations Presentation no publica exactamente filterPanel y analytics.');
+
+  for(const name of OPERATIONS_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*OperationsPresentation\w*\s*=/.test(src)),
+    'El contrato Operations Presentation no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const operationsPresentationSrc=runtimeSources.get(OPERATIONS_PRESENTATION_CONSUMER)||'';
+  need(operationsPresentationSrc.includes(`globalThis.${OPERATIONS_PRESENTATION_CONTRACT}.filterPanel()`),
+    `${OPERATIONS_PRESENTATION_CONSUMER} no consume directamente ${OPERATIONS_PRESENTATION_CONTRACT}.filterPanel().`);
+  need(operationsPresentationSrc.includes(`globalThis.${OPERATIONS_PRESENTATION_CONTRACT}.analytics(filteredOps())`),
+    `${OPERATIONS_PRESENTATION_CONSUMER} no consume directamente ${OPERATIONS_PRESENTATION_CONTRACT}.analytics(filteredOps()).`);
+
+  const unexpectedOperationsPresentationConsumers=runtimeFiles.filter(file=>
+    file!==OPERATIONS_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${OPERATIONS_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedOperationsPresentationConsumers.length===0,
+    `Consumidores inesperados del contrato Operations Presentation: ${unexpectedOperationsPresentationConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -620,6 +649,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit view-presentation contract: ${VIEW_PRESENTATION_LEGACY.length} legacy bindings removed from ${VIEW_PRESENTATION_CONSUMER}`);
   console.log(` - explicit research-status contract: ${RESEARCH_STATUS_LEGACY.length} legacy binding removed from ${RESEARCH_STATUS_CONSUMER}`);
   console.log(` - explicit reports-section-presentation contract: ${REPORTS_SECTION_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_SECTION_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit operations-presentation contract: ${OPERATIONS_PRESENTATION_LEGACY.length} legacy bindings removed from ${OPERATIONS_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

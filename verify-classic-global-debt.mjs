@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=195;
+const MAX_RUNTIME_NAME_OVERLAP=194;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -89,6 +89,10 @@ const NAVIGATION_RUNTIME_STATE_CONSUMER='structural-runtime.js';
 const OPERATION_CHECKLIST_PRESENTATION_CONTRACT='TradingResearchOperationChecklistPresentationContract';
 const OPERATION_CHECKLIST_PRESENTATION_LEGACY=['updateOperationChecklistPreview'];
 const OPERATION_CHECKLIST_PRESENTATION_CONSUMER='structural-runtime.js';
+
+const RUNNING_CHART_PRESENTATION_CONTRACT='TradingResearchRunningChartPresentationContract';
+const RUNNING_CHART_PRESENTATION_LEGACY=['v315RenderChart'];
+const RUNNING_CHART_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -727,6 +731,27 @@ if(classicTag&&!moduleTag){
   need(unexpectedChecklistConsumers.length===0,
     `Consumidores inesperados del contrato Operation Checklist Presentation: ${unexpectedChecklistConsumers.join(', ')}.`);
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${RUNNING_CHART_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación del gráfico Running P&L en app.js.');
+  need(app.includes('render:v315RenderChart'),
+    'El contrato Running Chart Presentation no publica exactamente render:v315RenderChart.');
+
+  for(const name of RUNNING_CHART_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+
+  const runningChartSrc=runtimeSources.get(RUNNING_CHART_PRESENTATION_CONSUMER)||'';
+  need(runningChartSrc.includes(`globalThis.${RUNNING_CHART_PRESENTATION_CONTRACT}.render(result,series)`),
+    `${RUNNING_CHART_PRESENTATION_CONSUMER} no consume directamente ${RUNNING_CHART_PRESENTATION_CONTRACT}.render(result,series).`);
+
+  const unexpectedRunningChartConsumers=runtimeFiles.filter(file=>
+    file!==RUNNING_CHART_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${RUNNING_CHART_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedRunningChartConsumers.length===0,
+    `Consumidores inesperados del contrato Running Chart Presentation: ${unexpectedRunningChartConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -757,6 +782,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit navigation-state contract: ${NAVIGATION_STATE_LEGACY.length} legacy binding removed from ${NAVIGATION_STATE_CONSUMER}`);
   console.log(` - explicit navigation-runtime-state contract: ${NAVIGATION_RUNTIME_STATE_LEGACY.length} legacy bindings removed from ${NAVIGATION_RUNTIME_STATE_CONSUMER}`);
   console.log(` - explicit operation-checklist-presentation contract: ${OPERATION_CHECKLIST_PRESENTATION_LEGACY.length} legacy binding removed from ${OPERATION_CHECKLIST_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit running-chart-presentation contract: ${RUNNING_CHART_PRESENTATION_LEGACY.length} legacy binding removed from ${RUNNING_CHART_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

@@ -7583,3 +7583,5 @@ Object.defineProperty(globalThis,'TradingResearchNavigationStateContract',{value
 Object.defineProperty(globalThis,'TradingResearchNavigationRuntimeStateContract',{value:Object.freeze({isGroupOpen:id=>v318OpenGroups.has(id),ensureGroupOpen:id=>{if(v318OpenGroups.has(id))return false;v318OpenGroups.add(id);return true;},setLastView:view=>{v318LastView=view;}}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Operation checklist presentation contract */
 Object.defineProperty(globalThis,'TradingResearchOperationChecklistPresentationContract',{value:Object.freeze({refresh:updateOperationChecklistPreview}),writable:false,enumerable:false,configurable:false});
+/* V31.25 · bounded classic-global debt · explicit Running chart presentation contract */
+Object.defineProperty(globalThis,'TradingResearchRunningChartPresentationContract',{value:Object.freeze({render:v315RenderChart}),writable:false,enumerable:false,configurable:false});

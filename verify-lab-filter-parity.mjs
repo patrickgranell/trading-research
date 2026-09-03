@@ -53,6 +53,8 @@ for(const [field,id] of Object.entries(labControlIds)){
   need(labPanelSource.includes(id),`labFilterPanel no presenta el control compartido #${id}.`);
 }
 need(app.includes("case 'lab-toggle-day':"),'Laboratorio no permite seleccionar días de semana.');
+need(app.includes('window.TradingResearchActions.trLegacyStateCommand=trLegacyStateCommand;')&&!app.includes('window.trLegacyStateCommand=trLegacyStateCommand;'),
+  'Los comandos de filtros de Laboratorio no están publicados en el Action Registry estructurado.');
 need(/days:\[\]/.test(labStateSource)&&/riskPolicy:'raw'/.test(labStateSource),
   'El estado por defecto del estudio no fija days=[] y riskPolicy=raw.');
 need(/labState=\{\.\.\.keep,[^}]*q:''[^}]*days:\[\][^}]*riskPolicy:'raw'/.test(app),

@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=208;
+const MAX_RUNTIME_NAME_OVERLAP=207;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -65,6 +65,10 @@ const CONTEXT_HELP_PRESENTATION_CONSUMER='structural-runtime.js';
 const VIEW_PRESENTATION_CONTRACT='TradingResearchViewPresentationContract';
 const VIEW_PRESENTATION_LEGACY=['researchDecisionCenter','researchChangesView','calendarView','goalsView','dataQualityView','complianceView','mistakesView','analyticsLab','reviewView','reportsView','v314MarketDataView','plansView'];
 const VIEW_PRESENTATION_CONSUMER='structural-runtime.js';
+
+const RESEARCH_STATUS_CONTRACT='TradingResearchResearchStatusContract';
+const RESEARCH_STATUS_LEGACY=['researchUnreadCount'];
+const RESEARCH_STATUS_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -505,6 +509,43 @@ if(classicTag&&!moduleTag){
   need(unexpectedViewPresentationConsumers.length===0,
     `Consumidores inesperados del contrato View Presentation: ${unexpectedViewPresentationConsumers.join(', ')}.`);
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${RESEARCH_STATUS_CONTRACT}'`),
+    'Falta el contrato explícito de estado de Research en app.js.');
+  need(app.includes('unreadCount:researchUnreadCount'),
+    'El contrato Research Status no publica exactamente unreadCount.');
+
+  for(const name of RESEARCH_STATUS_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ResearchStatus\w*\s*=/.test(src)),
+    'El contrato Research Status no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const researchStatusSrc=runtimeSources.get(RESEARCH_STATUS_CONSUMER)||'';
+  need(researchStatusSrc.includes(`globalThis.${RESEARCH_STATUS_CONTRACT}.unreadCount()`),
+    `${RESEARCH_STATUS_CONSUMER} no consume directamente ${RESEARCH_STATUS_CONTRACT}.unreadCount().`);
+  const unexpectedResearchStatusConsumers=runtimeFiles.filter(file=>
+    file!==RESEARCH_STATUS_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${RESEARCH_STATUS_CONTRACT}.`)
+  );
+  need(unexpectedResearchStatusConsumers.length===0,
+    `Consumidores inesperados del contrato Research Status: ${unexpectedResearchStatusConsumers.join(', ')}.`);
+
+  const researchUnreadSource=app.match(/function researchUnreadCount\(p=getCurrentPlan\(\)\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(researchUnreadSource),
+    'No se pudo extraer researchUnreadCount para verificar su semántica.');
+  if(researchUnreadSource){
+    let ensured=0;
+    const ctx=vm.createContext({
+      getCurrentPlan:()=>null,
+      ensurePlanResearchChanges:()=>{ensured++;}
+    });
+    vm.runInContext(researchUnreadSource+'\nthis.__unread=researchUnreadCount;',ctx);
+    const plan={researchChanges:{events:[{read:false},{read:true},{read:false}]}};
+    need(ctx.__unread(plan)===2&&ensured===1,
+      'La semántica de researchUnreadCount cambió.');
+  }
+
 }
 
 if(fail.length){
@@ -529,6 +570,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit operations-read contract: ${OPERATIONS_READ_LEGACY.length} legacy binding removed from ${OPERATIONS_READ_CONSUMER}`);
   console.log(` - explicit context-help-presentation contract: ${CONTEXT_HELP_PRESENTATION_LEGACY.length} legacy bindings removed from ${CONTEXT_HELP_PRESENTATION_CONSUMER}`);
   console.log(` - explicit view-presentation contract: ${VIEW_PRESENTATION_LEGACY.length} legacy bindings removed from ${VIEW_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit research-status contract: ${RESEARCH_STATUS_LEGACY.length} legacy binding removed from ${RESEARCH_STATUS_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

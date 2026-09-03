@@ -312,8 +312,8 @@ function trPartialRenderOperations(){
   trPartialPrepareOperations(view);
   const filter=document.getElementById('tr-ops-filter-region'),analytics=document.getElementById('opsAnalyticsArea');if(!filter||!analytics)return false;
   const continuity=trRenderCaptureInputContinuity(view),sx=window.scrollX,sy=window.scrollY;
-  filter.innerHTML=operationsFilterPanel();
-  analytics.innerHTML=opsAnalyticsHtml(filteredOps());
+  filter.innerHTML=globalThis.TradingResearchOperationsPresentationContract.filterPanel();
+  analytics.innerHTML=globalThis.TradingResearchOperationsPresentationContract.analytics(filteredOps());
   if(continuity)trRenderRestoreInputContinuity(continuity,view);else trPartialRestoreScroll(sx,sy);
   trPartialRecord('operations.regions');trRenderAfterView();return true;
 }

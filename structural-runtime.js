@@ -182,7 +182,7 @@ function trRenderSyncSidebar(){
 }
 function trRenderAfterView(){
   try{if(typeof hydrateImageElements==='function')setTimeout(hydrateImageElements,0);}catch(e){console.warn('hydrateImageElements',e);}
-  try{if(typeof ensureContextHelpObserver==='function')ensureContextHelpObserver();if(typeof applyContextHelp==='function')setTimeout(applyContextHelp,0);}catch(e){console.warn('context help',e);}
+  try{if(globalThis.TradingResearchContextHelpPresentationContract){globalThis.TradingResearchContextHelpPresentationContract.ensureObserver();setTimeout(globalThis.TradingResearchContextHelpPresentationContract.apply,0);}}catch(e){console.warn('context help',e);}
   trDraftMaybeRestoreAfterView();
 }
 function trRenderDiagnostics(){

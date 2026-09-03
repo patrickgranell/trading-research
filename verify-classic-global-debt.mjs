@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=222;
+const MAX_RUNTIME_NAME_OVERLAP=220;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -57,6 +57,10 @@ const NAVIGATION_PRESENTATION_CONSUMER='structural-runtime.js';
 const OPERATIONS_READ_CONTRACT='TradingResearchOperationsReadContract';
 const OPERATIONS_READ_LEGACY=['currentOps'];
 const OPERATIONS_READ_CONSUMER='reports-purity-runtime.js';
+
+const CONTEXT_HELP_PRESENTATION_CONTRACT='TradingResearchContextHelpPresentationContract';
+const CONTEXT_HELP_PRESENTATION_LEGACY=['applyContextHelp','ensureContextHelpObserver'];
+const CONTEXT_HELP_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -433,6 +437,30 @@ if(classicTag&&!moduleTag){
       'La semántica de currentOps cambió.');
   }
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${CONTEXT_HELP_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de ayuda contextual en app.js.');
+  need(app.includes('apply:applyContextHelp')&&app.includes('ensureObserver:ensureContextHelpObserver'),
+    'El contrato Context Help Presentation no publica exactamente apply y ensureObserver.');
+
+  for(const name of CONTEXT_HELP_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ContextHelpPresentation\w*\s*=/.test(src)),
+    'El contrato Context Help Presentation no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const contextHelpSrc=runtimeSources.get(CONTEXT_HELP_PRESENTATION_CONSUMER)||'';
+  need(contextHelpSrc.includes(`globalThis.${CONTEXT_HELP_PRESENTATION_CONTRACT}.ensureObserver()`),
+    `${CONTEXT_HELP_PRESENTATION_CONSUMER} no consume directamente ${CONTEXT_HELP_PRESENTATION_CONTRACT}.ensureObserver().`);
+  need(contextHelpSrc.includes(`setTimeout(globalThis.${CONTEXT_HELP_PRESENTATION_CONTRACT}.apply,0)`),
+    `${CONTEXT_HELP_PRESENTATION_CONSUMER} no difiere apply mediante el contrato Context Help Presentation.`);
+  const unexpectedContextHelpConsumers=runtimeFiles.filter(file=>
+    file!==CONTEXT_HELP_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${CONTEXT_HELP_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedContextHelpConsumers.length===0,
+    `Consumidores inesperados del contrato Context Help Presentation: ${unexpectedContextHelpConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -455,6 +483,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit date-presentation contract: ${DATE_PRESENTATION_LEGACY.length} legacy binding removed from ${DATE_PRESENTATION_CONSUMER}`);
   console.log(` - explicit navigation-presentation contract: ${NAVIGATION_PRESENTATION_LEGACY.length} legacy binding removed from ${NAVIGATION_PRESENTATION_CONSUMER}`);
   console.log(` - explicit operations-read contract: ${OPERATIONS_READ_LEGACY.length} legacy binding removed from ${OPERATIONS_READ_CONSUMER}`);
+  console.log(` - explicit context-help-presentation contract: ${CONTEXT_HELP_PRESENTATION_LEGACY.length} legacy bindings removed from ${CONTEXT_HELP_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

@@ -13,7 +13,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
 /* Preserve the audited V31.25 source plus the isolated Issue #12 filter-parity change byte-for-byte.
  * The only permitted architectural delta is the exact terminal contract chain:
  * Plan read, content encoding, Exit Lab presentation, Form Boundary,
- * Reports Presentation, Timeline Presentation, Date Presentation, Navigation Presentation, Operations Read, Context Help Presentation, then View Presentation. Removing all eleven suffixes
+ * Reports Presentation, Timeline Presentation, Date Presentation, Navigation Presentation, Operations Read, Context Help Presentation, View Presentation, then Research Status. Removing all twelve suffixes
  * must reproduce the audited functional app.js exactly; this is intentionally stronger
  * than replacing the historical baseline hash. */
 const expectedAuditedAppSha='6f8a65cd21efc55723b8e9397063e0e2fc74ac63b46da5e5e6e753345d6b8568';
@@ -28,9 +28,10 @@ const navigationPresentationContractSuffix="/* V31.25 · bounded classic-global 
 const operationsReadContractSuffix="/* V31.25 · bounded classic-global debt · explicit Operations read contract */\nObject.defineProperty(globalThis,'TradingResearchOperationsReadContract',{value:Object.freeze({current:currentOps}),writable:false,enumerable:false,configurable:false});\n";
 const contextHelpPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Context Help presentation contract */\nObject.defineProperty(globalThis,'TradingResearchContextHelpPresentationContract',{value:Object.freeze({apply:applyContextHelp,ensureObserver:ensureContextHelpObserver}),writable:false,enumerable:false,configurable:false});\n";
 const viewPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit View presentation contract */\nObject.defineProperty(globalThis,'TradingResearchViewPresentationContract',{value:Object.freeze({decision:researchDecisionCenter,changes:researchChangesView,calendar:calendarView,goals:goalsView,quality:dataQualityView,compliance:complianceView,mistakes:mistakesView,lab:analyticsLab,review:reviewView,reports:reportsView,market:v314MarketDataView,plans:plansView}),writable:false,enumerable:false,configurable:false});\n";
-const architecturalContractSuffix=planReadContractSuffix+contentEncodingContractSuffix+exitPresentationContractSuffix+formBoundaryContractSuffix+reportsPresentationContractSuffix+timelinePresentationContractSuffix+datePresentationContractSuffix+navigationPresentationContractSuffix+operationsReadContractSuffix+contextHelpPresentationContractSuffix+viewPresentationContractSuffix;
+const researchStatusContractSuffix="/* V31.25 · bounded classic-global debt · explicit Research status contract */\nObject.defineProperty(globalThis,'TradingResearchResearchStatusContract',{value:Object.freeze({unreadCount:researchUnreadCount}),writable:false,enumerable:false,configurable:false});\n";
+const architecturalContractSuffix=planReadContractSuffix+contentEncodingContractSuffix+exitPresentationContractSuffix+formBoundaryContractSuffix+reportsPresentationContractSuffix+timelinePresentationContractSuffix+datePresentationContractSuffix+navigationPresentationContractSuffix+operationsReadContractSuffix+contextHelpPresentationContractSuffix+viewPresentationContractSuffix+researchStatusContractSuffix;
 if(!app.endsWith(architecturalContractSuffix)){
-  fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation + Timeline Presentation + Date Presentation + Navigation Presentation + Operations Read + Context Help Presentation + View Presentation permitida.');
+  fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation + Timeline Presentation + Date Presentation + Navigation Presentation + Operations Read + Context Help Presentation + View Presentation + Research Status permitida.');
 }else{
   const auditedApp=app.slice(0,-architecturalContractSuffix.length);
   if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.25 + Issue #12 auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
@@ -46,6 +47,7 @@ if((app.match(/TradingResearchNavigationPresentationContract/g)||[]).length!==1)
 if((app.match(/TradingResearchOperationsReadContract/g)||[]).length!==1)fail.push('TradingResearchOperationsReadContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchContextHelpPresentationContract/g)||[]).length!==1)fail.push('TradingResearchContextHelpPresentationContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchViewPresentationContract/g)||[]).length!==1)fail.push('TradingResearchViewPresentationContract debe publicarse exactamente una vez en app.js.');
+if((app.match(/TradingResearchResearchStatusContract/g)||[]).length!==1)fail.push('TradingResearchResearchStatusContract debe publicarse exactamente una vez en app.js.');
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
 if(pkg.version!=='31.25.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
@@ -110,7 +112,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got} != ${want}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: audited V31.25 + Issue #12 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary + Reports-presentation + Timeline-presentation + Date-presentation + Navigation-presentation + Operations-read + Context-Help-presentation + View-presentation contracts');
+console.log(' - app.js: audited V31.25 + Issue #12 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary + Reports-presentation + Timeline-presentation + Date-presentation + Navigation-presentation + Operations-read + Context-Help-presentation + View-presentation + Research-status contracts');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=207;
+const MAX_RUNTIME_NAME_OVERLAP=201;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -69,6 +69,10 @@ const VIEW_PRESENTATION_CONSUMER='structural-runtime.js';
 const RESEARCH_STATUS_CONTRACT='TradingResearchResearchStatusContract';
 const RESEARCH_STATUS_LEGACY=['researchUnreadCount'];
 const RESEARCH_STATUS_CONSUMER='structural-runtime.js';
+
+const REPORTS_SECTION_PRESENTATION_CONTRACT='TradingResearchReportsSectionPresentationContract';
+const REPORTS_SECTION_PRESENTATION_LEGACY=['v313ReportSummary','v313ReportConfidence','v313ReportProcess','v313ReportQuality','v313ReportBreakdowns','v313SectionsControls'];
+const REPORTS_SECTION_PRESENTATION_CONSUMER='reports-purity-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -546,6 +550,50 @@ if(classicTag&&!moduleTag){
       'La semántica de researchUnreadCount cambió.');
   }
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${REPORTS_SECTION_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de secciones de Informes en app.js.');
+
+  const reportSectionMappings=[
+    ['summary','v313ReportSummary'],
+    ['confidence','v313ReportConfidence'],
+    ['process','v313ReportProcess'],
+    ['quality','v313ReportQuality'],
+    ['breakdowns','v313ReportBreakdowns'],
+    ['controls','v313SectionsControls']
+  ];
+  for(const [key,name] of reportSectionMappings){
+    need(app.includes(`${key}:${name}`),
+      `El contrato Reports Section Presentation no publica exactamente ${key}:${name}.`);
+  }
+
+  for(const name of REPORTS_SECTION_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ReportsSectionPresentation\w*\s*=/.test(src)),
+    'El contrato Reports Section Presentation no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const reportSectionsSrc=runtimeSources.get(REPORTS_SECTION_PRESENTATION_CONSUMER)||'';
+  const requiredCalls=[
+    'summary(p,ops,s)',
+    'confidence(ops,s)',
+    'process(p,ops)',
+    'quality(p,ops)',
+    'breakdowns(ops)',
+    'controls()'
+  ];
+  for(const call of requiredCalls){
+    need(reportSectionsSrc.includes(`globalThis.${REPORTS_SECTION_PRESENTATION_CONTRACT}.${call}`),
+      `${REPORTS_SECTION_PRESENTATION_CONSUMER} no consume directamente ${REPORTS_SECTION_PRESENTATION_CONTRACT}.${call}.`);
+  }
+
+  const unexpectedReportSectionConsumers=runtimeFiles.filter(file=>
+    file!==REPORTS_SECTION_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${REPORTS_SECTION_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedReportSectionConsumers.length===0,
+    `Consumidores inesperados del contrato Reports Section Presentation: ${unexpectedReportSectionConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -571,6 +619,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit context-help-presentation contract: ${CONTEXT_HELP_PRESENTATION_LEGACY.length} legacy bindings removed from ${CONTEXT_HELP_PRESENTATION_CONSUMER}`);
   console.log(` - explicit view-presentation contract: ${VIEW_PRESENTATION_LEGACY.length} legacy bindings removed from ${VIEW_PRESENTATION_CONSUMER}`);
   console.log(` - explicit research-status contract: ${RESEARCH_STATUS_LEGACY.length} legacy binding removed from ${RESEARCH_STATUS_CONSUMER}`);
+  console.log(` - explicit reports-section-presentation contract: ${REPORTS_SECTION_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_SECTION_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

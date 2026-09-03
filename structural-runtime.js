@@ -164,7 +164,7 @@ function trRenderSetBadge(host,count,extraClass=''){
 function trRenderSyncSidebar(){
   if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'){
     const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(currentView);
-    if(activeGroup)globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup);
+    if(activeGroup&&globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup))globalThis.TradingResearchNavigationStateContract.saveOpenGroups();
     globalThis.TradingResearchNavigationRuntimeStateContract.setLastView(currentView);
   }
   document.querySelectorAll('.nav-organized [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===currentView));

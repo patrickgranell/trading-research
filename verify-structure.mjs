@@ -10,13 +10,13 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const baseline=JSON.parse(fs.readFileSync('financial-regression-baseline.json','utf8'));
 const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-/* Preserve the audited V31.25 Best Exit source baseline byte-for-byte.
+/* Preserve the audited V31.25 source plus the isolated Issue #12 filter-parity change byte-for-byte.
  * The only permitted architectural delta is the exact terminal contract chain:
  * Plan read, content encoding, Exit Lab presentation, Form Boundary,
  * Reports Presentation, Timeline Presentation, then Date Presentation. Removing all seven suffixes
- * must reproduce the audited app.js exactly; this is intentionally stronger
+ * must reproduce the audited functional app.js exactly; this is intentionally stronger
  * than replacing the historical baseline hash. */
-const expectedAuditedAppSha='a0c92b82d73b55d30ecd9f6388d1424fdce3f209356ae15391f3ba2182bbb98d';
+const expectedAuditedAppSha='6f8a65cd21efc55723b8e9397063e0e2fc74ac63b46da5e5e6e753345d6b8568';
 const planReadContractSuffix="\n/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */\nObject.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});\n";
 const contentEncodingContractSuffix="/* V31.25 · bounded classic-global debt · explicit content encoding contract */\nObject.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});\n";
 const exitPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Exit Lab presentation contract */\nObject.defineProperty(globalThis,'TradingResearchExitPresentationContract',{value:Object.freeze({readGrossR:exitGrossR,classifyResult:exitResultClass,formatRValue:exitFmtR,formatPercentValue:exitFmtPct,formatProfitFactorValue:exitPf}),writable:false,enumerable:false,configurable:false});\n";
@@ -29,7 +29,7 @@ if(!app.endsWith(architecturalContractSuffix)){
   fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation + Timeline Presentation + Date Presentation permitida.');
 }else{
   const auditedApp=app.slice(0,-architecturalContractSuffix.length);
-  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.25 Best Exit auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
+  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.25 + Issue #12 auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
 }
 if((app.match(/TradingResearchPlanReadContract/g)||[]).length!==1)fail.push('TradingResearchPlanReadContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchContentEncodingContract/g)||[]).length!==1)fail.push('TradingResearchContentEncodingContract debe publicarse exactamente una vez en app.js.');
@@ -102,7 +102,7 @@ if(/document\.getElementById\(['"]app['"]\)\.innerHTML\s*=\s*shell\(\)/.test(sta
 for(const [name,[start,end]] of Object.entries(baseline.regions)){const got=sha(chunk(start,end)),want=baseline.hashes[name];if(got!==want)fail.push(`REGRESIÓN FINANCIERA: ${name} cambió (${got} != ${want}).`);}
 if(fail.length){console.error('\nStructural verification FAILED');for(const x of fail)console.error(' - '+x);process.exit(1);}
 console.log('Structural verification OK');
-console.log(' - app.js: audited V31.25 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary + Reports-presentation + Timeline-presentation + Date-presentation contracts');
+console.log(' - app.js: audited V31.25 + Issue #12 source preserved byte-for-byte beneath exact terminal Plan-read + content-encoding + Exit-presentation + Form-boundary + Reports-presentation + Timeline-presentation + Date-presentation contracts');
 console.log(' - Core state: IndexedDB');
 console.log(' - Render runtime: persistent shell + Partial DOM + draft recovery');
 console.log(' - State runtime: Operations + Plan Configuration + Atomic Imports + schema closure + read-only render + DomainStore/UIStore');

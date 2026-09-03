@@ -7577,3 +7577,5 @@ Object.defineProperty(globalThis,'TradingResearchResearchStatusContract',{value:
 Object.defineProperty(globalThis,'TradingResearchReportsSectionPresentationContract',{value:Object.freeze({summary:v313ReportSummary,confidence:v313ReportConfidence,process:v313ReportProcess,quality:v313ReportQuality,breakdowns:v313ReportBreakdowns,controls:v313SectionsControls}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Operations presentation contract */
 Object.defineProperty(globalThis,'TradingResearchOperationsPresentationContract',{value:Object.freeze({filterPanel:operationsFilterPanel,analytics:opsAnalyticsHtml}),writable:false,enumerable:false,configurable:false});
+/* V31.25 · bounded classic-global debt · explicit Navigation state contract */
+Object.defineProperty(globalThis,'TradingResearchNavigationStateContract',{value:Object.freeze({saveOpenGroups:v318SaveOpenGroups}),writable:false,enumerable:false,configurable:false});

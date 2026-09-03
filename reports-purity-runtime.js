@@ -66,7 +66,7 @@ if(typeof window.v313ReportScopeLabel==='function'){
 
 if(typeof window.v313ScopeControls==='function'){
   window.v313ScopeControls=function(p){
-    const blocks=Math.max(1,Math.ceil(currentOps().length/20));
+    const blocks=Math.max(1,Math.ceil(globalThis.TradingResearchOperationsReadContract.current().length/20));
     let extra='';
     if(reportsViewState.scope==='block')extra=`<label class="filter-field"><span>Bloque</span><select class="select" data-tr-onchange="v313SetReportField('block',this.value)">${Array.from({length:blocks},(_,i)=>String(i+1)).map(v=>`<option value="${v}" ${String(reportsViewState.block)===v?'selected':''}>B${String(v).padStart(2,'0')}</option>`).join('')}</select></label>`;
     if(reportsViewState.scope==='date')extra=`<label class="filter-field"><span>Desde</span><input class="input" type="date" value="${globalThis.TradingResearchContentEncodingContract.html(reportsViewState.dateFrom)}" data-tr-onchange="v313SetReportField('dateFrom',this.value)"></label><label class="filter-field"><span>Hasta</span><input class="input" type="date" value="${globalThis.TradingResearchContentEncodingContract.html(reportsViewState.dateTo)}" data-tr-onchange="v313SetReportField('dateTo',this.value)"></label>`;

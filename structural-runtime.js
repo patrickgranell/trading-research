@@ -162,8 +162,8 @@ function trRenderSetBadge(host,count,extraClass=''){
   }else if(badge)badge.remove();
 }
 function trRenderSyncSidebar(){
-  if(typeof v318GroupForView==='function'&&typeof v318OpenGroups!=='undefined'){
-    const activeGroup=v318GroupForView(currentView);
+  if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'&&typeof v318OpenGroups!=='undefined'){
+    const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(currentView);
     if(activeGroup&&!v318OpenGroups.has(activeGroup)){v318OpenGroups.add(activeGroup);if(typeof v318SaveOpenGroups==='function')v318SaveOpenGroups();}
     if(typeof v318LastView!=='undefined')v318LastView=currentView;
   }

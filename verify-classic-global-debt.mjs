@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=198;
+const MAX_RUNTIME_NAME_OVERLAP=196;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -81,6 +81,10 @@ const OPERATIONS_PRESENTATION_CONSUMER='structural-runtime.js';
 const NAVIGATION_STATE_CONTRACT='TradingResearchNavigationStateContract';
 const NAVIGATION_STATE_LEGACY=['v318SaveOpenGroups'];
 const NAVIGATION_STATE_CONSUMER='structural-runtime.js';
+
+const NAVIGATION_RUNTIME_STATE_CONTRACT='TradingResearchNavigationRuntimeStateContract';
+const NAVIGATION_RUNTIME_STATE_LEGACY=['v318OpenGroups','v318LastView'];
+const NAVIGATION_RUNTIME_STATE_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -666,6 +670,38 @@ if(classicTag&&!moduleTag){
       'La semántica de v318SaveOpenGroups cambió.');
   }
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${NAVIGATION_RUNTIME_STATE_CONTRACT}'`),
+    'Falta el contrato explícito de runtime state de navegación en app.js.');
+  const navRuntimeFields=[
+    'isGroupOpen:id=>v318OpenGroups.has(id)',
+    'ensureGroupOpen:id=>{if(v318OpenGroups.has(id))return false;v318OpenGroups.add(id);return true;}',
+    'setLastView:view=>{v318LastView=view;}'
+  ];
+  for(const field of navRuntimeFields){
+    need(app.includes(field),
+      `El contrato Navigation Runtime State no publica exactamente ${field}.`);
+  }
+
+  for(const name of NAVIGATION_RUNTIME_STATE_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+
+  const navRuntimeSrc=runtimeSources.get(NAVIGATION_RUNTIME_STATE_CONSUMER)||'';
+  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.ensureGroupOpen(activeGroup))globalThis.${NAVIGATION_STATE_CONTRACT}.saveOpenGroups()`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume ensureGroupOpen(activeGroup).`);
+  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(currentView)`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView(currentView).`);
+  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.isGroupOpen(id)`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume isGroupOpen(id).`);
+
+  const unexpectedNavigationRuntimeStateConsumers=runtimeFiles.filter(file=>
+    file!==NAVIGATION_RUNTIME_STATE_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.`)
+  );
+  need(unexpectedNavigationRuntimeStateConsumers.length===0,
+    `Consumidores inesperados del contrato Navigation Runtime State: ${unexpectedNavigationRuntimeStateConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -694,6 +730,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit reports-section-presentation contract: ${REPORTS_SECTION_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_SECTION_PRESENTATION_CONSUMER}`);
   console.log(` - explicit operations-presentation contract: ${OPERATIONS_PRESENTATION_LEGACY.length} legacy bindings removed from ${OPERATIONS_PRESENTATION_CONSUMER}`);
   console.log(` - explicit navigation-state contract: ${NAVIGATION_STATE_LEGACY.length} legacy binding removed from ${NAVIGATION_STATE_CONSUMER}`);
+  console.log(` - explicit navigation-runtime-state contract: ${NAVIGATION_RUNTIME_STATE_LEGACY.length} legacy bindings removed from ${NAVIGATION_RUNTIME_STATE_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

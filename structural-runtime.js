@@ -162,15 +162,15 @@ function trRenderSetBadge(host,count,extraClass=''){
   }else if(badge)badge.remove();
 }
 function trRenderSyncSidebar(){
-  if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'&&typeof v318OpenGroups!=='undefined'){
+  if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'){
     const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(currentView);
-    if(activeGroup&&!v318OpenGroups.has(activeGroup)){v318OpenGroups.add(activeGroup);globalThis.TradingResearchNavigationStateContract.saveOpenGroups();}
-    if(typeof v318LastView!=='undefined')v318LastView=currentView;
+    if(activeGroup&&globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup))globalThis.TradingResearchNavigationStateContract.saveOpenGroups();
+    globalThis.TradingResearchNavigationRuntimeStateContract.setLastView(currentView);
   }
   document.querySelectorAll('.nav-organized [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===currentView));
   document.querySelectorAll('.nav-group').forEach(group=>{
     const id=group.dataset.navGroup||'',hasActive=[...group.querySelectorAll('[data-view]')].some(btn=>btn.dataset.view===currentView);
-    const open=typeof v318OpenGroups!=='undefined'?v318OpenGroups.has(id):group.classList.contains('open');
+    const open=globalThis.TradingResearchNavigationRuntimeStateContract.isGroupOpen(id);
     group.classList.toggle('has-active',hasActive);group.classList.toggle('open',open);
     const toggle=group.querySelector(':scope > .nav-group-toggle');
     if(toggle){toggle.setAttribute('aria-expanded',open?'true':'false');const arrow=toggle.querySelector('.nav-group-arrow');if(arrow)arrow.textContent=open?'▾':'▸';}

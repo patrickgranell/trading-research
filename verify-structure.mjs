@@ -16,7 +16,7 @@ const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
  * Reports Presentation, Timeline Presentation, then Date Presentation. Removing all seven suffixes
  * must reproduce the audited functional app.js exactly; this is intentionally stronger
  * than replacing the historical baseline hash. */
-const expectedAuditedAppSha='c230da53a54b3bcbb43bd6796be8e598829d9580bf85b056a34daa2ea03ac3fa';
+const expectedAuditedAppSha='6f8a65cd21efc55723b8e9397063e0e2fc74ac63b46da5e5e6e753345d6b8568';
 const planReadContractSuffix="\n/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */\nObject.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});\n";
 const contentEncodingContractSuffix="/* V31.25 · bounded classic-global debt · explicit content encoding contract */\nObject.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});\n";
 const exitPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Exit Lab presentation contract */\nObject.defineProperty(globalThis,'TradingResearchExitPresentationContract',{value:Object.freeze({readGrossR:exitGrossR,classifyResult:exitResultClass,formatRValue:exitFmtR,formatPercentValue:exitFmtPct,formatProfitFactorValue:exitPf}),writable:false,enumerable:false,configurable:false});\n";

@@ -7585,3 +7585,5 @@ Object.defineProperty(globalThis,'TradingResearchNavigationRuntimeStateContract'
 Object.defineProperty(globalThis,'TradingResearchOperationChecklistPresentationContract',{value:Object.freeze({refresh:updateOperationChecklistPreview}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Running chart presentation contract */
 Object.defineProperty(globalThis,'TradingResearchRunningChartPresentationContract',{value:Object.freeze({render:v315RenderChart}),writable:false,enumerable:false,configurable:false});
+/* V31.25 · bounded classic-global debt · explicit Theme read contract */
+Object.defineProperty(globalThis,'TradingResearchThemeReadContract',{value:Object.freeze({current:()=>appTheme}),writable:false,enumerable:false,configurable:false});

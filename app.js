@@ -424,9 +424,9 @@ function applyRiskManagementRules(ops,plan=getCurrentPlan()){
   }
   return {included,excluded,reasons};
 }
-function baseFilteredOps(){
-  const f=opsViewState,q=String(f.q||'').toLowerCase(),blockMap=opBlockMap();
-  return currentOps().filter(o=>{
+function baseFilteredOps(f=opsViewState,ops=currentOps(),blockMap=opBlockMap()){
+  const q=String(f.q||'').toLowerCase();
+  return ops.filter(o=>{
     const d=new Date(o.entryDate);if(isNaN(d))return false;const date=inputDateValue(d),hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
     if(q&&!JSON.stringify(o).toLowerCase().includes(q))return false;
     if(f.dateFrom&&date<f.dateFrom)return false;if(f.dateTo&&date>f.dateTo)return false;
@@ -1668,13 +1668,13 @@ render();
 /* ===== V10 PATCH · Advanced Analytics Lab ===== */
 const V10_APP_LABEL='V10 · Advanced Analytics Lab';
 let labState={
-  unit:'r',basis:'net',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',context:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',
+  unit:'r',basis:'net',q:'',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',days:[],month:'',year:'',direction:'',setup:'',vd:'',nr:'',hypothesis:'',context:'',risk:'',source:'',result:'',contract:'',block:'',behavior:'',emotion:'',emotionStatus:'',riskPolicy:'raw',focus:'',stress:'',
   rMin:'',rMax:'',heatMetric:'expectancy',scatterX:'mae',histBin:0.25,edgeX:'setup',edgeY:'context',rollingWindow:20,rollingMetric:'expectancy'
 };
 
 function labVal(id){return document.getElementById(id)?.value??'';}
 function labReadFilters(){
-  Object.assign(labState,{dateFrom:labVal('labDateFrom'),dateTo:labVal('labDateTo'),timeFrom:labVal('labTimeFrom'),timeTo:labVal('labTimeTo'),direction:labVal('labDirection'),setup:labVal('labSetup'),vd:labVal('labVD'),context:labVal('labContext'),risk:labVal('labRisk'),result:labVal('labResult'),behavior:labVal('labBehavior'),emotion:labVal('labEmotion'),focus:labVal('labFocus'),stress:labVal('labStress'),rMin:labVal('labRMin'),rMax:labVal('labRMax')});render();
+  Object.assign(labState,{q:labVal('labQ'),dateFrom:labVal('labDateFrom'),dateTo:labVal('labDateTo'),timeFrom:labVal('labTimeFrom'),timeTo:labVal('labTimeTo'),month:labVal('labMonth'),year:labVal('labYear'),direction:labVal('labDirection'),setup:labVal('labSetup'),vd:labVal('labVD'),nr:labVal('labNR'),hypothesis:labVal('labHypothesis'),context:labVal('labContext'),risk:labVal('labRisk'),source:labVal('labSource'),result:labVal('labResult'),contract:labVal('labContract'),block:labVal('labBlock'),behavior:labVal('labBehavior'),emotion:labVal('labEmotion'),emotionStatus:labVal('labEmotionStatus'),riskPolicy:labVal('labRiskPolicy')||'raw',focus:labVal('labFocus'),stress:labVal('labStress'),rMin:labVal('labRMin'),rMax:labVal('labRMax')});render();
 }
 function labReset(){const keep={unit:labState.unit,basis:labState.basis,heatMetric:labState.heatMetric,scatterX:labState.scatterX,histBin:labState.histBin,edgeX:labState.edgeX,edgeY:labState.edgeY,rollingWindow:labState.rollingWindow,rollingMetric:labState.rollingMetric};labState={...keep,dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',context:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',rMin:'',rMax:''};render();}
 function setLabUnit(v){labState.unit=v;render();}
@@ -1707,11 +1707,11 @@ function labMetric(ops,metric=labState.heatMetric){
 }
 function labMetricText(v,metric=labState.heatMetric){if(metric==='winrate')return `${Number(v||0).toFixed(1)}%`;if(metric==='pf')return Number(v||0).toFixed(2);return metricStatText(v,labState.unit);}
 function labSelect(id,label,values,current){return `<label class="filter-field"><span>${label}</span><select id="${id}" class="select" data-tr-onchange="labReadFilters()"><option value="">Todos</option>${values.map(x=>{const v=typeof x==='object'?x.value:x,l=typeof x==='object'?x.label:x;return `<option value="${esc(v)}" ${String(v)===String(current)?'selected':''}>${esc(l)}</option>`}).join('')}</select></label>`;}
-function labActiveChips(){const chips=[];const add=(label,val,field)=>{if(val!==''&&val!==null&&val!==undefined){const handler=field==='__range__'?`data-tr-onclick="trLegacyStateCommand('lab-clear-range')"`:`data-tr-onclick="trLegacyStateCommand('lab-clear','${field}')"`;chips.push(`<button class="lab-active-chip" ${handler}><span>${esc(label)}</span><strong>${esc(val)}</strong> ×</button>`);}};add('Setup',labState.setup,'setup');add('VD',labState.vd,'vd');add('Contexto',labState.context,'context');add('Dir.',labState.direction,'direction');add('Comport.',labState.behavior,'behavior');add('Emoción',labState.emotion,'emotion');add('Foco',labState.focus,'focus');add('Estrés',labState.stress,'stress');if(labState.rMin!==''||labState.rMax!=='')add('R',`${labState.rMin||'−∞'} → ${labState.rMax||'∞'}`,'__range__');return chips.length?`<div class="lab-active-filters">${chips.join('')}</div>`:'';}
+function labActiveChips(){const chips=[];const add=(label,val,field)=>{if(val!==''&&val!==null&&val!==undefined&&(!Array.isArray(val)||val.length)){const handler=field==='__range__'?`data-tr-onclick="trLegacyStateCommand('lab-clear-range')"`:`data-tr-onclick="trLegacyStateCommand('lab-clear','${field}')"`;chips.push(`<button class="lab-active-chip" ${handler}><span>${esc(label)}</span><strong>${esc(Array.isArray(val)?val.map(x=>DOW_LABELS[x]).join(', '):val)}</strong> ×</button>`);}};add('Buscar',labState.q,'q');add('Desde',labState.dateFrom,'dateFrom');add('Hasta',labState.dateTo,'dateTo');add('Días',labState.days,'days');add('Mes',labState.month,'month');add('Año',labState.year,'year');add('Contrato',labState.contract,'contract');add('Setup',labState.setup,'setup');add('VD',labState.vd,'vd');add('Contexto',labState.context,'context');add('Dir.',labState.direction,'direction');add('Origen',labState.source,'source');add('Bloque',labState.block,'block');add('Comport.',labState.behavior,'behavior');add('Emoción',labState.emotion,'emotion');add('Diario',labState.emotionStatus,'emotionStatus');if(labState.riskPolicy==='plan')add('Gestión','Reglas TP','riskPolicy');add('Foco',labState.focus,'focus');add('Estrés',labState.stress,'stress');if(labState.rMin!==''||labState.rMax!=='')add('R',`${labState.rMin||'−∞'} → ${labState.rMax||'∞'}`,'__range__');return chips.length?`<div class="lab-active-filters">${chips.join('')}</div>`:'';}
 function labFilterPanel(){
-  const p=getCurrentPlan(),ops=currentOps(),contexts=uniqueSorted(ops.map(o=>o.h4Context)),beh=uniqueSorted(ops.flatMap(o=>o.emotional?.behaviors||[])),emo=uniqueSorted(ops.flatMap(labEmotionsOf));
+  const p=getCurrentPlan(),ops=currentOps(),contexts=uniqueSorted(ops.map(o=>o.h4Context)),beh=uniqueSorted(ops.flatMap(o=>o.emotional?.behaviors||[])),emo=uniqueSorted(ops.flatMap(labEmotionsOf)),years=uniqueSorted(ops.map(o=>new Date(o.entryDate)).filter(d=>!isNaN(d)).map(d=>d.getFullYear())).sort((a,b)=>b-a),contracts=uniqueSorted(ops.map(o=>String(o.contract||o.instrumentSnapshot?.symbol||'').trim().split(/\s+/)[0])),sources=uniqueSorted(ops.map(o=>o.raw?.source||'manual')).map(value=>({value,label:value==='ninjatrader'?'NinjaTrader':value==='ankora'?'Ankora':value==='manual'?'Manual':value})),blocks=Math.ceil(ops.length/20);
   const unitSwitch=`<div class="metric-switch"><span>Unidad analítica</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${labState.unit===v?'active':''}" data-tr-onclick="setLabUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${labState.basis===v?'active':''}" data-tr-onclick="setLabBasis('${v}')">${l}</button>`).join('')}</div>`;
-  return `<section class="card filter-hub lab-filter-hub"><div class="filter-hub-top"><div><h3>Dataset del estudio</h3><p>Todos los módulos usan exactamente el mismo subconjunto. Pulsa celdas, puntos o barras para profundizar.</p></div>${unitSwitch}</div><div class="filter-grid"><label class="filter-field"><span>Desde</span><input id="labDateFrom" type="date" class="input" value="${esc(labState.dateFrom)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hasta</span><input id="labDateTo" type="date" class="input" value="${esc(labState.dateTo)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hora desde</span><input id="labTimeFrom" type="time" class="input" value="${esc(labState.timeFrom)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hora hasta</span><input id="labTimeTo" type="time" class="input" value="${esc(labState.timeTo)}" data-tr-onchange="labReadFilters()"></label>${labSelect('labDirection','Dirección',['LONG','SHORT'],labState.direction)}${labSelect('labSetup','Setup',p?.setups||[],labState.setup)}${labSelect('labVD','VD',p?.vd||[],labState.vd)}${labSelect('labContext','Contexto',contexts,labState.context)}${labSelect('labRisk','Estrategia',(p?.riskStrategies||[]).map(r=>({value:r.id,label:r.name})),labState.risk)}${labSelect('labResult','Resultado',[{value:'win',label:'Ganadoras'},{value:'loss',label:'Perdedoras'},{value:'flat',label:'Flat'},{value:'pending',label:'Pendientes'}],labState.result)}${labSelect('labBehavior','Comportamiento',beh,labState.behavior)}${labSelect('labEmotion','Emoción',emo,labState.emotion)}${labSelect('labFocus','Foco',[1,2,3,4,5],labState.focus)}${labSelect('labStress','Estrés',[1,2,3,4,5],labState.stress)}<label class="filter-field"><span>R mínima</span><input id="labRMin" type="number" step="0.25" class="input" value="${esc(labState.rMin)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>R máxima</span><input id="labRMax" type="number" step="0.25" class="input" value="${esc(labState.rMax)}" data-tr-onchange="labReadFilters()"></label></div><div class="lab-filter-foot"><button class="btn small" data-tr-onclick="labReset()">Limpiar estudio</button><span>Los filtros del Laboratorio no modifican Operaciones ni el dataset.</span></div>${labActiveChips()}</section>`;
+  return `<section class="card filter-hub lab-filter-hub"><div class="filter-hub-top"><div><h3>Dataset del estudio</h3><p>Todos los módulos usan exactamente el mismo subconjunto. Pulsa celdas, puntos o barras para profundizar.</p></div>${unitSwitch}</div><div class="filter-grid"><label class="filter-field wide"><span>Buscar</span><input id="labQ" class="input" value="${esc(labState.q)}" placeholder="Símbolo, setup, VD, NR, notas…" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Desde</span><input id="labDateFrom" type="date" class="input" value="${esc(labState.dateFrom)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hasta</span><input id="labDateTo" type="date" class="input" value="${esc(labState.dateTo)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hora desde</span><input id="labTimeFrom" type="time" class="input" value="${esc(labState.timeFrom)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>Hora hasta</span><input id="labTimeTo" type="time" class="input" value="${esc(labState.timeTo)}" data-tr-onchange="labReadFilters()"></label>${labSelect('labMonth','Mes',MONTH_LABELS.map((label,i)=>({value:i+1,label})),labState.month)}${labSelect('labYear','Año',years,labState.year)}${labSelect('labContract','Contrato',contracts,labState.contract)}${labSelect('labDirection','Dirección',['LONG','SHORT'],labState.direction)}${labSelect('labSetup','Setup',p?.setups||[],labState.setup)}${labSelect('labVD','VD',p?.vd||[],labState.vd)}${labSelect('labNR','NR',p?.nr||[],labState.nr)}${labSelect('labHypothesis','Hipótesis',(p?.hypotheses||[]).map(h=>({value:h.id,label:h.name||h.id})),labState.hypothesis)}${labSelect('labContext','Contexto',contexts,labState.context)}${labSelect('labRisk','Estrategia',(p?.riskStrategies||[]).map(r=>({value:r.id,label:r.name})),labState.risk)}${labSelect('labSource','Origen',sources,labState.source)}${labSelect('labResult','Resultado',[{value:'win',label:'Ganadoras'},{value:'loss',label:'Perdedoras'},{value:'flat',label:'Flat'},{value:'pending',label:'Pendientes'}],labState.result)}${labSelect('labBlock','Bloque',Array.from({length:blocks},(_,i)=>({value:i+1,label:`Bloque ${String(i+1).padStart(2,'0')}`})),labState.block)}${labSelect('labBehavior','Comportamiento',beh,labState.behavior)}${labSelect('labEmotion','Emoción',emo,labState.emotion)}${labSelect('labEmotionStatus','Diario emocional',[{value:'complete',label:'Completado'},{value:'pending',label:'Pendiente'}],labState.emotionStatus)}${labSelect('labRiskPolicy','Gestión de riesgo',[{value:'raw',label:'Sin recorte'},{value:'plan',label:'Aplicar reglas del plan'}],labState.riskPolicy)}${labSelect('labFocus','Foco',[1,2,3,4,5],labState.focus)}${labSelect('labStress','Estrés',[1,2,3,4,5],labState.stress)}<label class="filter-field"><span>R mínima</span><input id="labRMin" type="number" step="0.25" class="input" value="${esc(labState.rMin)}" data-tr-onchange="labReadFilters()"></label><label class="filter-field"><span>R máxima</span><input id="labRMax" type="number" step="0.25" class="input" value="${esc(labState.rMax)}" data-tr-onchange="labReadFilters()"></label></div><div class="day-filter-row"><strong>Día de semana</strong>${DOW_LABELS.map((label,day)=>`<button class="filter-chip ${labState.days?.includes(day)?'active':''}" data-tr-onclick="trLegacyStateCommand('lab-toggle-day','${day}')">${label}</button>`).join('')}</div><div class="lab-filter-foot"><button class="btn small" data-tr-onclick="labReset()">Limpiar estudio</button><span>Los filtros del Laboratorio no modifican Operaciones ni el dataset.</span></div>${labActiveChips()}</section>`;
 }
 function labKpis(ops){const s=calcMetricStats(ops,labState.unit,labState.basis),r=calcMetricStats(ops,'r',labState.basis),em=ops.filter(hasEmotionalEntry).length;return `<div class="analytics-kpis lab-kpis">${kpi('Muestra',s.n,`${em} con diario emocional`)}${kpi('Expectancy',metricStatText(s.expectancy,labState.unit),`${labState.basis==='net'?'neta':'bruta'}`)}${kpi('Win rate',pct(s.winRate),'subconjunto')}${kpi('Profit Factor',Number.isFinite(s.pf)?s.pf.toFixed(2):'∞','subconjunto')}${kpi('Resultado',metricStatText(s.sum,labState.unit),'acumulado')}${kpi('Max DD',metricStatText(s.maxDD,labState.unit),'subconjunto')}${kpi('R media',`${r.expectancy>=0?'+':''}${r.expectancy.toFixed(2)}R`,'normalizado')}${kpi('Comisiones',`${s.commissions.toFixed(2)} US$`,'coste total')}</div>`;}
 
@@ -2423,7 +2423,7 @@ render();
 /* V11.4 hotfix interno: reset y cambios de ejes/bin limpian la selección gráfica asociada antes de renderizar. */
 labReset=function(){
   const keep={unit:labState.unit,basis:labState.basis,heatMetric:labState.heatMetric,scatterX:labState.scatterX,histBin:labState.histBin,edgeX:labState.edgeX,edgeY:labState.edgeY,rollingWindow:labState.rollingWindow,rollingMetric:labState.rollingMetric};
-  labState={...keep,dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',nr:'',context:'',hypothesis:'',hour:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',rMin:'',rMax:''};
+  labState={...keep,q:'',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',days:[],month:'',year:'',direction:'',setup:'',vd:'',nr:'',hypothesis:'',hour:'',context:'',risk:'',source:'',result:'',contract:'',block:'',behavior:'',emotion:'',emotionStatus:'',riskPolicy:'raw',focus:'',stress:'',rMin:'',rMax:''};
   labInteractionState={focusStress:null,behavior:null,rBin:null,edge:null};render();
 };
 setLabHistBin=function(v){
@@ -3380,7 +3380,7 @@ function ensurePlanStudies(p){
   return p;
 }
 function labStudyDefaultState(){
-  return {unit:'r',basis:'net',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',direction:'',setup:'',vd:'',nr:'',hypothesis:'',hour:'',context:'',risk:'',result:'',behavior:'',emotion:'',focus:'',stress:'',rMin:'',rMax:'',heatMetric:'expectancy',scatterX:'mae',histBin:.25,edgeX:'setup',edgeY:'context',rollingWindow:20,rollingMetric:'expectancy'};
+  return {unit:'r',basis:'net',q:'',dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',days:[],month:'',year:'',direction:'',setup:'',vd:'',nr:'',hypothesis:'',hour:'',context:'',risk:'',source:'',result:'',contract:'',block:'',behavior:'',emotion:'',emotionStatus:'',riskPolicy:'raw',focus:'',stress:'',rMin:'',rMax:'',heatMetric:'expectancy',scatterX:'mae',histBin:.25,edgeX:'setup',edgeY:'context',rollingWindow:20,rollingMetric:'expectancy'};
 }
 state.tradingPlans.forEach(ensurePlanStudies);
 const makeBlankPlanV17Base=makeBlankPlan;
@@ -3417,7 +3417,7 @@ function reconcileStudyUi(){
 function studyFilterSummary(s){
   const f=s?.lab||{},parts=[];
   const add=(label,v)=>{if(v!==''&&v!==null&&v!==undefined)parts.push(`${label}: ${v}`);};
-  add('Setup',f.setup);add('VD',f.vd);add('NR',f.nr);add('H',f.hypothesis);add('Contexto',f.context);add('Dir.',f.direction);add('Hora',f.hour);add('Desde',f.dateFrom);add('Hasta',f.dateTo);add('Comport.',f.behavior);add('Emoción',f.emotion);add('Foco',f.focus);add('Estrés',f.stress);
+  add('Buscar',f.q);add('Setup',f.setup);add('VD',f.vd);add('NR',f.nr);add('H',f.hypothesis);add('Contexto',f.context);add('Dir.',f.direction);add('Hora',f.hour);add('Desde',f.dateFrom);add('Hasta',f.dateTo);if(f.days?.length)add('Días',f.days.map(x=>DOW_LABELS[x]).join(','));add('Mes',f.month);add('Año',f.year);add('Contrato',f.contract);add('Origen',f.source);add('Bloque',f.block);add('Comport.',f.behavior);add('Emoción',f.emotion);add('Diario',f.emotionStatus);if(f.riskPolicy==='plan')add('Gestión','Reglas TP');add('Foco',f.focus);add('Estrés',f.stress);
   if(f.rMin!==''||f.rMax!=='')parts.push(`R ${f.rMin||'−∞'} → ${f.rMax||'∞'}`);
   return parts.length?parts.slice(0,5).join(' · ')+(parts.length>5?` · +${parts.length-5}`:''):'Sin filtros · dataset completo';
 }
@@ -3462,15 +3462,12 @@ function deleteSelectedStudy(){
 function toggleCompareSelectedStudy(){const s=selectedStudy();if(!s)return;labStudiesUi.compareId=labStudiesUi.compareId===s.id?'':s.id;render();}
 
 function labFilteredOpsForState(f={}){
-  return currentOps().filter(o=>{
-    const d=new Date(o.entryDate);if(isNaN(d))return false;const date=inputDateValue(d),hh=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'),hour=`${String(d.getHours()).padStart(2,'0')}:00`;
-    if(f.dateFrom&&date<f.dateFrom)return false;if(f.dateTo&&date>f.dateTo)return false;
-    if(f.timeFrom&&f.timeTo){if(f.timeFrom<=f.timeTo){if(hh<f.timeFrom||hh>f.timeTo)return false;}else if(hh<f.timeFrom&&hh>f.timeTo)return false;}
-    else if(f.timeFrom&&hh<f.timeFrom)return false;else if(f.timeTo&&hh>f.timeTo)return false;
+  const shared=baseFilteredOps(f,currentOps(),opBlockMap());
+  const permitted=f.riskPolicy==='plan'?applyRiskManagementRules(shared).included:shared;
+  return permitted.filter(o=>{
+    const d=new Date(o.entryDate),hour=`${String(d.getHours()).padStart(2,'0')}:00`;
     if(f.hour&&hour!==String(f.hour))return false;
-    if(f.direction&&o.direction!==f.direction)return false;if(f.setup&&o.setup!==f.setup)return false;if(f.vd&&o.vd!==f.vd)return false;if(f.nr&&String(o.nr||'')!==String(f.nr))return false;
-    if(f.hypothesis&&String(o.hypothesis||'')!==String(f.hypothesis))return false;if(f.context&&String(o.h4Context||'')!==String(f.context))return false;if(f.risk&&o.riskStrategyId!==f.risk)return false;if(f.result&&o.result!==f.result)return false;
-    if(f.behavior&&!(o.emotional?.behaviors||[]).includes(f.behavior))return false;if(f.emotion&&!labEmotionsOf(o).includes(f.emotion))return false;
+    if(f.context&&String(o.h4Context||'')!==String(f.context))return false;
     if(f.focus&&String(o.emotional?.focus||'')!==String(f.focus))return false;if(f.stress&&String(o.emotional?.stress||'')!==String(f.stress))return false;
     const rv=opMetricValue(o,'r',f.basis||'net');if(f.rMin!==''&&f.rMin!==undefined&&rv<Number(f.rMin))return false;if(f.rMax!==''&&f.rMax!==undefined&&rv>Number(f.rMax))return false;
     return true;
@@ -3510,14 +3507,7 @@ labActiveChips=function(){
 };
 
 const labFilterPanelV17Base=labFilterPanel;
-labFilterPanel=function(){
-  const p=getCurrentPlan();let html=labFilterPanelV17Base();
-  const insert=`${labSelect('labNR','NR',p?.nr||[],labState.nr||'',"labState.nr=this.value;render()")}${labSelect('labHypothesis','Hipótesis',(p?.hypotheses||[]).map(h=>({value:h.id,label:h.name})),labState.hypothesis||'',"labState.hypothesis=this.value;render()")}`;
-  // Inserta NR/Hipótesis antes de Estrategia para que todos los ejes principales puedan guardarse/filtrarse manualmente.
-  const marker=labSelect('labRisk','Estrategia',(p?.riskStrategies||[]).map(r=>({value:r.id,label:r.name})),labState.risk);
-  if(html.includes(marker))html=html.replace(marker,insert+marker);
-  return html;
-};
+labFilterPanel=function(){return labFilterPanelV17Base();};
 
 const labResetV17Base=labReset;
 labReset=function(){labStudiesUi.activeId='';labStudiesUi.compareId='';labState.nr='';labState.hypothesis='';labState.hour='';labResetV17Base();};
@@ -7540,7 +7530,8 @@ function trLegacyStateCommand(command,a,b){
     case 'gallery-reset': galleryViewState={q:'',setup:'',vd:'',nr:'',result:'',direction:'',label:'',context:''};gallerySelected=[];render();return true;
     case 'journal-set': if(a==='emotion'||a==='behavior')journalViewState[a]=String(b??'');render();return true;
     case 'journal-reset': journalViewState={q:'',emotion:'',behavior:'',discipline:'',status:''};render();return true;
-    case 'lab-clear': if(a&&Object.prototype.hasOwnProperty.call(labState,a))labState[a]='';render();return true;
+    case 'lab-clear': if(a&&Object.prototype.hasOwnProperty.call(labState,a))labState[a]=a==='days'?[]:a==='riskPolicy'?'raw':'';render();return true;
+    case 'lab-toggle-day': {const day=Number(a),days=Array.isArray(labState.days)?labState.days:[];labState.days=days.includes(day)?days.filter(x=>x!==day):[...days,day];render();return true;}
     case 'lab-clear-range': labState.rMin='';labState.rMax='';render();return true;
     case 'lab-compare-clear': labStudiesUi.compareId='';render();return true;
     case 'reports-compare-open': reportsViewState.tab='compare';navigate('reports');return true;

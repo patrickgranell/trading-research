@@ -59,6 +59,12 @@ need(/labState=\{\.\.\.keep,[^}]*q:''[^}]*days:\[\][^}]*riskPolicy:'raw'/.test(a
   'Limpiar estudio no borra todos los filtros de dataset o no restaura riskPolicy=raw.');
 need(/Object\.keys\(lab\)\.forEach/.test(extractFunction(app,'currentStudySnapshot')),
   'Los estudios guardados no copian el contrato completo de labStudyDefaultState.');
+need(/labState=\{\.\.\.labStudyDefaultState\(\),\.\.\.clone\(s\.lab\|\|\{\}\)\}/.test(extractFunction(app,'applyStudySnapshot')),
+  'Cargar un estudio no restaura el contrato completo de filtros con defaults compatibles.');
+need(/copy=\{\.\.\.clone\(s\)/.test(extractFunction(app,'duplicateSelectedStudy')),
+  'Duplicar un estudio no conserva su snapshot completo de filtros.');
+need(/labFilteredOpsForState\(s\?\.lab\|\|\{\}\)/.test(extractFunction(app,'studyStatsFor')),
+  'La comparación guardada no evalúa el snapshot de filtros persistido.');
 need(/lab=clone\(currentStudySnapshot\(\)\.lab\)/.test(extractFunction(app,'freezeCurrentHypothesis')),
   'Forward/OOS no congela el snapshot completo del Laboratorio.');
 need(/labFilteredOpsForState\(t\?\.lab\|\|\{\}\)/.test(extractFunction(app,'forwardFrozenOps')),

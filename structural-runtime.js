@@ -38,22 +38,22 @@ let trRenderLastError='';
 function trRenderViewHtml(view=currentView){
   switch(view){
     case 'dashboard': return dashboard();
-    case 'decision': return researchDecisionCenter();
-    case 'changes': return researchChangesView();
+    case 'decision': return globalThis.TradingResearchViewPresentationContract.decision();
+    case 'changes': return globalThis.TradingResearchViewPresentationContract.changes();
     case 'operations': return operations();
-    case 'calendar': return calendarView();
-    case 'goals': return goalsView();
-    case 'quality': return dataQualityView();
-    case 'compliance': return complianceView();
-    case 'mistakes': return mistakesView();
-    case 'lab': return analyticsLab();
-    case 'review': return reviewView();
+    case 'calendar': return globalThis.TradingResearchViewPresentationContract.calendar();
+    case 'goals': return globalThis.TradingResearchViewPresentationContract.goals();
+    case 'quality': return globalThis.TradingResearchViewPresentationContract.quality();
+    case 'compliance': return globalThis.TradingResearchViewPresentationContract.compliance();
+    case 'mistakes': return globalThis.TradingResearchViewPresentationContract.mistakes();
+    case 'lab': return globalThis.TradingResearchViewPresentationContract.lab();
+    case 'review': return globalThis.TradingResearchViewPresentationContract.review();
     case 'gallery': return gallery();
     case 'journal': return journal();
     case 'blocks': return blocks();
-    case 'reports': return reportsView();
-    case 'market': return v314MarketDataView();
-    case 'plans': return plansView();
+    case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
+    case 'market': return globalThis.TradingResearchViewPresentationContract.market();
+    case 'plans': return globalThis.TradingResearchViewPresentationContract.plans();
     case 'config': return config();
     default:
       console.warn('[Trading Research · router] Vista desconocida:',view);
@@ -329,7 +329,7 @@ function trPartialPrepareMarket(view=document.getElementById('view')){
   body.dataset.trMarketTab=String(v316Ui?.tab||'');return true;
 }
 function trPartialMarketParts(){
-  const tpl=document.createElement('template');tpl.innerHTML=v314MarketDataView();
+  const tpl=document.createElement('template');tpl.innerHTML=globalThis.TradingResearchViewPresentationContract.market();
   const tabs=tpl.content.querySelector('.md-phase-tabs');if(!tabs)return null;
   const nodes=[...tpl.content.children],idx=nodes.indexOf(tabs);if(idx<0)return null;
   return {chrome:nodes.slice(0,idx).map(n=>n.outerHTML).join(''),tabs:tabs.outerHTML,body:nodes.slice(idx+1).map(n=>n.outerHTML).join('')};

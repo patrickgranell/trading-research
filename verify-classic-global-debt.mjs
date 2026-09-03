@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=220;
+const MAX_RUNTIME_NAME_OVERLAP=208;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -61,6 +61,10 @@ const OPERATIONS_READ_CONSUMER='reports-purity-runtime.js';
 const CONTEXT_HELP_PRESENTATION_CONTRACT='TradingResearchContextHelpPresentationContract';
 const CONTEXT_HELP_PRESENTATION_LEGACY=['applyContextHelp','ensureContextHelpObserver'];
 const CONTEXT_HELP_PRESENTATION_CONSUMER='structural-runtime.js';
+
+const VIEW_PRESENTATION_CONTRACT='TradingResearchViewPresentationContract';
+const VIEW_PRESENTATION_LEGACY=['researchDecisionCenter','researchChangesView','calendarView','goalsView','dataQualityView','complianceView','mistakesView','analyticsLab','reviewView','reportsView','v314MarketDataView','plansView'];
+const VIEW_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -461,6 +465,46 @@ if(classicTag&&!moduleTag){
   need(unexpectedContextHelpConsumers.length===0,
     `Consumidores inesperados del contrato Context Help Presentation: ${unexpectedContextHelpConsumers.join(', ')}.`);
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${VIEW_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de vistas en app.js.');
+  const viewMappings=[
+    ['decision','researchDecisionCenter'],
+    ['changes','researchChangesView'],
+    ['calendar','calendarView'],
+    ['goals','goalsView'],
+    ['quality','dataQualityView'],
+    ['compliance','complianceView'],
+    ['mistakes','mistakesView'],
+    ['lab','analyticsLab'],
+    ['review','reviewView'],
+    ['reports','reportsView'],
+    ['market','v314MarketDataView'],
+    ['plans','plansView']
+  ];
+  for(const [key,name] of viewMappings){
+    need(app.includes(`${key}:${name}`),
+      `El contrato View Presentation no publica exactamente ${key}:${name}.`);
+  }
+
+  for(const name of VIEW_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*ViewPresentation\w*\s*=/.test(src)),
+    'El contrato View Presentation no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const viewPresentationSrc=runtimeSources.get(VIEW_PRESENTATION_CONSUMER)||'';
+  for(const [key] of viewMappings){
+    need(viewPresentationSrc.includes(`globalThis.${VIEW_PRESENTATION_CONTRACT}.${key}()`),
+      `${VIEW_PRESENTATION_CONSUMER} no consume directamente ${VIEW_PRESENTATION_CONTRACT}.${key}().`);
+  }
+  const unexpectedViewPresentationConsumers=runtimeFiles.filter(file=>
+    file!==VIEW_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${VIEW_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedViewPresentationConsumers.length===0,
+    `Consumidores inesperados del contrato View Presentation: ${unexpectedViewPresentationConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -484,6 +528,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit navigation-presentation contract: ${NAVIGATION_PRESENTATION_LEGACY.length} legacy binding removed from ${NAVIGATION_PRESENTATION_CONSUMER}`);
   console.log(` - explicit operations-read contract: ${OPERATIONS_READ_LEGACY.length} legacy binding removed from ${OPERATIONS_READ_CONSUMER}`);
   console.log(` - explicit context-help-presentation contract: ${CONTEXT_HELP_PRESENTATION_LEGACY.length} legacy bindings removed from ${CONTEXT_HELP_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit view-presentation contract: ${VIEW_PRESENTATION_LEGACY.length} legacy bindings removed from ${VIEW_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

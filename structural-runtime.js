@@ -150,8 +150,9 @@ function trRenderSyncPlanSelector(){
   if(p&&select.value!==p.id)select.value=p.id;
 }
 function trRenderSyncTheme(){
+  const theme=globalThis.TradingResearchThemeReadContract.current();
   document.querySelectorAll('.theme-btn').forEach(btn=>{
-    const isDark=/Oscuro/i.test(btn.textContent||''),active=isDark?appTheme==='dark':appTheme==='light';btn.classList.toggle('active',active);
+    const isDark=/Oscuro/i.test(btn.textContent||''),active=isDark?theme==='dark':theme==='light';btn.classList.toggle('active',active);
   });
 }
 function trRenderSetBadge(host,count,extraClass=''){

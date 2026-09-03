@@ -164,7 +164,7 @@ function trRenderSetBadge(host,count,extraClass=''){
 function trRenderSyncSidebar(){
   if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'&&typeof v318OpenGroups!=='undefined'){
     const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(currentView);
-    if(activeGroup&&!v318OpenGroups.has(activeGroup)){v318OpenGroups.add(activeGroup);if(typeof v318SaveOpenGroups==='function')v318SaveOpenGroups();}
+    if(activeGroup&&!v318OpenGroups.has(activeGroup)){v318OpenGroups.add(activeGroup);globalThis.TradingResearchNavigationStateContract.saveOpenGroups();}
     if(typeof v318LastView!=='undefined')v318LastView=currentView;
   }
   document.querySelectorAll('.nav-organized [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===currentView));

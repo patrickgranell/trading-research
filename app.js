@@ -7565,3 +7565,5 @@ Object.defineProperty(globalThis,'TradingResearchTimelinePresentationContract',{
 Object.defineProperty(globalThis,'TradingResearchDatePresentationContract',{value:Object.freeze({formatLocalDateTime:fmtDate}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Navigation presentation contract */
 Object.defineProperty(globalThis,'TradingResearchNavigationPresentationContract',{value:Object.freeze({groupForView:v318GroupForView}),writable:false,enumerable:false,configurable:false});
+/* V31.25 · bounded classic-global debt · explicit Operations read contract */
+Object.defineProperty(globalThis,'TradingResearchOperationsReadContract',{value:Object.freeze({current:currentOps}),writable:false,enumerable:false,configurable:false});

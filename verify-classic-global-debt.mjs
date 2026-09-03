@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=223;
+const MAX_RUNTIME_NAME_OVERLAP=222;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -53,6 +53,10 @@ const DATE_PRESENTATION_CONSUMER='backup-v2-runtime.js';
 const NAVIGATION_PRESENTATION_CONTRACT='TradingResearchNavigationPresentationContract';
 const NAVIGATION_PRESENTATION_LEGACY=['v318GroupForView'];
 const NAVIGATION_PRESENTATION_CONSUMER='structural-runtime.js';
+
+const OPERATIONS_READ_CONTRACT='TradingResearchOperationsReadContract';
+const OPERATIONS_READ_LEGACY=['currentOps'];
+const OPERATIONS_READ_CONSUMER='reports-purity-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -389,6 +393,46 @@ if(classicTag&&!moduleTag){
       'v318GroupForView debe conservar los fallbacks desconocido y currentView.');
   }
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${OPERATIONS_READ_CONTRACT}'`),
+    'Falta el contrato explícito de lectura de operaciones actuales en app.js.');
+  need(app.includes('current:currentOps'),
+    'El contrato Operations Read no publica exactamente current.');
+
+  for(const name of OPERATIONS_READ_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*OperationsRead\w*\s*=/.test(src)),
+    'El contrato Operations Read no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const operationsReadSrc=runtimeSources.get(OPERATIONS_READ_CONSUMER)||'';
+  need(operationsReadSrc.includes(`globalThis.${OPERATIONS_READ_CONTRACT}.current()`),
+    `${OPERATIONS_READ_CONSUMER} no consume directamente ${OPERATIONS_READ_CONTRACT}.current().`);
+  const unexpectedOperationsReadConsumers=runtimeFiles.filter(file=>
+    file!==OPERATIONS_READ_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${OPERATIONS_READ_CONTRACT}.`)
+  );
+  need(unexpectedOperationsReadConsumers.length===0,
+    `Consumidores inesperados del contrato Operations Read: ${unexpectedOperationsReadConsumers.join(', ')}.`);
+
+  const currentOpsSource=app.match(/function currentOps\(\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(currentOpsSource),
+    'No se pudo extraer currentOps para verificar su semántica de lectura.');
+  if(currentOpsSource){
+    const ctx=vm.createContext({state:{
+      currentPlanId:'P1',
+      operations:[
+        {id:'A',tradingPlanId:'P1'},
+        {id:'B',tradingPlanId:'P2'},
+        {id:'C',tradingPlanId:'P1'}
+      ]
+    }});
+    vm.runInContext(currentOpsSource+'\nthis.__current=currentOps;',ctx);
+    const rows=ctx.__current();
+    need(Array.isArray(rows)&&rows.length===2&&rows[0].id==='A'&&rows[1].id==='C',
+      'La semántica de currentOps cambió.');
+  }
+
 }
 
 if(fail.length){
@@ -410,6 +454,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit timeline-presentation contract: ${TIMELINE_PRESENTATION_LEGACY.length} legacy bindings removed from ${TIMELINE_PRESENTATION_CONSUMER}`);
   console.log(` - explicit date-presentation contract: ${DATE_PRESENTATION_LEGACY.length} legacy binding removed from ${DATE_PRESENTATION_CONSUMER}`);
   console.log(` - explicit navigation-presentation contract: ${NAVIGATION_PRESENTATION_LEGACY.length} legacy binding removed from ${NAVIGATION_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit operations-read contract: ${OPERATIONS_READ_LEGACY.length} legacy binding removed from ${OPERATIONS_READ_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

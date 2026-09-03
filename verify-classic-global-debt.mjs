@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=224;
+const MAX_RUNTIME_NAME_OVERLAP=223;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -49,6 +49,10 @@ const TIMELINE_PRESENTATION_CONSUMER='structural-runtime.js';
 const DATE_PRESENTATION_CONTRACT='TradingResearchDatePresentationContract';
 const DATE_PRESENTATION_LEGACY=['fmtDate'];
 const DATE_PRESENTATION_CONSUMER='backup-v2-runtime.js';
+
+const NAVIGATION_PRESENTATION_CONTRACT='TradingResearchNavigationPresentationContract';
+const NAVIGATION_PRESENTATION_LEGACY=['v318GroupForView'];
+const NAVIGATION_PRESENTATION_CONSUMER='structural-runtime.js';
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -351,6 +355,40 @@ if(classicTag&&!moduleTag){
       'fmtDate debe conservar locale es-ES y estilos short/short.');
   }
 
+  need(app.includes(`Object.defineProperty(globalThis,'${NAVIGATION_PRESENTATION_CONTRACT}'`),
+    'Falta el contrato explícito de presentación de navegación en app.js.');
+  need(app.includes('groupForView:v318GroupForView'),
+    'El contrato Navigation Presentation no publica exactamente groupForView.');
+
+  for(const name of NAVIGATION_PRESENTATION_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+  need(![...runtimeSources.values()].some(src=>/\b(?:const|let|var)\s+\w*NavigationPresentation\w*\s*=/.test(src)),
+    'El contrato Navigation Presentation no debe introducir aliases léxicos globales en runtimes clásicos.');
+
+  const navigationSrc=runtimeSources.get(NAVIGATION_PRESENTATION_CONSUMER)||'';
+  need(navigationSrc.includes(`globalThis.${NAVIGATION_PRESENTATION_CONTRACT}.groupForView(`),
+    `${NAVIGATION_PRESENTATION_CONSUMER} no consume directamente ${NAVIGATION_PRESENTATION_CONTRACT}.groupForView().`);
+  const unexpectedNavigationConsumers=runtimeFiles.filter(file=>
+    file!==NAVIGATION_PRESENTATION_CONSUMER&&(runtimeSources.get(file)||'').includes(`globalThis.${NAVIGATION_PRESENTATION_CONTRACT}.`)
+  );
+  need(unexpectedNavigationConsumers.length===0,
+    `Consumidores inesperados del contrato Navigation Presentation: ${unexpectedNavigationConsumers.join(', ')}.`);
+
+  const navigationGroupsSource=app.match(/const V318_NAV_GROUPS=\[[\s\S]*?\n\];/)?.[0]||'';
+  const groupForViewSource=app.match(/function v318GroupForView\(view=currentView\)\{[^\n]+\}/)?.[0]||'';
+  need(Boolean(navigationGroupsSource&&groupForViewSource),
+    'No se pudieron extraer los helpers puros de Navigation Presentation.');
+  if(navigationGroupsSource&&groupForViewSource){
+    const ctx=vm.createContext({currentView:'lab'});
+    vm.runInContext(`${navigationGroupsSource}\n${groupForViewSource}\nthis.__group=v318GroupForView;`,ctx);
+    need(ctx.__group('operations')==='operativa'&&ctx.__group('lab')==='research'&&ctx.__group('reports')==='control'&&ctx.__group('market')==='data'&&ctx.__group('config')==='system',
+      'La semántica de grupos conocidos de v318GroupForView cambió.');
+    need(ctx.__group('unknown')===''&&ctx.__group()==='research',
+      'v318GroupForView debe conservar los fallbacks desconocido y currentView.');
+  }
+
 }
 
 if(fail.length){
@@ -371,6 +409,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit reports-presentation contract: ${REPORTS_PRESENTATION_LEGACY.length} legacy bindings removed from ${REPORTS_PRESENTATION_CONSUMER}`);
   console.log(` - explicit timeline-presentation contract: ${TIMELINE_PRESENTATION_LEGACY.length} legacy bindings removed from ${TIMELINE_PRESENTATION_CONSUMER}`);
   console.log(` - explicit date-presentation contract: ${DATE_PRESENTATION_LEGACY.length} legacy binding removed from ${DATE_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit navigation-presentation contract: ${NAVIGATION_PRESENTATION_LEGACY.length} legacy binding removed from ${NAVIGATION_PRESENTATION_CONSUMER}`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

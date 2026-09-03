@@ -7545,7 +7545,7 @@ function trLegacyStateCommand(command,a,b){
     default: console.warn('[Trading Research · UI command] Acción desconocida',command);return false;
   }
 }
-window.trLegacyStateCommand=trLegacyStateCommand;
+window.TradingResearchActions.trLegacyStateCommand=trLegacyStateCommand;
 /* ===== END V31.19 compatibility commands ===== */
 
 /* V31.25 · bounded classic-global debt · explicit read-only Plan contract */

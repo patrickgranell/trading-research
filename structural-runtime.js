@@ -237,7 +237,7 @@ function trDraftApplyOperation(draft){
     else if('value' in rec)el.value=rec.value??'';
   }
   try{if(typeof applyRiskToOperation==='function')applyRiskToOperation(false);else if(typeof recalcOperation==='function')recalcOperation();}catch{}
-  try{if(typeof updateOperationChecklistPreview==='function')updateOperationChecklistPreview();}catch{}
+  try{globalThis.TradingResearchOperationChecklistPresentationContract.refresh();}catch{}
   const notice=document.createElement('div');notice.className='notice';notice.dataset.trDraftRecovered='1';notice.innerHTML=`<strong>Borrador recuperado tras la recarga.</strong> Los cambios siguen sin guardarse como operación.${draft.hadFiles?' Los archivos seleccionados antes de recargar deben elegirse de nuevo.':''}`;
   form.prepend(notice);
   const body=form.closest('.modal-body');if(body)body.scrollTop=Number(draft.modalScrollTop)||0;

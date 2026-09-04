@@ -50,7 +50,7 @@ need(reports.includes('trReportScopeLabelContract.replace(trReportScopeLabel);')
   'Reports Purity no publica el scope label puro mediante contrato.');
 need(reports.includes("if(s==='last20')return 'Últimas 20 operaciones';"),
   'Se perdió la semántica de scope last20.');
-need(reports.includes("if(s==='study'){const st=trReportSavedStudies(p).find(x=>x.id===reportsViewState.studyId);"),
+need(/if\(s==='study'\)\s*\{\s*const st=trReportSavedStudies\(p\)\.find\(x=>x\.id===reportsViewState\.studyId\);/.test(reports),
   'Se perdió la lectura pura de scope study.');
 need(reports.includes("if(s==='date')return `${reportsViewState.dateFrom||'inicio'} → ${reportsViewState.dateTo||'fin'}`;"),
   'Se perdió la semántica de scope date.');

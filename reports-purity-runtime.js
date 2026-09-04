@@ -46,8 +46,10 @@ function trReportSavedStudies(p){return Array.isArray(p?.savedStudies)?p.savedSt
 function trReportReviews(p){return Array.isArray(p?.reviewNotes)?p.reviewNotes:[];}
 function trReportGoals(p){return Array.isArray(p?.goals)?p.goals:[];}
 
-if(typeof window.v313ReportScopeLabel==='function'){
-  window.v313ReportScopeLabel=function(p=globalThis.TradingResearchPlanReadContract.current()){
+const trReportScopeLabelContract=globalThis.TradingResearchReportScopeLabelContract;
+let trReportScopeLabel=trReportScopeLabelContract.current();
+if(typeof trReportScopeLabel==='function'){
+  trReportScopeLabel=function(p=globalThis.TradingResearchPlanReadContract.current()){
     const s=reportsViewState.scope;
     if(s==='last20')return 'Últimas 20 operaciones';
     if(s==='last50')return 'Últimas 50 operaciones';
@@ -61,7 +63,7 @@ if(typeof window.v313ReportScopeLabel==='function'){
     if(s==='date')return `${reportsViewState.dateFrom||'inicio'} → ${reportsViewState.dateTo||'fin'}`;
     return 'Trading Plan completo';
   };
-  try{v313ReportScopeLabel=window.v313ReportScopeLabel;}catch(_){/* global binding already resolves through window */}
+  trReportScopeLabelContract.replace(trReportScopeLabel);
 }
 
 if(typeof window.v313ScopeControls==='function'){
@@ -88,7 +90,7 @@ if(typeof window.v313ReportDocument==='function'){
   window.v313ReportDocument=function(){
     const p=globalThis.TradingResearchPlanReadContract.current();
     const ops=v313ReportOps(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections,title=reportsViewState.title.trim()||`Informe · ${globalThis.TradingResearchPlanReadContract.label(p)}`;
-    return `<article class="report-document"><header class="report-doc-head"><div><small>Trading Research · informe dinámico</small><h2>${globalThis.TradingResearchContentEncodingContract.html(title)}</h2><p>${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))} · ${globalThis.TradingResearchContentEncodingContract.html(v313ReportScopeLabel(p))} · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchReportsPresentationContract.describeOperationDateRange(ops))}</p></div><div><strong>${globalThis.TradingResearchReportsPresentationContract.formatUnitLabel(reportsViewState.unit)}</strong><span>${reportsViewState.basis==='net'?'Neto':'Bruto'}</span></div></header>${!ops.length?'<div class="card empty">El alcance seleccionado no contiene operaciones.</div>':''}${sec.summary?globalThis.TradingResearchReportsSectionPresentationContract.summary(p,ops,s):''}${sec.confidence?globalThis.TradingResearchReportsSectionPresentationContract.confidence(ops,s):''}${sec.process?globalThis.TradingResearchReportsSectionPresentationContract.process(p,ops):''}${sec.quality?globalThis.TradingResearchReportsSectionPresentationContract.quality(p,ops):''}${sec.breakdowns?globalThis.TradingResearchReportsSectionPresentationContract.breakdowns(ops):''}${sec.reviewsGoals?v313ReportReviewsGoals(p):''}<div class="notice report-method"><strong>Lectura:</strong> este informe recalcula métricas sobre el dataset actual. Expectancy, diferencias entre grupos y asociaciones con errores describen la muestra; no demuestran causalidad ni garantizan rendimiento futuro.</div></article>`;
+    return `<article class="report-document"><header class="report-doc-head"><div><small>Trading Research · informe dinámico</small><h2>${globalThis.TradingResearchContentEncodingContract.html(title)}</h2><p>${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))} · ${globalThis.TradingResearchContentEncodingContract.html(trReportScopeLabel(p))} · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchReportsPresentationContract.describeOperationDateRange(ops))}</p></div><div><strong>${globalThis.TradingResearchReportsPresentationContract.formatUnitLabel(reportsViewState.unit)}</strong><span>${reportsViewState.basis==='net'?'Neto':'Bruto'}</span></div></header>${!ops.length?'<div class="card empty">El alcance seleccionado no contiene operaciones.</div>':''}${sec.summary?globalThis.TradingResearchReportsSectionPresentationContract.summary(p,ops,s):''}${sec.confidence?globalThis.TradingResearchReportsSectionPresentationContract.confidence(ops,s):''}${sec.process?globalThis.TradingResearchReportsSectionPresentationContract.process(p,ops):''}${sec.quality?globalThis.TradingResearchReportsSectionPresentationContract.quality(p,ops):''}${sec.breakdowns?globalThis.TradingResearchReportsSectionPresentationContract.breakdowns(ops):''}${sec.reviewsGoals?v313ReportReviewsGoals(p):''}<div class="notice report-method"><strong>Lectura:</strong> este informe recalcula métricas sobre el dataset actual. Expectancy, diferencias entre grupos y asociaciones con errores describen la muestra; no demuestran causalidad ni garantizan rendimiento futuro.</div></article>`;
   };
   try{v313ReportDocument=window.v313ReportDocument;}catch(_){/* classic script global */}
 }

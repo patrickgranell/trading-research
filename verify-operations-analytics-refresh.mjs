@@ -37,8 +37,10 @@ need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
   'El build transform no publica Operations Analytics Refresh Contract.');
 need(bundledAppStage.includes("current:()=>refreshOpsAnalytics"),
   'Operations Analytics Refresh Contract no captura el binding actual de refreshOpsAnalytics.');
-need(bundledAppStage.includes("replace:fn=>{refreshOpsAnalytics=fn;window.refreshOpsAnalytics=fn;}"),
-  'Operations Analytics Refresh Contract no reemplaza de forma compatible binding + mirror window.');
+need(bundledAppStage.includes("replace:fn=>{refreshOpsAnalytics=fn;}"),
+  'Operations Analytics Refresh Contract no reemplaza el binding clásico de refreshOpsAnalytics.');
+need(!bundledAppStage.includes('window.refreshOpsAnalytics=fn'),
+  'Operations Analytics Refresh Contract reintroduce un mirror window redundante.');
 need(structural.includes(`const trOpsAnalyticsRefreshContract=globalThis.${CONTRACT};`),
   'structural-runtime.js no resuelve Operations Analytics Refresh Contract.');
 need(structural.includes('const trRefreshOpsAnalyticsBase=trOpsAnalyticsRefreshContract.current();'),
@@ -59,5 +61,6 @@ console.log('Operations Analytics Refresh verification OK');
 console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
 console.log(' - app.js source refresh implementation: preserved');
 console.log(' - build-only contract: current/replace compatibility boundary');
+console.log(' - redundant window mirror: absent');
 console.log(' - structural analytics instrumentation: contract-bound');
 console.log(' - Batch 20 partial refresh(false) delegation: preserved');

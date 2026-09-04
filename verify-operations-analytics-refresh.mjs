@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
 
+// Batch 22 gate: run on every candidate head so CI validates the exact deployable tree.
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const runtimeFiles=[

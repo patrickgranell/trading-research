@@ -71,3 +71,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - app.js source builder implementation: preserved');
 console.log(' - Reports Purity builder: contract-bound and presentation-only');
 console.log(' - toolbar/presets/report document composition: preserved');
+
+await import('./verify-report-document-presentation.mjs');

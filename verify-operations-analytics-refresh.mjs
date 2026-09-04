@@ -64,3 +64,5 @@ console.log(' - build-only contract: current/replace compatibility boundary');
 console.log(' - redundant window mirror: absent');
 console.log(' - structural analytics instrumentation: contract-bound');
 console.log(' - Batch 20 partial refresh(false) delegation: preserved');
+
+await import('./verify-report-scope-label.mjs');

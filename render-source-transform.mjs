@@ -1,6 +1,6 @@
 const RENDER_ASSIGNMENT=/\brender\s*=\s*function\s*\(\s*\)\s*\{/g;
 const DEAD_RENDER_BASE_ALIAS=/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm;
-const OPERATIONS_ANALYTICS_REFRESH_CONTRACT="\n/* V31.25 · Batch 22 · build-only Operations analytics refresh boundary */\nObject.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract',{value:Object.freeze({current:()=>refreshOpsAnalytics,replace:fn=>{refreshOpsAnalytics=fn;window.refreshOpsAnalytics=fn;}}),writable:false,enumerable:false,configurable:false});\n";
+const OPERATIONS_ANALYTICS_REFRESH_CONTRACT="\n/* V31.25 · Batch 22 · build-only Operations analytics refresh boundary */\nObject.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract',{value:Object.freeze({current:()=>refreshOpsAnalytics,replace:fn=>{refreshOpsAnalytics=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;

@@ -1,15 +1,48 @@
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 
 const app=fs.readFileSync('app.js','utf8');
+const structural=fs.readFileSync('structural-runtime.js','utf8');
+const classicVerifierPath='verify-classic-global-debt.mjs';
+const composedVerifierPath='.verify-classic-global-debt-batch20.tmp.mjs';
 const runtimeFiles=[
   'style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js',
   'persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js',
   'cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js',
   'style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'
 ];
-const structural=fs.readFileSync('structural-runtime.js','utf8');
 const MAX_RUNTIME_NAME_OVERLAP=192;
 const EXPECTED_FILTERED_OPS="function filteredOps(){const base=baseFilteredOps();const out=opsViewState.riskPolicy==='plan'?applyRiskManagementRules(base).included:base;return [...out].sort((a,b)=>v3194CompareOps(b,a));}";
+
+function replaceExactlyOnce(source,from,to,label){
+  const first=source.indexOf(from),last=source.lastIndexOf(from);
+  if(first<0||first!==last)throw new Error(`${label}: se esperaba exactamente una coincidencia.`);
+  return source.slice(0,first)+to+source.slice(first+from.length);
+}
+
+let classic=fs.readFileSync(classicVerifierPath,'utf8');
+classic=replaceExactlyOnce(
+  classic,
+  'const MAX_RUNTIME_NAME_OVERLAP=193;',
+  'const MAX_RUNTIME_NAME_OVERLAP=192;',
+  'Classic overlap ceiling'
+);
+classic=replaceExactlyOnce(
+  classic,
+  "  need(operationsPresentationSrc.includes(`globalThis.${OPERATIONS_PRESENTATION_CONTRACT}.analytics(filteredOps())`),\n    `${OPERATIONS_PRESENTATION_CONSUMER} no consume directamente ${OPERATIONS_PRESENTATION_CONTRACT}.analytics(filteredOps()).`);",
+  "  need(operationsPresentationSrc.includes('trRefreshOpsAnalyticsBase(false);'),\n    `${OPERATIONS_PRESENTATION_CONSUMER} no delega analytics mediante trRefreshOpsAnalyticsBase(false).`);",
+  'Operations Presentation analytics expectation'
+);
+
+let classicStatus=1;
+try{
+  fs.writeFileSync(composedVerifierPath,classic,'utf8');
+  const run=spawnSync(process.execPath,[composedVerifierPath],{stdio:'inherit'});
+  classicStatus=Number.isInteger(run.status)?run.status:1;
+}finally{
+  try{fs.unlinkSync(composedVerifierPath);}catch{}
+}
+if(classicStatus!==0)process.exit(classicStatus);
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -45,3 +78,4 @@ console.log('Operations Filter Read verification OK');
 console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
 console.log(' - filteredOps implementation: preserved');
 console.log(' - structural partial analytics: delegated through captured refresh boundary');
+console.log(' - historical Classic Global Debt checks: composed and preserved');

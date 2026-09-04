@@ -1,3 +1,4 @@
+import './audit-overlap-ranking.mjs';
 import fs from 'node:fs';
 import {spawnSync} from 'node:child_process';
 

@@ -1,6 +1,7 @@
 const RENDER_ASSIGNMENT=/\brender\s*=\s*function\s*\(\s*\)\s*\{/g;
 const DEAD_RENDER_BASE_ALIAS=/^const renderV(?:21|30|312|313|314)Base=render;\s*$/gm;
 const OPERATIONS_ANALYTICS_REFRESH_CONTRACT="\n/* V31.25 · Batch 22 · build-only Operations analytics refresh boundary */\nObject.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract',{value:Object.freeze({current:()=>refreshOpsAnalytics,replace:fn=>{refreshOpsAnalytics=fn;}}),writable:false,enumerable:false,configurable:false});\n";
+const REPORT_SCOPE_LABEL_CONTRACT="\n/* V31.25 · Batch 23 · build-only Report scope-label presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchReportScopeLabelContract',{value:Object.freeze({current:()=>v313ReportScopeLabel,replace:fn=>{v313ReportScopeLabel=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -66,6 +67,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(remaining!==0)throw new Error(`Legacy render consolidation incomplete: ${remaining} assignment(s) remain.`);
   const aliases=pruneDeadRenderAliases(out,{expected:5});out=aliases.source;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract'"))out+=OPERATIONS_ANALYTICS_REFRESH_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportScopeLabelContract'"))out+=REPORT_SCOPE_LABEL_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

@@ -88,13 +88,15 @@ if(typeof window.v313ReportReviewsGoals==='function'){
   try{v313ReportReviewsGoals=window.v313ReportReviewsGoals;}catch(_){/* classic script global */}
 }
 
-if(typeof window.v313ReportDocument==='function'){
-  window.v313ReportDocument=function(){
+const trReportDocumentContract=globalThis.TradingResearchReportDocumentContract;
+let trReportDocument=trReportDocumentContract.current();
+if(typeof trReportDocument==='function'){
+  trReportDocument=function(){
     const p=globalThis.TradingResearchPlanReadContract.current();
     const ops=v313ReportOps(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections,title=reportsViewState.title.trim()||`Informe · ${globalThis.TradingResearchPlanReadContract.label(p)}`;
     return `<article class="report-document"><header class="report-doc-head"><div><small>Trading Research · informe dinámico</small><h2>${globalThis.TradingResearchContentEncodingContract.html(title)}</h2><p>${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))} · ${globalThis.TradingResearchContentEncodingContract.html(trReportScopeLabel(p))} · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchReportsPresentationContract.describeOperationDateRange(ops))}</p></div><div><strong>${globalThis.TradingResearchReportsPresentationContract.formatUnitLabel(reportsViewState.unit)}</strong><span>${reportsViewState.basis==='net'?'Neto':'Bruto'}</span></div></header>${!ops.length?'<div class="card empty">El alcance seleccionado no contiene operaciones.</div>':''}${sec.summary?globalThis.TradingResearchReportsSectionPresentationContract.summary(p,ops,s):''}${sec.confidence?globalThis.TradingResearchReportsSectionPresentationContract.confidence(ops,s):''}${sec.process?globalThis.TradingResearchReportsSectionPresentationContract.process(p,ops):''}${sec.quality?globalThis.TradingResearchReportsSectionPresentationContract.quality(p,ops):''}${sec.breakdowns?globalThis.TradingResearchReportsSectionPresentationContract.breakdowns(ops):''}${sec.reviewsGoals?v313ReportReviewsGoals(p):''}<div class="notice report-method"><strong>Lectura:</strong> este informe recalcula métricas sobre el dataset actual. Expectancy, diferencias entre grupos y asociaciones con errores describen la muestra; no demuestran causalidad ni garantizan rendimiento futuro.</div></article>`;
   };
-  try{v313ReportDocument=window.v313ReportDocument;}catch(_){/* classic script global */}
+  trReportDocumentContract.replace(trReportDocument);
 }
 
 const trReportBuilderViewContract=globalThis.TradingResearchReportBuilderViewContract;
@@ -104,7 +106,7 @@ if(typeof trReportBuilderView==='function'){
     const p=globalThis.TradingResearchPlanReadContract.current(),presets=trReportNormalizedPresets(p);
     const toolbar=`<div class="report-builder-toolbar"><label class="filter-field wide"><span>Título del informe</span><input class="input" value="${globalThis.TradingResearchContentEncodingContract.html(reportsViewState.title)}" placeholder="Informe · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))}" data-tr-onchange="v313SetReportField('title',this.value)"></label>${trReportScopeControls(p)}<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.unit===v?'active':''}" data-tr-onclick="v313SetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.basis===v?'active':''}" data-tr-onclick="v313SetBasis('${v}')">${l}</button>`).join('')}</div>${globalThis.TradingResearchReportsSectionPresentationContract.controls()}<div class="report-actions"><button class="btn" data-tr-onclick="v313SavePresetPrompt()">Guardar plantilla</button><button class="btn" data-tr-onclick="v313PrintReport()">Imprimir / PDF</button></div></div>`;
     const presetPanel=`<section class="card panel report-presets"><div class="panel-title"><div><h3>Plantillas guardadas</h3><small>Guardan la definición del informe, no congelan las operaciones.</small></div><span>${presets.length}</span></div>${presets.length?`<div class="report-preset-list">${presets.map(x=>`<div class="config-row"><div class="config-main"><strong>${globalThis.TradingResearchContentEncodingContract.html(x.name)}</strong><small>${globalThis.TradingResearchContentEncodingContract.html(x.config?.scope||'full')} · ${String(x.config?.unit||'r').toUpperCase()} · ${x.config?.basis==='gross'?'Bruto':'Neto'}</small></div><div><button class="btn small" data-tr-onclick="v313LoadPreset('${x.id}')">Cargar</button> <button class="btn small danger" data-tr-onclick="v313DeletePreset('${x.id}')">Eliminar</button></div></div>`).join('')}</div>`:'<div class="empty compact-empty">Todavía no hay plantillas guardadas.</div>'}</section>`;
-    return `${toolbar}${presetPanel}${v313ReportDocument()}`;
+    return `${toolbar}${presetPanel}${trReportDocument()}`;
   };
   trReportBuilderViewContract.replace(trReportBuilderView);
 }

@@ -69,3 +69,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - app.js source scope-controls implementation: preserved');
 console.log(' - Reports Purity scope controls: contract-bound and read-only');
 console.log(' - full/last20/last50/last100/month/block/study/date options: preserved');
+
+await import('./verify-report-builder-view.mjs');

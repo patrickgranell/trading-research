@@ -11,7 +11,7 @@ const runtimeFiles=[
 ];
 
 const MAX_TOP_LEVEL_UNIQUE=1431;
-const MAX_RUNTIME_NAME_OVERLAP=194;
+const MAX_RUNTIME_NAME_OVERLAP=193;
 const PLAN_READ_CONTRACT='TradingResearchPlanReadContract';
 const PLAN_READ_LEGACY=['getPlan','getCurrentPlan','planLabel'];
 const PLAN_READ_CONSUMERS=[
@@ -93,6 +93,10 @@ const OPERATION_CHECKLIST_PRESENTATION_CONSUMER='structural-runtime.js';
 const RUNNING_CHART_PRESENTATION_CONTRACT='TradingResearchRunningChartPresentationContract';
 const RUNNING_CHART_PRESENTATION_LEGACY=['v315RenderChart'];
 const RUNNING_CHART_PRESENTATION_CONSUMER='structural-runtime.js';
+
+const THEME_READ_CONTRACT='TradingResearchThemeReadContract';
+const THEME_READ_LEGACY=['appTheme'];
+const THEME_READ_CONSUMERS=['structural-runtime.js','state-runtime.js'];
 
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
@@ -752,6 +756,33 @@ if(classicTag&&!moduleTag){
   need(unexpectedRunningChartConsumers.length===0,
     `Consumidores inesperados del contrato Running Chart Presentation: ${unexpectedRunningChartConsumers.join(', ')}.`);
 
+
+  need(app.includes(`Object.defineProperty(globalThis,'${THEME_READ_CONTRACT}'`),
+    'Falta el contrato explícito de lectura del tema en app.js.');
+  need(app.includes('current:()=>appTheme'),
+    'El contrato Theme Read no publica exactamente current:()=>appTheme.');
+
+  for(const name of THEME_READ_LEGACY){
+    need(!runtimeTokens.has(name),
+      `El runtime todavía consume el binding clásico ${name} directamente.`);
+  }
+
+  const themePresentationSrc=runtimeSources.get('structural-runtime.js')||'';
+  need(themePresentationSrc.includes(`const theme=globalThis.${THEME_READ_CONTRACT}.current();`),
+    `structural-runtime.js no lee el tema mediante ${THEME_READ_CONTRACT}.current().`);
+  need(themePresentationSrc.includes("active=isDark?theme==='dark':theme==='light'"),
+    'structural-runtime.js no usa la lectura contractual del tema para sincronizar los botones.');
+
+  const themeStateSrc=runtimeSources.get('state-runtime.js')||'';
+  need(themeStateSrc.includes(`theme:globalThis.${THEME_READ_CONTRACT}.current()`),
+    `state-runtime.js no usa ${THEME_READ_CONTRACT}.current() en el snapshot UI.`);
+
+  const unexpectedThemeReadConsumers=runtimeFiles.filter(file=>
+    !THEME_READ_CONSUMERS.includes(file)&&(runtimeSources.get(file)||'').includes(`globalThis.${THEME_READ_CONTRACT}.`)
+  );
+  need(unexpectedThemeReadConsumers.length===0,
+    `Consumidores inesperados del contrato Theme Read: ${unexpectedThemeReadConsumers.join(', ')}.`);
+
 }
 
 if(fail.length){
@@ -783,6 +814,7 @@ if(classicTag&&!moduleTag){
   console.log(` - explicit navigation-runtime-state contract: ${NAVIGATION_RUNTIME_STATE_LEGACY.length} legacy bindings removed from ${NAVIGATION_RUNTIME_STATE_CONSUMER}`);
   console.log(` - explicit operation-checklist-presentation contract: ${OPERATION_CHECKLIST_PRESENTATION_LEGACY.length} legacy binding removed from ${OPERATION_CHECKLIST_PRESENTATION_CONSUMER}`);
   console.log(` - explicit running-chart-presentation contract: ${RUNNING_CHART_PRESENTATION_LEGACY.length} legacy binding removed from ${RUNNING_CHART_PRESENTATION_CONSUMER}`);
+  console.log(` - explicit theme-read contract: ${THEME_READ_LEGACY.length} legacy binding removed across ${THEME_READ_CONSUMERS.length} runtimes`);
   console.log(' - policy: counts may decrease; any growth fails CI');
   console.log(' - security note: Event Runtime does not resolve actions through globalThis');
 }else if(moduleTag){

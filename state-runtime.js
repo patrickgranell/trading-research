@@ -371,7 +371,7 @@ let trUiLastError='';
 const trUiSubscribers=new Set();
 function trUiClone(v){try{return JSON.parse(JSON.stringify(v));}catch{return null;}}
 function trUiSnapshot(){
-  const out={navigation:{currentView:typeof currentView!=='undefined'?currentView:'',configTab:typeof configTab!=='undefined'?configTab:'',theme:typeof appTheme!=='undefined'?appTheme:''}};
+  const out={navigation:{currentView:typeof currentView!=='undefined'?currentView:'',configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
   if(typeof opsViewState!=='undefined')out.operations=trUiClone(opsViewState);
   if(typeof journalViewState!=='undefined')out.journal=trUiClone(journalViewState);
   if(typeof blockViewState!=='undefined')out.blocks=trUiClone(blockViewState);

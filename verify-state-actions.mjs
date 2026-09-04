@@ -26,6 +26,19 @@ for(const name of ['navigate','setConfigTab','saveOperationFromForm','openOperat
   need(transformed?.source.includes(`trStateActionPublish('${name}'`),`Falta publicación registry-aware de ${name}.`);
 }
 need(transformed?.source.includes("trAssignDomainWrappedGlobal('saveInstrument',commandAware);"),'saveInstrument no vuelve a publicarse mediante el helper registry-aware.');
+const resetParityResolve="const trOperationsResetParityBase=trStateActionResolve('resetOpsFilters');";
+const resetParityWrapper="const trOperationsResetParity=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};";
+const resetParityPublish="trStateActionPublish('resetOpsFilters',trOperationsResetParity);";
+const resetWrapAnchor="['resetOpsFilters','operations.reset']";
+const resetResolveIndex=transformed?.source.indexOf(resetParityResolve)??-1;
+const resetWrapperIndex=transformed?.source.indexOf(resetParityWrapper)??-1;
+const resetPublishIndex=transformed?.source.indexOf(resetParityPublish)??-1;
+const resetWrapIndex=transformed?.source.indexOf(resetWrapAnchor)??-1;
+need(resetResolveIndex>=0,'Operations reset parity no captura el binding efectivo mediante registry-first.');
+need(resetWrapperIndex>=0,'Operations reset parity no restaura Gestión de riesgo a raw antes del reset legacy.');
+need(resetPublishIndex>=0,'Operations reset parity no publica el wrapper corregido en TradingResearchActions.');
+need(resetWrapIndex>=0&&resetResolveIndex<resetWrapperIndex&&resetWrapperIndex<resetPublishIndex&&resetPublishIndex<resetWrapIndex,
+  'Operations reset parity no queda publicada en el Action Registry antes del wrapper de UI.');
 need(events.includes("const trActionRegistry=(window.TradingResearchActions"),'Event Runtime no reutiliza el mismo TradingResearchActions.');
 need(events.includes("Object.prototype.hasOwnProperty.call(trActionRegistry,name)"),'Event Runtime no resuelve registry-first.');
 need(build.includes("transformStateActions(stateSource)"),'build.mjs no aplica el State Action Bridge.');
@@ -39,3 +52,4 @@ console.log(` - Direct cross-runtime window reads after transform: ${inv.crossRu
 console.log(` - State action inventory: ${inv.targetActions}`);
 console.log(' - Resolution order: TradingResearchActions -> legacy window fallback');
 console.log(' - Publication during transition: TradingResearchActions + window mirror');
+console.log(' - Operations reset parity: effective registry binding -> raw before UI wrapping');

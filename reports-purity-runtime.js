@@ -66,8 +66,10 @@ if(typeof trReportScopeLabel==='function'){
   trReportScopeLabelContract.replace(trReportScopeLabel);
 }
 
-if(typeof window.v313ScopeControls==='function'){
-  window.v313ScopeControls=function(p){
+const trReportScopeControlsContract=globalThis.TradingResearchReportScopeControlsContract;
+let trReportScopeControls=trReportScopeControlsContract.current();
+if(typeof trReportScopeControls==='function'){
+  trReportScopeControls=function(p){
     const blocks=Math.max(1,Math.ceil(globalThis.TradingResearchOperationsReadContract.current().length/20));
     let extra='';
     if(reportsViewState.scope==='block')extra=`<label class="filter-field"><span>Bloque</span><select class="select" data-tr-onchange="v313SetReportField('block',this.value)">${Array.from({length:blocks},(_,i)=>String(i+1)).map(v=>`<option value="${v}" ${String(reportsViewState.block)===v?'selected':''}>B${String(v).padStart(2,'0')}</option>`).join('')}</select></label>`;
@@ -75,7 +77,7 @@ if(typeof window.v313ScopeControls==='function'){
     if(reportsViewState.scope==='study')extra=`<label class="filter-field wide"><span>Estudio guardado</span><select class="select" data-tr-onchange="v313SetReportField('studyId',this.value)"><option value="">Seleccionar…</option>${trReportSavedStudies(p).map(s=>`<option value="${globalThis.TradingResearchContentEncodingContract.html(s.id)}" ${s.id===reportsViewState.studyId?'selected':''}>${globalThis.TradingResearchContentEncodingContract.html(s.name)}</option>`).join('')}</select></label>`;
     return `<div class="report-scope-grid"><label class="filter-field"><span>Alcance</span><select class="select" data-tr-onchange="v313SetScope(this.value)">${[['full','Plan completo'],['last20','Últimas 20'],['last50','Últimas 50'],['last100','Últimas 100'],['month','Mes actual'],['block','Bloque'],['study','Estudio guardado'],['date','Rango de fechas']].map(([v,l])=>`<option value="${v}" ${reportsViewState.scope===v?'selected':''}>${l}</option>`).join('')}</select></label>${extra}</div>`;
   };
-  try{v313ScopeControls=window.v313ScopeControls;}catch(_){/* classic script global */}
+  trReportScopeControlsContract.replace(trReportScopeControls);
 }
 
 if(typeof window.v313ReportReviewsGoals==='function'){
@@ -98,7 +100,7 @@ if(typeof window.v313ReportDocument==='function'){
 if(typeof window.v313BuilderView==='function'){
   window.v313BuilderView=function(){
     const p=globalThis.TradingResearchPlanReadContract.current(),presets=trReportNormalizedPresets(p);
-    const toolbar=`<div class="report-builder-toolbar"><label class="filter-field wide"><span>Título del informe</span><input class="input" value="${globalThis.TradingResearchContentEncodingContract.html(reportsViewState.title)}" placeholder="Informe · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))}" data-tr-onchange="v313SetReportField('title',this.value)"></label>${v313ScopeControls(p)}<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.unit===v?'active':''}" data-tr-onclick="v313SetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.basis===v?'active':''}" data-tr-onclick="v313SetBasis('${v}')">${l}</button>`).join('')}</div>${globalThis.TradingResearchReportsSectionPresentationContract.controls()}<div class="report-actions"><button class="btn" data-tr-onclick="v313SavePresetPrompt()">Guardar plantilla</button><button class="btn" data-tr-onclick="v313PrintReport()">Imprimir / PDF</button></div></div>`;
+    const toolbar=`<div class="report-builder-toolbar"><label class="filter-field wide"><span>Título del informe</span><input class="input" value="${globalThis.TradingResearchContentEncodingContract.html(reportsViewState.title)}" placeholder="Informe · ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchPlanReadContract.label(p))}" data-tr-onchange="v313SetReportField('title',this.value)"></label>${trReportScopeControls(p)}<div class="metric-switch"><span>Unidad</span>${[['r','R'],['ticks','Ticks'],['usd','US$']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.unit===v?'active':''}" data-tr-onclick="v313SetUnit('${v}')">${l}</button>`).join('')}<i></i><span>Base</span>${[['gross','Bruto'],['net','Neto']].map(([v,l])=>`<button class="seg-btn ${reportsViewState.basis===v?'active':''}" data-tr-onclick="v313SetBasis('${v}')">${l}</button>`).join('')}</div>${globalThis.TradingResearchReportsSectionPresentationContract.controls()}<div class="report-actions"><button class="btn" data-tr-onclick="v313SavePresetPrompt()">Guardar plantilla</button><button class="btn" data-tr-onclick="v313PrintReport()">Imprimir / PDF</button></div></div>`;
     const presetPanel=`<section class="card panel report-presets"><div class="panel-title"><div><h3>Plantillas guardadas</h3><small>Guardan la definición del informe, no congelan las operaciones.</small></div><span>${presets.length}</span></div>${presets.length?`<div class="report-preset-list">${presets.map(x=>`<div class="config-row"><div class="config-main"><strong>${globalThis.TradingResearchContentEncodingContract.html(x.name)}</strong><small>${globalThis.TradingResearchContentEncodingContract.html(x.config?.scope||'full')} · ${String(x.config?.unit||'r').toUpperCase()} · ${x.config?.basis==='gross'?'Bruto':'Neto'}</small></div><div><button class="btn small" data-tr-onclick="v313LoadPreset('${x.id}')">Cargar</button> <button class="btn small danger" data-tr-onclick="v313DeletePreset('${x.id}')">Eliminar</button></div></div>`).join('')}</div>`:'<div class="empty compact-empty">Todavía no hay plantillas guardadas.</div>'}</section>`;
     return `${toolbar}${presetPanel}${v313ReportDocument()}`;
   };

@@ -46,7 +46,7 @@ export function transformStateActions(source){
   out=replaceExact(out,anchor,anchor+'\n'+bridgePrelude(),1,'runtime label anchor');
 
   const resetWrapAnchor="[\n  ['setOpsUnit','operations.unit'],";
-  const resetParity="const trOperationsResetParityBase=resetOpsFilters;\nresetOpsFilters=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};\n";
+  const resetParity="const trOperationsResetParityBase=trStateActionResolve('resetOpsFilters');\nconst trOperationsResetParity=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};\ntrStateActionPublish('resetOpsFilters',trOperationsResetParity);\n";
   out=replaceExact(out,resetWrapAnchor,resetParity+resetWrapAnchor,1,'operations reset parity anchor');
 
   out=replaceExact(out,'const base=window[name];','const base=trStateActionResolve(name);',4,'generic wrapper reads');

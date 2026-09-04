@@ -60,8 +60,11 @@ need(overlap.length<=MAX_RUNTIME_NAME_OVERLAP,
   `El solapamiento app/runtime de Batch 20 no cerró: ${overlap.length} > ${MAX_RUNTIME_NAME_OVERLAP}.`);
 need(!/\bfilteredOps\b/.test(structural),
   'structural-runtime.js todavía consume filteredOps directamente.');
-need(structural.includes('const trRefreshOpsAnalyticsBase=refreshOpsAnalytics;'),
-  'Falta el boundary capturado refreshOpsAnalytics usado por el runtime estructural.');
+need(
+  structural.includes('const trRefreshOpsAnalyticsBase=refreshOpsAnalytics;')||
+  structural.includes('const trRefreshOpsAnalyticsBase=trOpsAnalyticsRefreshContract.current();'),
+  'Falta el boundary capturado refreshOpsAnalytics usado por el runtime estructural.'
+);
 need(structural.includes('trRefreshOpsAnalyticsBase(false);'),
   'El partial render de Operaciones no delega analytics en trRefreshOpsAnalyticsBase(false).');
 need(!structural.includes('TradingResearchOperationsPresentationContract.analytics(filteredOps())'),
@@ -79,3 +82,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - filteredOps implementation: preserved');
 console.log(' - structural partial analytics: delegated through captured refresh boundary');
 console.log(' - historical Classic Global Debt checks: composed and preserved');
+
+await import('./verify-operations-analytics-refresh.mjs');

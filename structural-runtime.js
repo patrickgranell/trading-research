@@ -349,9 +349,9 @@ function trPartialPrepareCurrentView(view=document.getElementById('view')){
 }
 
 /* Count the partial analytics path that V5 already had, so diagnostics measure real DOM work. */
-const trRefreshOpsAnalyticsBase=refreshOpsAnalytics;
-refreshOpsAnalytics=function(read=true){const before=document.getElementById('opsAnalyticsArea');const out=trRefreshOpsAnalyticsBase(read);if(currentView==='operations'&&before)trPartialRecord('operations.analytics');return out;};
-window.refreshOpsAnalytics=refreshOpsAnalytics;
+const trOpsAnalyticsRefreshContract=globalThis.TradingResearchOperationsAnalyticsRefreshContract;
+const trRefreshOpsAnalyticsBase=trOpsAnalyticsRefreshContract.current();
+trOpsAnalyticsRefreshContract.replace(function(read=true){const before=document.getElementById('opsAnalyticsArea');const out=trRefreshOpsAnalyticsBase(read);if(currentView==='operations'&&before)trPartialRecord('operations.analytics');return out;});
 
 /* Cursor movement must never replace its own range input while the user is dragging it. */
 const trV315SetCursorBase=v315SetCursor;

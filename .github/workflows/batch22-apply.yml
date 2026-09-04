@@ -1,0 +1,58 @@
+name: Batch22 Exact Patch
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch22-operations-analytics-refresh
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[batch22-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch22-operations-analytics-refresh
+          fetch-depth: 0
+      - name: Apply exact Batch 22 replacements
+        shell: python
+        run: |
+          from pathlib import Path
+
+          structural = Path('structural-runtime.js')
+          src = structural.read_text()
+          old = """const trRefreshOpsAnalyticsBase=refreshOpsAnalytics;
+          refreshOpsAnalytics=function(read=true){const before=document.getElementById('opsAnalyticsArea');const out=trRefreshOpsAnalyticsBase(read);if(currentView==='operations'&&before)trPartialRecord('operations.analytics');return out;};
+          window.refreshOpsAnalytics=refreshOpsAnalytics;"""
+          new = """const trOpsAnalyticsRefreshContract=globalThis.TradingResearchOperationsAnalyticsRefreshContract;
+          const trRefreshOpsAnalyticsBase=trOpsAnalyticsRefreshContract.current();
+          trOpsAnalyticsRefreshContract.replace(function(read=true){const before=document.getElementById('opsAnalyticsArea');const out=trRefreshOpsAnalyticsBase(read);if(currentView==='operations'&&before)trPartialRecord('operations.analytics');return out;});"""
+          if src.count(old) != 1:
+              raise SystemExit(f'structural replacement expected once, found {src.count(old)}')
+          structural.write_text(src.replace(old,new,1))
+
+          transform = Path('render-source-transform.mjs')
+          src = transform.read_text()
+          anchor = "const DEAD_RENDER_BASE_ALIAS=/^const renderV(?:21|30|312|313|314)Base=render;\\s*$/gm;\n"
+          contract = "const OPERATIONS_ANALYTICS_REFRESH_CONTRACT=\"\\n/* V31.25 · Batch 22 · build-only Operations analytics refresh boundary */\\nObject.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract',{value:Object.freeze({current:()=>refreshOpsAnalytics,replace:fn=>{refreshOpsAnalytics=fn;window.refreshOpsAnalytics=fn;}}),writable:false,enumerable:false,configurable:false});\\n\";\n"
+          if src.count(anchor) != 1:
+              raise SystemExit(f'transform anchor expected once, found {src.count(anchor)}')
+          src = src.replace(anchor,anchor+contract,1)
+          tail = "  const aliases=pruneDeadRenderAliases(out,{expected:5});out=aliases.source;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"
+          replacement = "  const aliases=pruneDeadRenderAliases(out,{expected:5});out=aliases.source;\n  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchOperationsAnalyticsRefreshContract'\"))out+=OPERATIONS_ANALYTICS_REFRESH_CONTRACT;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"
+          if src.count(tail) != 1:
+              raise SystemExit(f'transform tail expected once, found {src.count(tail)}')
+          transform.write_text(src.replace(tail,replacement,1))
+
+          Path('.github/workflows/batch22-apply.yml').unlink()
+      - name: Commit exact patch
+        run: |
+          git config user.name "patrickgranell"
+          git config user.email "patrickgranelltrading@gmail.com"
+          git add structural-runtime.js render-source-transform.mjs .github/workflows/batch22-apply.yml
+          git diff --cached --check
+          git commit -m "fix: contract-bind operations analytics refresh [batch22-patched]"
+          git push origin HEAD:v31.25-classic-contracts-batch22-operations-analytics-refresh

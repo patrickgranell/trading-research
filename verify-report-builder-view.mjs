@@ -58,8 +58,11 @@ need(reports.includes("data-tr-onclick=\"v313SavePresetPrompt()\""),
   'Se perdió la acción Guardar plantilla del builder.');
 need(reports.includes("data-tr-onclick=\"v313PrintReport()\""),
   'Se perdió la acción Imprimir / PDF del builder.');
-need(reports.includes('return `${toolbar}${presetPanel}${v313ReportDocument()}`;'),
-  'El builder dejó de ensamblar toolbar + presets + documento con la semántica existente.');
+need(
+  reports.includes('return `${toolbar}${presetPanel}${v313ReportDocument()}`;')||
+  reports.includes('return `${toolbar}${presetPanel}${trReportDocument()}`;'),
+  'El builder dejó de ensamblar toolbar + presets + documento con la semántica existente.'
+);
 
 if(fail.length){
   console.error('Report Builder View verification FAILED');
@@ -71,3 +74,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - app.js source builder implementation: preserved');
 console.log(' - Reports Purity builder: contract-bound and presentation-only');
 console.log(' - toolbar/presets/report document composition: preserved');
+
+await import('./verify-report-document-presentation.mjs');

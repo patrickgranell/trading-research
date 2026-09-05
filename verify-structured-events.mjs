@@ -55,9 +55,13 @@ if(compiled){
     setTimeout(){},
     Element:class {},
     document:{addEventListener(){},querySelector(){return null;},querySelectorAll(){return [];},documentElement:{classList:{add(){},remove(){}}}},
-    dataSecurityPanel:undefined,currentView:'',configTab:'',render(){},esc:x=>String(x),v30Ui:{modeExpanded:false},
+    currentView:'',configTab:'',render(){},esc:x=>String(x),v30Ui:{modeExpanded:false},
     pwned:0,received:null
   };
+  let fixtureDataPanel=()=>'';
+  let fixtureModeCard=()=>'';
+  context.TradingResearchDataSecurityPanelContract={current:()=>fixtureDataPanel,replace:fn=>{fixtureDataPanel=fn;}};
+  context.TradingResearchModeCardPresentationContract={current:()=>fixtureModeCard,replace:fn=>{fixtureModeCard=fn;}};
   context.window=context;
   context.PWN=()=>{context.pwned++;};
   context.TradingResearchActions={

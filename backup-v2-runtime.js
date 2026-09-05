@@ -182,7 +182,7 @@ async function trBackupV2Preflight(rawInput){
 
   const counts=raw.manifest.counts||{},actual={
     plans:raw.workspace?.tradingPlans?.length||0,operations:raw.workspace?.operations?.length||0,importBatches:raw.workspace?.importBatches?.length||0,
-    instruments:raw.workspace?.settings?.instruments||[]?raw.workspace.settings.instruments.length:0,imageReferences:rel.expectedImageIds.length,images:images.length,
+    instruments:raw.workspace?.settings?.instruments?.length||0,imageReferences:rel.expectedImageIds.length,images:images.length,
     marketMeta:marketData.marketMeta.length,marketTicks:marketData.marketTicks.length,execSets:marketData.execSets.length
   };
   for(const [k,v] of Object.entries(actual))if(Number(counts[k])!==Number(v))throw new Error(`Manifest count ${k} no coincide (${counts[k]} != ${v}).`);

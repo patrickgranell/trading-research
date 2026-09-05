@@ -48,7 +48,7 @@ function trRenderViewHtml(view=currentView){
     case 'mistakes': return globalThis.TradingResearchViewPresentationContract.mistakes();
     case 'lab': return globalThis.TradingResearchViewPresentationContract.lab();
     case 'review': return globalThis.TradingResearchViewPresentationContract.review();
-    case 'gallery': return gallery();
+    case 'gallery': return globalThis.TradingResearchGalleryViewPresentationContract.render();
     case 'journal': return journal();
     case 'blocks': return blocks();
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();

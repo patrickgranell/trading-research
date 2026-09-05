@@ -160,19 +160,21 @@ trEventInstall();
 window.TradingResearchEvents=Object.freeze({version:TR_EVENT_RUNTIME_VERSION,diagnostics:trEventDiagnostics,audit:trEventAuditDocument,actions:trActionRegistry});
 Object.assign(window,{trEventDiagnostics,trEventAuditDocument});
 
-if(typeof dataSecurityPanel==='function'){
-  const trEventDataSecurityBase=dataSecurityPanel;
-  dataSecurityPanel=function(){
-    const d=trEventDiagnostics();let html=trEventDataSecurityBase();
+const trEventDataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trEventDataBase=trEventDataContract.current();
+if(typeof trEventDataBase==='function'){
+  trEventDataContract.replace(function(){
+    const d=trEventDiagnostics();let html=trEventDataBase();
     html=html.replace('<div><span>Event delegation</span><strong>Parcial / pendiente</strong></div>',`<div><span>Event delegation</span><strong class="${d.ok?'positive':'negative'}">${d.ok?'OK':'Revisar'}</strong></div>`)
       .replace(/V31\.23\.4 conserva la delegación estricta[^<]+/,`V31.24 elimina programas de atributos: el build compila los handlers históricos a action IDs estáticos y valores URI-encoded JSON. El runtime solo resuelve propiedades propias de TradingResearchActions.`);
     const extra=`<section class="card panel config-wide"><div class="panel-title"><div><h3>Delegación de eventos</h3><div class="help">Frontera V31.24: sin parser de código, sin AST cache y sin fallback global. Los datos persistidos solo llegan como argumentos estructurados.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Structured actions</span></div><div class="integrity-kpis"><div><span>Listeners</span><strong>${d.listeners}</strong></div><div><span>Handlers estructurados</span><strong>${d.structuredHandlers}</strong></div><div><span>Programas legacy DOM</span><strong class="${d.legacyProgramHandlers?'negative':'positive'}">${d.legacyProgramHandlers}</strong></div><div><span>Planes compilados</span><strong class="${d.artifactParity?'positive':'negative'}">${d.compiledPlans} / ${d.expectedCompiledPlans}</strong></div><div><span>Build fingerprint</span><strong class="positive">${globalThis.TradingResearchContentEncodingContract.html(d.buildFingerprint)}</strong></div><div><span>Registry</span><strong>${d.actionRegistrySize}</strong></div><div><span>Registry misses</span><strong class="${d.registryMisses?'negative':'positive'}">${d.registryMisses}</strong></div><div><span>Async observados / rejects</span><strong class="${d.asyncRejections?'negative':'positive'}">${d.asyncObserved} / ${d.asyncRejections}</strong></div><div><span>Parser / eval</span><strong class="positive">No / No</strong></div><div><span>Estado</span><strong class="${d.ok?'positive':'negative'}">${d.ok?'OK':'Revisar'}</strong></div></div>${d.lastError?`<div class="notice danger"><strong>Delegación:</strong> ${globalThis.TradingResearchContentEncodingContract.html(d.lastError)}</div>`:''}</section>`;
     return extra+html;
-  };
-  window.dataSecurityPanel=dataSecurityPanel;
+  });
 }
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.24</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_EVENT_APP_LABEL)}</div><div class="help">Structured Event Boundary: action registry propio + argumentos serializados; sin programas en atributos.</div></div></div></div>`;};
-try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=v30ModeCard();}catch(_){}
+const trEventModeContract=globalThis.TradingResearchModeCardPresentationContract;
+const trEventModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.24</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_EVENT_APP_LABEL)}</div><div class="help">Structured Event Boundary: action registry propio + argumentos serializados; sin programas en atributos.</div></div></div></div>`;};
+trEventModeContract.replace(trEventModeCard);
+try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trEventModeCard();}catch(_){}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>render(),0);}catch(_){}
 })();

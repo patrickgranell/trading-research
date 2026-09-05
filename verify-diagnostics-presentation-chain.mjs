@@ -92,3 +92,5 @@ console.log(' - app.js source presentation implementations: preserved');
 console.log(' - Data Security Panel: 8 runtime wrappers contract-bound');
 console.log(' - Mode Card: 7 runtime wrappers contract-bound');
 console.log(' - financial/domain behavior: untouched');
+
+await import('./verify-mode-card-state-read.mjs');

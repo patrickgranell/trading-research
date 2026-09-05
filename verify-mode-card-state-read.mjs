@@ -69,3 +69,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - v30Ui source state + toggle mutation: preserved');
 console.log(' - Mode Card expanded state: 7 runtime readers contract-bound');
 console.log(' - persistence and domain behavior: untouched');
+
+await import('./verify-gallery-view-presentation-v2.mjs');

@@ -7,6 +7,7 @@ const REPORT_BUILDER_VIEW_CONTRACT="\n/* V31.25 · Batch 25 · build-only Report
 const REPORT_DOCUMENT_CONTRACT="\n/* V31.25 · Batch 26 · build-only Report document presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchReportDocumentContract',{value:Object.freeze({current:()=>v313ReportDocument,replace:fn=>{v313ReportDocument=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 const DATA_SECURITY_PANEL_CONTRACT="\n/* V31.25 · Batch 27 · build-only Data Security diagnostics presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchDataSecurityPanelContract',{value:Object.freeze({current:()=>dataSecurityPanel,replace:fn=>{dataSecurityPanel=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 const MODE_CARD_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 27 · build-only Mode Card presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchModeCardPresentationContract',{value:Object.freeze({current:()=>v30ModeCard,replace:fn=>{v30ModeCard=fn;}}),writable:false,enumerable:false,configurable:false});\n";
+const MODE_CARD_STATE_READ_CONTRACT="\n/* V31.25 · Batch 28 · build-only Mode Card state read boundary */\nObject.defineProperty(globalThis,'TradingResearchModeCardStateReadContract',{value:Object.freeze({expanded:()=>!!v30Ui.modeExpanded}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -78,6 +79,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportDocumentContract'"))out+=REPORT_DOCUMENT_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchDataSecurityPanelContract'"))out+=DATA_SECURITY_PANEL_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchModeCardPresentationContract'"))out+=MODE_CARD_PRESENTATION_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchModeCardStateReadContract'"))out+=MODE_CARD_STATE_READ_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

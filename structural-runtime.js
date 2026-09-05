@@ -195,11 +195,14 @@ function trRenderRuntimePanel(){
 }
 
 /* Version card is generated dynamically when the persistent shell mounts once. */
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.13</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(V3112_APP_LABEL)}</div><div class="help">Fase estructural 2B: shell/sidebar persistentes + render parcial en Operaciones y Market Data. La recuperación de borradores y IndexedDB permanecen activas; la lógica financiera continúa congelada.</div></div></div></div>`;};
+const trStructuralModeContract=globalThis.TradingResearchModeCardPresentationContract;
+const trStructuralModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.13</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(V3112_APP_LABEL)}</div><div class="help">Fase estructural 2B: shell/sidebar persistentes + render parcial en Operaciones y Market Data. La recuperación de borradores y IndexedDB permanecen activas; la lógica financiera continúa congelada.</div></div></div></div>`;};
+trStructuralModeContract.replace(trStructuralModeCard);
 
 /* Add render diagnostics to the existing Datos y seguridad view without replacing V31.11 persistence diagnostics. */
-const dataSecurityPanelV3112Base=dataSecurityPanel;
-dataSecurityPanel=function(){return trRenderRuntimePanel()+dataSecurityPanelV3112Base();};
+const trStructuralDataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trStructuralDataBase=trStructuralDataContract.current();
+trStructuralDataContract.replace(function(){return trRenderRuntimePanel()+trStructuralDataBase();});
 
 /* ----- V31.12.1 · Session draft recovery for the operation editor ----- */
 function trDraftControlRecords(form){

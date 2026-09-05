@@ -75,3 +75,5 @@ console.log(` - runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_N
 console.log(' - app.js source document implementation: preserved');
 console.log(' - dataset + canonical metric call: preserved');
 console.log(' - report sections + builder composition: contract-bound');
+
+await import('./verify-diagnostics-presentation-chain.mjs');

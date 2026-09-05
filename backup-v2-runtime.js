@@ -182,7 +182,7 @@ async function trBackupV2Preflight(rawInput){
 
   const counts=raw.manifest.counts||{},actual={
     plans:raw.workspace?.tradingPlans?.length||0,operations:raw.workspace?.operations?.length||0,importBatches:raw.workspace?.importBatches?.length||0,
-    instruments:raw.workspace?.settings?.instruments?.length||0,imageReferences:rel.expectedImageIds.length,images:images.length,
+    instruments:raw.workspace?.settings?.instruments||[]?raw.workspace.settings.instruments.length:0,imageReferences:rel.expectedImageIds.length,images:images.length,
     marketMeta:marketData.marketMeta.length,marketTicks:marketData.marketTicks.length,execSets:marketData.execSets.length
   };
   for(const [k,v] of Object.entries(actual))if(Number(counts[k])!==Number(v))throw new Error(`Manifest count ${k} no coincide (${counts[k]} != ${v}).`);
@@ -391,14 +391,15 @@ if(typeof window!=='undefined'&&window.TradingResearchActions){
   window.TradingResearchActions.importFullBackup=importFullBackup;
 }
 
-const trBackupV2DataSecurityBase=typeof dataSecurityPanel==='function'?dataSecurityPanel:null;
-if(trBackupV2DataSecurityBase){
-  dataSecurityPanel=function(){
-    return trBackupV2DataSecurityBase()
+const trBackupV2DataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trBackupV2DataBase=trBackupV2DataContract.current();
+if(typeof trBackupV2DataBase==='function'){
+  trBackupV2DataContract.replace(function(){
+    return trBackupV2DataBase()
       .replace('V8.1 estable','Backup V2 · V31.24')
       .replace('Exporta estado + imágenes en un único archivo. La restauración sustituye los datos locales de este navegador.','Exporta workspace + imágenes referenciadas + Market Data con manifest y hashes. El restore valida antes de modificar datos.')
       .replace('La copia incluye Trading Plans, operaciones, importaciones, contratos, reglas, diario emocional, taxonomías y blobs de imágenes de IndexedDB.','Backup V2 solo se crea si están presentes todos los blobs obligatorios. Incluye workspace, imágenes, marketMeta, marketTicks y execSets; un restore interrumpido conserva un journal recuperable.');
-  };
+  });
 }
 
 void trBackupV2RecoverPendingOnLoad();

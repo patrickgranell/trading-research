@@ -54,7 +54,7 @@ function trRenderViewHtml(view=currentView){
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
     case 'market': return globalThis.TradingResearchViewPresentationContract.market();
     case 'plans': return globalThis.TradingResearchViewPresentationContract.plans();
-    case 'config': return config();
+    case 'config': return globalThis.TradingResearchConfigViewPresentationContract.render();
     default:
       console.warn('[Trading Research · router] Vista desconocida:',view);
       currentView='dashboard';

@@ -67,3 +67,5 @@ console.log(' - executable direct gallery() runtime calls: 0');
 console.log(' - app.js source gallery implementation: preserved');
 console.log(' - gallery read-only / no canonical metric call: preserved');
 console.log(' - structural router: contract-bound');
+
+await import('./verify-config-view-presentation.mjs');

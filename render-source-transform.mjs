@@ -5,6 +5,8 @@ const REPORT_SCOPE_LABEL_CONTRACT="\n/* V31.25 · Batch 23 · build-only Report 
 const REPORT_SCOPE_CONTROLS_CONTRACT="\n/* V31.25 · Batch 24 · build-only Report scope-controls presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchReportScopeControlsContract',{value:Object.freeze({current:()=>v313ScopeControls,replace:fn=>{v313ScopeControls=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 const REPORT_BUILDER_VIEW_CONTRACT="\n/* V31.25 · Batch 25 · build-only Report builder-view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchReportBuilderViewContract',{value:Object.freeze({current:()=>v313BuilderView,replace:fn=>{v313BuilderView=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 const REPORT_DOCUMENT_CONTRACT="\n/* V31.25 · Batch 26 · build-only Report document presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchReportDocumentContract',{value:Object.freeze({current:()=>v313ReportDocument,replace:fn=>{v313ReportDocument=fn;}}),writable:false,enumerable:false,configurable:false});\n";
+const DATA_SECURITY_PANEL_CONTRACT="\n/* V31.25 · Batch 27 · build-only Data Security diagnostics presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchDataSecurityPanelContract',{value:Object.freeze({current:()=>dataSecurityPanel,replace:fn=>{dataSecurityPanel=fn;}}),writable:false,enumerable:false,configurable:false});\n";
+const MODE_CARD_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 27 · build-only Mode Card presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchModeCardPresentationContract',{value:Object.freeze({current:()=>v30ModeCard,replace:fn=>{v30ModeCard=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -74,6 +76,8 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportScopeControlsContract'"))out+=REPORT_SCOPE_CONTROLS_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportBuilderViewContract'"))out+=REPORT_BUILDER_VIEW_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportDocumentContract'"))out+=REPORT_DOCUMENT_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchDataSecurityPanelContract'"))out+=DATA_SECURITY_PANEL_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchModeCardPresentationContract'"))out+=MODE_CARD_PRESENTATION_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

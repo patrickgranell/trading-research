@@ -64,17 +64,20 @@ function trSecurityRuntimePanel(){
   return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Seguridad de render y formularios</h3><div class="help">V31.18 separa el texto de usuario del HTML ejecutable en los sinks corregidos y mueve los editores principales a FormData. No cambia cálculos financieros ni el modelo de datos.</div></div><span class="stable-pill ${d.ok?'':'warning'}">Content boundary</span></div><div class="integrity-kpis"><div><span>Escape HTML</span>${mark(d.escaping)}</div><div><span>Títulos de modal</span>${mark(d.modalTitle)}</div><div><span>Token inline</span>${mark(d.inlineToken)}</div><div><span>FormData</span>${mark(d.formData)}</div><div><span>Editores migrados</span><strong>${d.coreFormBoundaries}</strong></div><div><span>Event delegation</span><strong>Parcial / pendiente</strong></div><div><span>CSP estricta</span><strong>Pendiente</strong></div><div><span>Estado</span>${mark(d.ok)}</div></div><div class="notice"><strong>V31.18 · User Content Boundary:</strong> los títulos de modal se convierten en texto en el propio sink; los valores dinámicos que todavía viajan por handlers inline usan tokens URI que codifican también el apóstrofo; y Operaciones, Trading Plans, Contratos, Gestión de riesgo, Diario emocional, Reviews y Referencias visuales leen sus campos mediante <code>FormData</code>.<br><small>Deuda explícita: la aplicación todavía conserva numerosos <code>onclick/onchange/oninput</code> históricos. Esta fase reduce la superficie de inyección sin fingir que existe una CSP estricta; la delegación global de eventos se abordará por módulos para no romper una base funcional ya validada.</small></div>${d.ok?'':`<div class="notice danger"><strong>Security runtime:</strong> una de las sondas locales de escaping/FormData no pasó. No introduzcas datos nuevos hasta revisar esta build.</div>`}</section>`;
 }
 
-const trSecurityDataSecurityBase=dataSecurityPanel;
-dataSecurityPanel=function(){return trSecurityRuntimePanel()+trSecurityDataSecurityBase();};
+const trSecurityDataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trSecurityDataBase=trSecurityDataContract.current();
+trSecurityDataContract.replace(function(){return trSecurityRuntimePanel()+trSecurityDataBase();});
 
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.18</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_SECURITY_APP_LABEL)}</div><div class="help">Boundary de contenido de usuario + FormData en editores principales. Títulos de modal y tokens dinámicos quedan endurecidos contra inyección. La migración completa de handlers inline a delegación de eventos continúa en la siguiente fase; la lógica financiera permanece congelada.</div></div></div></div>`;};
+const trSecurityModeContract=globalThis.TradingResearchModeCardPresentationContract;
+const trSecurityModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.18</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_SECURITY_APP_LABEL)}</div><div class="help">Boundary de contenido de usuario + FormData en editores principales. Títulos de modal y tokens dinámicos quedan endurecidos contra inyección. La migración completa de handlers inline a delegación de eventos continúa en la siguiente fase; la lógica financiera permanece congelada.</div></div></div></div>`;};
+trSecurityModeContract.replace(trSecurityModeCard);
 
 window.TradingResearchSecurity=Object.freeze({version:TR_SECURITY_RUNTIME_VERSION,diagnostics:trSecurityDiagnostics,formDataBoundaries:TR_SECURITY_FORMDATA_BOUNDARIES});
 Object.assign(window,{trSecurityDiagnostics,trSecurityRuntimePanel});
 
 /* The persistent shell may already exist when this final runtime loads. Refresh only
  * the version card directly; the next normal config render will include diagnostics. */
-try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=v30ModeCard();}catch(_){/* diagnostics remain available */}
+try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trSecurityModeCard();}catch(_){/* diagnostics remain available */}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>render(),0);}catch(_){/* no forced render outside Datos y seguridad */}
 })();
 /* ===== END V31.18 SECURITY RUNTIME ===== */

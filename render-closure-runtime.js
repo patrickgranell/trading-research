@@ -37,10 +37,14 @@ function trRenderClosurePanel(){
 }
 const TradingResearchRender=Object.freeze({version:TR_RENDER_CLOSURE_VERSION,label:TR_RENDER_CLOSURE_LABEL,render:trCanonicalRenderEntry,ensureOwnership:trRenderClosureEnsureOwnership,diagnostics:trRenderClosureDiagnostics,sourceConsolidation:trSourceConsolidationDiagnostics,sourceDebtBudget:TR_RENDER_SOURCE_DEBT_BUDGET});
 window.TradingResearchRender=TradingResearchRender;
-if(typeof dataSecurityPanel==='function'){const trRenderClosureDataSecurityBase=dataSecurityPanel;dataSecurityPanel=function(){return trSourceConsolidationPanel()+trRenderClosurePanel()+trRenderClosureDataSecurityBase();};}
-if(typeof v30ModeCard==='function')v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.25.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
+const trRenderClosureDataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trRenderClosureDataBase=trRenderClosureDataContract.current();
+if(typeof trRenderClosureDataBase==='function')trRenderClosureDataContract.replace(function(){return trSourceConsolidationPanel()+trRenderClosurePanel()+trRenderClosureDataBase();});
+const trRenderClosureModeContract=globalThis.TradingResearchModeCardPresentationContract;
+const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.25.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
+trRenderClosureModeContract.replace(trRenderClosureModeCard);
 trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
-try{const side=document.querySelector('.side-bottom');if(side&&typeof v30ModeCard==='function')side.outerHTML=v30ModeCard();}catch(_){}
+try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trRenderClosureModeCard();}catch(_){}
 try{if(typeof currentView!=='undefined'&&currentView==='config'&&typeof configTab!=='undefined'&&configTab==='data')setTimeout(()=>window.render(),0);}catch(_){}
 })();
 /* ===== END V31.23.5 RENDER CLOSURE RUNTIME ===== */

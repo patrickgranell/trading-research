@@ -56,13 +56,17 @@ function trStyleRuntimePanel(){
 }
 function trStyleStart(){if(trStyleObserver)return;trStyleStartedAt=new Date().toISOString();trStyleScanTree(document,'initial');trStyleObserver=new MutationObserver(trStyleMutation);trStyleObserver.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style'],attributeOldValue:true});}
 
-if(typeof dataSecurityPanel==='function'){const trStyleDataSecurityBase=dataSecurityPanel;dataSecurityPanel=function(){return trStyleRuntimePanel()+trStyleDataSecurityBase();};window.dataSecurityPanel=dataSecurityPanel;}
-v30ModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.22</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_STYLE_APP_LABEL)}</div><div class="help">Atributos style históricos transformados en build, CSP style-src-attr none y estilos dinámicos aplicados por una frontera CSSOM controlada. Sin cambios en la lógica financiera.</div></div></div></div>`;};
+const trStyleDataContract=globalThis.TradingResearchDataSecurityPanelContract;
+const trStyleDataBase=trStyleDataContract.current();
+if(typeof trStyleDataBase==='function')trStyleDataContract.replace(function(){return trStyleRuntimePanel()+trStyleDataBase();});
+const trStyleModeContract=globalThis.TradingResearchModeCardPresentationContract;
+const trStyleModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${v30Ui.modeExpanded?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.22</strong></span><b class="mode-card-arrow">${v30Ui.modeExpanded?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_STYLE_APP_LABEL)}</div><div class="help">Atributos style históricos transformados en build, CSP style-src-attr none y estilos dinámicos aplicados por una frontera CSSOM controlada. Sin cambios en la lógica financiera.</div></div></div></div>`;};
+trStyleModeContract.replace(trStyleModeCard);
 /* V31.23.5: diagnostics stay namespaced. Only the UI action required by data-tr-on*
  * is registered in TradingResearchActions instead of being duplicated on window. */
 window.TradingResearchStyles=Object.freeze({version:TR_STYLE_RUNTIME_VERSION,diagnostics:trStyleDiagnostics,reset:trStyleResetInventory});
 if(window.TradingResearchActions)window.TradingResearchActions.trStyleResetInventory=trStyleResetInventory;
-try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=v30ModeCard();}catch(_){}
+try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trStyleModeCard();}catch(_){}
 trStyleStart();
 })();
 /* ===== END V31.22 STYLE RUNTIME ===== */

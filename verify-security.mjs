@@ -38,7 +38,7 @@ for(const [name,start,end] of savers){const r=region(start,end);need(r&&r.includ
 
 need(sec.includes("const TR_SECURITY_RUNTIME_VERSION='31.18.0'"),'Security runtime tiene versión incorrecta.');
 for(const probe of ['trSecurityProbeEscaping','trSecurityProbeModalTitle','trSecurityProbeInlineToken','trSecurityProbeFormData'])need(sec.includes(`function ${probe}(`),`Falta sonda ${probe}.`);
-need(sec.includes('const trSecurityDataSecurityBase=dataSecurityPanel'),'Security runtime no se integra en Datos y seguridad.');
+need(sec.includes('const trSecurityDataContract=globalThis.TradingResearchDataSecurityPanelContract;')&&sec.includes('const trSecurityDataBase=trSecurityDataContract.current();')&&sec.includes('trSecurityDataContract.replace(function(){return trSecurityRuntimePanel()+trSecurityDataBase();});'),'Security runtime no se integra en Datos y seguridad mediante el contrato de presentación.');
 need(sec.includes('<strong>V31.18</strong>'),'Mode card no anuncia V31.18.');
 need(sec.includes('inlineHandlersLegacy:false')&&sec.includes('eventDelegationReady:true')&&sec.includes('strictCspReady:false'),'El estado Event Delegation/CSP base no está declarado correctamente.');
 

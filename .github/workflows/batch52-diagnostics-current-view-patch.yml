@@ -32,9 +32,8 @@ jobs:
               ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
             ],
             'style-runtime.js':[
-              ("typeof currentView!=='undefined'&&currentView", "globalThis.TradingResearchCurrentViewReadContract.current()", 1),
-              ("String(currentView)", "String(globalThis.TradingResearchCurrentViewReadContract.current())", 1),
-              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+              ("try{if(typeof currentView!=='undefined'&&currentView)view=String(currentView);}catch(_){}", "try{if(globalThis.TradingResearchCurrentViewReadContract.current())view=String(globalThis.TradingResearchCurrentViewReadContract.current());}catch(_){}", 1),
+              ("try{window.TradingResearchStyleAttrs?.rescan?.();}catch(_){}try{if(typeof currentView!=='undefined'&&currentView==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')render();}catch(_){}", "try{window.TradingResearchStyleAttrs?.rescan?.();}catch(_){}try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')render();}catch(_){}", 1),
             ],
             'render-closure-runtime.js':[
               ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),

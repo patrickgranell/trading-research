@@ -41,3 +41,4 @@ console.log(' - trUiNavigate: 1 direct write -> 1 navigation write-contract');
 console.log(' - validation, UI action, render and return semantics preserved');
 console.log(' - read contract remains read-only');
 console.log(' - boot restore, router fallback and plan-switch-open writes preserved');
+await import('./verify-current-view-session-restore-write-boundary.mjs');

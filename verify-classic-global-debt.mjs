@@ -703,8 +703,8 @@ if(classicTag&&!moduleTag){
   const navRuntimeSrc=runtimeSources.get(NAVIGATION_RUNTIME_STATE_CONSUMER)||'';
   need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.ensureGroupOpen(activeGroup))globalThis.${NAVIGATION_STATE_CONTRACT}.saveOpenGroups()`),
     `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume ensureGroupOpen(activeGroup).`);
-  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(currentView)`),
-    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView(currentView).`);
+  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(globalThis.TradingResearchCurrentViewReadContract.current())`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView(globalThis.TradingResearchCurrentViewReadContract.current()).`);
   need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.isGroupOpen(id)`),
     `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume isGroupOpen(id).`);
 

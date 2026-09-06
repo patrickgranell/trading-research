@@ -366,15 +366,15 @@ async function trBackupV2RecoverPendingOnLoad(){
   let journal=null;try{journal=await trBackupV2JournalGet();}catch{return;}if(!journal)return;
   trBackupV2SetRecoveryUiBlocked(true);
   try{
-    for(let i=0;i<200&&typeof trCoreHydrated!=='undefined'&&!trCoreHydrated&&!trCoreFatal;i++)await new Promise(resolve=>setTimeout(resolve,25));
+    for(let i=0;i<200&&!globalThis.TradingResearchCoreHydrationReadContract.ready()&&!trCoreFatal;i++)await new Promise(resolve=>setTimeout(resolve,25));
     if(typeof trCoreFatal!=='undefined'&&trCoreFatal)throw new Error('El core durable no está disponible para recuperar el restore.');
-    if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)throw new Error('El core durable todavía no ha terminado de hidratar; la recuperación no puede empezar de forma segura.');
+    if(!globalThis.TradingResearchCoreHydrationReadContract.ready())throw new Error('El core durable todavía no ha terminado de hidratar; la recuperación no puede empezar de forma segura.');
     trBackupV2AcquireRecoveryLock(journal);
     const run=()=>trBackupV2RecoverPending(journal);
     if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.recovery',run);else await run();
     await trBackupV2RefreshUiAfterRestore();trBackupV2SetRecoveryUiBlocked(false);
   }catch(e){
-    const fatal=typeof trCoreFatal!=='undefined'&&trCoreFatal,hydrated=typeof trCoreHydrated==='undefined'||trCoreHydrated;
+    const fatal=typeof trCoreFatal!=='undefined'&&trCoreFatal,hydrated=globalThis.TradingResearchCoreHydrationReadContract.ready();
     if(hydrated)trBackupV2AcquireRecoveryLock(journal);
     trBackupV2SetRecoveryUiBlocked(!fatal);
     try{trCoreShowStorageWarning(`Restauración pendiente bloqueada: ${e?.message||String(e)}. La sesión permanece protegida contra nuevas escrituras hasta completar o abortar la recuperación.`);}catch{}

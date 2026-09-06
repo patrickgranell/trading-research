@@ -125,12 +125,12 @@ exitStats=function(vals){
 };
 
 function trCanonicalNormalizeAfterHydration(){
-  if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return 0;
+  if(!globalThis.TradingResearchCoreHydrationReadContract.ready())return 0;
   const changed=trCanonicalNormalizeStateOutcomes();
   trCanonicalBootstrapNormalizations+=changed;
   return changed;
 }
-if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated){
+if(globalThis.TradingResearchCoreHydrationReadContract.ready()){
   trCanonicalNormalizeAfterHydration();
 }else if(typeof addEventListener==='function'){
   addEventListener('tradingresearch:core-hydrated',()=>trCanonicalNormalizeAfterHydration(),{once:true});

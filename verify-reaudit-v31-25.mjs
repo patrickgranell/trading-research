@@ -110,8 +110,10 @@ function extractFunction(src,name){
 }
 
 // N02 · canonical outcome migration must run after durable hydration, not only at script load.
-need(canonical.includes('trCoreHydrated'),
-  'N02: Canonical Metrics no observa el estado de hidratación durable.');
+need(canonical.includes('globalThis.TradingResearchCoreHydrationReadContract.ready()'),
+  'N02: Canonical Metrics no observa la hidratación durable a través del contrato read-only.');
+need(canonical.includes("addEventListener('tradingresearch:core-hydrated',()=>trCanonicalNormalizeAfterHydration(),{once:true});"),
+  'N02: Canonical Metrics dejó de conservar el listener durable de hidratación.');
 need(!canonical.includes('trCanonicalBootstrapNormalizations=trCanonicalNormalizeStateOutcomes();'),
   'N02: Canonical Metrics sigue normalizando incondicionalmente al cargar el script.');
 

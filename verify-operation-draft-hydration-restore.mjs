@@ -10,7 +10,7 @@ const restoreEnd=structural.indexOf('\n\nconst trOpenOperationModalBase=',restor
 need(restoreStart>=0&&restoreEnd>restoreStart,'No se pudo aislar trDraftMaybeRestoreAfterView().');
 const restoreBlock=restoreStart>=0&&restoreEnd>restoreStart?structural.slice(restoreStart,restoreEnd):'';
 
-const hydrationGuard="if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return;";
+const hydrationGuard="if(!globalThis.TradingResearchCoreHydrationReadContract.ready())return;";
 const hydrationPos=restoreBlock.indexOf(hydrationGuard);
 const attemptedGuardPos=restoreBlock.indexOf('if(trDraftRestoreAttempted)return;');
 const attemptedSetPos=restoreBlock.indexOf('trDraftRestoreAttempted=true;');

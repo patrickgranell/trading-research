@@ -33,7 +33,7 @@ need(runtime.includes('La sesión queda bloqueada contra escrituras'),
 
 const loadStart=runtime.indexOf('async function trBackupV2RecoverPendingOnLoad(');
 const loadWait=loadStart<0?-1:runtime.indexOf('for(let i=0;i<200',loadStart);
-const loadHydrationCheck=loadStart<0?-1:runtime.indexOf("if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)",loadStart);
+const loadHydrationCheck=loadStart<0?-1:runtime.indexOf("if(!globalThis.TradingResearchCoreHydrationReadContract.ready())",loadStart);
 const loadAcquire=loadStart<0?-1:runtime.indexOf('trBackupV2AcquireRecoveryLock(journal)',loadStart);
 need(loadStart>=0&&loadWait>loadStart&&loadHydrationCheck>loadWait&&loadAcquire>loadHydrationCheck,
   'Recovery on-load activa el durable lock antes de completar hydration.');

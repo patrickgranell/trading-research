@@ -253,7 +253,7 @@ cloudPushState=async function(options={}){
     );
   }finally{
     cloudBusy=false;
-    if(!options.silent&&currentView==='config'&&configTab==='cloud')render();
+    if(!options.silent&&currentView==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='cloud')render();
   }
 };
 

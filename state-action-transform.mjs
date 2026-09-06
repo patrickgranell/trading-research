@@ -45,6 +45,11 @@ export function transformStateActions(source){
   const anchor="const TR_STATE_APP_LABEL='V31.17.1 · Structural Foundation III-B3.1a · Import Schema Closure';\n";
   out=replaceExact(out,anchor,anchor+'\n'+bridgePrelude(),1,'runtime label anchor');
 
+  /* V31.25 · Batch 33: keep state-runtime.js source byte-identical and migrate only
+   * its effective bundled configTab reads/writes through the explicit state contract. */
+  out=replaceExact(out,"configTab:typeof configTab!=='undefined'?configTab:''","configTab:globalThis.TradingResearchConfigTabStateContract.current()",1,'configTab snapshot read');
+  out=replaceExact(out,'()=>{configTab=tab;render();}','()=>{globalThis.TradingResearchConfigTabStateContract.set(tab);render();}',1,'configTab setter write');
+
   const resetWrapAnchor="[\n  ['setOpsUnit','operations.unit'],";
   const resetParity="const trOperationsResetParityBase=trStateActionResolve('resetOpsFilters');\nconst trOperationsResetParity=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};\ntrStateActionPublish('resetOpsFilters',trOperationsResetParity);\n";
   out=replaceExact(out,resetWrapAnchor,resetParity+resetWrapAnchor,1,'operations reset parity anchor');

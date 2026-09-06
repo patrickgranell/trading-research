@@ -12,6 +12,7 @@ const GALLERY_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 29 · build-only 
 const CONFIG_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 30 · build-only Config view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchConfigViewPresentationContract',{value:Object.freeze({render:config}),writable:false,enumerable:false,configurable:false});\n";
 const IMAGE_HYDRATION_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 31 · build-only image hydration presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchImageHydrationPresentationContract',{value:Object.freeze({schedule:()=>{if(typeof hydrateImageElements==='function')setTimeout(hydrateImageElements,0);}}),writable:false,enumerable:false,configurable:false});\n";
 const SHELL_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 32 · build-only Shell presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchShellPresentationContract',{value:Object.freeze({render:()=>shell()}),writable:false,enumerable:false,configurable:false});\n";
+const CONFIG_TAB_STATE_CONTRACT="\n/* V31.25 · Batch 33 · build-only Config Tab state boundary */\nObject.defineProperty(globalThis,'TradingResearchConfigTabStateContract',{value:Object.freeze({current:()=>configTab,set:value=>{configTab=value;}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -88,6 +89,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchConfigViewPresentationContract'"))out+=CONFIG_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchImageHydrationPresentationContract'"))out+=IMAGE_HYDRATION_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchShellPresentationContract'"))out+=SHELL_PRESENTATION_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchConfigTabStateContract'"))out+=CONFIG_TAB_STATE_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

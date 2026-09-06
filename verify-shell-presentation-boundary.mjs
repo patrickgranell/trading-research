@@ -77,3 +77,5 @@ console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= 
 console.log(' - executable direct shell() runtime calls: 0');
 console.log(` - historical shell wrappers preserved: ${shellWrapperCount}`);
 console.log(' - structural shell mount: contract-bound with late resolution');
+
+await import('./verify-config-tab-state-boundary.mjs');

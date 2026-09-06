@@ -32,6 +32,7 @@ const bootstrapPending={id:'bootstrap-pending',exitDate:'',result:'pending',resu
 const persistSnapshots=[],hydrationListeners={};
 const ctx={console,trCoreHydrated:false,state:{operations:[bootstrapFlat,bootstrapPending]},persist(){persistSnapshots.push(ctx.state.operations.map(o=>o.result));return true;},setTimeout(){return 0;},addEventListener(name,fn){hydrationListeners[name]=fn;}};
 vm.createContext(ctx);
+ctx.TradingResearchCoreHydrationReadContract=Object.freeze({ready:()=>!!ctx.trCoreHydrated});
 vm.runInContext([
   extractFunction('opMetricValue'),
   extractFunction('calcStats'),

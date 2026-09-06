@@ -359,7 +359,7 @@ trOpsAnalyticsRefreshContract.replace(function(read=true){const before=document.
 /* Cursor movement must never replace its own range input while the user is dragging it. */
 const trV315SetCursorBase=v315SetCursor;
 v315SetCursor=function(v){
-  const series=v315RunningUi.series;if(!series?.points?.length||currentView!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);
+  const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);
   v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,series.points.length-1));
   const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),rows=set?.results||[],idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),result=rows[idx],cursor=series.points[v315RunningUi.cursor];if(!result||!cursor)return;
   const body=document.getElementById('tr-market-body-region'),panel=body?.querySelector('.rp-panel');if(!panel)return trV315SetCursorBase(v);

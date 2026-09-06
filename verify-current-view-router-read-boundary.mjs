@@ -37,7 +37,7 @@ need(bundledAppStage.includes('current:()=>currentView'),
   'Current View Read Contract no usa la lectura tardía exacta current:()=>currentView.');
 need(!/TradingResearchCurrentViewReadContract[\s\S]{0,180}\bset\s*:/.test(bundledAppStage),
   'Current View Read Contract no debe exponer mutación.');
-need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),
+need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),
   'La restauración de currentView desde sesión cambió fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),
   'El fallback de vista desconocida dejó de conservar currentView=dashboard.');

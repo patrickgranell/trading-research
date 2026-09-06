@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='CAPTURE_RED';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='5ba9ce043fb05775e88503309a7ab667c7f938c2b0e198b0d45470c78f0514ff';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);
@@ -25,12 +25,8 @@ const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 need(routerSource.length>0,'No se pudo localizar trRenderViewHtml().');
-need(EXPECTED_ROUTER_NORMALIZED_SHA256!=='CAPTURE_RED',
-  `CAPTURE_RED router normalized SHA256: ${routerHash||'no encontrado'}`);
-if(EXPECTED_ROUTER_NORMALIZED_SHA256!=='CAPTURE_RED'){
-  need(routerHash===EXPECTED_ROUTER_NORMALIZED_SHA256,
-    `El cuerpo normalizado de trRenderViewHtml() cambió: ${routerHash}; esperado ${EXPECTED_ROUTER_NORMALIZED_SHA256}.`);
-}
+need(routerHash===EXPECTED_ROUTER_NORMALIZED_SHA256,
+  `El cuerpo normalizado de trRenderViewHtml() cambió: ${routerHash}; esperado ${EXPECTED_ROUTER_NORMALIZED_SHA256}.`);
 need(structural.includes('function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract.current()){'),
   'El router aún no obtiene su vista por defecto mediante Current View Read Contract.');
 need(!structural.includes('function trRenderViewHtml(view=currentView){'),

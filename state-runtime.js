@@ -371,7 +371,7 @@ let trUiLastError='';
 const trUiSubscribers=new Set();
 function trUiClone(v){try{return JSON.parse(JSON.stringify(v));}catch{return null;}}
 function trUiSnapshot(){
-  const out={navigation:{currentView:typeof currentView!=='undefined'?currentView:'',configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
+  const out={navigation:{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
   if(typeof opsViewState!=='undefined')out.operations=trUiClone(opsViewState);
   if(typeof journalViewState!=='undefined')out.journal=trUiClone(journalViewState);
   if(typeof blockViewState!=='undefined')out.blocks=trUiClone(blockViewState);
@@ -751,7 +751,7 @@ render=function(...args){
   const commitDelta=trDomainCommitCount-commitsBefore,pendingDelta=trDomainPendingMutationCount-pendingBefore;
   if((guard?.writes||0)>0||(guard?.persistRequests||0)>0||commitDelta>0||pendingDelta>0){
     trDomainRenderSideEffects++;trDomainLastRenderSideEffectPaths=(guard?.paths||[]).slice(0,12);
-    trDomainLastRenderSideEffect=`${currentView||'view'} · writes revertidas ${guard?.writes||0} · persist suprimidos ${guard?.persistRequests||0} · commits +${commitDelta} · pending +${Math.max(0,pendingDelta)} · ${new Date().toISOString()}`;
+    trDomainLastRenderSideEffect=`${globalThis.TradingResearchCurrentViewReadContract.current()||'view'} · writes revertidas ${guard?.writes||0} · persist suprimidos ${guard?.persistRequests||0} · commits +${commitDelta} · pending +${Math.max(0,pendingDelta)} · ${new Date().toISOString()}`;
   }
   trUiCapture(trUiActiveAction||'legacy.render.after');if(error)throw error;return out;
 };

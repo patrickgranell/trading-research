@@ -42,3 +42,4 @@ console.log(' - central render(): 9 direct -> 9 read-contract');
 console.log(' - repeated read timing preserved; no local currentView snapshot introduced');
 console.log(' - partial/full render, continuity and error paths preserved');
 console.log(' - boot/router/navigation currentView writes preserved');
+await import('./verify-current-view-navigation-write-boundary.mjs');

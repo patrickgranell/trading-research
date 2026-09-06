@@ -5,7 +5,7 @@ const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 const cursorStart=structural.indexOf('v315SetCursor=function(v){');
-const cursorEnd=structural.indexOf('\n};\n\n/*',cursorStart);
+const cursorEnd=structural.indexOf('\n};\nwindow.v315SetCursor=v315SetCursor;',cursorStart);
 need(cursorStart>=0&&cursorEnd>cursorStart,'No se pudo aislar v315SetCursor().');
 const cursorBlock=cursorStart>=0&&cursorEnd>cursorStart?structural.slice(cursorStart,cursorEnd+3):'';
 const contractReads=(cursorBlock.match(/TradingResearchCurrentViewReadContract\.current\(\)/g)||[]).length;
@@ -19,6 +19,7 @@ need(cursorBlock.includes('v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0
 need(cursorBlock.includes("document.getElementById('tr-market-body-region')"),'Cambió la región DOM de Market Data fuera de alcance.');
 need(cursorBlock.includes('globalThis.TradingResearchRunningChartPresentationContract.render(result,series)'),'Cambió el render del Running Chart fuera de alcance.');
 need(cursorBlock.includes("panel.querySelector('.rp-inspect-grid')"),'Cambió el inspector Running P&L fuera de alcance.');
+need(cursorBlock.includes("trPartialRecord('market.cursor')"),'Cambió la instrumentación de cursor parcial fuera de alcance.');
 
 need(structural.includes("const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;"),'Cambió el coordinador central render/currentView fuera de alcance.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la restauración de currentView en boot fuera de alcance.');

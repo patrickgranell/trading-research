@@ -42,3 +42,4 @@ console.log('Current View Operation Draft Origin Read Boundary verification OK')
 console.log(' - draft capture originView: 1 direct -> 1 read-contract');
 console.log(' - operation modal context originView: 1 direct -> 1 read-contract');
 console.log(' - draft persistence, navigation writes and partial/render routing preserved');
+await import('./verify-current-view-partial-runtime-read-boundary.mjs');

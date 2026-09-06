@@ -383,11 +383,11 @@ function trUiSnapshot(){
   if(typeof complianceViewState!=='undefined')out.compliance=trUiClone(complianceViewState);
   if(typeof reviewViewState!=='undefined')out.review=trUiClone(reviewViewState);
   if(typeof goalViewState!=='undefined')out.goals=trUiClone(goalViewState);
-  if(typeof robustnessState!=='undefined')out.robustness=trUiClone(robustnessState);
-  if(typeof riskStressState!=='undefined')out.riskStress=trUiClone(riskStressState);
-  if(typeof walkForwardState!=='undefined')out.walkForward=trUiClone(walkForwardState);
-  if(typeof dataQualityState!=='undefined')out.dataQuality=trUiClone(dataQualityState);
-  if(typeof mistakesViewState!=='undefined')out.mistakes=trUiClone(mistakesViewState);
+  const robustness=globalThis.TradingResearchUiSnapshotStateReadContract.robustness();if(robustness!==undefined)out.robustness=trUiClone(robustness);
+  const riskStress=globalThis.TradingResearchUiSnapshotStateReadContract.riskStress();if(riskStress!==undefined)out.riskStress=trUiClone(riskStress);
+  const walkForward=globalThis.TradingResearchUiSnapshotStateReadContract.walkForward();if(walkForward!==undefined)out.walkForward=trUiClone(walkForward);
+  const dataQuality=globalThis.TradingResearchUiSnapshotStateReadContract.dataQuality();if(dataQuality!==undefined)out.dataQuality=trUiClone(dataQuality);
+  const mistakes=globalThis.TradingResearchUiSnapshotStateReadContract.mistakes();if(mistakes!==undefined)out.mistakes=trUiClone(mistakes);
   if(typeof reportsViewState!=='undefined')out.reports=trUiClone(reportsViewState);
   if(globalThis.TradingResearchMarketUiStateReadContract.available())out.market={phase:globalThis.TradingResearchMarketUiStateReadContract.tab(),environment:globalThis.TradingResearchMarketUiStateReadContract.environment()};
   if(typeof v315RunningUi!=='undefined')out.marketRunning={tab:v315RunningUi.tab,tradeIndex:v315RunningUi.tradeIndex,mode:v315RunningUi.mode,cursor:v315RunningUi.cursor,loading:v315RunningUi.loading,metaId:v315RunningUi.metaId,execId:v315RunningUi.execId};

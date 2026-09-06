@@ -32,3 +32,4 @@ if(fail.length){
 console.log('Current View Navigation Active Read Boundary verification OK');
 console.log(' - trRenderSyncSidebar currentView reads: 4 direct -> 4 read-contract');
 console.log(' - group activation, lastView, active button and has-active group behavior preserved');
+await import('./verify-current-view-render-diagnostics-read-boundary.mjs');

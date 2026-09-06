@@ -89,18 +89,18 @@ need(actualConsumers.length===EXPECTED_CONSUMERS.size&&actualConsumers.every(fil
   `Consumidores efectivos de ${CONTRACT} no coinciden con el inventario auditado: ${actualConsumers.join(', ')||'ninguno'}.`);
 need((effectiveRuntimeSources.get('backup-v2-runtime.js')||'').includes(`currentView='config';globalThis.${CONTRACT}.set('data');render();`),
   'Backup V2 no conserva el aterrizaje post-restore en Configuración → Datos mediante contrato.');
-need((effectiveRuntimeSources.get('security-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
-  'Security runtime no conserva su refresh condicional de Datos mediante contrato.');
-need((effectiveRuntimeSources.get('event-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
-  'Event runtime no conserva su refresh condicional de Datos mediante contrato.');
+need((effectiveRuntimeSources.get('security-runtime.js')||'').includes(`globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Security runtime no conserva su refresh condicional de Datos mediante contratos.');
+need((effectiveRuntimeSources.get('event-runtime.js')||'').includes(`globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Event runtime no conserva su refresh condicional de Datos mediante contratos.');
 need((effectiveRuntimeSources.get('cloud-v10-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='cloud'`),
   'Cloud V10 no conserva su refresh condicional de Nube mediante contrato.');
-need((effectiveRuntimeSources.get('csp-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
-  'CSP runtime no conserva su refresh condicional de Datos mediante contrato.');
-need((effectiveRuntimeSources.get('style-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
-  'Style runtime no conserva su refresh condicional de Datos mediante contrato.');
-need((effectiveRuntimeSources.get('render-closure-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
-  'Render Closure no conserva su refresh condicional de Datos mediante contrato.');
+need((effectiveRuntimeSources.get('csp-runtime.js')||'').includes(`globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'CSP runtime no conserva su refresh condicional de Datos mediante contratos.');
+need((effectiveRuntimeSources.get('style-runtime.js')||'').includes(`globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Style runtime no conserva su refresh condicional de Datos mediante contratos.');
+need((effectiveRuntimeSources.get('render-closure-runtime.js')||'').includes(`globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Render Closure no conserva su refresh condicional de Datos mediante contratos.');
 
 if(fail.length){
   console.error('Config Tab State Boundary verification FAILED');

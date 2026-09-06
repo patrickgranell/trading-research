@@ -26,7 +26,7 @@ need(renderBlock.includes("${globalThis.TradingResearchCurrentViewReadContract.c
 need(renderBlock.includes("trUiCapture(trUiActiveAction||'legacy.render.before')"),'Cambió la captura UI previa al render fuera de alcance.');
 need(renderBlock.includes("trUiCapture(trUiActiveAction||'legacy.render.after')"),'Cambió la captura UI posterior al render fuera de alcance.');
 
-need(state.includes("currentView='dashboard';"),'Cambió la escritura currentView de switchPlanAndOpen fuera de alcance.');
+need(state.includes('globalThis.TradingResearchCurrentViewPlanSwitchOpenWriteContract.toDashboard();'),'Cambió la frontera de escritura currentView de switchPlanAndOpen fuera de alcance.');
 need(state.includes("globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;"),'Cambió la frontera de escritura currentView de navegación fuera de alcance.');
 
 if(fail.length){
@@ -37,5 +37,5 @@ if(fail.length){
 console.log('Current View State Runtime Read Boundary verification OK');
 console.log(' - trUiSnapshot currentView read: 1 direct -> 1 read-contract');
 console.log(' - render side-effect label currentView read: 1 direct -> 1 read-contract');
-console.log(' - navigation write boundary and non-currentView snapshot/render behavior preserved');
+console.log(' - navigation + plan-switch-open write boundaries and non-currentView snapshot/render behavior preserved');
 await import('./verify-current-view-operation-draft-origin-read-boundary.mjs');

@@ -47,15 +47,15 @@ need(structural.includes(`const oldTab=body.dataset.trMarketTab||'',newTab=Strin
 need(structural.includes(`globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||globalThis.${CONTRACT}.tab()!=='running'`),'El guard del cursor Running P&L no usa el contrato Market UI.');
 need(stateEffective.includes(`if(globalThis.${CONTRACT}.available())out.market={phase:globalThis.${CONTRACT}.tab(),environment:globalThis.${CONTRACT}.environment()};`),'UIStore snapshot no conserva phase/environment mediante el contrato Market UI.');
 
-/* Require an actual structural reduction, not a new alias with unchanged overlap. */
+/* Require the Batch 54 structural reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===182,
-  `Batch 54 debe reducir el proxy app/runtime a 182; actual ${runtimeOverlap.length}. v316Ui presente=${runtimeTokens.has('v316Ui')}.`);
+need(runtimeOverlap.length<=182,
+  `Batch 54 exige proxy app/runtime <=182; actual ${runtimeOverlap.length}. v316Ui presente=${runtimeTokens.has('v316Ui')}.`);
 
 /* Explicitly keep higher-risk Market Data / persistence surfaces out of this batch. */
 const backup=runtimeSources.get('backup-v2-runtime.js');
@@ -73,7 +73,7 @@ console.log('Market UI State Read Boundary verification OK');
 console.log(' - direct v316Ui runtime tokens: 6 -> 0');
 console.log(' - Structural Runtime: 3 tab reads contract-bound');
 console.log(' - State Runtime: available + tab + environment snapshot reads contract-bound');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 182`);
 console.log(' - v316Ui writes remain source-owned and unchanged');
 console.log(' - Restore, Cloud, Market Data persistence and financial calculations untouched');
 await import('./verify-ui-snapshot-state-read-boundary.mjs');

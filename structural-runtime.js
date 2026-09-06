@@ -37,7 +37,7 @@ let trRenderLastError='';
  */
 function trRenderViewHtml(view=currentView){
   switch(view){
-    case 'dashboard': return dashboard();
+    case 'dashboard': return globalThis.TradingResearchDashboardViewPresentationContract.render();
     case 'decision': return globalThis.TradingResearchViewPresentationContract.decision();
     case 'changes': return globalThis.TradingResearchViewPresentationContract.changes();
     case 'operations': return operations();
@@ -58,7 +58,7 @@ function trRenderViewHtml(view=currentView){
     default:
       console.warn('[Trading Research · router] Vista desconocida:',view);
       currentView='dashboard';
-      return dashboard();
+      return globalThis.TradingResearchDashboardViewPresentationContract.render();
   }
 }
 

@@ -57,7 +57,7 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'config': return globalThis.TradingResearchConfigViewPresentationContract.render();
     default:
       console.warn('[Trading Research · router] Vista desconocida:',view);
-      currentView='dashboard';
+      globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();
       return globalThis.TradingResearchDashboardViewPresentationContract.render();
   }
 }

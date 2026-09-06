@@ -1,0 +1,47 @@
+name: Batch 40 Gate Repair
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch40-navigation-active-view-read-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch40-navigation-active-view-read-boundary
+          fetch-depth: 0
+      - name: Repair only obsolete Classic Global Debt expectation
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('verify-classic-global-debt.mjs')
+          s=p.read_text(encoding='utf-8')
+          old="""  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(currentView)`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView(currentView).`);"""
+          new="""  need(navRuntimeSrc.includes(`globalThis.${NAVIGATION_RUNTIME_STATE_CONTRACT}.setLastView(globalThis.TradingResearchCurrentViewReadContract.current())`),
+    `${NAVIGATION_RUNTIME_STATE_CONSUMER} no consume setLastView mediante TradingResearchCurrentViewReadContract.`);"""
+          if s.count(old)!=1:
+              raise SystemExit(f'Expected exactly one obsolete gate block, found {s.count(old)}')
+          if new in s:
+              raise SystemExit('New gate block already present before repair')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+          rm -f .github/workflows/batch40-gate-audit.yml .github/workflows/batch40-gate-repair.yml
+          git diff --check
+          git diff -- verify-classic-global-debt.mjs
+      - name: Commit repair and remove temporary workflows
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: align historical navigation-state gate with Batch 40 read contract'
+          git push origin HEAD:v31.25-classic-contracts-batch40-navigation-active-view-read-boundary

@@ -6,7 +6,7 @@ const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 const restoreStart=structural.indexOf('function trDraftMaybeRestoreAfterView(){');
-const restoreEnd=structural.indexOf('\nfunction trRenderAfterView()',restoreStart);
+const restoreEnd=structural.indexOf('\n\nconst trOpenOperationModalBase=',restoreStart);
 need(restoreStart>=0&&restoreEnd>restoreStart,'No se pudo aislar trDraftMaybeRestoreAfterView().');
 const restoreBlock=restoreStart>=0&&restoreEnd>restoreStart?structural.slice(restoreStart,restoreEnd):'';
 
@@ -17,25 +17,27 @@ const attemptedSetPos=restoreBlock.indexOf('trDraftRestoreAttempted=true;');
 need(hydrationPos>=0,'Falta el guard de hidratación antes de restaurar el borrador de operación.');
 need(hydrationPos>=0&&attemptedGuardPos>=0&&hydrationPos<attemptedGuardPos,'El guard de hidratación debe ejecutarse antes de evaluar trDraftRestoreAttempted.');
 need(hydrationPos>=0&&attemptedSetPos>=0&&hydrationPos<attemptedSetPos,'El restore no puede marcarse como intentado antes de que el core esté hidratado.');
-need(restoreBlock.includes('const draft=trBootOperationDraft;'),'Cambió la fuente session-only del borrador fuera de alcance.');
-need(restoreBlock.includes('if(!draft?.values)return;'),'Cambió la validación del borrador fuera de alcance.');
-need(restoreBlock.includes('if(draft.planId&&state?.tradingPlans?.some(p=>p.id===draft.planId))state.currentPlanId=draft.planId;'),'Cambió la restauración del plan del borrador fuera de alcance.');
+need(restoreBlock.includes('const draft=trBootOperationDraft;if(!draft||draft.kind!==\'operation\')return;'),'Cambió la fuente/validación session-only del borrador fuera de alcance.');
+need(restoreBlock.includes('if(draft.planId&&state?.tradingPlans?.some(p=>p.id===draft.planId)&&state.currentPlanId!==draft.planId)state.currentPlanId=draft.planId;'),'Cambió la selección del plan del borrador fuera de alcance.');
+need(restoreBlock.includes("if(draft.operationId&&!state?.operations?.some(o=>o.id===draft.operationId)){trDraftClearOperation();trDraftLastError='El borrador apuntaba a una operación que ya no existe.';return;}"),'Cambió la protección de borrador de operación inexistente fuera de alcance.');
 need(restoreBlock.includes('openOperationModal(draft.operationId||null);'),'Cambió la reapertura del editor de operación fuera de alcance.');
-need(restoreBlock.includes('if(trDraftApplyOperation(draft)){'),'Cambió la aplicación de valores del borrador fuera de alcance.');
-need(restoreBlock.includes('Borrador recuperado tras la recarga.'),'Desapareció el aviso de borrador recuperado.');
+need(restoreBlock.includes("setTimeout(()=>{if(!trDraftApplyOperation(draft)){trDraftLastError='No se pudo reconstruir el editor del borrador.';}},25);"),'Cambió la aplicación post-modal del borrador fuera de alcance.');
+need(restoreBlock.includes("console.error('[Trading Research · draft restore]',e)"),'Cambió el diagnóstico de error del restore fuera de alcance.');
 
-need(structural.includes("addEventListener('beforeunload',()=>{trUiRememberView();trDraftCaptureOperation();});"),'Cambió la captura de borrador en beforeunload fuera de alcance.');
-need(structural.includes("addEventListener('input',evt=>{if(evt.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);"),'Cambió la captura por input fuera de alcance.');
-need(structural.includes("addEventListener('change',evt=>{if(evt.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);"),'Cambió la captura por change fuera de alcance.');
+need(structural.includes("document.addEventListener('input',e=>{if(e.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);"),'Cambió la captura por input fuera de alcance.');
+need(structural.includes("document.addEventListener('change',e=>{if(e.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);"),'Cambió la captura por change fuera de alcance.');
+need(structural.includes("window.addEventListener('beforeunload',()=>{trUiRememberView();trDraftCaptureOperation();});"),'Cambió la captura de borrador en beforeunload fuera de alcance.');
+need(structural.includes('notice.innerHTML=`<strong>Borrador recuperado tras la recarga.</strong>'),'Desapareció el aviso de borrador recuperado.');
 
 const bootstrapStart=app.indexOf('async function trCoreBootstrap(){');
-const bootstrapEnd=app.indexOf('\n}',bootstrapStart);
 need(bootstrapStart>=0,'No se encontró trCoreBootstrap().');
-need(app.includes("trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();"),'Cambió la señal de hidratación IndexedDB fuera de alcance.');
+const hydratedLiteral="trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();";
 const finalRender="if(typeof render==='function')render();";
-const hydratedPos=app.indexOf("trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();",bootstrapStart);
+const hydratedPos=app.indexOf(hydratedLiteral,bootstrapStart);
 const finalRenderPos=app.indexOf(finalRender,bootstrapStart);
+need(hydratedPos>=0,'Cambió la señal de hidratación IndexedDB fuera de alcance.');
 need(hydratedPos>=0&&finalRenderPos>hydratedPos,'El render final de bootstrap debe ocurrir después de marcar trCoreHydrated=true.');
+need(app.includes("trCoreMode='localStorage-fallback';trCoreHydrated=true;trCoreSignalHydrated();"),'El fallback durable dejó de marcar hidratación antes del render final.');
 
 if(fail.length){
   console.error('Operation Draft Hydration Restore verification FAILED');
@@ -43,7 +45,7 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Operation Draft Hydration Restore verification OK');
-console.log(' - draft restore waits for durable core hydration before first attempt');
+console.log(' - draft restore waits for core hydration before consuming its one-shot attempt');
 console.log(' - post-hydration bootstrap render provides the retry point');
-console.log(' - draft capture, plan selection, modal reopen, field apply and recovery notice preserved');
+console.log(' - session capture, plan selection, modal reopen, field apply and recovery notice preserved');
 console.log(' - operation save, persistence and domain behavior untouched');

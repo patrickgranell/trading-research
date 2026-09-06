@@ -1,0 +1,38 @@
+name: Batch 53 Restore Lock Composition
+
+on:
+  push:
+    branches:
+      - v31.25-batch53-core-hydration-read-boundary
+    paths:
+      - .github/workflows/batch53-restore-lock-composition.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-batch53-core-hydration-read-boundary
+      - name: Compose hydration ordering assertion
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('verify-restore-recovery-lock.mjs');s=p.read_text()
+          old="const loadHydrationCheck=loadStart<0?-1:runtime.indexOf(\"if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)\",loadStart);"
+          new="const loadHydrationCheck=loadStart<0?-1:runtime.indexOf(\"if(!globalThis.TradingResearchCoreHydrationReadContract.ready())\",loadStart);"
+          count=s.count(old)
+          if count!=1: raise SystemExit(f'verify-restore-recovery-lock.mjs: expected 1 hydration ordering anchor, found {count}')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit verifier composition
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verify-restore-recovery-lock.mjs
+          git diff --cached --check
+          git commit -m "test(batch53): compose restore lock hydration ordering"
+          git push origin HEAD:v31.25-batch53-core-hydration-read-boundary

@@ -23,7 +23,8 @@ for(const file of runtimeFiles){
   for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 }
 const overlap=topNames.filter(name=>runtimeTokens.has(name));
-const directGalleryCalls=runtimeFiles.filter(file=>/\bgallery\s*\(/.test(runtimeSources.get(file)||''));
+/* A direct legacy call is the identifier gallery(...), not a method such as contract.gallery(). */
+const directGalleryCalls=runtimeFiles.filter(file=>/(?:^|[^.\w$])gallery\s*\(/m.test(runtimeSources.get(file)||''));
 const bundledAppStage=consolidateLegacyRenderAssignments(app,{expected:12}).source;
 const gallerySource=app.match(/function gallery\(\)\{[^\n]+\}/)?.[0]||'';
 const fail=[];

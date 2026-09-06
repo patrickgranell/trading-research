@@ -50,7 +50,8 @@ const overlap=topNames.filter(name=>runtimeTokens.has(name));
 const directCalls=[];
 for(const [file,src] of runtimeSources){
   const executable=stripNonExecutableText(src);
-  const count=[...executable.matchAll(/\bjournal\s*\(/g)].length;
+  /* Direct legacy calls are journal(...), not member calls such as contract.journal(). */
+  const count=[...executable.matchAll(/(?:^|[^.\w$])journal\s*\(/gm)].length;
   if(count)directCalls.push([file,count]);
 }
 const structural=runtimeSources.get('structural-runtime.js')||'';

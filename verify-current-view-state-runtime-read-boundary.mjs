@@ -38,3 +38,4 @@ console.log('Current View State Runtime Read Boundary verification OK');
 console.log(' - trUiSnapshot currentView read: 1 direct -> 1 read-contract');
 console.log(' - render side-effect label currentView read: 1 direct -> 1 read-contract');
 console.log(' - navigation/currentView writes and non-currentView snapshot/render behavior preserved');
+await import('./verify-current-view-operation-draft-origin-read-boundary.mjs');

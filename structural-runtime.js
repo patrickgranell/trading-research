@@ -227,7 +227,7 @@ function trDraftCaptureOperation(){
   let activeKey='',selection=null;
   if(active&&form.contains(active)){activeKey=trRenderControlKey(active,form);try{if(typeof active.selectionStart==='number')selection=[active.selectionStart,active.selectionEnd];}catch{}}
   const modalBody=form.closest('.modal-body');
-  const draft={version:1,kind:'operation',operationId:trOperationDraftContext.operationId??null,planId:trOperationDraftContext.planId||state.currentPlanId||null,originView:trOperationDraftContext.originView||currentView,controls:data.controls,hadFiles:data.hadFiles,activeKey,selection,modalScrollTop:modalBody?.scrollTop||0,updatedAt:new Date().toISOString()};
+  const draft={version:1,kind:'operation',operationId:trOperationDraftContext.operationId??null,planId:trOperationDraftContext.planId||state.currentPlanId||null,originView:trOperationDraftContext.originView||globalThis.TradingResearchCurrentViewReadContract.current(),controls:data.controls,hadFiles:data.hadFiles,activeKey,selection,modalScrollTop:modalBody?.scrollTop||0,updatedAt:new Date().toISOString()};
   return trSessionSet(TR_OPERATION_DRAFT_KEY,draft);
 }
 function trDraftClearOperation(){trSessionRemove(TR_OPERATION_DRAFT_KEY);trOperationDraftContext=null;}
@@ -266,7 +266,7 @@ function trDraftMaybeRestoreAfterView(){
 const trOpenOperationModalBase=openOperationModal;
 openOperationModal=function(id=null){
   const result=trOpenOperationModalBase(id);
-  if(document.getElementById('operationForm'))trOperationDraftContext={operationId:id??null,planId:state.currentPlanId||null,originView:currentView};
+  if(document.getElementById('operationForm'))trOperationDraftContext={operationId:id??null,planId:state.currentPlanId||null,originView:globalThis.TradingResearchCurrentViewReadContract.current()};
   return result;
 };
 window.openOperationModal=openOperationModal;

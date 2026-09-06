@@ -29,7 +29,7 @@ need(bundledAppStage.includes("Object.defineProperty(globalThis,'TradingResearch
 need(bundledAppStage.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract'"),'Desapareció Navigation Current View Write Contract.');
 need(bundledAppStage.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewSessionRestoreWriteContract'"),'Desapareció Session Restore Current View Write Contract.');
 need(structural.includes("globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView)"),'Cambió boot/session restore fuera de alcance.');
-need(stateRuntime.includes("currentView='dashboard';"),'Cambió switchPlanAndOpen currentView fuera de alcance.');
+need(stateRuntime.includes('globalThis.TradingResearchCurrentViewPlanSwitchOpenWriteContract.toDashboard();'),'Cambió switchPlanAndOpen currentView fuera de alcance.');
 need(stateRuntime.includes('globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;'),'Cambió navegación explícita fuera de alcance.');
 
 if(fail.length){
@@ -41,5 +41,5 @@ console.log('Current View Router Fallback Write Boundary verification OK');
 console.log(' - unknown-view fallback: 1 direct write -> 1 router-fallback write-contract');
 console.log(' - warning + Dashboard render preserved');
 console.log(' - read/navigation/session-restore contracts preserved');
-console.log(' - plan-switch-open write preserved direct and out of scope');
+console.log(' - plan-switch-open write boundary preserved');
 await import('./verify-current-view-plan-switch-open-write-boundary.mjs');

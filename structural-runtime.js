@@ -164,13 +164,13 @@ function trRenderSetBadge(host,count,extraClass=''){
 }
 function trRenderSyncSidebar(){
   if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'){
-    const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(currentView);
+    const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(globalThis.TradingResearchCurrentViewReadContract.current());
     if(activeGroup&&globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup))globalThis.TradingResearchNavigationStateContract.saveOpenGroups();
-    globalThis.TradingResearchNavigationRuntimeStateContract.setLastView(currentView);
+    globalThis.TradingResearchNavigationRuntimeStateContract.setLastView(globalThis.TradingResearchCurrentViewReadContract.current());
   }
-  document.querySelectorAll('.nav-organized [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===currentView));
+  document.querySelectorAll('.nav-organized [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===globalThis.TradingResearchCurrentViewReadContract.current()));
   document.querySelectorAll('.nav-group').forEach(group=>{
-    const id=group.dataset.navGroup||'',hasActive=[...group.querySelectorAll('[data-view]')].some(btn=>btn.dataset.view===currentView);
+    const id=group.dataset.navGroup||'',hasActive=[...group.querySelectorAll('[data-view]')].some(btn=>btn.dataset.view===globalThis.TradingResearchCurrentViewReadContract.current());
     const open=globalThis.TradingResearchNavigationRuntimeStateContract.isGroupOpen(id);
     group.classList.toggle('has-active',hasActive);group.classList.toggle('open',open);
     const toggle=group.querySelector(':scope > .nav-group-toggle');

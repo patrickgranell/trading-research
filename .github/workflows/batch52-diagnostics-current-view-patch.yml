@@ -1,0 +1,59 @@
+name: Batch 52 Diagnostics Current View Patch
+
+on:
+  push:
+    branches:
+      - v31.25-batch52-diagnostics-current-view-read-closure
+    paths:
+      - .github/workflows/batch52-diagnostics-current-view-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-batch52-diagnostics-current-view-read-closure
+      - name: Bind diagnostics currentView reads
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          patches={
+            'security-runtime.js':[
+              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+            ],
+            'event-runtime.js':[
+              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+            ],
+            'csp-runtime.js':[
+              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+            ],
+            'style-runtime.js':[
+              ("typeof currentView!=='undefined'&&currentView", "globalThis.TradingResearchCurrentViewReadContract.current()", 1),
+              ("String(currentView)", "String(globalThis.TradingResearchCurrentViewReadContract.current())", 1),
+              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+            ],
+            'render-closure-runtime.js':[
+              ("typeof currentView!=='undefined'&&currentView==='config'", "globalThis.TradingResearchCurrentViewReadContract.current()==='config'", 1),
+            ],
+          }
+          for name,repls in patches.items():
+            p=Path(name);s=p.read_text()
+            for old,new,expected in repls:
+              count=s.count(old)
+              if count!=expected:
+                raise SystemExit(f'{name}: expected {expected} anchor(s) {old!r}, found {count}')
+              s=s.replace(old,new,expected)
+            p.write_text(s)
+          PY
+      - name: Commit exact patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add security-runtime.js event-runtime.js csp-runtime.js style-runtime.js render-closure-runtime.js
+          git diff --cached --check
+          git commit -m "fix(batch52): bind diagnostics currentView reads"
+          git push origin HEAD:v31.25-batch52-diagnostics-current-view-read-closure

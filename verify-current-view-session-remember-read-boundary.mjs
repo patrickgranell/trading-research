@@ -28,3 +28,4 @@ if(fail.length){
 console.log('Current View Session Remember Read Boundary verification OK');
 console.log(' - trUiRememberView currentView read: contract-bound');
 console.log(' - session restore, fallback and beforeunload trigger: preserved');
+await import('./verify-current-view-navigation-active-read-boundary.mjs');

@@ -1,0 +1,41 @@
+name: Batch 41 one-line patch
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch41-render-diagnostics-current-view-read-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch41-render-diagnostics-current-view-read-boundary
+      - name: Apply exact diagnostics read replacement
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('structural-runtime.js')
+          s=p.read_text()
+          old="lastPartial:trRenderLastPartial,currentView,lastView:trRenderLastView"
+          new="lastPartial:trRenderLastPartial,currentView:globalThis.TradingResearchCurrentViewReadContract.current(),lastView:trRenderLastView"
+          count=s.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one target, found {count}')
+          p.write_text(s.replace(old,new,1))
+          PY
+          git diff --check
+          git diff -- structural-runtime.js
+      - name: Commit exact patch
+        shell: bash
+        run: |
+          git config user.name "patrickgranell"
+          git config user.email "patrickgranelltrading@gmail.com"
+          git add structural-runtime.js
+          git commit -m "refactor(batch41): bind render diagnostics currentView read"
+          git push origin HEAD:v31.25-classic-contracts-batch41-render-diagnostics-current-view-read-boundary

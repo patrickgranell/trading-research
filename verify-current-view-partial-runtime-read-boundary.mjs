@@ -31,7 +31,7 @@ need(analyticsBlock.includes("trPartialRecord('operations.analytics')"),'Cambió
 
 need(structural.includes("const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);"),'Cambió v315SetCursor/currentView fuera de alcance.');
 need(structural.includes('/* Final runtime coordinator. This is the only render() used after bootstrap completes. */'),'Cambió el coordinador central render fuera de alcance.');
-need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la restauración de currentView en boot fuera de alcance.');
+need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),'Cambió la restauración de currentView en boot fuera de alcance.');
 
 if(fail.length){
   console.error('Current View Partial Runtime Read Boundary verification FAILED');

@@ -27,7 +27,7 @@ need(renderBlock.includes('if(continuity)trRenderRestoreInputContinuity(continui
 need(renderBlock.includes('trRenderAfterView();'),'Cambió el post-render fuera de alcance.');
 need(!/const\s+(?:activeView|viewName|renderView)\s*=\s*globalThis\.TradingResearchCurrentViewReadContract\.current\(\)/.test(renderBlock),'No se permite snapshot local de currentView en el coordinador: deben preservarse las 9 lecturas temporales.');
 
-need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la escritura de restauración de currentView en boot fuera de alcance.');
+need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),'Cambió la escritura de restauración de currentView en boot fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),'Cambió la escritura fallback del router fuera de alcance.');
 need(stateRuntime.includes("currentView='dashboard';"),'Cambió switchPlanAndOpen/currentView fuera de alcance.');
 need(stateRuntime.includes('globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;'),'Cambió trUiNavigate/navigation write boundary fuera de alcance.');
@@ -41,5 +41,5 @@ console.log('Current View Central Render Read Boundary verification OK');
 console.log(' - central render(): 9 direct -> 9 read-contract');
 console.log(' - repeated read timing preserved; no local currentView snapshot introduced');
 console.log(' - partial/full render, continuity and error paths preserved');
-console.log(' - boot/router/navigation currentView writes preserved');
+console.log(' - boot restore write boundary + router/navigation writes preserved');
 await import('./verify-current-view-navigation-write-boundary.mjs');

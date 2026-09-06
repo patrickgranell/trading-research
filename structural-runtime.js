@@ -15,7 +15,7 @@ function trSessionSet(key,value){try{sessionStorage.setItem(key,JSON.stringify(v
 function trSessionRemove(key){try{sessionStorage.removeItem(key);}catch{}}
 function trUiRestoreViewAtBoot(){
   const ui=trSessionGet(TR_UI_SESSION_KEY);
-  if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;
+  if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);
 }
 function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),updatedAt:new Date().toISOString()});}
 const trBootOperationDraft=trSessionGet(TR_OPERATION_DRAFT_KEY);

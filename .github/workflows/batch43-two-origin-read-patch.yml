@@ -1,0 +1,45 @@
+name: Batch 43 two-origin-read patch
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch43-operation-draft-origin-view-read-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch43-operation-draft-origin-view-read-boundary
+      - name: Apply exact operation draft originView read replacements
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('structural-runtime.js')
+          s=p.read_text()
+          replacements=[
+              ("originView:trOperationDraftContext.originView||currentView", "originView:trOperationDraftContext.originView||globalThis.TradingResearchCurrentViewReadContract.current()"),
+              ("originView:currentView", "originView:globalThis.TradingResearchCurrentViewReadContract.current()"),
+          ]
+          for old,new in replacements:
+              count=s.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one target for {old!r}, found {count}')
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- structural-runtime.js
+      - name: Commit exact patch
+        shell: bash
+        run: |
+          git config user.name "patrickgranell"
+          git config user.email "patrickgranelltrading@gmail.com"
+          git add structural-runtime.js
+          git commit -m "refactor(batch43): bind operation draft originView reads"
+          git push origin HEAD:v31.25-classic-contracts-batch43-operation-draft-origin-view-read-boundary

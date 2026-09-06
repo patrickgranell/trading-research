@@ -29,6 +29,24 @@ need(structural.includes("document.addEventListener('change',e=>{if(e.target?.cl
 need(structural.includes("window.addEventListener('beforeunload',()=>{trUiRememberView();trDraftCaptureOperation();});"),'Cambió la captura de borrador en beforeunload fuera de alcance.');
 need(structural.includes('notice.innerHTML=`<strong>Borrador recuperado tras la recarga.</strong>'),'Desapareció el aviso de borrador recuperado.');
 
+const actionRegistry="globalThis.TradingResearchActions&&typeof globalThis.TradingResearchActions==='object'";
+const openWindow="window.openOperationModal=openOperationModal;";
+const openRegistry=`if(${actionRegistry})globalThis.TradingResearchActions.openOperationModal=openOperationModal;`;
+const closeWindow="window.closeModal=closeModal;";
+const closeRegistry=`if(${actionRegistry})globalThis.TradingResearchActions.closeModal=closeModal;`;
+const saveWindow="window.saveOperationFromForm=saveOperationFromForm;";
+const saveRegistry=`if(${actionRegistry})globalThis.TradingResearchActions.saveOperationFromForm=saveOperationFromForm;`;
+for(const [windowAnchor,registryAnchor,label] of [
+  [openWindow,openRegistry,'openOperationModal'],
+  [closeWindow,closeRegistry,'closeModal'],
+  [saveWindow,saveRegistry,'saveOperationFromForm']
+]){
+  const windowPos=structural.indexOf(windowAnchor),registryPos=structural.indexOf(registryAnchor);
+  need(windowPos>=0,`Desapareció el wrapper window de ${label}.`);
+  need(registryPos>=0,`El wrapper de borrador ${label} no se republica en TradingResearchActions.`);
+  need(windowPos>=0&&registryPos>windowPos,`La republicación de ${label} debe ocurrir después de instalar el wrapper.`);
+}
+
 const bootstrapStart=app.indexOf('async function trCoreBootstrap(){');
 need(bootstrapStart>=0,'No se encontró trCoreBootstrap().');
 const hydratedLiteral="trCoreMode='indexeddb';trCoreHydrated=true;trCoreSignalHydrated();";
@@ -46,6 +64,7 @@ if(fail.length){
 }
 console.log('Operation Draft Hydration Restore verification OK');
 console.log(' - draft restore waits for core hydration before consuming its one-shot attempt');
+console.log(' - draft modal open/close/save wrappers remain effective through TradingResearchActions');
 console.log(' - post-hydration bootstrap render provides the retry point');
 console.log(' - session capture, plan selection, modal reopen, field apply and recovery notice preserved');
 console.log(' - operation save, persistence and domain behavior untouched');

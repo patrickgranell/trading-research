@@ -1,0 +1,58 @@
+name: Batch 50 exact plan-switch-open patch
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch50-plan-switch-open-current-view-write-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore(batch50): add TEMP exact patch workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch50-plan-switch-open-current-view-write-boundary
+      - name: Apply exact Batch 50 patch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          transform=Path('render-source-transform.mjs')
+          s=transform.read_text()
+          old1="""const CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT=\"\\n/* V31.25 · Batch 49 · build-only Current View router fallback write boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\\n\";
+
+function skipQuoted"""
+          new1="""const CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT=\"\\n/* V31.25 · Batch 49 · build-only Current View router fallback write boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\\n\";
+const CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT=\"\\n/* V31.25 · Batch 50 · build-only Current View plan-switch-open write boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\\n\";
+
+function skipQuoted"""
+          assert s.count(old1)==1, f'transform contract anchor count={s.count(old1)}'
+          s=s.replace(old1,new1)
+          old2="""  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract'\"))out+=CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT;
+  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"""
+          new2="""  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract'\"))out+=CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT;
+  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract'\"))out+=CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT;
+  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"""
+          assert s.count(old2)==1, f'transform publication anchor count={s.count(old2)}'
+          s=s.replace(old2,new2)
+          transform.write_text(s)
+
+          runtime=Path('state-runtime.js')
+          r=runtime.read_text()
+          old3="if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();currentView='dashboard';"
+          new3="if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();globalThis.TradingResearchCurrentViewPlanSwitchOpenWriteContract.toDashboard();"
+          assert r.count(old3)==1, f'state-runtime switchPlanAndOpen anchor count={r.count(old3)}'
+          r=r.replace(old3,new3)
+          runtime.write_text(r)
+          PY
+          git diff --check
+          git config user.name "patrickgranell"
+          git config user.email "patrickgranelltrading@gmail.com"
+          git add render-source-transform.mjs state-runtime.js
+          git commit -m "refactor(batch50): bind plan-switch-open currentView write contract"
+          git push origin HEAD:v31.25-classic-contracts-batch50-plan-switch-open-current-view-write-boundary

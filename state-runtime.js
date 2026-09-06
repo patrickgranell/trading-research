@@ -204,7 +204,7 @@ function trDomainNormalizeAllPlanSchemas(){
   return plans.length;
 }
 function trDomainNormalizeHydratedSchema(reason='render'){
-  if(typeof trCoreHydrated==='undefined'||!trCoreHydrated||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;
+  if(!globalThis.TradingResearchCoreHydrationReadContract.ready()||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;
   const root=trDomainRootTarget;
   trDomainSchemaNormalizedRoots.add(root);
   const previous=trDomainActiveLabel,beforeMutations=trDomainMutationCount,beforeCommits=trDomainCommitCount;
@@ -774,5 +774,5 @@ trStateModeContract.replace(trStateModeCard);
 
 window.TradingResearchStores=Object.freeze({domain:TRDomainStore,ui:TRUIStore,diagnostics:trStateRuntimeDiagnostics});
 Object.assign(window,{trStateRuntimeDiagnostics,trStateRuntimePanel});
-if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
+if(globalThis.TradingResearchCoreHydrationReadContract.ready())trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');
 /* ===== END V31.17.1 STATE RUNTIME ===== */

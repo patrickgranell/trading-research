@@ -250,7 +250,7 @@ function trDraftApplyOperation(draft){
   trDraftLastRecoveredAt=new Date().toISOString();return true;
 }
 function trDraftMaybeRestoreAfterView(){
-  if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return;
+  if(!globalThis.TradingResearchCoreHydrationReadContract.ready())return;
   if(trDraftRestoreAttempted)return;
   const draft=trBootOperationDraft;if(!draft||draft.kind!=='operation')return;
   trDraftRestoreAttempted=true;
@@ -402,5 +402,5 @@ window.render=render;
 Object.assign(window,{trRenderDiagnostics,trRenderRuntimePanel,trRenderViewHtml,trPartialRenderOperations,trPartialRenderMarket});
 
 /* If IndexedDB bootstrap completed unusually early, mount the new runtime immediately. */
-if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated&&!trCoreFatal)render();
+if(globalThis.TradingResearchCoreHydrationReadContract.ready()&&!trCoreFatal)render();
 /* ===== END V31.13 RUNTIME ===== */

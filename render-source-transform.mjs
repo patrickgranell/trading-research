@@ -16,6 +16,7 @@ const CONFIG_TAB_STATE_CONTRACT="\n/* V31.25 · Batch 33 · build-only Config Ta
 const DASHBOARD_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 34 · build-only Dashboard view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchDashboardViewPresentationContract',{value:Object.freeze({render:()=>dashboard()}),writable:false,enumerable:false,configurable:false});\n";
 const OPERATIONS_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 35 · build-only Operations view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchOperationsViewPresentationContract',{value:Object.freeze({render:()=>operations()}),writable:false,enumerable:false,configurable:false});\n";
 const JOURNAL_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 36 · build-only Journal view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchJournalViewPresentationContract',{value:Object.freeze({render:()=>journal()}),writable:false,enumerable:false,configurable:false});\n";
+const BLOCKS_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 37 · build-only Blocks view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchBlocksViewPresentationContract',{value:Object.freeze({render:()=>blocks()}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -96,6 +97,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchDashboardViewPresentationContract'"))out+=DASHBOARD_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchOperationsViewPresentationContract'"))out+=OPERATIONS_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchJournalViewPresentationContract'"))out+=JOURNAL_VIEW_PRESENTATION_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchBlocksViewPresentationContract'"))out+=BLOCKS_VIEW_PRESENTATION_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

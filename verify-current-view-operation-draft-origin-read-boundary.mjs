@@ -30,7 +30,7 @@ need(modalBlock.includes('planId:state.currentPlanId||null'),'Cambió el planId 
 
 need(structural.includes('if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;'),'Cambió la restauración de currentView en boot fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),'Cambió el fallback de router currentView fuera de alcance.');
-need(structural.includes("if(!view)return;if(currentView==='operations')trPartialPrepareOperations(view);else if(currentView==='market')trPartialPrepareMarket(view);"),'Cambió el routing de preparación parcial fuera de alcance.');
+need(structural.includes("if(!view)return;if(globalThis.TradingResearchCurrentViewReadContract.current()==='operations')trPartialPrepareOperations(view);else if(globalThis.TradingResearchCurrentViewReadContract.current()==='market')trPartialPrepareMarket(view);"),'Cambió el routing de preparación parcial fuera de alcance.');
 need(structural.includes("const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;"),'Cambió el coordinador central de render fuera de alcance.');
 
 if(fail.length){

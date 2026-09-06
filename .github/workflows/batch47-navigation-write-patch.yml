@@ -1,0 +1,54 @@
+name: Batch47 Navigation Write Patch
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch47-navigation-current-view-write-boundary
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: "!startsWith(github.event.head_commit.message, 'fix(batch47):')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch47-navigation-current-view-write-boundary
+      - name: Apply exact Batch 47 patch
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          function replaceExact(path,oldText,newText){
+            let s=fs.readFileSync(path,'utf8');
+            if(!s.includes(oldText))throw new Error(`Missing exact target in ${path}`);
+            if(s.split(oldText).length!==2)throw new Error(`Target not unique in ${path}`);
+            s=s.replace(oldText,newText);
+            fs.writeFileSync(path,s);
+          }
+          replaceExact(
+            'state-runtime.js',
+            "function trUiNavigate(view){if(typeof TR_VALID_VIEWS!=='undefined'&&!TR_VALID_VIEWS.has(view))return false;return trUiAction('navigation.navigate',()=>{currentView=view;render();return true;});}",
+            "function trUiNavigate(view){if(typeof TR_VALID_VIEWS!=='undefined'&&!TR_VALID_VIEWS.has(view))return false;return trUiAction('navigation.navigate',()=>{globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;});}"
+          );
+          replaceExact(
+            'render-source-transform.mjs',
+            "const CURRENT_VIEW_READ_CONTRACT=\"\\n/* V31.25 · Batch 38 · build-only Current View router read boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewReadContract',{value:Object.freeze({current:()=>currentView}),writable:false,enumerable:false,configurable:false});\\n\";",
+            "const CURRENT_VIEW_READ_CONTRACT=\"\\n/* V31.25 · Batch 38 · build-only Current View router read boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewReadContract',{value:Object.freeze({current:()=>currentView}),writable:false,enumerable:false,configurable:false});\\n\";\nconst CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT=\"\\n/* V31.25 · Batch 47 · build-only Current View explicit navigation write boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract',{value:Object.freeze({navigate:view=>{currentView=view;}}),writable:false,enumerable:false,configurable:false});\\n\";"
+          );
+          replaceExact(
+            'render-source-transform.mjs',
+            "  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewReadContract'\"))out+=CURRENT_VIEW_READ_CONTRACT;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};",
+            "  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewReadContract'\"))out+=CURRENT_VIEW_READ_CONTRACT;\n  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract'\"))out+=CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"
+          );
+          replaceExact(
+            'verify-current-view-central-render-read-boundary.mjs',
+            "need(stateRuntime.includes('currentView=view;render();return true;'),'Cambió trUiNavigate/currentView fuera de alcance.');",
+            "need(stateRuntime.includes('globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;'),'Cambió trUiNavigate/navigation write boundary fuera de alcance.');"
+          );
+          NODE
+      - name: Commit patch
+        run: |
+          git config user.name patrickgranell
+          git config user.email patrickgranelltrading@gmail.com
+          git add state-runtime.js render-source-transform.mjs verify-current-view-central-render-read-boundary.mjs
+          git commit -m "fix(batch47): bind explicit UI navigation currentView write"
+          git push

@@ -111,3 +111,4 @@ console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
 console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
 console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
 console.log(' - Blocks route: contract-bound with late resolution');
+await import('./verify-current-view-router-read-boundary.mjs');

@@ -35,7 +35,7 @@ let trRenderLastError='';
  * This runtime replaces only the final rendering coordinator. Historical render()
  * wrappers remain in the source for regression safety, but no longer drive the UI.
  */
-function trRenderViewHtml(view=currentView){
+function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract.current()){
   switch(view){
     case 'dashboard': return globalThis.TradingResearchDashboardViewPresentationContract.render();
     case 'decision': return globalThis.TradingResearchViewPresentationContract.decision();

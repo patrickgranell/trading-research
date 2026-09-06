@@ -114,3 +114,5 @@ console.log(' - state-runtime.js source: byte-preserved; migration applied in ex
 console.log(' - diagnostic configTab key/property reads: preserved');
 console.log(' - audited effective contract consumers: 8/8');
 console.log(' - TRUIStore + Datos/Nube refresh paths: contract-bound');
+
+await import('./verify-dashboard-view-presentation-boundary.mjs');

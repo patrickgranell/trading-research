@@ -334,7 +334,7 @@ function trPartialPrepareMarket(view=document.getElementById('view')){
   const chrome=document.createElement('div');chrome.id='tr-market-chrome-region';chrome.style.display='contents';tabs.before(chrome);before.forEach(n=>chrome.appendChild(n));
   const tabRegion=document.createElement('div');tabRegion.id='tr-market-tabs-region';tabRegion.style.display='contents';tabs.before(tabRegion);tabRegion.appendChild(tabs);
   const body=document.createElement('div');body.id='tr-market-body-region';body.style.display='contents';tabRegion.after(body);after.forEach(n=>body.appendChild(n));
-  body.dataset.trMarketTab=String(v316Ui?.tab||'');return true;
+  body.dataset.trMarketTab=String(globalThis.TradingResearchMarketUiStateReadContract.tab()||'');return true;
 }
 function trPartialMarketParts(){
   const tpl=document.createElement('template');tpl.innerHTML=globalThis.TradingResearchViewPresentationContract.market();
@@ -345,7 +345,7 @@ function trPartialMarketParts(){
 function trPartialRenderMarket(reason='market.body'){
   const view=document.getElementById('view');if(!view||view.dataset.trView!=='market'||!trPartialPrepareMarket(view))return false;
   const parts=trPartialMarketParts(),chrome=document.getElementById('tr-market-chrome-region'),tabs=document.getElementById('tr-market-tabs-region'),body=document.getElementById('tr-market-body-region');if(!parts||!chrome||!tabs||!body)return false;
-  const oldTab=body.dataset.trMarketTab||'',newTab=String(v316Ui?.tab||''),tabChanged=oldTab!==newTab,continuity=trRenderCaptureInputContinuity(body),sx=window.scrollX,sy=window.scrollY;
+  const oldTab=body.dataset.trMarketTab||'',newTab=String(globalThis.TradingResearchMarketUiStateReadContract.tab()||''),tabChanged=oldTab!==newTab,continuity=trRenderCaptureInputContinuity(body),sx=window.scrollX,sy=window.scrollY;
   if(tabChanged){chrome.innerHTML=parts.chrome;tabs.innerHTML=parts.tabs;}
   body.innerHTML=parts.body;body.dataset.trMarketTab=newTab;
   if(continuity&&!tabChanged)trRenderRestoreInputContinuity(continuity,body);else trPartialRestoreScroll(sx,sy);
@@ -363,7 +363,7 @@ trOpsAnalyticsRefreshContract.replace(function(read=true){const before=document.
 /* Cursor movement must never replace its own range input while the user is dragging it. */
 const trV315SetCursorBase=v315SetCursor;
 v315SetCursor=function(v){
-  const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);
+  const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||globalThis.TradingResearchMarketUiStateReadContract.tab()!=='running')return trV315SetCursorBase(v);
   v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,series.points.length-1));
   const set=v314MarketUi.execSets.find(x=>x.id===v314MarketUi.activeExecId),rows=set?.results||[],idx=Math.max(0,Math.min(v315RunningUi.tradeIndex,rows.length-1)),result=rows[idx],cursor=series.points[v315RunningUi.cursor];if(!result||!cursor)return;
   const body=document.getElementById('tr-market-body-region'),panel=body?.querySelector('.rp-panel');if(!panel)return trV315SetCursorBase(v);

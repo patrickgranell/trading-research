@@ -9,6 +9,10 @@ const runtimeFiles=[
   'cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js',
   'style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'
 ];
+const EXPECTED_CONSUMERS=new Set([
+  'state-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js',
+  'cloud-v10-runtime.js','csp-runtime.js','style-runtime.js','render-closure-runtime.js'
+]);
 const MAX_RUNTIME_NAME_OVERLAP=184;
 const CONTRACT='TradingResearchConfigTabStateContract';
 
@@ -31,7 +35,7 @@ function stripNonExecutableText(source){
 function directConfigTabRefs(source){
   const executable=stripNonExecutableText(source)
     .replace(/\bconfigTab\s*:/g,'           ')
-    .replace(/\.\s*configTab\b/g,'           '); // object key/property access is not the classic binding
+    .replace(/\.\s*configTab\b/g,'           '); // property key/access is not the classic binding
   return [...executable.matchAll(/\bconfigTab\b/g)].length;
 }
 
@@ -45,7 +49,7 @@ for(const file of runtimeFiles){
   for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 }
 const overlap=topNames.filter(name=>runtimeTokens.has(name));
-const directRefs=[...runtimeSources].flatMap(([file,src])=>Array(directConfigTabRefs(src)).fill(file));
+const directRefFiles=[...runtimeSources].filter(([,src])=>directConfigTabRefs(src)>0).map(([file])=>file);
 const bundledAppStage=consolidateLegacyRenderAssignments(app,{expected:12}).source;
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
@@ -56,8 +60,8 @@ need(app.includes("let configTab='instruments';"),
   'El estado fuente configTab ya no conserva el valor inicial instruments.');
 need(app.includes('function setConfigTab(tab){configTab=tab;render();}'),
   'El comando fuente setConfigTab cambió su semántica histórica.');
-need(directRefs.length===0,
-  `Persisten referencias ejecutables directas al binding configTab en runtimes: ${directRefs.join(', ')}.`);
+need(directRefFiles.length===0,
+  `Persisten referencias ejecutables directas al binding configTab en runtimes: ${directRefFiles.join(', ')}.`);
 
 need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
   'El build transform no publica Config Tab State Contract.');
@@ -70,10 +74,23 @@ need(stateRuntime.includes(`configTab:globalThis.${CONTRACT}.current()`),
 need(stateRuntime.includes(`globalThis.${CONTRACT}.set(tab);render();`),
   'TRUIStore config.tab no escribe configTab a través del contrato antes de renderizar.');
 
-for(const file of runtimeFiles.filter(x=>x!=='state-runtime.js')){
-  need(!(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`),
-    `Consumidor inesperado de ${CONTRACT}: ${file}.`);
-}
+const actualConsumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));
+need(actualConsumers.length===EXPECTED_CONSUMERS.size&&actualConsumers.every(file=>EXPECTED_CONSUMERS.has(file)),
+  `Consumidores de ${CONTRACT} no coinciden con el inventario auditado: ${actualConsumers.join(', ')||'ninguno'}.`);
+need((runtimeSources.get('backup-v2-runtime.js')||'').includes(`currentView='config';globalThis.${CONTRACT}.set('data');render();`),
+  'Backup V2 no conserva el aterrizaje post-restore en Configuración → Datos mediante contrato.');
+need((runtimeSources.get('security-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Security runtime no conserva su refresh condicional de Datos mediante contrato.');
+need((runtimeSources.get('event-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Event runtime no conserva su refresh condicional de Datos mediante contrato.');
+need((runtimeSources.get('cloud-v10-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='cloud'`),
+  'Cloud V10 no conserva su refresh condicional de Nube mediante contrato.');
+need((runtimeSources.get('csp-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'CSP runtime no conserva su refresh condicional de Datos mediante contrato.');
+need((runtimeSources.get('style-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Style runtime no conserva su refresh condicional de Datos mediante contrato.');
+need((runtimeSources.get('render-closure-runtime.js')||'').includes(`currentView==='config'&&globalThis.${CONTRACT}.current()==='data'`),
+  'Render Closure no conserva su refresh condicional de Datos mediante contrato.');
 
 if(fail.length){
   console.error('Config Tab State Boundary verification FAILED');
@@ -84,4 +101,5 @@ console.log('Config Tab State Boundary verification OK');
 console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
 console.log(' - executable direct configTab binding refs in runtimes: 0');
 console.log(' - diagnostic configTab key/property reads: preserved');
-console.log(' - TRUIStore config tab read/write: contract-bound');
+console.log(' - audited contract consumers: 8/8');
+console.log(' - TRUIStore + Datos/Nube refresh paths: contract-bound');

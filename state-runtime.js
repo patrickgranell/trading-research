@@ -373,16 +373,16 @@ function trUiClone(v){try{return JSON.parse(JSON.stringify(v));}catch{return nul
 function trUiSnapshot(){
   const out={navigation:{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
   if(typeof opsViewState!=='undefined')out.operations=trUiClone(opsViewState);
-  if(typeof journalViewState!=='undefined')out.journal=trUiClone(journalViewState);
-  if(typeof blockViewState!=='undefined')out.blocks=trUiClone(blockViewState);
-  if(typeof galleryViewState!=='undefined')out.gallery=trUiClone(galleryViewState);
+  const journal=globalThis.TradingResearchViewSnapshotStateReadContract.journal();if(journal!==undefined)out.journal=trUiClone(journal);
+  const blocks=globalThis.TradingResearchViewSnapshotStateReadContract.blocks();if(blocks!==undefined)out.blocks=trUiClone(blocks);
+  const gallery=globalThis.TradingResearchViewSnapshotStateReadContract.gallery();if(gallery!==undefined)out.gallery=trUiClone(gallery);
   if(typeof labState!=='undefined')out.lab=trUiClone(labState);
   if(typeof dashboardViewState!=='undefined')out.dashboard=trUiClone(dashboardViewState);
   if(typeof exitLabState!=='undefined')out.exitLab=trUiClone(exitLabState);
-  if(typeof calendarState!=='undefined')out.calendar=trUiClone(calendarState);
-  if(typeof complianceViewState!=='undefined')out.compliance=trUiClone(complianceViewState);
-  if(typeof reviewViewState!=='undefined')out.review=trUiClone(reviewViewState);
-  if(typeof goalViewState!=='undefined')out.goals=trUiClone(goalViewState);
+  const calendar=globalThis.TradingResearchViewSnapshotStateReadContract.calendar();if(calendar!==undefined)out.calendar=trUiClone(calendar);
+  const compliance=globalThis.TradingResearchViewSnapshotStateReadContract.compliance();if(compliance!==undefined)out.compliance=trUiClone(compliance);
+  const review=globalThis.TradingResearchViewSnapshotStateReadContract.review();if(review!==undefined)out.review=trUiClone(review);
+  const goals=globalThis.TradingResearchViewSnapshotStateReadContract.goals();if(goals!==undefined)out.goals=trUiClone(goals);
   const robustness=globalThis.TradingResearchUiSnapshotStateReadContract.robustness();if(robustness!==undefined)out.robustness=trUiClone(robustness);
   const riskStress=globalThis.TradingResearchUiSnapshotStateReadContract.riskStress();if(riskStress!==undefined)out.riskStress=trUiClone(riskStress);
   const walkForward=globalThis.TradingResearchUiSnapshotStateReadContract.walkForward();if(walkForward!==undefined)out.walkForward=trUiClone(walkForward);

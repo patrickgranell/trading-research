@@ -29,7 +29,7 @@ need(analyticsBlock.includes("if(globalThis.TradingResearchCurrentViewReadContra
 need(analyticsBlock.includes('const out=trRefreshOpsAnalyticsBase(read);'),'Cambió la llamada analytics base fuera de alcance.');
 need(analyticsBlock.includes("trPartialRecord('operations.analytics')"),'Cambió el contador parcial de analytics fuera de alcance.');
 
-need(structural.includes("const series=v315RunningUi.series;if(!series?.points?.length||currentView!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);"),'Cambió v315SetCursor/currentView fuera de alcance.');
+need(structural.includes("const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);"),'Cambió v315SetCursor/currentView fuera de alcance.');
 need(structural.includes("const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;"),'Cambió el coordinador central render/currentView fuera de alcance.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la restauración de currentView en boot fuera de alcance.');
 

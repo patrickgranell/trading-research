@@ -19,6 +19,7 @@ const JOURNAL_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 36 · build-only 
 const BLOCKS_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 37 · build-only Blocks view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchBlocksViewPresentationContract',{value:Object.freeze({render:()=>blocks()}),writable:false,enumerable:false,configurable:false});\n";
 const CURRENT_VIEW_READ_CONTRACT="\n/* V31.25 · Batch 38 · build-only Current View router read boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewReadContract',{value:Object.freeze({current:()=>currentView}),writable:false,enumerable:false,configurable:false});\n";
 const CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT="\n/* V31.25 · Batch 47 · build-only Current View explicit navigation write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract',{value:Object.freeze({navigate:view=>{currentView=view;}}),writable:false,enumerable:false,configurable:false});\n";
+const CURRENT_VIEW_SESSION_RESTORE_WRITE_CONTRACT="\n/* V31.25 · Batch 48 · build-only Current View session restore write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewSessionRestoreWriteContract',{value:Object.freeze({restore:view=>{currentView=view;}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -102,6 +103,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchBlocksViewPresentationContract'"))out+=BLOCKS_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewReadContract'"))out+=CURRENT_VIEW_READ_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract'"))out+=CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewSessionRestoreWriteContract'"))out+=CURRENT_VIEW_SESSION_RESTORE_WRITE_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

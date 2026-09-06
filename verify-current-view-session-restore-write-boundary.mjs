@@ -42,3 +42,4 @@ console.log(' - boot session restore: 1 direct write -> 1 session-restore write-
 console.log(' - session read + valid-view guard preserved');
 console.log(' - read/navigation contracts preserved');
 console.log(' - router fallback and plan-switch-open writes preserved');
+await import('./verify-current-view-router-fallback-write-boundary.mjs');

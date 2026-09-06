@@ -17,7 +17,7 @@ function trUiRestoreViewAtBoot(){
   const ui=trSessionGet(TR_UI_SESSION_KEY);
   if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;
 }
-function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView,updatedAt:new Date().toISOString()});}
+function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),updatedAt:new Date().toISOString()});}
 const trBootOperationDraft=trSessionGet(TR_OPERATION_DRAFT_KEY);
 trUiRestoreViewAtBoot();
 let trRenderShellMounted=false;

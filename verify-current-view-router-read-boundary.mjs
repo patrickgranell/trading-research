@@ -36,16 +36,15 @@ need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
 need(bundledAppStage.includes('current:()=>currentView'),
   'Current View Read Contract no usa la lectura tardía exacta current:()=>currentView.');
 need(!/TradingResearchCurrentViewReadContract[\s\S]{0,180}\bset\s*:/.test(bundledAppStage),
-  'Current View Read Contract no debe exponer mutación en Batch 38.');
+  'Current View Read Contract no debe exponer mutación.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),
   'La restauración de currentView desde sesión cambió fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),
   'El fallback de vista desconocida dejó de conservar currentView=dashboard.');
-need(structural.includes('function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView,updatedAt:new Date().toISOString()});}'),
-  'La persistencia de la vista UI cambió fuera de alcance.');
-const consumerCount=(structural.match(/TradingResearchCurrentViewReadContract\.current\(\)/g)||[]).length;
-need(consumerCount===1,
-  `Consumidores structural de Current View Read Contract inesperados: ${consumerCount} (esperado 1).`);
+need(structural.includes('function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{')&&structural.includes('updatedAt:new Date().toISOString()});}'),
+  'La forma de persistencia de la vista UI cambió fuera de alcance.');
+need(structural.includes('TradingResearchCurrentViewReadContract.current()'),
+  'El consumidor de router de Current View Read Contract desapareció.');
 
 if(fail.length){
   console.error('Current View Router Read Boundary verification FAILED');
@@ -55,5 +54,6 @@ if(fail.length){
 console.log('Current View Router Read Boundary verification OK');
 console.log(` - router normalized SHA256 frozen: ${routerHash}`);
 console.log(' - router default currentView read: contract-bound');
-console.log(' - session restore/save and unknown-view fallback: preserved');
+console.log(' - session restore/save shape and unknown-view fallback: preserved');
 console.log(' - contract is read-only and late-resolved');
+await import('./verify-current-view-session-remember-read-boundary.mjs');

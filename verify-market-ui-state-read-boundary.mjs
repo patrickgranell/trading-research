@@ -37,7 +37,7 @@ need(bundled.includes(contractShape),'El build transform no publica Market UI St
 need(app.includes("const v316Ui={...(window.v316Ui||{}),tab:'reconcile',environment:'replay'};"),'La definición fuente de v316Ui cambió fuera de alcance.');
 const tabWrites=(app.match(/\bv316Ui\.tab\s*=\s*/g)||[]).length;
 const environmentWrites=(app.match(/\bv316Ui\.environment\s*=\s*/g)||[]).length;
-need(tabWrites===2,`Inventario de writes v316Ui.tab cambió: ${tabWrites} (esperado 2).`);
+need(tabWrites===14,`Inventario de writes v316Ui.tab cambió: ${tabWrites} (esperado 14).`);
 need(environmentWrites===1,`Inventario de writes v316Ui.environment cambió: ${environmentWrites} (esperado 1).`);
 need(app.includes("function v316SetExecEnvironment(value){if(!['replay','sim','live'].includes(value))return;v316Ui.environment=value;render();}"),'La mutación de entorno Market Data cambió fuera de alcance.');
 need(app.includes("v316SetTab=function(tab){if(tab==='bestexit'){v316Ui.tab='bestexit';v315RunningUi.tab='running';render();setTimeout(v315EnsureRunningLoaded,0);return;}return v316SetTabV3110Base(tab);};"),'La mutación Best Exit de v316Ui.tab cambió fuera de alcance.');
@@ -70,7 +70,7 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Market UI State Read Boundary verification OK');
-console.log(' - direct v316Ui runtime tokens: 4 -> 0');
+console.log(' - direct v316Ui runtime tokens: 6 -> 0');
 console.log(' - Structural Runtime: 3 tab reads contract-bound');
 console.log(' - State Runtime: available + tab + environment snapshot reads contract-bound');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);

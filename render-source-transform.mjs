@@ -14,6 +14,7 @@ const IMAGE_HYDRATION_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 31 · build-on
 const SHELL_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 32 · build-only Shell presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchShellPresentationContract',{value:Object.freeze({render:()=>shell()}),writable:false,enumerable:false,configurable:false});\n";
 const CONFIG_TAB_STATE_CONTRACT="\n/* V31.25 · Batch 33 · build-only Config Tab state boundary */\nObject.defineProperty(globalThis,'TradingResearchConfigTabStateContract',{value:Object.freeze({current:()=>configTab,set:value=>{configTab=value;}}),writable:false,enumerable:false,configurable:false});\n";
 const DASHBOARD_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 34 · build-only Dashboard view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchDashboardViewPresentationContract',{value:Object.freeze({render:()=>dashboard()}),writable:false,enumerable:false,configurable:false});\n";
+const OPERATIONS_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 35 · build-only Operations view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchOperationsViewPresentationContract',{value:Object.freeze({render:()=>operations()}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -92,6 +93,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchShellPresentationContract'"))out+=SHELL_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchConfigTabStateContract'"))out+=CONFIG_TAB_STATE_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchDashboardViewPresentationContract'"))out+=DASHBOARD_VIEW_PRESENTATION_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchOperationsViewPresentationContract'"))out+=OPERATIONS_VIEW_PRESENTATION_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

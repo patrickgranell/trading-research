@@ -40,7 +40,7 @@ function trRenderViewHtml(view=currentView){
     case 'dashboard': return globalThis.TradingResearchDashboardViewPresentationContract.render();
     case 'decision': return globalThis.TradingResearchViewPresentationContract.decision();
     case 'changes': return globalThis.TradingResearchViewPresentationContract.changes();
-    case 'operations': return operations();
+    case 'operations': return globalThis.TradingResearchOperationsViewPresentationContract.render();
     case 'calendar': return globalThis.TradingResearchViewPresentationContract.calendar();
     case 'goals': return globalThis.TradingResearchViewPresentationContract.goals();
     case 'quality': return globalThis.TradingResearchViewPresentationContract.quality();

@@ -371,7 +371,7 @@ let trUiLastError='';
 const trUiSubscribers=new Set();
 function trUiClone(v){try{return JSON.parse(JSON.stringify(v));}catch{return null;}}
 function trUiSnapshot(){
-  const out={navigation:{currentView:typeof currentView!=='undefined'?currentView:'',configTab:globalThis.TradingResearchConfigTabStateContract.current(),theme:globalThis.TradingResearchThemeReadContract.current()}};
+  const out={navigation:{currentView:typeof currentView!=='undefined'?currentView:'',configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
   if(typeof opsViewState!=='undefined')out.operations=trUiClone(opsViewState);
   if(typeof journalViewState!=='undefined')out.journal=trUiClone(journalViewState);
   if(typeof blockViewState!=='undefined')out.blocks=trUiClone(blockViewState);
@@ -411,7 +411,7 @@ function trUiAction(label,fn){
   }catch(e){trUiActiveAction=prev;throw e;}
 }
 function trUiNavigate(view){if(typeof TR_VALID_VIEWS!=='undefined'&&!TR_VALID_VIEWS.has(view))return false;return trUiAction('navigation.navigate',()=>{currentView=view;render();return true;});}
-function trUiSetConfigTab(tab){return trUiAction('config.tab',()=>{globalThis.TradingResearchConfigTabStateContract.set(tab);render();});}
+function trUiSetConfigTab(tab){return trUiAction('config.tab',()=>{configTab=tab;render();});}
 function trUiDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,revision:trUiRevision,trackedActions:trUiTrackedActions,legacyChanges:trUiLegacyChanges,lastAction:trUiLastAction,lastChangeAt:trUiLastChangeAt,lastError:trUiLastError,activeAction:trUiActiveAction,current:trUiLastSnapshot||trUiSnapshot()};}
 const TRUIStore=Object.freeze({snapshot:()=>trUiClone(trUiSnapshot()),action:trUiAction,navigate:trUiNavigate,setConfigTab:trUiSetConfigTab,capture:trUiCapture,subscribe(fn){if(typeof fn!=='function')return()=>{};trUiSubscribers.add(fn);return()=>trUiSubscribers.delete(fn);},diagnostics:trUiDiagnostics});
 
@@ -647,7 +647,7 @@ async function trV314ApplyChanges(changes){
   return new Promise((resolve,reject)=>{
     let tx;try{tx=db.transaction(stores,'readwrite');for(const c of list){const os=tx.objectStore(c.store);if(c.type==='delete')os.delete(c.id);else os.put(c.value);}}
     catch(e){try{db.close();}catch{};reject(e);return;}
-    tx.oncomplete=()=>{try{db.close();}catch{};resolve(list.length);};tx.onerror=()=>{const e=tx.error;try{db.close();}catch{}reject(e||new Error('Transacción Market Data fallida.'));};tx.onabort=()=>{const e=tx.error;try{db.close();}catch{}reject(e||new Error('Transacción Market Data abortada.'));};
+    tx.oncomplete=()=>{try{db.close();}catch{};resolve(list.length);};tx.onerror=()=>{const e=tx.error;try{db.close();}catch{};reject(e||new Error('Transacción Market Data fallida.'));};tx.onabort=()=>{const e=tx.error;try{db.close();}catch{};reject(e||new Error('Transacción Market Data abortada.'));};
   });
 }
 async function trV314StageCommit(ctx){const n=await trV314ApplyChanges(ctx.changes.values());ctx.committed=true;return n;}

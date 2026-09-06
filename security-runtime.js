@@ -78,6 +78,6 @@ Object.assign(window,{trSecurityDiagnostics,trSecurityRuntimePanel});
 /* The persistent shell may already exist when this final runtime loads. Refresh only
  * the version card directly; the next normal config render will include diagnostics. */
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trSecurityModeCard();}catch(_){/* diagnostics remain available */}
-try{if(typeof currentView!=='undefined'&&currentView==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>render(),0);}catch(_){/* no forced render outside Datos y seguridad */}
+try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>render(),0);}catch(_){/* no forced render outside Datos y seguridad */}
 })();
 /* ===== END V31.18 SECURITY RUNTIME ===== */

@@ -45,6 +45,6 @@ const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div c
 trRenderClosureModeContract.replace(trRenderClosureModeCard);
 trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trRenderClosureModeCard();}catch(_){}
-try{if(typeof currentView!=='undefined'&&currentView==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>window.render(),0);}catch(_){}
+try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>window.render(),0);}catch(_){}
 })();
 /* ===== END V31.23.5 RENDER CLOSURE RUNTIME ===== */

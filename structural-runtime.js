@@ -250,6 +250,7 @@ function trDraftApplyOperation(draft){
   trDraftLastRecoveredAt=new Date().toISOString();return true;
 }
 function trDraftMaybeRestoreAfterView(){
+  if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return;
   if(trDraftRestoreAttempted)return;
   const draft=trBootOperationDraft;if(!draft||draft.kind!=='operation')return;
   trDraftRestoreAttempted=true;

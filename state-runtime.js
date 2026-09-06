@@ -372,13 +372,13 @@ const trUiSubscribers=new Set();
 function trUiClone(v){try{return JSON.parse(JSON.stringify(v));}catch{return null;}}
 function trUiSnapshot(){
   const out={navigation:{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),configTab:typeof configTab!=='undefined'?configTab:'',theme:globalThis.TradingResearchThemeReadContract.current()}};
-  if(typeof opsViewState!=='undefined')out.operations=trUiClone(opsViewState);
+  const operations=globalThis.TradingResearchRemainingUiSnapshotStateReadContract.operations();if(operations!==undefined)out.operations=trUiClone(operations);
   const journal=globalThis.TradingResearchViewSnapshotStateReadContract.journal();if(journal!==undefined)out.journal=trUiClone(journal);
   const blocks=globalThis.TradingResearchViewSnapshotStateReadContract.blocks();if(blocks!==undefined)out.blocks=trUiClone(blocks);
   const gallery=globalThis.TradingResearchViewSnapshotStateReadContract.gallery();if(gallery!==undefined)out.gallery=trUiClone(gallery);
   if(typeof labState!=='undefined')out.lab=trUiClone(labState);
-  if(typeof dashboardViewState!=='undefined')out.dashboard=trUiClone(dashboardViewState);
-  if(typeof exitLabState!=='undefined')out.exitLab=trUiClone(exitLabState);
+  const dashboard=globalThis.TradingResearchRemainingUiSnapshotStateReadContract.dashboard();if(dashboard!==undefined)out.dashboard=trUiClone(dashboard);
+  const exitLab=globalThis.TradingResearchRemainingUiSnapshotStateReadContract.exitLab();if(exitLab!==undefined)out.exitLab=trUiClone(exitLab);
   const calendar=globalThis.TradingResearchViewSnapshotStateReadContract.calendar();if(calendar!==undefined)out.calendar=trUiClone(calendar);
   const compliance=globalThis.TradingResearchViewSnapshotStateReadContract.compliance();if(compliance!==undefined)out.compliance=trUiClone(compliance);
   const review=globalThis.TradingResearchViewSnapshotStateReadContract.review();if(review!==undefined)out.review=trUiClone(review);
@@ -391,7 +391,7 @@ function trUiSnapshot(){
   if(typeof reportsViewState!=='undefined')out.reports=trUiClone(reportsViewState);
   if(globalThis.TradingResearchMarketUiStateReadContract.available())out.market={phase:globalThis.TradingResearchMarketUiStateReadContract.tab(),environment:globalThis.TradingResearchMarketUiStateReadContract.environment()};
   if(typeof v315RunningUi!=='undefined')out.marketRunning={tab:v315RunningUi.tab,tradeIndex:v315RunningUi.tradeIndex,mode:v315RunningUi.mode,cursor:v315RunningUi.cursor,loading:v315RunningUi.loading,metaId:v315RunningUi.metaId,execId:v315RunningUi.execId};
-  if(typeof v3110Ui!=='undefined')out.bestExit=trUiClone(v3110Ui);
+  const bestExit=globalThis.TradingResearchRemainingUiSnapshotStateReadContract.bestExit();if(bestExit!==undefined)out.bestExit=trUiClone(bestExit);
   return out;
 }
 function trUiPublish(change){for(const fn of [...trUiSubscribers]){try{fn(change);}catch(e){console.warn('[Trading Research · UIStore subscriber]',e);}}}

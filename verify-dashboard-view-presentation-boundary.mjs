@@ -65,7 +65,7 @@ need(!bundledAppStage.includes('window.dashboard'),
   'Dashboard View Presentation Contract reintroduce un mirror window.dashboard redundante.');
 need(structural.includes(`case 'dashboard': return globalThis.${CONTRACT}.render();`),
   'El router principal no consume Dashboard View Presentation Contract.');
-need(structural.includes(`currentView='dashboard';\n      return globalThis.${CONTRACT}.render();`),
+need(structural.includes(`globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();\n      return globalThis.${CONTRACT}.render();`),
   'El fallback del router no conserva Dashboard mediante el contrato.');
 const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));
 need(consumers.length===1&&consumers[0]==='structural-runtime.js',

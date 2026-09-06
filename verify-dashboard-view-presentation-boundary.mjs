@@ -81,3 +81,5 @@ console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= 
 console.log(' - executable direct dashboard() runtime calls: 0');
 console.log(` - historical Dashboard definitions preserved: ${dashboardDefinitionCount}`);
 console.log(' - primary route + unknown-view fallback: contract-bound with late resolution');
+
+await import('./verify-operations-view-presentation-boundary.mjs');

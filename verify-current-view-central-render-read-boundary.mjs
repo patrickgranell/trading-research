@@ -30,7 +30,7 @@ need(!/const\s+(?:activeView|viewName|renderView)\s*=\s*globalThis\.TradingResea
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la escritura de restauración de currentView en boot fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),'Cambió la escritura fallback del router fuera de alcance.');
 need(stateRuntime.includes("currentView='dashboard';"),'Cambió switchPlanAndOpen/currentView fuera de alcance.');
-need(stateRuntime.includes('currentView=view;render();return true;'),'Cambió trUiNavigate/currentView fuera de alcance.');
+need(stateRuntime.includes('globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;'),'Cambió trUiNavigate/navigation write boundary fuera de alcance.');
 
 if(fail.length){
   console.error('Current View Central Render Read Boundary verification FAILED');

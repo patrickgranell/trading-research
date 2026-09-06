@@ -410,7 +410,7 @@ function trUiAction(label,fn){
     trUiCapture(trUiActiveAction);trUiActiveAction=prev;return out;
   }catch(e){trUiActiveAction=prev;throw e;}
 }
-function trUiNavigate(view){if(typeof TR_VALID_VIEWS!=='undefined'&&!TR_VALID_VIEWS.has(view))return false;return trUiAction('navigation.navigate',()=>{currentView=view;render();return true;});}
+function trUiNavigate(view){if(typeof TR_VALID_VIEWS!=='undefined'&&!TR_VALID_VIEWS.has(view))return false;return trUiAction('navigation.navigate',()=>{globalThis.TradingResearchCurrentViewNavigationWriteContract.navigate(view);render();return true;});}
 function trUiSetConfigTab(tab){return trUiAction('config.tab',()=>{configTab=tab;render();});}
 function trUiDiagnostics(){return {runtime:TR_STATE_RUNTIME_VERSION,revision:trUiRevision,trackedActions:trUiTrackedActions,legacyChanges:trUiLegacyChanges,lastAction:trUiLastAction,lastChangeAt:trUiLastChangeAt,lastError:trUiLastError,activeAction:trUiActiveAction,current:trUiLastSnapshot||trUiSnapshot()};}
 const TRUIStore=Object.freeze({snapshot:()=>trUiClone(trUiSnapshot()),action:trUiAction,navigate:trUiNavigate,setConfigTab:trUiSetConfigTab,capture:trUiCapture,subscribe(fn){if(typeof fn!=='function')return()=>{};trUiSubscribers.add(fn);return()=>trUiSubscribers.delete(fn);},diagnostics:trUiDiagnostics});

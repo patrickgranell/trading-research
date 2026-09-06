@@ -85,3 +85,5 @@ console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= 
 console.log(' - executable direct operations() runtime calls: 0');
 console.log(` - operations() source sha256 frozen: ${operationsHash}`);
 console.log(' - Operations route: contract-bound with late resolution');
+
+await import('./verify-journal-view-presentation-boundary.mjs');

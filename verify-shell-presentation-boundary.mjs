@@ -10,7 +10,7 @@ const runtimeFiles=[
   'style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'
 ];
 const MAX_RUNTIME_NAME_OVERLAP=184;
-const CONTRACT='TradingResearchImageHydrationPresentationContract';
+const CONTRACT='TradingResearchShellPresentationContract';
 
 function stripNonExecutableText(source){
   let out='',i=0;
@@ -20,7 +20,7 @@ function stripNonExecutableText(source){
     if(c==='/'&&n==='*'){out+='  ';i+=2;while(i<source.length&&!(source[i]==='*'&&source[i+1]==='/')){out+=source[i]==='\n'?'\n':' ';i++;}if(i<source.length){out+='  ';i+=2;}continue;}
     if(c==='"'||c==="'"||c==='`'){
       const q=c;out+=' ';i++;
-      while(i<source.length){const x=source[i];if(x==='\\'){out+='  ';i+=2;continue;}if(x===q){out+=' ';i++;break;}out+=x==='\n'?'\n':' ';i++;}
+      while(i<source.length){const x=source[i];if(x==='\\'){out+='  ';i+=2;continue;}if(x===q){out+=' ';i++ ;break;}out+=x==='\n'?'\n':' ';i++;}
       continue;
     }
     out+=c;i++;
@@ -38,31 +38,29 @@ for(const file of runtimeFiles){
   for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 }
 const overlap=topNames.filter(name=>runtimeTokens.has(name));
-const executableHydrationRefs=runtimeFiles.filter(file=>/\bhydrateImageElements\b/.test(stripNonExecutableText(runtimeSources.get(file)||'')));
+const executableShellCalls=runtimeFiles.filter(file=>/\bshell\s*\(/.test(stripNonExecutableText(runtimeSources.get(file)||'')));
 const bundledAppStage=consolidateLegacyRenderAssignments(app,{expected:12}).source;
-const hydrateDefinitions=[...app.matchAll(/async function hydrateImageElements\(root=document\)\{/g)].length;
+const shellWrapperCount=[...app.matchAll(/\bshell\s*=\s*function\s*\(/g)].length;
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 need(overlap.length<=MAX_RUNTIME_NAME_OVERLAP,
-  `El proxy lexical app/runtime empeoró en Batch 31: ${overlap.length} > ${MAX_RUNTIME_NAME_OVERLAP}.`);
-need(hydrateDefinitions===2,
-  `Inventario fuente de hydrateImageElements cambió: esperado 2 definiciones, encontradas ${hydrateDefinitions}.`);
-need(app.includes('const url=await cloudSignedImageUrl(el.dataset.imgId)'),
-  'La implementación final Cloud de hydrateImageElements ya no conserva el fallback firmado.');
-need(app.includes("el.alt='Imagen no disponible localmente ni en Supabase'"),
-  'La implementación final Cloud de hydrateImageElements cambió su fallback visual.');
-need(executableHydrationRefs.length===0,
-  `Persisten referencias ejecutables directas hydrateImageElements en runtimes: ${executableHydrationRefs.join(', ')}.`);
+  `El proxy lexical app/runtime empeoró en Batch 32: ${overlap.length} > ${MAX_RUNTIME_NAME_OVERLAP}.`);
+need(app.includes('function shell(){'),
+  'La implementación fuente inicial de shell() ya no está presente.');
+need(shellWrapperCount>0,
+  'La cadena histórica de wrappers shell=function(...) desapareció.');
+need(executableShellCalls.length===0,
+  `Persisten llamadas ejecutables directas shell() en runtimes: ${executableShellCalls.join(', ')}.`);
 
 need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
-  'El build transform no publica Image Hydration Presentation Contract.');
-need(bundledAppStage.includes("schedule:()=>{if(typeof hydrateImageElements==='function')setTimeout(hydrateImageElements,0);}"),
-  'Image Hydration Presentation Contract no conserva la programación asíncrona original.');
-need(!bundledAppStage.includes('window.hydrateImageElements'),
-  'Image Hydration Presentation Contract reintroduce un mirror window redundante.');
-need(structural.includes(`try{globalThis.${CONTRACT}.schedule();}catch(e){console.warn('hydrateImageElements',e);}`),
-  'El post-render estructural no consume Image Hydration Presentation Contract.');
+  'El build transform no publica Shell Presentation Contract.');
+need(bundledAppStage.includes('render:()=>shell()'),
+  'Shell Presentation Contract no conserva resolución tardía del shell final.');
+need(!bundledAppStage.includes('window.shell='),
+  'Shell Presentation Contract reintroduce un mirror window.shell redundante.');
+need(structural.includes(`root.innerHTML=globalThis.${CONTRACT}.render();`),
+  'El montaje estructural del shell no consume Shell Presentation Contract.');
 
 for(const file of runtimeFiles.filter(x=>x!=='structural-runtime.js')){
   need(!(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`),
@@ -70,14 +68,12 @@ for(const file of runtimeFiles.filter(x=>x!=='structural-runtime.js')){
 }
 
 if(fail.length){
-  console.error('Image Hydration Presentation verification FAILED');
+  console.error('Shell Presentation Boundary verification FAILED');
   for(const item of fail)console.error(' - '+item);
   process.exit(1);
 }
-console.log('Image Hydration Presentation verification OK');
+console.log('Shell Presentation Boundary verification OK');
 console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct hydrateImageElements runtime references: 0');
-console.log(' - local + final Cloud hydrate implementations: preserved');
-console.log(' - structural post-render hydration: contract-bound');
-
-await import('./verify-shell-presentation-boundary.mjs');
+console.log(' - executable direct shell() runtime calls: 0');
+console.log(` - historical shell wrappers preserved: ${shellWrapperCount}`);
+console.log(' - structural shell mount: contract-bound with late resolution');

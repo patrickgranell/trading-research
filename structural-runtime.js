@@ -129,7 +129,7 @@ function trRenderEnsureShell(force=false){
   const root=document.getElementById('app');if(!root)return null;
   let view=document.getElementById('view');
   if(force||!trRenderShellMounted||!root.querySelector(':scope > .shell')||!view){
-    root.innerHTML=shell();
+    root.innerHTML=globalThis.TradingResearchShellPresentationContract.render();
     view=document.getElementById('view');
     trRenderShellMounted=true;
     trRenderShellMounts++;

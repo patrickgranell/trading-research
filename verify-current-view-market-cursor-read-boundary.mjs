@@ -13,7 +13,8 @@ need(contractReads===1,`Lecturas Current View Read Contract en v315SetCursor(): 
 need(!cursorBlock.includes("currentView!=='market'"),'v315SetCursor() conserva lectura directa legacy de currentView.');
 need(cursorBlock.includes("globalThis.TradingResearchCurrentViewReadContract.current()!=='market'"),'v315SetCursor() no usa Current View Read Contract para el guard de Market Data.');
 need(cursorBlock.includes('const series=v315RunningUi.series;'),'Cambió la fuente de series Running P&L fuera de alcance.');
-need(cursorBlock.includes("v316Ui?.tab!=='running'"),'Cambió el guard de pestaña Running fuera de alcance.');
+need(cursorBlock.includes("globalThis.TradingResearchMarketUiStateReadContract.tab()!=='running'"),'El guard de pestaña Running no usa Market UI State Read Contract.');
+need(!cursorBlock.includes("v316Ui?.tab!=='running'"),'v315SetCursor() conserva lectura directa legacy de v316Ui.tab.');
 need(cursorBlock.includes('return trV315SetCursorBase(v);'),'Cambió el fallback al cursor base fuera de alcance.');
 need(cursorBlock.includes('v315RunningUi.cursor=Math.max(0,Math.min(Number(v)||0,series.points.length-1));'),'Cambió el clamp del cursor fuera de alcance.');
 need(cursorBlock.includes("document.getElementById('tr-market-body-region')"),'Cambió la región DOM de Market Data fuera de alcance.');
@@ -31,7 +32,8 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Current View Market Cursor Read Boundary verification OK');
-console.log(' - v315SetCursor Market Data guard: 1 direct -> 1 read-contract');
+console.log(' - v315SetCursor Current View guard remains contract-bound');
+console.log(' - Running tab guard is Market UI State Read Contract-bound');
 console.log(' - Running P&L cursor/chart/inspector behavior preserved');
 console.log(' - central render anchor, boot restore write boundary and router fallback write boundary preserved');
 await import('./verify-current-view-central-render-read-boundary.mjs');

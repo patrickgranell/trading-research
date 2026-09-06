@@ -29,7 +29,7 @@ need(analyticsBlock.includes("if(globalThis.TradingResearchCurrentViewReadContra
 need(analyticsBlock.includes('const out=trRefreshOpsAnalyticsBase(read);'),'Cambió la llamada analytics base fuera de alcance.');
 need(analyticsBlock.includes("trPartialRecord('operations.analytics')"),'Cambió el contador parcial de analytics fuera de alcance.');
 
-need(structural.includes("const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||v316Ui?.tab!=='running')return trV315SetCursorBase(v);"),'Cambió v315SetCursor/currentView fuera de alcance.');
+need(structural.includes("const series=v315RunningUi.series;if(!series?.points?.length||globalThis.TradingResearchCurrentViewReadContract.current()!=='market'||globalThis.TradingResearchMarketUiStateReadContract.tab()!=='running')return trV315SetCursorBase(v);"),'Cambió v315SetCursor/currentView o el guard Market UI fuera de alcance.');
 need(structural.includes('/* Final runtime coordinator. This is the only render() used after bootstrap completes. */'),'Cambió el coordinador central render fuera de alcance.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),'Cambió la restauración de currentView en boot fuera de alcance.');
 
@@ -41,5 +41,5 @@ if(fail.length){
 console.log('Current View Partial Runtime Read Boundary verification OK');
 console.log(' - trPartialPrepareCurrentView: 2 direct -> 2 read-contract');
 console.log(' - Operations analytics wrapper: 1 direct -> 1 read-contract');
-console.log(' - cursor, central render anchor and currentView writes preserved');
+console.log(' - cursor, Market UI tab guard, central render anchor and currentView writes preserved');
 await import('./verify-current-view-market-cursor-read-boundary.mjs');

@@ -176,5 +176,5 @@ const trEventModeContract=globalThis.TradingResearchModeCardPresentationContract
 const trEventModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${globalThis.TradingResearchModeCardStateReadContract.expanded()?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V31.24</strong></span><b class="mode-card-arrow">${globalThis.TradingResearchModeCardStateReadContract.expanded()?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_EVENT_APP_LABEL)}</div><div class="help">Structured Event Boundary: action registry propio + argumentos serializados; sin programas en atributos.</div></div></div></div>`;};
 trEventModeContract.replace(trEventModeCard);
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trEventModeCard();}catch(_){}
-try{if(typeof currentView!=='undefined'&&currentView==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>render(),0);}catch(_){}
+try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>render(),0);}catch(_){}
 })();

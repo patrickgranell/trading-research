@@ -68,3 +68,4 @@ console.log(' - draft modal open/close/save wrappers remain effective through Tr
 console.log(' - post-hydration bootstrap render provides the retry point');
 console.log(' - session capture, plan selection, modal reopen, field apply and recovery notice preserved');
 console.log(' - operation save, persistence and domain behavior untouched');
+await import('./verify-diagnostics-current-view-read-closure.mjs');

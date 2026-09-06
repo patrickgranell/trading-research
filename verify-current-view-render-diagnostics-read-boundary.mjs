@@ -28,3 +28,4 @@ if(fail.length){
 console.log('Current View Render Diagnostics Read Boundary verification OK');
 console.log(' - trRenderDiagnostics currentView read: 1 direct shorthand -> 1 read-contract');
 console.log(' - diagnostics shape and non-currentView fields preserved');
+await import('./verify-current-view-state-runtime-read-boundary.mjs');

@@ -343,7 +343,7 @@ async function trBackupV2RefreshUiAfterRestore(){
   try{if(typeof v314TickCache!=='undefined'&&v314TickCache?.clear)v314TickCache.clear();}catch{}
   try{if(typeof v314RefreshMarketDataState==='function')await v314RefreshMarketDataState();}catch{}
   try{integrityAuditCache=null;}catch{}
-  try{currentView='config';configTab='data';render();}catch{}
+  try{currentView='config';globalThis.TradingResearchConfigTabStateContract.set('data');render();}catch{}
 }
 async function trBackupV2ImportFullBackup(file){
   if(!file)return;

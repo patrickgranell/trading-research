@@ -39,7 +39,7 @@ need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
   'El build transform no publica Current View Read Contract.');
 need(bundledAppStage.includes('current:()=>currentView'),
   'Current View Read Contract no usa la lectura tardía exacta current:()=>currentView.');
-need(!bundledAppStage.includes('TradingResearchCurrentViewReadContract',{value:Object.freeze({set:'),
+need(!/TradingResearchCurrentViewReadContract[\s\S]{0,180}\bset\s*:/.test(bundledAppStage),
   'Current View Read Contract no debe exponer mutación en Batch 38.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),
   'La restauración de currentView desde sesión cambió fuera de alcance.');

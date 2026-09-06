@@ -59,15 +59,15 @@ need(backup.includes(`const fatal=typeof trCoreFatal!=='undefined'&&trCoreFatal,
 need(backup.includes("if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.recovery',run);else await run();"),
   'Backup V2 cambió la recuperación exclusiva fuera de alcance.');
 
-/* Require an actual structural reduction, not only a syntactic indirection. */
+/* Require the Batch 53 structural reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===183,
-  `Batch 53 debe reducir el proxy app/runtime a 183; actual ${runtimeOverlap.length}. trCoreHydrated presente=${runtimeTokens.has('trCoreHydrated')}.`);
+need(runtimeOverlap.length<=183,
+  `Batch 53 exige proxy app/runtime <=183; actual ${runtimeOverlap.length}. trCoreHydrated presente=${runtimeTokens.has('trCoreHydrated')}.`);
 
 /* Freeze unrelated currentView sensitive boundaries while Batch 53 moves only hydration reads. */
 const cloud=runtimeSources.get('cloud-v10-runtime.js');
@@ -87,7 +87,7 @@ console.log(' - Structural Runtime: 2 hydration reads contract-bound');
 console.log(' - State Runtime: 2 hydration reads contract-bound');
 console.log(' - Canonical Metrics: 2 hydration reads contract-bound');
 console.log(' - Backup V2 recovery: 3 hydration reads contract-bound');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 183`);
 console.log(' - Core Hydration contract: read-only ready() over classic source binding');
 console.log(' - Restore V2 execution/currentView and Cloud currentView boundaries remain untouched');
 await import('./verify-market-ui-state-read-boundary.mjs');

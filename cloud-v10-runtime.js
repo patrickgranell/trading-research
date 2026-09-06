@@ -183,7 +183,7 @@ cloudPushState=async function(options={}){
         'CONFLICT GUARD V10\n\nLa nube cambió desde la última sincronización de este dispositivo.\n\n'+
         'Base: '+cloudShortRevision(cloudConfig.baseRemoteRevision)+'\n'+
         'Nube: '+cloudShortRevision(meta.updated_at)+'\n\n'+
-        'Para hacer prevalecer deliberadamente ESTE dispositivo escribe exactamente:\nRESOLVER CON LOCAL',''
+        'Para hacer prevalecer deliberadamente ESTE dispositivo escribe:\nRESOLVER CON LOCAL',''
       );
       if(typed!=='RESOLVER CON LOCAL'){cloudSetStatus('Subida cancelada: conflicto remoto pendiente','error');return;}
       saveCloudSafetySnapshot('before-conflict-force-push');

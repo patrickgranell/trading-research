@@ -1,0 +1,59 @@
+name: Batch 53 Core Hydration Patch
+
+on:
+  push:
+    branches:
+      - v31.25-batch53-core-hydration-read-boundary
+    paths:
+      - .github/workflows/batch53-core-hydration-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-batch53-core-hydration-read-boundary
+      - name: Bind core hydration reads
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements={
+            'structural-runtime.js':[
+              ("if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return;","if(!globalThis.TradingResearchCoreHydrationReadContract.ready())return;"),
+              ("if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated&&!trCoreFatal)render();","if(globalThis.TradingResearchCoreHydrationReadContract.ready()&&!trCoreFatal)render();"),
+            ],
+            'state-runtime.js':[
+              ("if(typeof trCoreHydrated==='undefined'||!trCoreHydrated||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;","if(!globalThis.TradingResearchCoreHydrationReadContract.ready()||!trDomainRootTarget||trDomainSchemaNormalizedRoots.has(trDomainRootTarget))return false;"),
+              ("if(typeof trCoreHydrated!=='undefined'&&trCoreHydrated)trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');","if(globalThis.TradingResearchCoreHydrationReadContract.ready())trStateEnsureAttached('runtime-load');trUiCapture('runtime-load');"),
+            ],
+          }
+          for name,repls in replacements.items():
+            p=Path(name);s=p.read_text()
+            for old,new in repls:
+              count=s.count(old)
+              if count!=1: raise SystemExit(f'{name}: expected exactly 1 anchor {old!r}, found {count}')
+              s=s.replace(old,new,1)
+            p.write_text(s)
+
+          p=Path('render-source-transform.mjs');s=p.read_text()
+          anchor="const CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT=\"\\n/* V31.25 · Batch 50 · build-only Current View plan-switch-open write boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\\n\";\n"
+          addition="const CORE_HYDRATION_READ_CONTRACT=\"\\n/* V31.25 · Batch 53 · build-only Core Hydration read boundary */\\nObject.defineProperty(globalThis,'TradingResearchCoreHydrationReadContract',{value:Object.freeze({ready:()=>!!trCoreHydrated}),writable:false,enumerable:false,configurable:false});\\n\";\n"
+          if s.count(anchor)!=1: raise SystemExit(f'render-source-transform.mjs: contract anchor count {s.count(anchor)}')
+          s=s.replace(anchor,anchor+addition,1)
+          tail="  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract'\"))out+=CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"
+          tail_new="  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract'\"))out+=CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT;\n  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCoreHydrationReadContract'\"))out+=CORE_HYDRATION_READ_CONTRACT;\n  return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};"
+          if s.count(tail)!=1: raise SystemExit(f'render-source-transform.mjs: append anchor count {s.count(tail)}')
+          p.write_text(s.replace(tail,tail_new,1))
+          PY
+      - name: Commit exact patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add structural-runtime.js state-runtime.js render-source-transform.mjs
+          git diff --cached --check
+          git commit -m "fix(batch53): bind core hydration reads"
+          git push origin HEAD:v31.25-batch53-core-hydration-read-boundary

@@ -14,6 +14,7 @@ const structural=runtimeSources.get('structural-runtime.js');
 const stateSource=runtimeSources.get('state-runtime.js');
 const stateEffective=transformStateActions(stateSource).source;
 const canonical=runtimeSources.get('canonical-metrics-runtime.js');
+const backup=runtimeSources.get('backup-v2-runtime.js');
 const bundled=consolidateLegacyRenderAssignments(app,{expected:12}).source;
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
@@ -27,9 +28,11 @@ need(residualHydrationFiles.length===0,
 need(directRefs(structural)===0,`Structural Runtime conserva ${directRefs(structural)} referencia(s) directa(s) a trCoreHydrated.`);
 need(directRefs(stateEffective)===0,`State Runtime efectivo conserva ${directRefs(stateEffective)} referencia(s) directa(s) a trCoreHydrated.`);
 need(directRefs(canonical)===0,`Canonical Metrics conserva ${directRefs(canonical)} referencia(s) directa(s) a trCoreHydrated.`);
+need(directRefs(backup)===0,`Backup V2 conserva ${directRefs(backup)} referencia(s) directa(s) a trCoreHydrated.`);
 need(contractCalls(structural)===2,`Structural Runtime debe usar exactamente 2 lecturas de ${CONTRACT}; encontró ${contractCalls(structural)}.`);
 need(contractCalls(stateEffective)===2,`State Runtime efectivo debe usar exactamente 2 lecturas de ${CONTRACT}; encontró ${contractCalls(stateEffective)}.`);
 need(contractCalls(canonical)===2,`Canonical Metrics debe usar exactamente 2 lecturas de ${CONTRACT}; encontró ${contractCalls(canonical)}.`);
+need(contractCalls(backup)===3,`Backup V2 debe usar exactamente 3 lecturas de ${CONTRACT}; encontró ${contractCalls(backup)}.`);
 
 need(bundled.includes(`Object.defineProperty(globalThis,'${CONTRACT}',{value:Object.freeze({ready:()=>!!trCoreHydrated}),writable:false,enumerable:false,configurable:false});`),
   'El build transform no publica Core Hydration Read Contract read-only con la forma exacta esperada.');
@@ -47,6 +50,14 @@ need(canonical.includes(`if(globalThis.${CONTRACT}.ready()){`),
   'Canonical Metrics no conserva la decisión de bootstrap hidratado mediante contrato.');
 need(canonical.includes("addEventListener('tradingresearch:core-hydrated',()=>trCanonicalNormalizeAfterHydration(),{once:true});"),
   'Canonical Metrics cambió el listener de hidratación durable fuera de alcance.');
+need(backup.includes(`for(let i=0;i<200&&!globalThis.${CONTRACT}.ready()&&!trCoreFatal;i++)await new Promise(resolve=>setTimeout(resolve,25));`),
+  'Backup V2 no conserva la espera acotada de recuperación mediante contrato.');
+need(backup.includes(`if(!globalThis.${CONTRACT}.ready())throw new Error('El core durable todavía no ha terminado de hidratar; la recuperación no puede empezar de forma segura.');`),
+  'Backup V2 no conserva el guard post-espera de recuperación mediante contrato.');
+need(backup.includes(`const fatal=typeof trCoreFatal!=='undefined'&&trCoreFatal,hydrated=globalThis.${CONTRACT}.ready();`),
+  'Backup V2 no conserva la decisión de bloqueo en catch mediante contrato.');
+need(backup.includes("if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.recovery',run);else await run();"),
+  'Backup V2 cambió la recuperación exclusiva fuera de alcance.');
 
 /* Require an actual structural reduction, not only a syntactic indirection. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
@@ -59,7 +70,6 @@ need(runtimeOverlap.length===183,
   `Batch 53 debe reducir el proxy app/runtime a 183; actual ${runtimeOverlap.length}. trCoreHydrated presente=${runtimeTokens.has('trCoreHydrated')}.`);
 
 /* Freeze unrelated currentView sensitive boundaries while Batch 53 moves only hydration reads. */
-const backup=runtimeSources.get('backup-v2-runtime.js');
 const cloud=runtimeSources.get('cloud-v10-runtime.js');
 need(backup.includes("currentView='config';globalThis.TradingResearchConfigTabStateContract.set('data');render();"),'Restore V2 currentView write changed outside Batch 53.');
 need(cloud.includes("currentView='dashboard';render();"),'Cloud Pull currentView write changed outside Batch 53.');
@@ -71,11 +81,12 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Core Hydration Read Boundary verification OK');
-console.log(' - direct trCoreHydrated semantic runtime reads: 6 -> 0');
+console.log(' - direct trCoreHydrated semantic runtime reads: 9 -> 0');
 console.log(' - all 16 runtime files are free of direct trCoreHydrated tokens');
 console.log(' - Structural Runtime: 2 hydration reads contract-bound');
 console.log(' - State Runtime: 2 hydration reads contract-bound');
 console.log(' - Canonical Metrics: 2 hydration reads contract-bound');
+console.log(' - Backup V2 recovery: 3 hydration reads contract-bound');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
 console.log(' - Core Hydration contract: read-only ready() over classic source binding');
-console.log(' - Restore V2 and Cloud currentView boundaries remain untouched');
+console.log(' - Restore V2 execution/currentView and Cloud currentView boundaries remain untouched');

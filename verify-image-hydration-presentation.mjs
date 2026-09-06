@@ -79,3 +79,5 @@ console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= 
 console.log(' - executable direct hydrateImageElements runtime references: 0');
 console.log(' - local + final Cloud hydrate implementations: preserved');
 console.log(' - structural post-render hydration: contract-bound');
+
+await import('./verify-shell-presentation-boundary.mjs');

@@ -11,6 +11,7 @@ const MODE_CARD_STATE_READ_CONTRACT="\n/* V31.25 · Batch 28 · build-only Mode 
 const GALLERY_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 29 · build-only Gallery view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchGalleryViewPresentationContract',{value:Object.freeze({render:gallery}),writable:false,enumerable:false,configurable:false});\n";
 const CONFIG_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 30 · build-only Config view presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchConfigViewPresentationContract',{value:Object.freeze({render:config}),writable:false,enumerable:false,configurable:false});\n";
 const IMAGE_HYDRATION_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 31 · build-only image hydration presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchImageHydrationPresentationContract',{value:Object.freeze({schedule:()=>{if(typeof hydrateImageElements==='function')setTimeout(hydrateImageElements,0);}}),writable:false,enumerable:false,configurable:false});\n";
+const SHELL_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 32 · build-only Shell presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchShellPresentationContract',{value:Object.freeze({render:()=>shell()}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -86,6 +87,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchGalleryViewPresentationContract'"))out+=GALLERY_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchConfigViewPresentationContract'"))out+=CONFIG_VIEW_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchImageHydrationPresentationContract'"))out+=IMAGE_HYDRATION_PRESENTATION_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchShellPresentationContract'"))out+=SHELL_PRESENTATION_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

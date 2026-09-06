@@ -1,0 +1,38 @@
+name: Batch 53 Reaudit Composition
+
+on:
+  push:
+    branches:
+      - v31.25-batch53-core-hydration-read-boundary
+    paths:
+      - .github/workflows/batch53-reaudit-composition.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-batch53-core-hydration-read-boundary
+      - name: Compose V31.25 N02 with hydration contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('verify-reaudit-v31-25.mjs');s=p.read_text()
+          old="need(canonical.includes('trCoreHydrated'),\n  'N02: Canonical Metrics no observa el estado de hidratación durable.');"
+          new="need(canonical.includes('globalThis.TradingResearchCoreHydrationReadContract.ready()'),\n  'N02: Canonical Metrics no observa la hidratación durable a través del contrato read-only.');\nneed(canonical.includes(\"addEventListener('tradingresearch:core-hydrated',()=>trCanonicalNormalizeAfterHydration(),{once:true});\"),\n  'N02: Canonical Metrics dejó de conservar el listener durable de hidratación.');"
+          count=s.count(old)
+          if count!=1: raise SystemExit(f'verify-reaudit-v31-25.mjs: expected exactly 1 N02 anchor, found {count}')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit verifier composition
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add verify-reaudit-v31-25.mjs
+          git diff --cached --check
+          git commit -m "test(batch53): compose N02 with hydration read contract"
+          git push origin HEAD:v31.25-batch53-core-hydration-read-boundary

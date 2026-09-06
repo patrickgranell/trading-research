@@ -187,7 +187,7 @@ function trRenderAfterView(){
   trDraftMaybeRestoreAfterView();
 }
 function trRenderDiagnostics(){
-  return {runtime:TR_RENDER_RUNTIME_VERSION,shell:'persistent',shellMounts:trRenderShellMounts,fullViewRenders:trRenderViewRenders,viewRenders:trRenderViewRenders,partialRenders:trRenderPartialRenders,partialByRegion:{...trRenderPartialByRegion},lastPartial:trRenderLastPartial,currentView,lastView:trRenderLastView,lastRenderAt:trRenderLastAt,lastError:trRenderLastError,draftRecovery:'session',draftRecoveredAt:trDraftLastRecoveredAt,draftError:trDraftLastError};
+  return {runtime:TR_RENDER_RUNTIME_VERSION,shell:'persistent',shellMounts:trRenderShellMounts,fullViewRenders:trRenderViewRenders,viewRenders:trRenderViewRenders,partialRenders:trRenderPartialRenders,partialByRegion:{...trRenderPartialByRegion},lastPartial:trRenderLastPartial,currentView:globalThis.TradingResearchCurrentViewReadContract.current(),lastView:trRenderLastView,lastRenderAt:trRenderLastAt,lastError:trRenderLastError,draftRecovery:'session',draftRecoveredAt:trDraftLastRecoveredAt,draftError:trDraftLastError};
 }
 function trRenderRuntimePanel(){
   const d=trRenderDiagnostics(),ok=d.shellMounts===1&&!d.lastError&&!d.draftError,parts=Object.entries(d.partialByRegion||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`).join(' · ')||'todavía sin renders parciales';

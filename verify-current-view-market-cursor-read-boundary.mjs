@@ -21,7 +21,7 @@ need(cursorBlock.includes('globalThis.TradingResearchRunningChartPresentationCon
 need(cursorBlock.includes("panel.querySelector('.rp-inspect-grid')"),'Cambió el inspector Running P&L fuera de alcance.');
 need(cursorBlock.includes("trPartialRecord('market.cursor')"),'Cambió la instrumentación de cursor parcial fuera de alcance.');
 
-need(structural.includes("const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;"),'Cambió el coordinador central render/currentView fuera de alcance.');
+need(structural.includes('/* Final runtime coordinator. This is the only render() used after bootstrap completes. */'),'Cambió el ancla del coordinador central render fuera de alcance.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))currentView=ui.currentView;"),'Cambió la restauración de currentView en boot fuera de alcance.');
 need(structural.includes("currentView='dashboard';"),'Cambió el fallback de router currentView fuera de alcance.');
 
@@ -33,4 +33,5 @@ if(fail.length){
 console.log('Current View Market Cursor Read Boundary verification OK');
 console.log(' - v315SetCursor Market Data guard: 1 direct -> 1 read-contract');
 console.log(' - Running P&L cursor/chart/inspector behavior preserved');
-console.log(' - central render, boot restore and currentView writes preserved');
+console.log(' - central render anchor, boot restore and currentView writes preserved');
+await import('./verify-current-view-central-render-read-boundary.mjs');

@@ -1,0 +1,68 @@
+name: Batch 38 Exact Implementation
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch38-current-view-router-read-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch38-current-view-router-read-boundary
+          fetch-depth: 0
+      - name: Apply exact Batch 38 edits
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # structural-runtime.js: exactly one signature replacement.
+          p=Path('structural-runtime.js')
+          s=p.read_text(encoding='utf-8')
+          old='function trRenderViewHtml(view=currentView){'
+          new='function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract.current()){' 
+          if s.count(old)!=1:
+              raise SystemExit(f'Expected exactly one router default read, found {s.count(old)}')
+          if new in s:
+              raise SystemExit('New router signature already present before edit')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          # render-source-transform.mjs: add one read-only build contract and one append hook.
+          p=Path('render-source-transform.mjs')
+          s=p.read_text(encoding='utf-8')
+          if 'TradingResearchCurrentViewReadContract' in s:
+              raise SystemExit('Current View Read Contract already present before edit')
+          marker="const BLOCKS_VIEW_PRESENTATION_CONTRACT="
+          start=s.find(marker)
+          if start<0:
+              raise SystemExit('Blocks contract marker not found')
+          end=s.find('\n',start)
+          if end<0:
+              raise SystemExit('Blocks contract line end not found')
+          contract="\nconst CURRENT_VIEW_READ_CONTRACT=\"\\n/* V31.25 · Batch 38 · build-only Current View router read boundary */\\nObject.defineProperty(globalThis,'TradingResearchCurrentViewReadContract',{value:Object.freeze({current:()=>currentView}),writable:false,enumerable:false,configurable:false});\\n\";"
+          s=s[:end]+contract+s[end:]
+          hook="  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchBlocksViewPresentationContract'\"))out+=BLOCKS_VIEW_PRESENTATION_CONTRACT;"
+          if s.count(hook)!=1:
+              raise SystemExit(f'Expected exactly one Blocks append hook, found {s.count(hook)}')
+          newhook=hook+"\n  if(!out.includes(\"Object.defineProperty(globalThis,'TradingResearchCurrentViewReadContract'\"))out+=CURRENT_VIEW_READ_CONTRACT;"
+          s=s.replace(hook,newhook,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git diff --check
+          test "$(git diff --numstat -- structural-runtime.js | awk '{print $1+$2}')" = "2"
+          test "$(git diff --numstat -- render-source-transform.mjs | awk '{print $1+$2}')" = "2"
+      - name: Commit exact implementation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add structural-runtime.js render-source-transform.mjs
+          git commit -m 'refactor: bind Batch 38 router default read contract'
+          git push origin HEAD:v31.25-classic-contracts-batch38-current-view-router-read-boundary

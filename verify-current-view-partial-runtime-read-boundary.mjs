@@ -42,3 +42,4 @@ console.log('Current View Partial Runtime Read Boundary verification OK');
 console.log(' - trPartialPrepareCurrentView: 2 direct -> 2 read-contract');
 console.log(' - Operations analytics wrapper: 1 direct -> 1 read-contract');
 console.log(' - cursor, central render and currentView writes preserved');
+await import('./verify-current-view-market-cursor-read-boundary.mjs');

@@ -28,7 +28,7 @@ need(bundledAppStage.includes("Object.defineProperty(globalThis,'TradingResearch
 need(bundledAppStage.includes('current:()=>currentView'),'Current View Read Contract dejó de ser lectura tardía.');
 need(!/TradingResearchCurrentViewReadContract[\s\S]{0,180}\b(?:set|navigate)\s*:/.test(bundledAppStage),'Current View Read Contract debe seguir siendo estrictamente read-only.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),'Cambió boot restore/session write boundary fuera de alcance.');
-need(structural.includes("currentView='dashboard';"),'Cambió router fallback currentView fuera de alcance.');
+need(structural.includes('globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();'),'Cambió router fallback currentView fuera de alcance.');
 need(stateRuntime.includes("currentView='dashboard';"),'Cambió switchPlanAndOpen currentView fuera de alcance.');
 
 if(fail.length){
@@ -40,5 +40,5 @@ console.log('Current View Navigation Write Boundary verification OK');
 console.log(' - trUiNavigate: 1 direct write -> 1 navigation write-contract');
 console.log(' - validation, UI action, render and return semantics preserved');
 console.log(' - read contract remains read-only');
-console.log(' - boot restore, router fallback and plan-switch-open writes preserved');
+console.log(' - boot restore, router fallback write boundary and plan-switch-open write preserved');
 await import('./verify-current-view-session-restore-write-boundary.mjs');

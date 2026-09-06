@@ -13,7 +13,7 @@ need(!structural.includes(OLD),
   'Persiste la lectura directa currentView dentro de trUiRememberView().');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),
   'La restauración de currentView cambió fuera de alcance.');
-need(structural.includes("currentView='dashboard';"),
+need(structural.includes('globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();'),
   'El fallback de vista desconocida cambió fuera de alcance.');
 need(structural.includes("window.addEventListener('beforeunload',()=>{trUiRememberView();trDraftCaptureOperation();});"),
   'El disparador beforeunload para recordar vista/borrador cambió fuera de alcance.');
@@ -27,5 +27,5 @@ if(fail.length){
 }
 console.log('Current View Session Remember Read Boundary verification OK');
 console.log(' - trUiRememberView currentView read: contract-bound');
-console.log(' - session restore write boundary, fallback and beforeunload trigger: preserved');
+console.log(' - session restore write boundary, router fallback write boundary and beforeunload trigger: preserved');
 await import('./verify-current-view-navigation-active-read-boundary.mjs');

@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='5ba9ce043fb05775e88503309a7ab667c7f938c2b0e198b0d45470c78f0514ff';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='6394fd2c9c876547712b52839a8a9a7e6f1a2d5ea364e74271b0135d37f424e5';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);
@@ -39,8 +39,8 @@ need(!/TradingResearchCurrentViewReadContract[\s\S]{0,180}\bset\s*:/.test(bundle
   'Current View Read Contract no debe exponer mutación.');
 need(structural.includes("if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);"),
   'La restauración de currentView desde sesión cambió fuera de alcance.');
-need(structural.includes("currentView='dashboard';"),
-  'El fallback de vista desconocida dejó de conservar currentView=dashboard.');
+need(structural.includes('globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();'),
+  'El fallback de vista desconocida dejó de conservar Dashboard mediante Router Fallback Write Contract.');
 need(structural.includes('function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{')&&structural.includes('updatedAt:new Date().toISOString()});}'),
   'La forma de persistencia de la vista UI cambió fuera de alcance.');
 need(structural.includes('TradingResearchCurrentViewReadContract.current()'),
@@ -54,6 +54,6 @@ if(fail.length){
 console.log('Current View Router Read Boundary verification OK');
 console.log(` - router normalized SHA256 frozen: ${routerHash}`);
 console.log(' - router default currentView read: contract-bound');
-console.log(' - session restore/save shape and unknown-view fallback: preserved');
+console.log(' - session restore/save shape and unknown-view fallback write boundary: preserved');
 console.log(' - contract is read-only and late-resolved');
 await import('./verify-current-view-session-remember-read-boundary.mjs');

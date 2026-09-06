@@ -20,6 +20,7 @@ const BLOCKS_VIEW_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 37 · build-only B
 const CURRENT_VIEW_READ_CONTRACT="\n/* V31.25 · Batch 38 · build-only Current View router read boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewReadContract',{value:Object.freeze({current:()=>currentView}),writable:false,enumerable:false,configurable:false});\n";
 const CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT="\n/* V31.25 · Batch 47 · build-only Current View explicit navigation write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract',{value:Object.freeze({navigate:view=>{currentView=view;}}),writable:false,enumerable:false,configurable:false});\n";
 const CURRENT_VIEW_SESSION_RESTORE_WRITE_CONTRACT="\n/* V31.25 · Batch 48 · build-only Current View session restore write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewSessionRestoreWriteContract',{value:Object.freeze({restore:view=>{currentView=view;}}),writable:false,enumerable:false,configurable:false});\n";
+const CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT="\n/* V31.25 · Batch 49 · build-only Current View router fallback write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -104,6 +105,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewReadContract'"))out+=CURRENT_VIEW_READ_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewNavigationWriteContract'"))out+=CURRENT_VIEW_NAVIGATION_WRITE_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewSessionRestoreWriteContract'"))out+=CURRENT_VIEW_SESSION_RESTORE_WRITE_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewRouterFallbackWriteContract'"))out+=CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

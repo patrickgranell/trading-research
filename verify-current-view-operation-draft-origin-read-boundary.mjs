@@ -29,7 +29,7 @@ need(modalBlock.includes("document.getElementById('operationForm')"),'Cambió el
 need(modalBlock.includes('planId:state.currentPlanId||null'),'Cambió el planId del contexto del editor fuera de alcance.');
 
 need(structural.includes('if(ui?.currentView&&TR_VALID_VIEWS.has(ui.currentView))globalThis.TradingResearchCurrentViewSessionRestoreWriteContract.restore(ui.currentView);'),'Cambió la restauración de currentView en boot fuera de alcance.');
-need(structural.includes("currentView='dashboard';"),'Cambió el fallback de router currentView fuera de alcance.');
+need(structural.includes('globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();'),'Cambió el fallback de router currentView fuera de alcance.');
 need(structural.includes("if(!view)return;if(globalThis.TradingResearchCurrentViewReadContract.current()==='operations')trPartialPrepareOperations(view);else if(globalThis.TradingResearchCurrentViewReadContract.current()==='market')trPartialPrepareMarket(view);"),'Cambió el routing de preparación parcial fuera de alcance.');
 need(structural.includes('/* Final runtime coordinator. This is the only render() used after bootstrap completes. */'),'Cambió el coordinador central de render fuera de alcance.');
 

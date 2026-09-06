@@ -46,14 +46,14 @@ for(const [name] of targets)need(new RegExp(`(?:^|\\n)(?:const|let|var)\\s+${nam
 need(app.includes('function robustnessSetHorizon(')&&app.includes('function robustnessSetIterations('),'Mutaciones de Robustez cambiaron fuera de alcance.');
 need(app.includes('function riskStressSetMethod(')&&app.includes('function riskStressSetIterations('),'Mutaciones de Risk & Stress cambiaron fuera de alcance.');
 
-/* Require real structural reduction: five classic names leave all runtimes. */
+/* Preserve the Batch 55 reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===177,`Batch 55 debe reducir el proxy app/runtime a 177; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
+need(runtimeOverlap.length<=177,`Batch 55 exige proxy app/runtime <=177; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
 
 /* Higher-risk boundaries remain out of scope. */
 const backup=runtimeSources.get('backup-v2-runtime.js');
@@ -70,6 +70,6 @@ if(fail.length){
 console.log('UI Snapshot State Read Boundary verification OK');
 console.log(' - snapshot-only state bindings migrated: robustness, riskStress, walkForward, dataQuality, mistakes');
 console.log(' - direct runtime tokens for five source-owned UI states: 5 names -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 177`);
 console.log(' - source setters/calculations, Restore, Cloud and persistence untouched');
 await import('./verify-view-snapshot-state-read-boundary.mjs');

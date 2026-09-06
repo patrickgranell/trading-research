@@ -76,3 +76,4 @@ console.log(' - State Runtime: available + tab + environment snapshot reads cont
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
 console.log(' - v316Ui writes remain source-owned and unchanged');
 console.log(' - Restore, Cloud, Market Data persistence and financial calculations untouched');
+await import('./verify-ui-snapshot-state-read-boundary.mjs');

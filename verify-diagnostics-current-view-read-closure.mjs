@@ -48,3 +48,5 @@ console.log(' - Security/Event/CSP/Style/Render Closure direct currentView reads
 console.log(' - 7 effective reads use the existing read-only Current View contract');
 console.log(' - diagnostics refresh and Style scope semantics preserved');
 console.log(' - Restore V2 and Cloud currentView boundaries remain untouched');
+
+await import('./verify-core-hydration-read-boundary.mjs');

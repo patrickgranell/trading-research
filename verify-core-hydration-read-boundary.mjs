@@ -90,3 +90,4 @@ console.log(' - Backup V2 recovery: 3 hydration reads contract-bound');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
 console.log(' - Core Hydration contract: read-only ready() over classic source binding');
 console.log(' - Restore V2 execution/currentView and Cloud currentView boundaries remain untouched');
+await import('./verify-market-ui-state-read-boundary.mjs');

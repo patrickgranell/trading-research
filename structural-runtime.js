@@ -250,6 +250,7 @@ function trDraftApplyOperation(draft){
   trDraftLastRecoveredAt=new Date().toISOString();return true;
 }
 function trDraftMaybeRestoreAfterView(){
+  if(typeof trCoreHydrated!=='undefined'&&!trCoreHydrated)return;
   if(trDraftRestoreAttempted)return;
   const draft=trBootOperationDraft;if(!draft||draft.kind!=='operation')return;
   trDraftRestoreAttempted=true;
@@ -270,6 +271,7 @@ openOperationModal=function(id=null){
   return result;
 };
 window.openOperationModal=openOperationModal;
+if(globalThis.TradingResearchActions&&typeof globalThis.TradingResearchActions==='object')globalThis.TradingResearchActions.openOperationModal=openOperationModal;
 
 const trCloseModalBase=closeModal;
 closeModal=function(...args){
@@ -279,6 +281,7 @@ closeModal=function(...args){
   return result;
 };
 window.closeModal=closeModal;
+if(globalThis.TradingResearchActions&&typeof globalThis.TradingResearchActions==='object')globalThis.TradingResearchActions.closeModal=closeModal;
 
 const trSaveOperationBase=saveOperationFromForm;
 saveOperationFromForm=async function(...args){
@@ -290,6 +293,7 @@ saveOperationFromForm=async function(...args){
   }finally{trDraftSaveInProgress=false;}
 };
 window.saveOperationFromForm=saveOperationFromForm;
+if(globalThis.TradingResearchActions&&typeof globalThis.TradingResearchActions==='object')globalThis.TradingResearchActions.saveOperationFromForm=saveOperationFromForm;
 
 document.addEventListener('input',e=>{if(e.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);
 document.addEventListener('change',e=>{if(e.target?.closest?.('#operationForm'))trDraftCaptureOperation();},true);

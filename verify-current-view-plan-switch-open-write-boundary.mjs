@@ -47,3 +47,4 @@ console.log(' - switchPlanAndOpen: 1 direct write -> 1 plan-switch-open write-co
 console.log(' - plan validation, durable selection, normalization, persist and render preserved');
 console.log(' - read/navigation/session-restore/router-fallback contracts preserved');
 console.log(' - direct currentView runtime frontier closed');
+await import('./verify-operation-draft-hydration-restore.mjs');

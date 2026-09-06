@@ -1,0 +1,44 @@
+name: Batch 39 Exact Implementation
+
+on:
+  push:
+    branches:
+      - v31.25-classic-contracts-batch39-current-view-session-remember-read-boundary
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v31.25-classic-contracts-batch39-current-view-session-remember-read-boundary
+          fetch-depth: 0
+      - name: Apply exact Batch 39 edit
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('structural-runtime.js')
+          s=p.read_text(encoding='utf-8')
+          old="function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView,updatedAt:new Date().toISOString()});}"
+          new="function trUiRememberView(){trSessionSet(TR_UI_SESSION_KEY,{currentView:globalThis.TradingResearchCurrentViewReadContract.current(),updatedAt:new Date().toISOString()});}"
+          if s.count(old)!=1:
+              raise SystemExit(f'Expected exactly one old trUiRememberView binding, found {s.count(old)}')
+          if new in s:
+              raise SystemExit('New trUiRememberView binding already present before edit')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+          git diff --check
+          test "$(git diff --numstat -- structural-runtime.js | awk '{print $1+$2}')" = "2"
+      - name: Commit exact implementation
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add structural-runtime.js
+          git commit -m 'refactor: bind Batch 39 session remember currentView read'
+          git push origin HEAD:v31.25-classic-contracts-batch39-current-view-session-remember-read-boundary

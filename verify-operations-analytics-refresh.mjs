@@ -47,7 +47,7 @@ need(structural.includes('const trRefreshOpsAnalyticsBase=trOpsAnalyticsRefreshC
   'structural-runtime.js no captura el refresh base mediante el contrato.');
 need(structural.includes('trOpsAnalyticsRefreshContract.replace(function(read=true){'),
   'structural-runtime.js no instala la instrumentación analytics mediante el contrato.');
-need(structural.includes("if(currentView==='operations'&&before)trPartialRecord('operations.analytics');"),
+need(structural.includes("if(globalThis.TradingResearchCurrentViewReadContract.current()==='operations'&&before)trPartialRecord('operations.analytics');"),
   'Se perdió la instrumentación de partial analytics de Operaciones.');
 need(structural.includes('trRefreshOpsAnalyticsBase(false);'),
   'Se perdió la delegación Batch 20 del partial render de Operaciones.');

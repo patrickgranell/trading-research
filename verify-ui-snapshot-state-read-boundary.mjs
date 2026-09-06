@@ -72,3 +72,4 @@ console.log(' - snapshot-only state bindings migrated: robustness, riskStress, w
 console.log(' - direct runtime tokens for five source-owned UI states: 5 names -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
 console.log(' - source setters/calculations, Restore, Cloud and persistence untouched');
+await import('./verify-view-snapshot-state-read-boundary.mjs');

@@ -24,6 +24,7 @@ const CURRENT_VIEW_ROUTER_FALLBACK_WRITE_CONTRACT="\n/* V31.25 · Batch 49 · bu
 const CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT="\n/* V31.25 · Batch 50 · build-only Current View plan-switch-open write boundary */\nObject.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract',{value:Object.freeze({toDashboard:()=>{currentView='dashboard';}}),writable:false,enumerable:false,configurable:false});\n";
 const CORE_HYDRATION_READ_CONTRACT="\n/* V31.25 · Batch 53 · build-only Core Hydration read boundary */\nObject.defineProperty(globalThis,'TradingResearchCoreHydrationReadContract',{value:Object.freeze({ready:()=>!!trCoreHydrated}),writable:false,enumerable:false,configurable:false});\n";
 const MARKET_UI_STATE_READ_CONTRACT="\n/* V31.25 · Batch 54 · build-only Market UI state read boundary */\nObject.defineProperty(globalThis,'TradingResearchMarketUiStateReadContract',{value:Object.freeze({available:()=>typeof v316Ui!=='undefined',tab:()=>typeof v316Ui==='undefined'?undefined:v316Ui.tab,environment:()=>typeof v316Ui==='undefined'?undefined:v316Ui.environment}),writable:false,enumerable:false,configurable:false});\n";
+const UI_SNAPSHOT_STATE_READ_CONTRACT="\n/* V31.25 · Batch 55 · build-only UI Snapshot state read boundary */\nObject.defineProperty(globalThis,'TradingResearchUiSnapshotStateReadContract',{value:Object.freeze({robustness:()=>typeof robustnessState==='undefined'?undefined:robustnessState,riskStress:()=>typeof riskStressState==='undefined'?undefined:riskStressState,walkForward:()=>typeof walkForwardState==='undefined'?undefined:walkForwardState,dataQuality:()=>typeof dataQualityState==='undefined'?undefined:dataQualityState,mistakes:()=>typeof mistakesViewState==='undefined'?undefined:mistakesViewState}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -112,6 +113,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCurrentViewPlanSwitchOpenWriteContract'"))out+=CURRENT_VIEW_PLAN_SWITCH_OPEN_WRITE_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCoreHydrationReadContract'"))out+=CORE_HYDRATION_READ_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchMarketUiStateReadContract'"))out+=MARKET_UI_STATE_READ_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchUiSnapshotStateReadContract'"))out+=UI_SNAPSHOT_STATE_READ_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

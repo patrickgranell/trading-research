@@ -389,7 +389,7 @@ function trUiSnapshot(){
   if(typeof dataQualityState!=='undefined')out.dataQuality=trUiClone(dataQualityState);
   if(typeof mistakesViewState!=='undefined')out.mistakes=trUiClone(mistakesViewState);
   if(typeof reportsViewState!=='undefined')out.reports=trUiClone(reportsViewState);
-  if(typeof v316Ui!=='undefined')out.market={phase:v316Ui.tab,environment:v316Ui.environment};
+  if(globalThis.TradingResearchMarketUiStateReadContract.available())out.market={phase:globalThis.TradingResearchMarketUiStateReadContract.tab(),environment:globalThis.TradingResearchMarketUiStateReadContract.environment()};
   if(typeof v315RunningUi!=='undefined')out.marketRunning={tab:v315RunningUi.tab,tradeIndex:v315RunningUi.tradeIndex,mode:v315RunningUi.mode,cursor:v315RunningUi.cursor,loading:v315RunningUi.loading,metaId:v315RunningUi.metaId,execId:v315RunningUi.execId};
   if(typeof v3110Ui!=='undefined')out.bestExit=trUiClone(v3110Ui);
   return out;

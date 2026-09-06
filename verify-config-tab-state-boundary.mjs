@@ -30,7 +30,8 @@ function stripNonExecutableText(source){
 
 function directConfigTabRefs(source){
   const executable=stripNonExecutableText(source)
-    .replace(/\bconfigTab\s*:/g,'           '); // diagnostic/property key is not a binding read/write
+    .replace(/\bconfigTab\s*:/g,'           ')
+    .replace(/\.\s*configTab\b/g,'           '); // object key/property access is not the classic binding
   return [...executable.matchAll(/\bconfigTab\b/g)].length;
 }
 
@@ -82,5 +83,5 @@ if(fail.length){
 console.log('Config Tab State Boundary verification OK');
 console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
 console.log(' - executable direct configTab binding refs in runtimes: 0');
-console.log(' - diagnostic configTab key: preserved');
+console.log(' - diagnostic configTab key/property reads: preserved');
 console.log(' - TRUIStore config tab read/write: contract-bound');

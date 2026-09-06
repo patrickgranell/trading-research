@@ -67,3 +67,5 @@ console.log(' - executable direct config() runtime calls: 0');
 console.log(' - app.js source config implementation: preserved');
 console.log(' - config entry composition: no direct financial metric/persistence call');
 console.log(' - structural router: contract-bound');
+
+await import('./verify-image-hydration-presentation.mjs');

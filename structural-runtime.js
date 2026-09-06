@@ -182,7 +182,7 @@ function trRenderSyncSidebar(){
   trRenderSyncPlanSelector();trRenderSyncTheme();
 }
 function trRenderAfterView(){
-  try{if(typeof hydrateImageElements==='function')setTimeout(hydrateImageElements,0);}catch(e){console.warn('hydrateImageElements',e);}
+  try{globalThis.TradingResearchImageHydrationPresentationContract.schedule();}catch(e){console.warn('hydrateImageElements',e);}
   try{if(globalThis.TradingResearchContextHelpPresentationContract){globalThis.TradingResearchContextHelpPresentationContract.ensureObserver();setTimeout(globalThis.TradingResearchContextHelpPresentationContract.apply,0);}}catch(e){console.warn('context help',e);}
   trDraftMaybeRestoreAfterView();
 }

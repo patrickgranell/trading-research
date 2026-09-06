@@ -42,3 +42,4 @@ console.log(' - unknown-view fallback: 1 direct write -> 1 router-fallback write
 console.log(' - warning + Dashboard render preserved');
 console.log(' - read/navigation/session-restore contracts preserved');
 console.log(' - plan-switch-open write preserved direct and out of scope');
+await import('./verify-current-view-plan-switch-open-write-boundary.mjs');

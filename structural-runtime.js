@@ -379,19 +379,19 @@ render=function(){
        Rendering is a projection and must never persist or initialize domain state. */
     const first=!trRenderShellMounted;
     const view=trRenderEnsureShell(first);if(!view)return;
-    const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===currentView;
+    const previous=view.dataset.trView||trRenderLastView||'',sameView=previous===globalThis.TradingResearchCurrentViewReadContract.current();
     trRenderSyncSidebar();trUiRememberView();
-    if(sameView&&currentView==='operations'&&trPartialRenderOperations()){trRenderLastView=currentView;trRenderLastError='';return;}
-    if(sameView&&currentView==='market'&&trPartialRenderMarket()){trRenderLastView=currentView;trRenderLastError='';return;}
+    if(sameView&&globalThis.TradingResearchCurrentViewReadContract.current()==='operations'&&trPartialRenderOperations()){trRenderLastView=globalThis.TradingResearchCurrentViewReadContract.current();trRenderLastError='';return;}
+    if(sameView&&globalThis.TradingResearchCurrentViewReadContract.current()==='market'&&trPartialRenderMarket()){trRenderLastView=globalThis.TradingResearchCurrentViewReadContract.current();trRenderLastError='';return;}
     const continuity=sameView?trRenderCaptureInputContinuity(view):null;
-    view.innerHTML=trRenderViewHtml(currentView);view.dataset.trView=currentView;
-    trRenderViewRenders++;trRenderLastView=currentView;trRenderLastAt=new Date().toISOString();trRenderLastError='';
+    view.innerHTML=trRenderViewHtml(globalThis.TradingResearchCurrentViewReadContract.current());view.dataset.trView=globalThis.TradingResearchCurrentViewReadContract.current();
+    trRenderViewRenders++;trRenderLastView=globalThis.TradingResearchCurrentViewReadContract.current();trRenderLastAt=new Date().toISOString();trRenderLastError='';
     trPartialPrepareCurrentView(view);
     if(continuity)trRenderRestoreInputContinuity(continuity,view);
     trRenderAfterView();
   }catch(e){
     trRenderLastError=e?.message||String(e);console.error('[Trading Research · render V31.13]',e);
-    const view=document.getElementById('view');if(view)view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(currentView)}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError)}</div></section>`;
+    const view=document.getElementById('view');if(view)view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchCurrentViewReadContract.current())}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError)}</div></section>`;
   }
 };
 window.render=render;

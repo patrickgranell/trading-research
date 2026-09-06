@@ -48,14 +48,14 @@ for(const [snippet,label] of expectedSnapshotReads)need(stateEffective.includes(
 /* Source ownership stays in app.js; Batch 56 only moves runtime snapshot reads. */
 for(const [name] of targets)need(new RegExp(`(?:^|\\n)(?:const|let|var)\\s+${name}\\b`).test(app),`La definición fuente ${name} desapareció o dejó de ser top-level.`);
 
-/* Require real structural reduction: seven classic names leave every runtime. */
+/* Preserve the Batch 56 reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===170,`Batch 56 debe reducir el proxy app/runtime a 170; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
+need(runtimeOverlap.length<=170,`Batch 56 exige proxy app/runtime <=170; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
 
 /* Explicit exclusions: these are real non-snapshot runtime consumers and remain for later work. */
 const reports=runtimeSources.get('reports-purity-runtime.js');
@@ -77,6 +77,7 @@ if(fail.length){
 console.log('View Snapshot State Read Boundary verification OK');
 console.log(' - snapshot-only view bindings migrated: journal, blocks, gallery, calendar, compliance, review, goals');
 console.log(' - direct runtime tokens for seven source-owned UI states: 7 names -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 170`);
 console.log(' - reportsViewState + v315RunningUi deliberately excluded');
 console.log(' - app.js ownership, Restore, Cloud and persistence untouched');
+await import('./verify-remaining-ui-snapshot-state-read-boundary.mjs');

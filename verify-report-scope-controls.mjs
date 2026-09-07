@@ -48,12 +48,18 @@ need(reports.includes('let trReportScopeControls=trReportScopeControlsContract.c
   'Reports Purity no captura los scope controls base mediante contrato.');
 need(reports.includes('trReportScopeControlsContract.replace(trReportScopeControls);'),
   'Reports Purity no publica los scope controls puros mediante contrato.');
-need(reports.includes("if(reportsViewState.scope==='block')extra="),
-  'Se perdió la presentación del selector de Bloque.');
-need(reports.includes("if(reportsViewState.scope==='date')extra="),
-  'Se perdió la presentación del rango de fechas.');
-need(reports.includes("if(reportsViewState.scope==='study')extra="),
-  'Se perdió la presentación del selector de estudio guardado.');
+need(reports.includes("if(trReportsViewStateRead().scope==='block')extra="),
+  'Se perdió la presentación contractual del selector de Bloque.');
+need(reports.includes("if(trReportsViewStateRead().scope==='date')extra="),
+  'Se perdió la presentación contractual del rango de fechas.');
+need(reports.includes("if(trReportsViewStateRead().scope==='study')extra="),
+  'Se perdió la presentación contractual del selector de estudio guardado.');
+need(reports.includes("String(trReportsViewStateRead().block)===v"),
+  'El selector de Bloque dejó de leer el bloque actual mediante contrato.');
+need(reports.includes("trReportsViewStateRead().dateFrom" )&&reports.includes("trReportsViewStateRead().dateTo"),
+  'El rango de fechas dejó de leer ambos extremos mediante contrato.');
+need(reports.includes("s.id===trReportsViewStateRead().studyId"),
+  'El selector de estudio dejó de leer studyId mediante contrato.');
 need(reports.includes("[['full','Plan completo'],['last20','Últimas 20'],['last50','Últimas 50'],['last100','Últimas 100'],['month','Mes actual'],['block','Bloque'],['study','Estudio guardado'],['date','Rango de fechas']]"),
   'Se perdió el inventario de opciones de alcance.');
 need(reports.includes('${trReportScopeControls(p)}'),

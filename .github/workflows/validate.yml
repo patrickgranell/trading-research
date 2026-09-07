@@ -26,5 +26,8 @@ jobs:
       - name: Prebuild verification
         run: npm run prebuild
 
+      - name: Cloud V10 revision timestamp gate
+        run: node verify-cloud-v10-revision-timestamp-equality.mjs
+
       - name: Build verification
         run: npm run build

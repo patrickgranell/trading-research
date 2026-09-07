@@ -29,6 +29,7 @@ const VIEW_SNAPSHOT_STATE_READ_CONTRACT="\n/* V31.25 · Batch 56 · build-only V
 const REMAINING_UI_SNAPSHOT_STATE_READ_CONTRACT="\n/* V31.25 · Batch 57 · build-only Remaining UI Snapshot State read boundary */\nObject.defineProperty(globalThis,'TradingResearchRemainingUiSnapshotStateReadContract',{value:Object.freeze({operations:()=>typeof opsViewState==='undefined'?undefined:opsViewState,dashboard:()=>typeof dashboardViewState==='undefined'?undefined:dashboardViewState,exitLab:()=>typeof exitLabState==='undefined'?undefined:exitLabState,bestExit:()=>typeof v3110Ui==='undefined'?undefined:v3110Ui}),writable:false,enumerable:false,configurable:false});\n";
 const EXIT_LAB_MODULE_PRESENTATION_CONTRACT="\n/* V31.25 · Batch 58 · build-only Exit Lab module presentation boundary */\nObject.defineProperty(globalThis,'TradingResearchExitLabModulePresentationContract',{value:Object.freeze({current:()=>exitLabModule,replace:fn=>{exitLabModule=fn;}}),writable:false,enumerable:false,configurable:false});\n";
 const REPORT_OPERATIONS_READ_CONTRACT="\n/* V31.25 · Batch 60 · build-only Report operations read boundary */\nObject.defineProperty(globalThis,'TradingResearchReportOperationsReadContract',{value:Object.freeze({current:()=>v313ReportOps()}),writable:false,enumerable:false,configurable:false});\n";
+const COMMAND_INTENT_READ_CONTRACT="\n/* V31.25 · Batch 61 · build-only Command Intent read boundary */\nObject.defineProperty(globalThis,'TradingResearchCommandIntentReadContract',{value:Object.freeze({operation:()=>typeof editingId==='undefined'?null:editingId,instrument:()=>typeof editingInstrumentId==='undefined'?null:editingInstrumentId,riskStrategy:()=>typeof editingRiskId==='undefined'?null:editingRiskId,plan:()=>typeof editingPlanId==='undefined'?null:editingPlanId,clonePlan:()=>typeof cloningPlanId==='undefined'?null:cloningPlanId,taxonomyAsset:()=>typeof editingTaxonomyAsset==='undefined'?null:editingTaxonomyAsset,visualReference:()=>typeof editingVisualReferenceId==='undefined'?null:editingVisualReferenceId,complianceRule:()=>typeof editingComplianceRuleId==='undefined'?null:editingComplianceRuleId,mistake:()=>typeof editingMistakeId==='undefined'?null:editingMistakeId,goal:()=>typeof editingGoalId==='undefined'?null:editingGoalId}),writable:false,enumerable:false,configurable:false});\n";
 
 function skipQuoted(source,i,quote){
   i++;
@@ -122,6 +123,7 @@ export function consolidateLegacyRenderAssignments(source,{expected=12}={}){
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchRemainingUiSnapshotStateReadContract'"))out+=REMAINING_UI_SNAPSHOT_STATE_READ_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchExitLabModulePresentationContract'"))out+=EXIT_LAB_MODULE_PRESENTATION_CONTRACT;
   if(!out.includes("Object.defineProperty(globalThis,'TradingResearchReportOperationsReadContract'"))out+=REPORT_OPERATIONS_READ_CONTRACT;
+  if(!out.includes("Object.defineProperty(globalThis,'TradingResearchCommandIntentReadContract'"))out+=COMMAND_INTENT_READ_CONTRACT;
   return {source:out,removed:ranges.length,renderAliasesRemoved:aliases.removed};
 }
 

@@ -44,7 +44,7 @@ const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===163,`Batch 60 debe reducir el proxy app/runtime a 163; actual ${runtimeOverlap.length}. ${LEGACY} presente=${runtimeTokens.has(LEGACY)}.`);
+need(runtimeOverlap.length<=163,`Batch 60 no permite regresión del proxy app/runtime por encima de 163; actual ${runtimeOverlap.length}. ${LEGACY} presente=${runtimeTokens.has(LEGACY)}.`);
 
 /* Known non-target boundaries remain frozen/excluded. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
@@ -65,7 +65,9 @@ if(fail.length){
 }
 console.log('Report Operations Read Boundary verification OK');
 console.log(' - direct v313ReportOps runtime token: 1 name -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 163`);
 console.log(' - source report selector: preserved verbatim by ownership/shape gates');
 console.log(' - Reports Purity dataset read: build-only frozen contract');
 console.log(' - calcMetricStats, report sections, labState, reportsViewState, Market Data, Restore, Cloud and persistence untouched');
+
+await import('./verify-batch61-homogeneous-residual-boundaries.mjs');

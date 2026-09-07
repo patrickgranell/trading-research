@@ -60,7 +60,7 @@ need(reports.includes('TradingResearchReportsSectionPresentationContract.quality
   'Se perdió la sección quality del documento.');
 need(reports.includes('TradingResearchReportsSectionPresentationContract.breakdowns(ops)'),
   'Se perdió la sección breakdowns del documento.');
-need(reports.includes('${sec.reviewsGoals?v313ReportReviewsGoals(p):\'\'}'),
+need(reports.includes("${sec.reviewsGoals?trReportReviewsGoals(p):''}"),
   'Se perdió la composición Reviews & objetivos existente.');
 need(reports.includes('return `${toolbar}${presetPanel}${trReportDocument()}`;'),
   'El builder no consume el documento mediante el binding local contractual.');

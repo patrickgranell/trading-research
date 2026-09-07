@@ -49,7 +49,7 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(runtimeOverlap.length<=165,`Batch 58 exige proxy app/runtime <=165; actual ${runtimeOverlap.length}. exitLabModule presente=${runtimeTokens.has('exitLabModule')}.`);
 
-/* High-risk/non-presentation boundaries discovered by the RED inventory remain excluded. */
+/* High-risk/non-presentation boundaries remain excluded. Batch 63 advances only Reports state reads. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
 const reports=runtimeSources.get('reports-purity-runtime.js');
 const structural=runtimeSources.get('structural-runtime.js');
@@ -57,7 +57,8 @@ const state=runtimeSources.get('state-runtime.js');
 const backup=runtimeSources.get('backup-v2-runtime.js');
 const cloud=runtimeSources.get('cloud-v10-runtime.js');
 need(refs(styleAttr,'labState')===11&&refs(state,'labState')===2,'labState dejó de conservar sus consumidores auditados.');
-need(reports.includes('reportsViewState.scope'),'reportsViewState dejó de conservar su consumidor Reports Purity.');
+need(refs(reports,'reportsViewState')===0&&refs(state,'reportsViewState')===2,'Batch 63 no conserva la frontera esperada Reports state: Reports directo 0 / State fuente 2.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi dejó de conservar su consumidor Market Data estructural.');
 need(state.includes("configTab:typeof configTab!=='undefined'?configTab:''"),'configTab raw snapshot cambió fuera de Batch 58.');
 need(backup.includes("const TR_BACKUP_V2_MARKET_STORES=['marketMeta','marketTicks','execSets'];"),'Backup V2 cambió fuera de Batch 58.');
@@ -73,5 +74,5 @@ console.log(' - direct exitLabModule runtime token: 1 name -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 165`);
 console.log(' - Exit Lab wrapper: current/replace presentation contract-bound');
 console.log(' - TP Overlay text augmentation + TP/SL panel insertion preserved');
-console.log(' - first-touch simulation, Exit metrics, Market Data reads, Restore, Cloud and persistence untouched');
+console.log(' - first-touch simulation, Exit metrics, Market Data reads, Restore, Cloud and persistence untouched; Reports state advanced in Batch 63');
 await import('./verify-batch59-residual-presentation-boundary.mjs');

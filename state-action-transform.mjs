@@ -83,6 +83,11 @@ export function transformStateActions(source){
   out=replaceExact(out,planNormalizerReads,"  const fns=globalThis.TradingResearchPlanSchemaNormalizationReadContract.planNormalizers().filter(Boolean);",1,'plan schema normalizer reads');
   out=replaceExact(out,"if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();","{const trPlanBaseline=globalThis.TradingResearchPlanSchemaNormalizationReadContract.baseline();if(trPlanBaseline)trPlanBaseline();}",3,'plan baseline normalizer reads');
 
+  /* V31.25 · Batch 63: reportsViewState remains fully source-owned, including its
+   * whole-object replacement on preset load. State Runtime only snapshots it, so the
+   * effective bundle resolves the current object late through the read-only contract. */
+  out=replaceExact(out,"if(typeof reportsViewState!=='undefined')out.reports=trUiClone(reportsViewState);","{const trReportsViewState=globalThis.TradingResearchReportsViewStateReadContract.current();if(trReportsViewState!==undefined)out.reports=trUiClone(trReportsViewState);}",1,'Reports view state snapshot read');
+
   const resetWrapAnchor="[\n  ['setOpsUnit','operations.unit'],";
   const resetParity="const trOperationsResetParityBase=trStateActionResolve('resetOpsFilters');\nconst trOperationsResetParity=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};\ntrStateActionPublish('resetOpsFilters',trOperationsResetParity);\n";
   out=replaceExact(out,resetWrapAnchor,resetParity+resetWrapAnchor,1,'operations reset parity anchor');

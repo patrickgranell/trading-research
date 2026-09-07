@@ -57,10 +57,13 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(runtimeOverlap.length<=170,`Batch 56 exige proxy app/runtime <=170; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
 
-/* Explicit exclusions: these are real non-snapshot runtime consumers and remain for later work. */
+/* Batch 63 legitimately closes the former Reports-state exclusion; Market Data remains excluded. */
 const reports=runtimeSources.get('reports-purity-runtime.js');
 const structural=runtimeSources.get('structural-runtime.js');
-need(reports.includes('reportsViewState.scope'),'reportsViewState dejó de estar en Reports Purity fuera del alcance de Batch 56.');
+const rawState=runtimeSources.get('state-runtime.js');
+need(refs(reports,'reportsViewState')===0,'Batch 63 debe mantener Reports Purity libre del binding directo reportsViewState.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
+need(refs(rawState,'reportsViewState')===2,'La fuente State Runtime dejó de conservar el snapshot histórico de reportsViewState antes del transform Batch 63.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi dejó de estar en el cursor parcial de Market Data fuera del alcance de Batch 56.');
 
 /* Higher-risk durable/external boundaries remain untouched. */
@@ -78,6 +81,6 @@ console.log('View Snapshot State Read Boundary verification OK');
 console.log(' - snapshot-only view bindings migrated: journal, blocks, gallery, calendar, compliance, review, goals');
 console.log(' - direct runtime tokens for seven source-owned UI states: 7 names -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 170`);
-console.log(' - reportsViewState + v315RunningUi deliberately excluded');
+console.log(' - reportsViewState advanced to Batch 63 read contract; v315RunningUi remains excluded');
 console.log(' - app.js ownership, Restore, Cloud and persistence untouched');
 await import('./verify-remaining-ui-snapshot-state-read-boundary.mjs');

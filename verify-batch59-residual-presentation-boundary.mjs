@@ -41,14 +41,15 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(runtimeOverlap.length<=164,`Batch 59 no permite regresión del proxy app/runtime por encima de 164; actual ${runtimeOverlap.length}. v313ReportReviewsGoals presente=${runtimeTokens.has('v313ReportReviewsGoals')}.`);
 
-/* Known high-risk/non-presentation boundaries remain excluded. */
+/* Known high-risk/non-presentation boundaries remain excluded. Batch 63 advances only Reports state reads. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
 const structural=runtimeSources.get('structural-runtime.js');
 const state=runtimeSources.get('state-runtime.js');
 const backup=runtimeSources.get('backup-v2-runtime.js');
 const cloud=runtimeSources.get('cloud-v10-runtime.js');
 need(refs(styleAttr,'labState')===11&&refs(state,'labState')===2,'labState dejó de conservar sus consumidores auditados.');
-need(refs(reports,'reportsViewState')===22&&refs(state,'reportsViewState')===2,'reportsViewState cambió fuera de Batch 59.');
+need(refs(reports,'reportsViewState')===0&&refs(state,'reportsViewState')===2,'Batch 63 no conserva la frontera esperada Reports state: Reports directo 0 / State fuente 2.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi dejó de conservar su consumidor Market Data estructural.');
 need(backup.includes("const TR_BACKUP_V2_MARKET_STORES=['marketMeta','marketTicks','execSets'];"),'Backup V2 cambió fuera de Batch 59.');
 need(cloud.includes("currentView='dashboard';render();"),'Cloud Pull cambió fuera de Batch 59.');
@@ -63,6 +64,6 @@ console.log(' - direct v313ReportReviewsGoals runtime token: 1 name -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 164`);
 console.log(' - Reviews & Goals presentation: private Reports Purity helper');
 console.log(' - original app.js helper remains source-owned; runtime no longer replaces/publishes it');
-console.log(' - goalEval, reportsViewState, Market Data, Restore, Cloud and persistence untouched');
+console.log(' - goalEval unchanged; reportsViewState advanced to Batch 63 read contract; Market Data/Restore/Cloud untouched');
 
 await import('./verify-batch60-residual-read-presentation-boundary.mjs');

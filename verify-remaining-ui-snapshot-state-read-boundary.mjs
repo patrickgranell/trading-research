@@ -56,11 +56,13 @@ const styleAttr=runtimeSources.get('style-attr-runtime.js');
 need(refs(styleAttr,'labState')===11,`labState dejó de conservar el inventario Style Attr Runtime auditado (esperado 11; actual ${refs(styleAttr,'labState')}).`);
 need(refs(stateEffective,'labState')===2,`labState snapshot directo cambió fuera del alcance de Batch 57 (esperado 2 refs efectivas; actual ${refs(stateEffective,'labState')}).`);
 
-/* Known nontrivial consumers remain explicitly outside this snapshot-only batch. */
+/* Batch 63 legitimately closes the former Reports-state exclusion; other nontrivial consumers stay out. */
 const reports=runtimeSources.get('reports-purity-runtime.js');
 const structural=runtimeSources.get('structural-runtime.js');
 const state=runtimeSources.get('state-runtime.js');
-need(reports.includes('reportsViewState.scope'),'reportsViewState dejó de estar en Reports Purity fuera del alcance de Batch 57.');
+need(refs(reports,'reportsViewState')===0,'Batch 63 debe mantener Reports Purity libre del binding directo reportsViewState.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
+need(refs(state,'reportsViewState')===2,'La fuente State Runtime dejó de conservar el snapshot histórico de reportsViewState antes del transform Batch 63.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi dejó de estar en el cursor parcial de Market Data fuera del alcance de Batch 57.');
 need(state.includes("configTab:typeof configTab!=='undefined'?configTab:''"),'configTab dejó de conservar su lectura snapshot directa fuera del alcance de Batch 57.');
 
@@ -79,7 +81,7 @@ console.log('Remaining UI Snapshot State Read Boundary verification OK');
 console.log(' - snapshot-only bindings migrated: operations, dashboard, exitLab, bestExit');
 console.log(' - direct runtime tokens for four source-owned UI states: 4 names -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 166`);
-console.log(' - labState excluded after RED inventory proved 11 Style Attr Runtime consumers');
-console.log(' - reportsViewState + v315RunningUi + configTab deliberately excluded');
+console.log(' - labState remains excluded after 11 Style Attr consumers');
+console.log(' - reportsViewState advanced to Batch 63 read contract; v315RunningUi + configTab remain excluded');
 console.log(' - app.js ownership, Restore, Cloud, Market Data and persistence untouched');
 await import('./verify-residual-runtime-overlap-boundary.mjs');

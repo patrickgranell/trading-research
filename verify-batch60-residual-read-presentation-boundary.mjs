@@ -30,14 +30,14 @@ need(bundledAppStage.includes(`Object.defineProperty(globalThis,'${CONTRACT}'`),
 need(bundledAppStage.includes('current:()=>v313ReportOps()'),'Report Operations Read Contract no delega al selector fuente original.');
 need(!bundledAppStage.includes(`'${CONTRACT}',{value:Object.freeze({current:()=>v313ReportOps(),replace:`),'Report Operations Read Contract introdujo una vía de reemplazo/mutación.');
 
-/* Runtime consumer must use only the contract; metric pipeline and section composition stay unchanged. */
+/* Runtime consumer must use only the dataset contract; metric pipeline and section composition stay unchanged. */
 const directConsumers=runtimeFiles.filter(file=>refs(runtimeSources.get(file),LEGACY)>0);
 need(directConsumers.length===0,`Persisten tokens directos ${LEGACY} en runtimes: ${directConsumers.map(file=>`${file}(${refs(runtimeSources.get(file),LEGACY)})`).join(', ')||'ninguno'}.`);
-need(reports.includes(`const ops=globalThis.${CONTRACT}.current(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections`),'Reports Purity no conserva el pipeline dataset → calcMetricStats mediante el contrato.');
+need(reports.includes(`const ops=globalThis.${CONTRACT}.current(),s=calcMetricStats(ops,trReportsViewStateRead().unit,trReportsViewStateRead().basis),sec=trReportsViewStateRead().sections`),'Reports Purity no conserva el pipeline dataset → calcMetricStats mediante los contratos de dataset/estado.');
 need(refs(reports,'calcMetricStats')===1,`calcMetricStats cambió fuera de alcance (esperado 1 ref en Reports Purity; actual ${refs(reports,'calcMetricStats')}).`);
 need(reports.includes("${sec.reviewsGoals?trReportReviewsGoals(p):''}"),'La composición Reviews & objetivos cambió fuera de Batch 60.');
 
-/* Honest structural reduction: same proxy, one classic name removed. */
+/* Honest structural reduction: same proxy ceiling, later batches may reduce further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
@@ -46,14 +46,15 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(runtimeOverlap.length<=163,`Batch 60 no permite regresión del proxy app/runtime por encima de 163; actual ${runtimeOverlap.length}. ${LEGACY} presente=${runtimeTokens.has(LEGACY)}.`);
 
-/* Known non-target boundaries remain frozen/excluded. */
+/* Known non-target boundaries remain frozen/excluded. Batch 63 advances only Reports state reads. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
 const structural=runtimeSources.get('structural-runtime.js');
 const state=runtimeSources.get('state-runtime.js');
 const backup=runtimeSources.get('backup-v2-runtime.js');
 const cloud=runtimeSources.get('cloud-v10-runtime.js');
 need(refs(styleAttr,'labState')===11&&refs(state,'labState')===2,'labState dejó de conservar sus consumidores auditados.');
-need(refs(reports,'reportsViewState')===22&&refs(state,'reportsViewState')===2,'reportsViewState cambió fuera de Batch 60.');
+need(refs(reports,'reportsViewState')===0&&refs(state,'reportsViewState')===2,'Batch 63 no conserva la frontera esperada Reports state: Reports directo 0 / State fuente 2.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi dejó de conservar su consumidor Market Data estructural.');
 need(backup.includes("const TR_BACKUP_V2_MARKET_STORES=['marketMeta','marketTicks','execSets'];"),'Backup V2 cambió fuera de Batch 60.');
 need(cloud.includes("currentView='dashboard';render();"),'Cloud Pull cambió fuera de Batch 60.');
@@ -67,7 +68,7 @@ console.log('Report Operations Read Boundary verification OK');
 console.log(' - direct v313ReportOps runtime token: 1 name -> 0');
 console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 163`);
 console.log(' - source report selector: preserved verbatim by ownership/shape gates');
-console.log(' - Reports Purity dataset read: build-only frozen contract');
-console.log(' - calcMetricStats, report sections, labState, reportsViewState, Market Data, Restore, Cloud and persistence untouched');
+console.log(' - Reports Purity dataset read remains contract-bound; Reports state advanced to Batch 63 read contract');
+console.log(' - calcMetricStats, report sections, labState, Market Data, Restore, Cloud and persistence untouched');
 
 await import('./verify-batch61-homogeneous-residual-boundaries.mjs');

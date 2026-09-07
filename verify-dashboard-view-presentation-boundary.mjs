@@ -40,7 +40,8 @@ const overlap=topNames.filter(name=>runtimeTokens.has(name));
 const directCalls=[];
 for(const [file,src] of runtimeSources){
   const executable=stripNonExecutableText(src);
-  const count=[...executable.matchAll(/\bdashboard\s*\(/g)].length;
+  /* Direct legacy calls are dashboard(...), not member calls such as contract.dashboard(). */
+  const count=[...executable.matchAll(/(?:^|[^.\w$])dashboard\s*\(/gm)].length;
   if(count)directCalls.push([file,count]);
 }
 const structural=runtimeSources.get('structural-runtime.js')||'';

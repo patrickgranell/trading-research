@@ -82,3 +82,4 @@ console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
 console.log(' - labState excluded after RED inventory proved 11 Style Attr Runtime consumers');
 console.log(' - reportsViewState + v315RunningUi + configTab deliberately excluded');
 console.log(' - app.js ownership, Restore, Cloud, Market Data and persistence untouched');
+await import('./verify-residual-runtime-overlap-boundary.mjs');

@@ -56,7 +56,11 @@ need(contractLine.includes('writable:false,enumerable:false,configurable:false')
 
 /* Effective deployed State Runtime must contain zero direct legacy intent bindings. */
 for(const [name] of legacy)need(refs(effectiveState,name)===0,`State Runtime efectivo todavía contiene ${name} (${refs(effectiveState,name)} refs).`);
-need((effectiveState.match(/TradingResearchCommandIntentReadContract/g)||[]).length===10,'State Runtime efectivo no contiene exactamente las 10 lecturas contractuales esperadas.');
+const expectedContractCalls=Object.freeze({operation:1,instrument:2,riskStrategy:1,plan:1,clonePlan:1,taxonomyAsset:1,visualReference:1,complianceRule:1,mistake:1,goal:1});
+for(const [method,expected] of Object.entries(expectedContractCalls)){
+  const count=(effectiveState.match(new RegExp(`TradingResearchCommandIntentReadContract\\.${method}\\(`,'g'))||[]).length;
+  need(count===expected,`Command Intent ${method}() tiene ${count} call sites efectivos; se esperaban ${expected}.`);
+}
 
 /* Preserve every command-intent branch exactly; this boundary labels commands only. */
 need(effectiveState.includes("trWrapDomainCommandGlobal('saveInstrument',()=>globalThis.TradingResearchCommandIntentReadContract.instrument()?'contract.update':'contract.create');"),'Se alteró contract.create/update en saveInstrument.');
@@ -96,6 +100,7 @@ if(fail.length){
 console.log('Command Intent Read Boundary verification OK');
 console.log(' - grouped homogeneous command-intent bindings: 10');
 console.log(' - effective direct editing/cloning bindings: 10 names -> 0');
+console.log(' - effective contractual call sites: 11 (instrument has two consumers)');
 console.log(' - operation/instrument/plan/risk/taxonomy/reference/checklist/mistake/goal labels preserved');
 console.log(` - raw lexical app/runtime overlap: ${rawOverlap.length} <= 163 (intentionally not gamed)`);
 console.log(' - app.js + state-runtime.js source ownership preserved; bundle access is contract-bound');

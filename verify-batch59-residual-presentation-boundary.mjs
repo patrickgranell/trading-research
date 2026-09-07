@@ -39,7 +39,7 @@ const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===164,`Batch 59 debe reducir el proxy app/runtime a 164; actual ${runtimeOverlap.length}. v313ReportReviewsGoals presente=${runtimeTokens.has('v313ReportReviewsGoals')}.`);
+need(runtimeOverlap.length<=164,`Batch 59 no permite regresión del proxy app/runtime por encima de 164; actual ${runtimeOverlap.length}. v313ReportReviewsGoals presente=${runtimeTokens.has('v313ReportReviewsGoals')}.`);
 
 /* Known high-risk/non-presentation boundaries remain excluded. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
@@ -60,7 +60,9 @@ if(fail.length){
 }
 console.log('Report Reviews & Goals Local Presentation Boundary verification OK');
 console.log(' - direct v313ReportReviewsGoals runtime token: 1 name -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 164`);
 console.log(' - Reviews & Goals presentation: private Reports Purity helper');
 console.log(' - original app.js helper remains source-owned; runtime no longer replaces/publishes it');
 console.log(' - goalEval, reportsViewState, Market Data, Restore, Cloud and persistence untouched');
+
+await import('./verify-batch60-residual-read-presentation-boundary.mjs');

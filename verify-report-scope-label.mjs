@@ -48,12 +48,14 @@ need(reports.includes('let trReportScopeLabel=trReportScopeLabelContract.current
   'Reports Purity no captura el scope label base mediante contrato.');
 need(reports.includes('trReportScopeLabelContract.replace(trReportScopeLabel);'),
   'Reports Purity no publica el scope label puro mediante contrato.');
+need(reports.includes("const s=trReportsViewStateRead().scope;"),
+  'Scope Label dejó de leer scope mediante Reports View State Read Contract.');
 need(reports.includes("if(s==='last20')return 'Últimas 20 operaciones';"),
   'Se perdió la semántica de scope last20.');
-need(/if\(s==='study'\)\s*\{\s*const st=trReportSavedStudies\(p\)\.find\(x=>x\.id===reportsViewState\.studyId\);/.test(reports),
-  'Se perdió la lectura pura de scope study.');
-need(reports.includes("if(s==='date')return `${reportsViewState.dateFrom||'inicio'} → ${reportsViewState.dateTo||'fin'}`;"),
-  'Se perdió la semántica de scope date.');
+need(/if\(s==='study'\)\s*\{\s*const st=trReportSavedStudies\(p\)\.find\(x=>x\.id===trReportsViewStateRead\(\)\.studyId\);/.test(reports),
+  'Se perdió la lectura contractual pura de scope study.');
+need(reports.includes("if(s==='date')return `${trReportsViewStateRead().dateFrom||'inicio'} → ${trReportsViewStateRead().dateTo||'fin'}`;"),
+  'Se perdió la semántica contractual de scope date.');
 need(reports.includes('globalThis.TradingResearchContentEncodingContract.html(trReportScopeLabel(p))'),
   'Report Document no consume el scope label local puro.');
 

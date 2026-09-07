@@ -64,6 +64,25 @@ export function transformStateActions(source){
   out=replaceExact(out,"trWrapDomainCommandGlobal('saveGoal',()=>typeof editingGoalId!=='undefined'&&editingGoalId?'goal.update':'goal.create');","trWrapDomainCommandGlobal('saveGoal',()=>globalThis.TradingResearchCommandIntentReadContract.goal()?'goal.update':'goal.create');",1,'goal command intent');
   out=replaceExact(out,"const targetId=typeof editingId!=='undefined'&&editingId?editingId:null;","const targetId=globalThis.TradingResearchCommandIntentReadContract.operation()||null;",1,'operation command intent');
 
+  /* V31.25 · Batch 62: State Runtime owns normalization orchestration, while app.js
+   * remains the source owner of the historical plan-schema normalizers. Resolve the
+   * same functions at call time through one frozen read-only contract; preserve order,
+   * mutation timing, TRDomainStore.commit boundaries and persistence semantics. */
+  const planNormalizerReads=`  const fns=[
+    typeof ensurePlanV8Structure==='function'?ensurePlanV8Structure:null,
+    typeof ensurePlanCompliance==='function'?ensurePlanCompliance:null,
+    typeof ensurePlanStudies==='function'?ensurePlanStudies:null,
+    typeof ensurePlanConfidence==='function'?ensurePlanConfidence:null,
+    typeof ensurePlanReviews==='function'?ensurePlanReviews:null,
+    typeof ensurePlanGoals==='function'?ensurePlanGoals:null,
+    typeof ensurePlanForwardTests==='function'?ensurePlanForwardTests:null,
+    typeof ensurePlanDataQualityV27==='function'?ensurePlanDataQualityV27:null,
+    typeof ensurePlanResearchChanges==='function'?ensurePlanResearchChanges:null,
+    typeof v311EnsureDashboardProfiles==='function'?v311EnsureDashboardProfiles:null
+  ].filter(Boolean);`;
+  out=replaceExact(out,planNormalizerReads,"  const fns=globalThis.TradingResearchPlanSchemaNormalizationReadContract.planNormalizers().filter(Boolean);",1,'plan schema normalizer reads');
+  out=replaceExact(out,"if(typeof v30EnsureBaselineLocal==='function')v30EnsureBaselineLocal();","{const trPlanBaseline=globalThis.TradingResearchPlanSchemaNormalizationReadContract.baseline();if(trPlanBaseline)trPlanBaseline();}",3,'plan baseline normalizer reads');
+
   const resetWrapAnchor="[\n  ['setOpsUnit','operations.unit'],";
   const resetParity="const trOperationsResetParityBase=trStateActionResolve('resetOpsFilters');\nconst trOperationsResetParity=function(...args){opsViewState.riskPolicy='raw';return trOperationsResetParityBase.apply(this,args);};\ntrStateActionPublish('resetOpsFilters',trOperationsResetParity);\n";
   out=replaceExact(out,resetWrapAnchor,resetParity+resetWrapAnchor,1,'operations reset parity anchor');

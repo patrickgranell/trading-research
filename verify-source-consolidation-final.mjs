@@ -66,12 +66,12 @@ need(Number(structuredEvents.converted)>=600&&Number(structuredEvents.uniquePlan
 need(Number(structuredEvents.dynamicActionRejected)===0&&Number(structuredEvents.legacyProgramHandlers)===0,'Structured Event Boundary conserva programas/acciones dinámicas rechazadas');
 const finalStaticHtml=html.replace(/<script\s+[^>]*>[\s\S]*?<\/script>/gi,'');
 need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(finalStaticHtml),'El HTML estático final conserva programas click/change/input/submit');
-const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|exit-lab-runtime|canonical-metrics-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
-need(finalScriptBlocks.length===17,`Structured Event second-pass cubre ${finalScriptBlocks.length}/17 scripts propios.`);
+const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|taxonomy-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|exit-lab-runtime|canonical-metrics-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
+need(finalScriptBlocks.length===18,`Structured Event second-pass cubre ${finalScriptBlocks.length}/18 scripts propios.`);
 let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
 if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
-const releaseRegex=pkg.version.replace(/\\./g,'\\\\.');
+const releaseRegex=pkg.version.replace(/\./g,'\\.');
 const appMatch=html.match(new RegExp(`<script\\s+data-tr-build="${releaseRegex}">([\\s\\S]*?)<\\/script>`,'i'));
 need(!!appMatch,'No se encontró el bloque app empaquetado');
 const app=appMatch?.[1]||'';
@@ -124,7 +124,7 @@ const invariants={
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
   financialRegions:`${financialRegionCount}/${financialRegionCount}`,
-  structuredEventSecondPass:{ownScripts:17,legacyHandlersConverted:0}
+  structuredEventSecondPass:{ownScripts:18,legacyHandlersConverted:0}
 };
 
 if(fail.length){
@@ -143,5 +143,5 @@ console.log(' - Operation Cleanup Controls: delete operation + delete image regi
 console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");
-console.log(' - Structured Event second-pass coverage: 17/17 own scripts; 0 legacy handlers converted');
+console.log(' - Structured Event second-pass coverage: 18/18 own scripts; 0 legacy handlers converted');
 console.log(` - Financial regions unchanged: ${financialRegionCount}/${financialRegionCount}`);

@@ -248,19 +248,9 @@ function addValue(plan,taxId,{id,name,legacyValue}={}){
 }
 function archiveTaxonomy(plan,id,archived=true){const tax=taxonomyById(plan,id);if(!tax)return false;tax.status=archived?'archived':'active';tax.updatedAt=trTaxNow();return true;}
 function archiveValue(plan,taxId,valueId,archived=true){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!value)return false;value.status=archived?'archived':'active';value.updatedAt=trTaxNow();tax.updatedAt=value.updatedAt;return true;}
-function canDeleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!tax||!value)return false;return !trTaxValueReferenced(plan,tax,value,operations);}
-function trTaxRemoveCoreSource(plan,tax,value){
-  const legacy=trTaxText(value.legacyValue||value.name);
-  if(tax.id==='setup'){plan.setups=(plan.setups||[]).filter(x=>trTaxText(x)!==legacy);plan.setupDefinitions=(plan.setupDefinitions||[]).filter(d=>trTaxText(d?.key)!==legacy);}
-  else if(tax.id==='vd'){plan.vd=(plan.vd||[]).filter(x=>trTaxText(x)!==legacy);plan.vdDefinitions=(plan.vdDefinitions||[]).filter(d=>trTaxText(d?.key)!==legacy);}
-  else if(tax.id==='nr')plan.nr=(plan.nr||[]).filter(x=>trTaxText(x)!==legacy);
-  else if(tax.id==='hypothesis')plan.hypotheses=(plan.hypotheses||[]).filter(h=>trTaxText(h?.id||h?.name)!==legacy);
-  else if(tax.id==='context')plan.contextDefinitions=(plan.contextDefinitions||[]).filter(d=>trTaxText(d?.key||d?.name)!==legacy);
-  if(['setup','vd','nr','context'].includes(tax.id))plan.visualReferences=(plan.visualReferences||[]).filter(r=>!(r?.kind===tax.id&&trTaxText(r.key)===legacy));
-}
+function canDeleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!tax||!value||tax.kind==='core')return false;return !trTaxValueReferenced(plan,tax,value,operations);}
 function deleteValue(plan,taxId,valueId,operations=[]){
   const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!tax||!value||!canDeleteValue(plan,taxId,valueId,operations))return false;
-  if(tax.kind==='core')trTaxRemoveCoreSource(plan,tax,value);
   tax.values=tax.values.filter(v=>v.id!==valueId);tax.updatedAt=trTaxNow();return true;
 }
 function filterOptions(plan,tax,operations=[]){
@@ -327,7 +317,7 @@ function trTaxManagerPanel(p){
     const active=(t.values||[]).filter(v=>v.status!=='archived').length;
     return `<div class="config-row"><div class="config-main"><div class="config-name">${trTaxEsc(t.name)} <span class="badge">${t.kind==='core'?'Core':'Personalizada'}</span> ${t.status==='archived'?'<span class="badge">Archivada</span>':''}</div><div class="config-meta">${active} valor(es) activos · ${(t.values||[]).length} totales · ID ${trTaxEsc(t.id)}</div></div><div class="actions"><button class="btn small" data-taxonomy-id="${trTaxEsc(t.id)}" data-tr-onclick="trTaxOpenEditor(this.dataset.taxonomyId)">Editar</button><button class="btn small" data-taxonomy-id="${trTaxEsc(t.id)}" data-tr-onclick="trTaxToggleTaxonomy(this.dataset.taxonomyId)">${t.status==='archived'?'Reactivar':'Archivar'}</button>${t.kind==='custom'?`<button class="btn small danger" data-taxonomy-id="${trTaxEsc(t.id)}" data-tr-onclick="trTaxDeleteTaxonomy(this.dataset.taxonomyId)">Borrar</button>`:''}</div></div>`;
   }).join('');
-  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Taxonomías del Trading Plan</h3><div class="help">Cada taxonomía activa se convierte automáticamente en campo de clasificación de la operación, filtro de Operaciones/Laboratorio y dimensión analítica. Archivar oculta uso futuro sin borrar histórico.</div></div><button class="btn primary small" data-tr-onclick="trTaxCreateTaxonomy()">+ Nueva taxonomía</button></div><div class="config-list">${cards||'<div class="empty">Sin taxonomías.</div>'}</div><div class="notice"><strong>Histórico protegido:</strong> renombrar conserva aliases de los valores antiguos. El borrado definitivo solo se permite cuando ninguna operación del plan referencia esa taxonomía o valor.</div></section>`;
+  return `<section class="card panel config-wide"><div class="panel-title"><div><h3>Taxonomías del Trading Plan</h3><div class="help">Cada taxonomía activa se convierte automáticamente en campo de clasificación de la operación, filtro de Operaciones/Laboratorio y dimensión analítica. Archivar oculta uso futuro sin borrar histórico.</div></div><button class="btn primary small" data-tr-onclick="trTaxCreateTaxonomy()">+ Nueva taxonomía</button></div><div class="config-list">${cards||'<div class="empty">Sin taxonomías.</div>'}</div><div class="notice"><strong>Histórico protegido:</strong> renombrar conserva aliases de los valores antiguos. Las taxonomías y valores core se retiran mediante archivo; el borrado definitivo solo se permite en elementos personalizados sin referencias históricas.</div></section>`;
 }
 const trTaxConfigPanelBase=typeof configTaxonomyPanel==='function'?configTaxonomyPanel:null;
 if(trTaxConfigPanelBase){
@@ -345,7 +335,7 @@ function trTaxCreateTaxonomy(){
 }
 function trTaxOpenEditor(id){
   const p=trTaxCurrentPlan(),tax=api.taxonomyById(p,id);if(!tax)return;
-  const values=(tax.values||[]).map(v=>`<div class="config-row"><div class="config-main"><label class="field"><span>Valor</span><input class="input" data-tax-value-name="${trTaxEsc(v.id)}" value="${trTaxEsc(v.name)}"></label><div class="config-meta">ID ${trTaxEsc(v.id)}${v.status==='archived'?' · archivado':''}</div></div><div class="actions"><button type="button" class="btn small" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tax-value-id="${trTaxEsc(v.id)}" data-tr-onclick="trTaxToggleValue(this.dataset.taxonomyId,this.dataset.taxValueId)">${v.status==='archived'?'Reactivar':'Archivar'}</button><button type="button" class="btn small danger" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tax-value-id="${trTaxEsc(v.id)}" data-tr-onclick="trTaxDeleteValue(this.dataset.taxonomyId,this.dataset.taxValueId)">Borrar</button></div></div>`).join('');
+  const values=(tax.values||[]).map(v=>`<div class="config-row"><div class="config-main"><label class="field"><span>Valor</span><input class="input" data-tax-value-name="${trTaxEsc(v.id)}" value="${trTaxEsc(v.name)}"></label><div class="config-meta">ID ${trTaxEsc(v.id)}${v.status==='archived'?' · archivado':''}</div></div><div class="actions"><button type="button" class="btn small" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tax-value-id="${trTaxEsc(v.id)}" data-tr-onclick="trTaxToggleValue(this.dataset.taxonomyId,this.dataset.taxValueId)">${v.status==='archived'?'Reactivar':'Archivar'}</button>${tax.kind==='custom'?`<button type="button" class="btn small danger" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tax-value-id="${trTaxEsc(v.id)}" data-tr-onclick="trTaxDeleteValue(this.dataset.taxonomyId,this.dataset.taxValueId)">Borrar</button>`:''}</div></div>`).join('');
   const body=`<form id="trTaxEditorForm" data-tr-onsubmit="return false"><div class="form-section"><div class="form-grid"><label class="field span2"><span>Nombre de la taxonomía</span><input id="trTaxonomyName" class="input" value="${trTaxEsc(tax.name)}"></label></div></div><div class="form-section"><div class="panel-title"><div><h3>Valores</h3><small>Archivar conserva las operaciones históricas.</small></div><button type="button" class="btn small" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tr-onclick="trTaxAddValue(this.dataset.taxonomyId)">+ Añadir valor</button></div><div class="config-list">${values||'<div class="empty">Sin valores. Añade el primero para poder clasificar operaciones.</div>'}</div></div></form>`;
   document.body.insertAdjacentHTML('beforeend',modalShell(`Taxonomía · ${trTaxEsc(tax.name)}`,body,`<button class="btn" data-tr-onclick="closeModal()">Cancelar</button><button class="btn primary" data-taxonomy-id="${trTaxEsc(tax.id)}" data-tr-onclick="trTaxSaveEditor(this.dataset.taxonomyId)">Guardar</button>`));
 }
@@ -390,7 +380,7 @@ function trTaxToggleValue(taxId,valueId){
 function trTaxDeleteValue(taxId,valueId){
   const p=trTaxCurrentPlan(),tax=api.taxonomyById(p,taxId),value=api.valueById(tax,valueId);if(!value)return;
   const ops=trTaxOpsForPlan(p);
-  if(!api.canDeleteValue(p,taxId,valueId,ops))return alert('Ese valor ya está usado por el histórico. Archívalo para retirarlo sin destruir la clasificación registrada.');
+  if(!api.canDeleteValue(p,taxId,valueId,ops))return alert(tax.kind==='core'?'Los valores core se retiran mediante Archivo para conservar fichas y compatibilidad histórica.':'Ese valor ya está usado por el histórico. Archívalo para retirarlo sin destruir la clasificación registrada.');
   if(!confirm(`¿Borrar definitivamente “${value.name}”? No hay operaciones que lo referencien.`))return;
   trTaxCommit('taxonomy.value.delete',()=>{api.deleteValue(p,taxId,valueId,ops);p.updatedAt=trTaxNow();closeModal();setTimeout(()=>trTaxOpenEditor(taxId),0);});
 }
@@ -464,7 +454,9 @@ function trTaxFilterFields(p,ops,current={},target='ops'){
   api.ensurePlan(p);
   return api.activeTaxonomies(p).map(t=>{
     const values=api.filterOptions(p,t,ops),id=`trTax${target==='ops'?'Ops':'Lab'}_${t.id}`;
-    return `<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-${target}="1" class="select" data-tr-onchange="${target==='ops'?'filterOperations()':'labReadFilters()'}"><option value="">Todos</option>${values.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(current?.[t.id]||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`).join('')}</select></label>`;
+    const options=`<option value="">Todos</option>${values.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(current?.[t.id]||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`).join('')}`;
+    if(target==='ops')return `<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-ops="1" class="select" data-tr-onchange="filterOperations()">${options}</select></label>`;
+    return `<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-lab="1" class="select" data-tr-onchange="labReadFilters()">${options}</select></label>`;
   }).join('');
 }
 if(typeof opsViewState!=='undefined')opsViewState.taxonomyFilters=opsViewState.taxonomyFilters&&typeof opsViewState.taxonomyFilters==='object'?opsViewState.taxonomyFilters:{};
@@ -575,7 +567,7 @@ if(trTaxViewOperationBase){
 }
 
 Object.assign(registry,{
-  saveOperationFromForm,readOpsFilters,labReadFilters,resetOpsFilters,labReset,
+  saveOperationFromForm,readOpsFilters,labReadFilters,resetOpsFilters,labReset,viewOperation,
   applyDimensionFilter,clearDimensionSelection,
   trTaxCreateTaxonomy,trTaxOpenEditor,trTaxSaveEditor,trTaxAddValue,trTaxToggleTaxonomy,trTaxDeleteTaxonomy,trTaxToggleValue,trTaxDeleteValue
 });

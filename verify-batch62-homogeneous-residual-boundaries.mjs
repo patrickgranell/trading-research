@@ -94,12 +94,13 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const rawOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(rawOverlap.length<=163,`Batch 62 introdujo regresión del overlap raw: ${rawOverlap.length} > 163.`);
 
-/* Explicit exclusions / non-target high-risk surfaces remain frozen. */
+/* Explicit exclusions / non-target high-risk surfaces remain frozen. Batch 63 advances only Reports state reads. */
 need(backup.includes("const TR_BACKUP_V2_MARKET_STORES=['marketMeta','marketTicks','execSets'];"),'Backup V2 / Market stores cambiaron fuera de Batch 62.');
 need(cloud.includes("currentView='dashboard';render();"),'Cloud Pull currentView/render cambió fuera de Batch 62.');
 need(refs(canonical,'calcStats')===2&&refs(canonical,'opMetricValue')===1,'Canonical financial metric bindings cambiaron fuera de Batch 62.');
 need(refs(styleAttr,'labState')===11&&refs(rawState,'labState')===2,'labState cambió fuera de Batch 62.');
-need(refs(reports,'reportsViewState')===22&&refs(rawState,'reportsViewState')===2,'reportsViewState cambió fuera de Batch 62.');
+need(refs(reports,'reportsViewState')===0&&refs(rawState,'reportsViewState')===2,'Batch 63 no conserva la frontera esperada Reports state: Reports directo 0 / State fuente 2.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
 
 if(fail.length){
   console.error('Plan Schema Normalization Read Boundary verification FAILED');
@@ -113,4 +114,4 @@ console.log(' - plan normalizer order: preserved');
 console.log(' - baseline call sites: 3 -> 3 contract reads');
 console.log(` - raw lexical app/runtime overlap: ${rawOverlap.length} <= 163 (intentionally not gamed)`);
 console.log(' - app.js + state-runtime.js source ownership preserved');
-console.log(' - Restore/Backup, Cloud, Market Data, reports state and financial calculations untouched');
+console.log(' - Restore/Backup, Cloud, Market Data and financial calculations untouched; Reports state advanced in Batch 63');

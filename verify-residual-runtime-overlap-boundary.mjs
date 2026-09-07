@@ -40,14 +40,14 @@ need(exitRuntime.includes("const sim=exitStats(simVals),actual=exitStats(actualV
 need(exitRuntime.includes("if(!set){set=await v314StoreGet('execSets',ev.execSetId);if(set)cache.sets.set(ev.execSetId,set);}"),'La lectura Execution Evidence cambió fuera de Batch 58.');
 need(exitRuntime.includes("if(!ticks){ticks=await v314LoadTicks(ev.marketDatasetId);if(ticks)cache.ticks.set(ev.marketDatasetId,ticks);}"),'La carga de ticks Market Data cambió fuera de Batch 58.');
 
-/* Require the honest lexical reduction, without redefining the proxy. */
+/* Preserve the Batch 58 reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===165,`Batch 58 debe reducir el proxy app/runtime a 165; actual ${runtimeOverlap.length}. exitLabModule presente=${runtimeTokens.has('exitLabModule')}.`);
+need(runtimeOverlap.length<=165,`Batch 58 exige proxy app/runtime <=165; actual ${runtimeOverlap.length}. exitLabModule presente=${runtimeTokens.has('exitLabModule')}.`);
 
 /* High-risk/non-presentation boundaries discovered by the RED inventory remain excluded. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
@@ -70,7 +70,8 @@ if(fail.length){
 }
 console.log('Exit Lab Module Presentation Boundary verification OK');
 console.log(' - direct exitLabModule runtime token: 1 name -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 165`);
 console.log(' - Exit Lab wrapper: current/replace presentation contract-bound');
 console.log(' - TP Overlay text augmentation + TP/SL panel insertion preserved');
 console.log(' - first-touch simulation, Exit metrics, Market Data reads, Restore, Cloud and persistence untouched');
+await import('./verify-batch59-residual-presentation-boundary.mjs');

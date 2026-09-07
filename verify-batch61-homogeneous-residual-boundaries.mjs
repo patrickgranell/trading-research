@@ -83,9 +83,10 @@ for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_
 const rawOverlap=topNames.filter(name=>runtimeTokens.has(name));
 need(rawOverlap.length<=163,`Batch 61 introdujo regresión del overlap raw: ${rawOverlap.length} > 163.`);
 
-/* Explicit high-risk/non-target boundaries stay outside this grouped batch. */
+/* Explicit high-risk/non-target boundaries stay outside this grouped batch. Batch 63 advances only Reports state reads. */
 need(refs(styleAttr,'labState')===11&&refs(rawState,'labState')===2,'labState cambió fuera de Batch 61.');
-need(refs(reports,'reportsViewState')===22&&refs(rawState,'reportsViewState')===2,'reportsViewState cambió fuera de Batch 61.');
+need(refs(reports,'reportsViewState')===0&&refs(rawState,'reportsViewState')===2,'Batch 63 no conserva la frontera esperada Reports state: Reports directo 0 / State fuente 2.');
+need(reports.includes("const trReportsViewStateRead=()=>globalThis.TradingResearchReportsViewStateReadContract.current();"),'Batch 63 perdió el helper contractual tardío de Reports View State.');
 need(structural.includes('const series=v315RunningUi.series'),'v315RunningUi/Market Data cambió fuera de Batch 61.');
 need(refs(rawState,'trCoreWriteBlockReason')===2,'Restore write-lock state cambió fuera de Batch 61.');
 need(refs(reports,'goalEval')===1,'goalEval cambió fuera de Batch 61.');
@@ -104,6 +105,6 @@ console.log(' - effective contractual call sites: 11 (instrument has two consume
 console.log(' - operation/instrument/plan/risk/taxonomy/reference/checklist/mistake/goal labels preserved');
 console.log(` - raw lexical app/runtime overlap: ${rawOverlap.length} <= 163 (intentionally not gamed)`);
 console.log(' - app.js + state-runtime.js source ownership preserved; bundle access is contract-bound');
-console.log(' - Restore/Backup, persistence, Cloud, Market Data, reports state and financial calculations untouched');
+console.log(' - Restore/Backup, persistence, Cloud, Market Data and financial calculations untouched; Reports state advanced in Batch 63');
 
 await import('./verify-batch62-homogeneous-residual-boundaries.mjs');

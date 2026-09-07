@@ -50,6 +50,12 @@ need(reports.includes('trReportBuilderViewContract.replace(trReportBuilderView);
   'Reports Purity no publica el builder puro mediante contrato.');
 need(reports.includes('const p=globalThis.TradingResearchPlanReadContract.current(),presets=trReportNormalizedPresets(p);'),
   'Se perdió la lectura normalizada de plan/presets del builder.');
+need(reports.includes('globalThis.TradingResearchContentEncodingContract.html(trReportsViewStateRead().title)'),
+  'El título del builder dejó de leer Reports View State mediante contrato.');
+need(reports.includes("trReportsViewStateRead().unit===v?'active':''"),
+  'Los controles de unidad del builder dejaron de leer Reports View State mediante contrato.');
+need(reports.includes("trReportsViewStateRead().basis===v?'active':''"),
+  'Los controles de base del builder dejaron de leer Reports View State mediante contrato.');
 need(reports.includes('${trReportScopeControls(p)}'),
   'El builder dejó de consumir los scope controls locales puros.');
 need(reports.includes('TradingResearchReportsSectionPresentationContract.controls()'),

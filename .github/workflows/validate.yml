@@ -29,5 +29,8 @@ jobs:
       - name: Cloud V10 revision timestamp gate
         run: node verify-cloud-v10-revision-timestamp-equality.mjs
 
+      - name: Configurable taxonomy domain gate
+        run: node verify-taxonomy-domain-v31-26.mjs
+
       - name: Build verification
         run: npm run build

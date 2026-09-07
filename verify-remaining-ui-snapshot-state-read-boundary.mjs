@@ -42,14 +42,14 @@ for(const [snippet,label] of expectedSnapshotReads)need(stateEffective.includes(
 /* Source ownership stays in app.js; Batch 57 only moves runtime snapshot reads. */
 for(const [name] of targets)need(new RegExp(`(?:^|\\n)(?:const|let|var)\\s+${name}\\b`).test(app),`La definición fuente ${name} desapareció o dejó de ser top-level.`);
 
-/* Require real structural reduction: four more classic names leave every runtime. */
+/* Preserve the Batch 57 reduction as a ceiling so later batches may reduce debt further. */
 const fnNames=[...app.matchAll(/(?:^|\n)function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m=>m[1]);
 const varNames=[...app.matchAll(/(?:^|\n)(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(m=>m[1]);
 const topNames=[...new Set([...fnNames,...varNames])];
 const runtimeTokens=new Set();
 for(const src of runtimeSources.values())for(const m of src.matchAll(/\b[A-Za-z_$][\w$]*\b/g))runtimeTokens.add(m[0]);
 const runtimeOverlap=topNames.filter(name=>runtimeTokens.has(name));
-need(runtimeOverlap.length===166,`Batch 57 debe reducir el proxy app/runtime a 166; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
+need(runtimeOverlap.length<=166,`Batch 57 exige proxy app/runtime <=166; actual ${runtimeOverlap.length}. Targets presentes=${targets.filter(([name])=>runtimeTokens.has(name)).map(([name])=>name).join(', ')||'ninguno'}.`);
 
 /* RED inventory proved labState has real Style Attr Runtime consumers, so keep it out. */
 const styleAttr=runtimeSources.get('style-attr-runtime.js');
@@ -78,7 +78,8 @@ if(fail.length){
 console.log('Remaining UI Snapshot State Read Boundary verification OK');
 console.log(' - snapshot-only bindings migrated: operations, dashboard, exitLab, bestExit');
 console.log(' - direct runtime tokens for four source-owned UI states: 4 names -> 0');
-console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length}`);
+console.log(` - runtime name-overlap proxy: ${runtimeOverlap.length} <= 166`);
 console.log(' - labState excluded after RED inventory proved 11 Style Attr Runtime consumers');
 console.log(' - reportsViewState + v315RunningUi + configTab deliberately excluded');
 console.log(' - app.js ownership, Restore, Cloud, Market Data and persistence untouched');
+await import('./verify-residual-runtime-overlap-boundary.mjs');

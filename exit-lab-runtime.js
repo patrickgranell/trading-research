@@ -124,8 +124,9 @@ function trExitSimPanel(ops){
   return `<div class="exit-be-panel">${controls}${body}<div class="help">Supuesto de microestructura: toque por <b>Last</b>. Resultado bruto en R. No se atribuye fill exacto de limit, slippage ni comisión; esas hipótesis deben modelarse por separado.</div></div>`;
 }
 
-const trExitLabModuleBase=exitLabModule;
-exitLabModule=function(ops){
+const trExitLabModuleContract=globalThis.TradingResearchExitLabModulePresentationContract;
+const trExitLabModuleBase=trExitLabModuleContract.current();
+trExitLabModuleContract.replace(function(ops){
   trExitSimVisibleIds=(ops||[]).map(o=>o.id);
   let html=trExitLabModuleBase(ops);
   html=html.replace(/Escenario · TP fijo/g,'TP Overlay · MFE')
@@ -134,7 +135,7 @@ exitLabModule=function(ops){
     .replace(/Mapa de objetivos fijos/g,'Mapa TP Overlay');
   const panel=trExitSimPanel(ops),at=html.lastIndexOf('</section>');
   return at>=0?html.slice(0,at)+panel+html.slice(at):html+panel;
-};
+});
 
 const registry=window.TradingResearchActions;
 if(registry&&typeof registry==='object'){

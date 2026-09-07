@@ -105,3 +105,5 @@ console.log(' - operation/instrument/plan/risk/taxonomy/reference/checklist/mist
 console.log(` - raw lexical app/runtime overlap: ${rawOverlap.length} <= 163 (intentionally not gamed)`);
 console.log(' - app.js + state-runtime.js source ownership preserved; bundle access is contract-bound');
 console.log(' - Restore/Backup, persistence, Cloud, Market Data, reports state and financial calculations untouched');
+
+await import('./verify-batch62-homogeneous-residual-boundaries.mjs');

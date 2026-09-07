@@ -48,7 +48,7 @@ need(reports.includes('let trReportDocument=trReportDocumentContract.current();'
   'Reports Purity no captura el documento base mediante contrato.');
 need(reports.includes('trReportDocumentContract.replace(trReportDocument);'),
   'Reports Purity no publica el documento mediante contrato.');
-need(reports.includes('const ops=v313ReportOps(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections'),
+need(reports.includes('const ops=globalThis.TradingResearchReportOperationsReadContract.current(),s=calcMetricStats(ops,reportsViewState.unit,reportsViewState.basis),sec=reportsViewState.sections'),
   'El wrapper de presentación cambió el pipeline de dataset/métricas existente.');
 need(reports.includes('TradingResearchReportsSectionPresentationContract.summary(p,ops,s)'),
   'Se perdió la sección summary del documento.');

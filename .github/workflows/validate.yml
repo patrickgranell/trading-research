@@ -32,5 +32,8 @@ jobs:
       - name: Configurable taxonomy domain gate
         run: node verify-taxonomy-domain-v31-26.mjs
 
+      - name: Taxonomy active/historical separation gate
+        run: node verify-taxonomy-active-historical-separation.mjs
+
       - name: Build verification
         run: npm run build

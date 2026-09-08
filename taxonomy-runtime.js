@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const TR_TAXONOMY_RUNTIME_VERSION='31.26.0';
+const TR_TAXONOMY_RUNTIME_VERSION='31.26.1';
 const TR_TAXONOMY_SCHEMA=2;
 const TR_TAXONOMY_CORE=Object.freeze([
   {id:'setup',name:'Setup',legacyKey:'setup',source:'setups'},
@@ -16,6 +16,7 @@ const TR_TAXONOMY_CORE=Object.freeze([
 function trTaxNow(){return new Date().toISOString();}
 function trTaxCopy(v){return v===undefined?undefined:JSON.parse(JSON.stringify(v));}
 function trTaxText(v){return String(v??'').trim();}
+function trTaxComparisonKey(v){return trTaxText(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');}
 function trTaxUniq(values){return [...new Set((values||[]).map(trTaxText).filter(Boolean))];}
 function trTaxHash(text){let h=2166136261;for(const c of String(text)){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0).toString(36);}
 function trTaxStableValueId(taxonomyId,raw){return `TV_${String(taxonomyId).replace(/[^A-Za-z0-9_-]/g,'_')}_${trTaxHash(raw)}`;}
@@ -42,7 +43,10 @@ function trTaxDefaultEntries(spec){
   if(spec.id==='h4Phase')return ['Impulso','Retroceso','No definida'];
   return null;
 }
-function trTaxValueMatchesRaw(value,raw){raw=trTaxText(raw);return !!raw&&(trTaxText(value?.legacyValue)===raw||trTaxText(value?.name)===raw||(value?.aliases||[]).some(x=>trTaxText(x)===raw));}
+function trTaxValueMatchesRaw(value,raw){
+  const key=trTaxComparisonKey(raw);if(!key)return false;
+  return [value?.legacyValue,value?.name,...(value?.aliases||[])].some(x=>trTaxComparisonKey(x)===key);
+}
 function trTaxSyncCoreValues(plan,tax,spec,isNew){
   const defaults=trTaxDefaultEntries(spec);
   const entries=defaults&&isNew?defaults.map(x=>({legacyValue:x,name:x})):trTaxSourceEntries(plan,spec);
@@ -126,14 +130,25 @@ function trTaxAppendCoreSource(plan,tax,value){
   else if(tax.id==='hypothesis'){plan.hypotheses=Array.isArray(plan.hypotheses)?plan.hypotheses:[];if(!plan.hypotheses.some(h=>trTaxText(h?.id||h?.name)===legacy))plan.hypotheses.push({id:legacy,name,description:''});}
   else if(tax.id==='context'){plan.contextDefinitions=Array.isArray(plan.contextDefinitions)?plan.contextDefinitions:[];if(!plan.contextDefinitions.some(d=>trTaxText(d?.key||d?.name)===legacy))plan.contextDefinitions.push({id:`CTX_${trTaxHash(legacy)}`,key:legacy,title:name,description:'',specs:'',timeframes:[],images:[],updatedAt:trTaxNow()});}
 }
-function addValue(plan,taxId,{id,name,legacyValue}={}){const tax=taxonomyById(plan,taxId);name=trTaxText(name);if(!tax||!name||(tax.values||[]).some(v=>v.name.toLocaleLowerCase()===name.toLocaleLowerCase()))return null;let legacy=trTaxText(legacyValue);if(tax.kind==='core'){if(tax.id==='hypothesis')legacy=legacy||`H_${trTaxHash(`${id||name}:${trTaxNow()}`)}`;else legacy=legacy||name;}const value=trTaxNormalizeValue(tax,{id:trTaxText(id)||trTaxStableValueId(tax.id,legacy||`${name}:${trTaxNow()}`),name,legacyValue:legacy,aliases:[legacy,name],status:'active'});tax.values.push(value);tax.updatedAt=trTaxNow();if(tax.kind==='core')trTaxAppendCoreSource(plan,tax,value);return value;}
+function addValue(plan,taxId,{id,name,legacyValue}={}){const tax=taxonomyById(plan,taxId);name=trTaxText(name);if(!tax||!name||(tax.values||[]).some(v=>v.id!==id&&trTaxComparisonKey(v.name)===trTaxComparisonKey(name)))return null;let legacy=trTaxText(legacyValue);if(tax.kind==='core'){if(tax.id==='hypothesis')legacy=legacy||`H_${trTaxHash(`${id||name}:${trTaxNow()}`)}`;else legacy=legacy||name;}const value=trTaxNormalizeValue(tax,{id:trTaxText(id)||trTaxStableValueId(tax.id,legacy||`${name}:${trTaxNow()}`),name,legacyValue:legacy,aliases:[legacy,name],status:'active'});tax.values.push(value);tax.updatedAt=trTaxNow();if(tax.kind==='core')trTaxAppendCoreSource(plan,tax,value);return value;}
 function archiveTaxonomy(plan,id,archived=true){const tax=taxonomyById(plan,id);if(!tax)return false;tax.status=archived?'archived':'active';tax.updatedAt=trTaxNow();return true;}
 function archiveValue(plan,taxId,valueId,archived=true){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!value)return false;value.status=archived?'archived':'active';value.updatedAt=trTaxNow();tax.updatedAt=value.updatedAt;return true;}
 function canDeleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);return !!tax&&!!value&&tax.kind!=='core'&&!trTaxValueReferenced(plan,tax,value,operations);}
 function deleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!tax||!value||!canDeleteValue(plan,taxId,valueId,operations))return false;tax.values=tax.values.filter(v=>v.id!==valueId);tax.updatedAt=trTaxNow();return true;}
-function filterOptions(plan,tax,operations=[]){ensurePlan(plan);const map=new Map();for(const value of tax?.values||[])if(value.status!=='archived')map.set(value.id,{...value});for(const op of trTaxPlanOperations(plan,operations)){const value=operationValue(tax,op);if(value&&!map.has(value.id))map.set(value.id,{...value});}return [...map.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name),'es',{numeric:true}));}
+function trTaxSortValues(values){return [...values].sort((a,b)=>String(a.name).localeCompare(String(b.name),'es',{numeric:true}));}
+function selectionOptions(plan,tax){ensurePlan(plan);return trTaxSortValues((tax?.values||[]).filter(v=>v.status!=='archived').map(v=>({...v})));}
+function filterOptionGroups(plan,tax,operations=[]){
+  ensurePlan(plan);
+  const active=selectionOptions(plan,tax),activeIds=new Set(active.map(v=>String(v.id))),historical=new Map();
+  for(const op of trTaxPlanOperations(plan,operations)){
+    const value=operationValue(tax,op);
+    if(value&&!activeIds.has(String(value.id))&&!historical.has(String(value.id)))historical.set(String(value.id),{...value,status:value.status==='archived'?'archived':'historical'});
+  }
+  return {active,historical:trTaxSortValues([...historical.values()])};
+}
+function filterOptions(plan,tax,operations=[]){const groups=filterOptionGroups(plan,tax,operations);return [...groups.active,...groups.historical];}
 
-const api=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,schema:TR_TAXONOMY_SCHEMA,core:TR_TAXONOMY_CORE,ensurePlan,taxonomyById,activeTaxonomies,valueById,operationValue,resolveOperationValueId,operationValueLabel,matchesFilters,createTaxonomy,renameTaxonomy,renameValue,addValue,archiveTaxonomy,archiveValue,canDeleteTaxonomy,deleteTaxonomy,canDeleteValue,deleteValue,filterOptions});
+const api=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,schema:TR_TAXONOMY_SCHEMA,core:TR_TAXONOMY_CORE,ensurePlan,taxonomyById,activeTaxonomies,valueById,operationValue,resolveOperationValueId,operationValueLabel,matchesFilters,createTaxonomy,renameTaxonomy,renameValue,addValue,archiveTaxonomy,archiveValue,canDeleteTaxonomy,deleteTaxonomy,canDeleteValue,deleteValue,selectionOptions,filterOptionGroups,filterOptions});
 globalThis.TradingResearchTaxonomyDomain=api;
 if(typeof window==='undefined'||!window.document)return;
 
@@ -146,7 +161,7 @@ const trTaxNormalizePlanBase=typeof normalizePlan==='function'?normalizePlan:nul
 function trTaxCommit(label,fn,{render:trueRender=true}={}){if(domain?.commit)return domain.commit(label,fn,{persist:true,render:trueRender});const out=fn();if(typeof persist==='function')persist();if(trueRender&&typeof render==='function')render();return out;}
 function trTaxCurrentPlan(){return typeof getCurrentPlan==='function'?getCurrentPlan():null;}
 function trTaxOpsForPlan(p){return (state?.operations||[]).filter(o=>!p?.id||o.tradingPlanId===p.id);}
-function trTaxEsc(value){return typeof esc==='function'?esc(value):String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function trTaxEsc(value){return typeof esc==='function'?esc(value):String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));}
 function trTaxParseTimeframes(raw){return trTaxUniq(String(raw||'').split(/[;,]/).map(x=>x.trim()));}
 function trTaxRef(p,taxId,valueId){return (p?.visualReferences||[]).find(r=>r?.kind==='taxonomy'&&r.taxonomyId===taxId&&r.valueId===valueId)||null;}
 function trTaxHasRefs(p,taxId,valueId=''){return (p?.visualReferences||[]).some(r=>r?.kind==='taxonomy'&&r.taxonomyId===taxId&&(!valueId||r.valueId===valueId));}
@@ -263,7 +278,13 @@ function trTaxOpenLegacyFicha(type,key=''){
   const tax=api.taxonomyById(p,taxId),value=(tax?.values||[]).find(v=>trTaxValueMatchesRaw(v,clean));if(value)trTaxOpenValueFicha(taxId,value.id);
 }
 
-function trTaxOperationSelect(tax,o,p){const ops=trTaxOpsForPlan(p),selected=api.resolveOperationValueId(o||{},tax),values=api.filterOptions(p,tax,ops),current=selected?api.operationValue(tax,o||{}):null;if(current&&!values.some(v=>v.id===current.id))values.unshift(current);const active=values.filter(v=>v.status!=='archived'||v.id===selected),defaultValue=selected||(tax.kind==='core'?active.find(v=>v.status!=='archived')?.id:'')||'',options=[`<option value="">Sin clasificar</option>`,...active.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(v.id)===String(defaultValue)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`)].join('');return `<label class="field"><span>${trTaxEsc(tax.name)}</span><select id="f-tx_${trTaxEsc(tax.id)}" name="tx_${trTaxEsc(tax.id)}" class="select">${options}</select></label>`;}
+function trTaxOperationSelect(tax,o,p){
+  const selected=api.resolveOperationValueId(o||{},tax),values=api.selectionOptions(p,tax),current=selected?api.operationValue(tax,o||{}):null;
+  const choices=[...values];if(current&&!choices.some(v=>String(v.id)===String(current.id)))choices.unshift({...current,status:current.status==='archived'?'archived':'historical'});
+  const defaultValue=selected||(tax.kind==='core'?values[0]?.id:'')||'';
+  const options=[`<option value="">Sin clasificar</option>`,...choices.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(v.id)===String(defaultValue)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':v.status==='historical'?' · histórico':''}</option>`)].join('');
+  return `<label class="field"><span>${trTaxEsc(tax.name)}</span><select id="f-tx_${trTaxEsc(tax.id)}" name="tx_${trTaxEsc(tax.id)}" class="select">${options}</select></label>`;
+}
 function trTaxOperationFields(o,p){api.ensurePlan(p);return api.activeTaxonomies(p).map(t=>trTaxOperationSelect(t,o,p)).join('');}
 const trTaxOperationFormBase=typeof operationForm==='function'?operationForm:null;
 if(trTaxOperationFormBase)operationForm=function(o,r,p){ensurePlanV8Structure(p);const v=(k,d='')=>trTaxEsc(o?.[k]??d),riskOptions=p.riskStrategies.filter(x=>x.active||x.id===o?.riskStrategyId).map(x=>({value:x.id,label:x.name}));return `<form id="operationForm" data-tr-onsubmit="return false"><div class="form-section"><h4>0 · Trading Plan</h4><div class="plan-readonly"><strong>${trTaxEsc(planLabel(p))}</strong><span>${trTaxEsc(p.description||'Sin descripción')}</span></div></div><div class="form-section"><h4>1 · Sesión y régimen</h4><div class="form-grid">${field('Fecha/hora de entrada','entryDate','datetime-local',v('entryDate',new Date().toISOString().slice(0,16)))}${field('Fecha/hora de salida','exitDate','datetime-local',v('exitDate',''))}${selectField('Muestra','sample',['A','B'],v('sample','B'))}${selectObjField('Régimen de gestión','riskStrategyId',riskOptions,o?.riskStrategyId||r?.id,`data-tr-onchange="applyRiskToOperation(true)"`)}${field('ATR observado (opcional)','atr','number',v('atr',''),'','step="any"')}</div><div id="opRiskPreview" class="strategy-preview"></div></div><div class="form-section"><h4>2 · Clasificación de la oportunidad</h4><div class="form-grid">${trTaxOperationFields(o,p)}${selectField('Dirección','direction',['LONG','SHORT'],v('direction','LONG'))}${field('Timeframe','timeframe','text',v('timeframe','5M'))}${field('Precio dinámico / objetivo','dtPrice','number',v('dtPrice',''),'','step="any"')}${field('Notas','notes','textarea',v('notes',''),'full')}</div></div><div class="form-section"><h4>3 · Ejecución y resultado</h4><div class="form-grid">${field('Contrato / vencimiento','contract','text',v('contract',getInstrument(r?.instrumentId)?.symbol||''))}${field('Contratos totales','contracts','number',v('contracts',riskCalc(r).contracts),'','readonly')}${selectField('Tipo de entrada','entryType',['LMT','STP'],v('entryType','LMT'))}${field('Precio de entrada','entryPrice','number',v('entryPrice',''),'','step="any"')}${field('Ticks resultado agregados','resultTicks','number',v('resultTicks',''),'','step="any" data-tr-oninput="recalcOperation()"')}${field('Comisiones','commission','number',v('commission',''),'','readonly step="any"')}${field('P&L bruto','pnlGross','number',v('pnlGross',''),'','readonly step="any"')}${field('P&L neto','pnlNet','number',v('pnlNet',''),'','readonly step="any"')}${field('R múltiple bruta','rMultiple','number',v('rMultiple',''),'','readonly step="any"')}${field('MFE (R)','mfe','number',v('mfe',''),'','step="any"')}${field('MAE (R)','mae','number',v('mae',''),'','step="any"')}${selectField('Disciplina','discipline',['Sí','No'],v('discipline','Sí'))}${field('Motivo de indisciplina','disciplineReason','text',v('disciplineReason',''),'span2')}<div class="field span2"><label>Nuevas capturas</label><input id="screens" name="screens" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="image-upload-meta"><select id="screenCategory" name="screenCategory" class="select">${imageLabelOptions('Contexto')}</select><input id="screenCaption" name="screenCaption" class="input" placeholder="Nota común para estas imágenes (opcional)"></div><div class="help">Puedes añadir varias imágenes. Se guardan localmente en IndexedDB hasta conectar Supabase.</div>${o?.images?.length?`<div class="existing-images"><span>${o.images.length} imagen(es) ya asociadas</span><div class="thumb-strip">${o.images.map(x=>imageThumb(x,'mini')).join('')}</div></div>`:''}</div></div><div class="notice">La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial. Las comisiones se conservan separadas para las métricas netas.</div></div></form>`;};
@@ -272,7 +293,16 @@ saveOperationFromForm=function(){if(domain?.command)return domain.command(editin
 
 function trTaxCollectFilterMap(selector){const out={};for(const el of document.querySelectorAll(selector)){const id=el.dataset.taxonomyId||'';if(id)out[id]=el.value||'';}return out;}
 function trTaxStripLegacyFilters(html,ids){for(const id of ids){const re=new RegExp(`<label class="filter-field"><span>[^<]*<\\/span><select id="${id}"[\\s\\S]*?<\\/select><\\/label>`,'g');html=html.replace(re,'');}return html;}
-function trTaxFilterFields(p,ops,current={},target='ops'){api.ensurePlan(p);return api.activeTaxonomies(p).map(t=>{const values=api.filterOptions(p,t,ops),id=`trTax${target==='ops'?'Ops':'Lab'}_${t.id}`,options=`<option value="">Todos</option>${values.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(current?.[t.id]||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`).join('')}`;return target==='ops'?`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-ops="1" class="select" data-tr-onchange="filterOperations()">${options}</select></label>`:`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-lab="1" class="select" data-tr-onchange="labReadFilters()">${options}</select></label>`;}).join('');}
+function trTaxFilterOption(v,current){return `<option value="${trTaxEsc(v.id)}" ${String(current||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`;}
+function trTaxFilterFields(p,ops,current={},target='ops'){
+  api.ensurePlan(p);
+  return api.activeTaxonomies(p).map(t=>{
+    const groups=api.filterOptionGroups(p,t,ops),id=`trTax${target==='ops'?'Ops':'Lab'}_${t.id}`,selected=current?.[t.id]||'';
+    const active=groups.active.map(v=>trTaxFilterOption(v,selected)).join(''),historical=groups.historical.map(v=>trTaxFilterOption(v,selected)).join('');
+    const options=`<option value="">Todos</option>${active?`<optgroup label="Valores del plan">${active}</optgroup>`:''}${historical?`<optgroup label="Histórico · solo consulta">${historical}</optgroup>`:''}`;
+    return target==='ops'?`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-ops="1" class="select" data-tr-onchange="filterOperations()">${options}</select></label>`:`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-lab="1" class="select" data-tr-onchange="labReadFilters()">${options}</select></label>`;
+  }).join('');
+}
 if(typeof opsViewState!=='undefined')opsViewState.taxonomyFilters=opsViewState.taxonomyFilters&&typeof opsViewState.taxonomyFilters==='object'?opsViewState.taxonomyFilters:{};
 if(typeof labState!=='undefined')labState.taxonomyFilters=labState.taxonomyFilters&&typeof labState.taxonomyFilters==='object'?labState.taxonomyFilters:{};
 const trTaxReadOpsFiltersBase=typeof readOpsFilters==='function'?readOpsFilters:null;if(trTaxReadOpsFiltersBase)readOpsFilters=function(){trTaxReadOpsFiltersBase();opsViewState.taxonomyFilters=trTaxCollectFilterMap('[data-tax-filter-ops]');};
@@ -294,6 +324,6 @@ const trTaxViewOperationBase=typeof viewOperation==='function'?viewOperation:nul
 
 Object.assign(registry,{saveOperationFromForm,readOpsFilters,labReadFilters,resetOpsFilters,labReset,viewOperation,applyDimensionFilter,clearDimensionSelection,trTaxCreateTaxonomy,trTaxOpenEditor,trTaxSaveEditor,trTaxAddValue,trTaxAddValueFromInput,trTaxToggleTaxonomy,trTaxDeleteTaxonomy,trTaxToggleValue,trTaxDeleteValue,trTaxOpenValueFicha,trTaxSaveUnifiedFicha,trTaxSaveValueFicha});
 if(Object.prototype.hasOwnProperty.call(registry,'openTaxonomyAssetModal'))registry.openTaxonomyAssetModal=trTaxOpenLegacyFicha;
-globalThis.TradingResearchTaxonomyRuntime=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,diagnostics:()=>({schema:TR_TAXONOMY_SCHEMA,plans:(state?.tradingPlans||[]).length,active:trTaxCurrentPlan()?api.activeTaxonomies(trTaxCurrentPlan()).length:0,canonicalAdmin:true})});
+globalThis.TradingResearchTaxonomyRuntime=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,diagnostics:()=>({schema:TR_TAXONOMY_SCHEMA,plans:(state?.tradingPlans||[]).length,active:trTaxCurrentPlan()?api.activeTaxonomies(trTaxCurrentPlan()).length:0,canonicalAdmin:true,optionBoundary:true})});
 if(typeof render==='function')render();
 })();

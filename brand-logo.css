@@ -1,0 +1,12 @@
+.brand{
+  display:block;
+  min-height:72px;
+  padding:0 6px 18px;
+  background-image:url('/brand-logo-dark.png');
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+}
+.brand>*{display:none!important}
+html[data-theme="light"] .brand{background-image:url('/brand-logo-light.png')}
+@media(max-height:760px){.brand{min-height:60px;padding-bottom:12px}}

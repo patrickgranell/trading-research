@@ -8,7 +8,7 @@ import {closeResidualDirectMirrors} from './residual-mirror-closure-transform.mj
 import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const raw=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
 const stage=prepareRemainingGlobalContractStage(app,{runtimeSources:Object.values(raw)});
 const transformedState=transformStateActions(raw['state-runtime.js']).source;

@@ -26,6 +26,19 @@ if(fs.existsSync(file)){
   need(src.includes('storeImageFile'),'Batch 65 scope extension: la ficha de taxonomía no puede adjuntar imágenes en IndexedDB.');
   need(src.includes('visualReferences'),'Batch 65 scope extension: las imágenes de taxonomía no usan una raíz durable ya incluida en backup/blob reachability.');
 
+  need(!src.includes('Fichas técnicas avanzadas existentes'),
+    'Batch 65 unified UI: Taxonomías todavía presenta una segunda administración paralela de las mismas categorías.');
+  need(!src.includes('trTaxConfigPanelBase(p)'),
+    'Batch 65 unified UI: configTaxonomyPanel todavía concatena el panel legacy debajo del gestor canónico.');
+  need(src.includes('trTaxLegacyDefinition'),
+    'Batch 65 unified UI: la ficha única no enlaza con las definiciones técnicas legacy ya existentes.');
+  need(src.includes('setupDefinitions')&&src.includes('vdDefinitions')&&src.includes('contextDefinitions'),
+    'Batch 65 unified UI: la ficha única no preserva Setup/VD/Contexto técnicos existentes.');
+  need(src.includes('imagesLong')&&src.includes('imagesShort'),
+    'Batch 65 unified UI: la ficha única pierde las referencias LONG/SHORT de Setup.');
+  need(src.includes('trTaxSaveUnifiedFicha'),
+    'Batch 65 unified UI: falta un único writer para ficha técnica desde el gestor canónico.');
+
   const ctx={console};
   vm.createContext(ctx);
   try{vm.runInContext(src,ctx,{filename:file});}
@@ -94,4 +107,6 @@ console.log(' - archive != destructive delete');
 console.log(' - Tipo de operación + Fase H4 are configurable core taxonomies');
 console.log(' - Operations/Lab share dynamic taxonomy filters');
 console.log(' - taxonomy dimensions feed analytical breakdown');
-console.log(' - every taxonomy value can own an optional visual/technical reference through durable visualReferences');
+console.log(' - one canonical taxonomy administration surface; no duplicated legacy panel');
+console.log(' - unified ficha preserves Setup/VD/Context technical data, including Setup LONG/SHORT images');
+console.log(' - every taxonomy value can own optional visual/technical references through durable storage');

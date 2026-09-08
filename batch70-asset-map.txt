@@ -1,2 +1,6 @@
-dark theme -> white/lime original -> SHA-256 c1d9f082e1e6ca2735fda2bcffbe0fe7fd4df34bb028de6ae7866f42a5c3e531
-light theme -> black/red original -> SHA-256 391db80af4509cce4e29c5211634d26a53253f2033863edcee2f88505d276199
+Theme Brand Logos source contract
+
+dark theme -> original white/lime PNG -> SHA-256 c1d9f082e1e6ca2735fda2bcffbe0fe7fd4df34bb028de6ae7866f42a5c3e531
+light theme -> original black/red PNG -> SHA-256 391db80af4509cce4e29c5211634d26a53253f2033863edcee2f88505d276199
+
+Assets are transferred as ordered base64 text parts and reconstructed byte-for-byte during build. No image processing is performed by the build.

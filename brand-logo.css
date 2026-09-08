@@ -1,5 +1,0 @@
-.brand.tr-brand-host{display:block;padding:2px 4px 18px;min-height:0}
-.tr-brand-home{display:block;width:100%;margin:0;padding:0;border:0;background:transparent;color:inherit;text-align:left;border-radius:10px;cursor:pointer}
-.tr-brand-home:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.tr-brand-logo{display:block;width:100%;height:auto;max-height:72px;object-fit:contain;object-position:left center}
-@media(max-height:760px){.brand.tr-brand-host{padding-bottom:12px}.tr-brand-logo{max-height:60px}}

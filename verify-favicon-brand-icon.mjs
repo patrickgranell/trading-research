@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const html=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const emitter=fs.readFileSync('emit-favicon.mjs','utf8');
+const build=fs.readFileSync('build.mjs','utf8');
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
@@ -15,6 +16,7 @@ need(fs.existsSync('favicon.png.base64'),'Falta favicon.png.base64.');
 need(fs.existsSync('emit-favicon.mjs'),'Falta emit-favicon.mjs.');
 need(String(pkg?.scripts?.build||'').includes('node emit-favicon.mjs'),'npm run build debe generar el favicon antes de finalizar.');
 need(/writeFileSync\(\s*["']dist\/favicon\.png["']\s*,\s*bytes\s*\)/.test(emitter),'emit-favicon.mjs debe escribir dist/favicon.png.');
+need(build.includes("img-src 'self' blob:"),'La CSP de build debe permitir imágenes same-origin para /favicon.png.');
 
 if(fs.existsSync('favicon.png.base64')){
   let bytes=null;
@@ -35,4 +37,5 @@ console.log('Favicon brand icon gate OK');
 console.log(' - same-origin /favicon.png: 64x64 PNG');
 console.log(' - deterministic source: favicon.png.base64');
 console.log(' - npm build emits dist/favicon.png');
+console.log(" - CSP keeps img-src 'self'");
 console.log(' - no data: or external favicon dependency');

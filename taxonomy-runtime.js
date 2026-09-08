@@ -291,17 +291,14 @@ function trTaxEsc(value){return typeof esc==='function'?esc(value):String(value?
 const trTaxEnsurePlanV8Base=typeof ensurePlanV8Structure==='function'?ensurePlanV8Structure:null;
 if(trTaxEnsurePlanV8Base){
   ensurePlanV8Structure=function(p){const out=trTaxEnsurePlanV8Base(p);api.ensurePlan(out);return out;};
-  window.ensurePlanV8Structure=ensurePlanV8Structure;
 }
 const trTaxMakeBlankPlanBase=typeof makeBlankPlan==='function'?makeBlankPlan:null;
 if(trTaxMakeBlankPlanBase){
   makeBlankPlan=function(meta={}){const p=trTaxMakeBlankPlanBase(meta);api.ensurePlan(p);return p;};
-  window.makeBlankPlan=makeBlankPlan;
 }
 const trTaxNormalizePlanBase=typeof normalizePlan==='function'?normalizePlan:null;
 if(trTaxNormalizePlanBase){
   normalizePlan=function(p,instruments){const out=trTaxNormalizePlanBase(p,instruments);api.ensurePlan(out);return out;};
-  window.normalizePlan=normalizePlan;
 }
 
 if(domain?.commit&&Array.isArray(state?.tradingPlans)){
@@ -322,7 +319,6 @@ function trTaxManagerPanel(p){
 const trTaxConfigPanelBase=typeof configTaxonomyPanel==='function'?configTaxonomyPanel:null;
 if(trTaxConfigPanelBase){
   configTaxonomyPanel=function(p){return `<div class="taxonomy-layout">${trTaxManagerPanel(p)}<section class="card panel config-wide"><div class="panel-title"><div><h3>Fichas técnicas especializadas</h3><div class="help">Setup, VD y Contexto conservan sus descripciones, timeframes e imágenes. El dominio genérico superior controla su clasificación y análisis.</div></div></div></section>${trTaxConfigPanelBase(p)}</div>`;};
-  window.configTaxonomyPanel=configTaxonomyPanel;
 }
 function trTaxCreateTaxonomy(){
   const p=trTaxCurrentPlan();if(!p)return;
@@ -404,7 +400,6 @@ if(trTaxOperationFormBase){
     const v=(k,d='')=>trTaxEsc(o?.[k]??d),riskOptions=p.riskStrategies.filter(x=>x.active||x.id===o?.riskStrategyId).map(x=>({value:x.id,label:x.name}));
     return `<form id="operationForm" data-tr-onsubmit="return false"><div class="form-section"><h4>0 · Trading Plan</h4><div class="plan-readonly"><strong>${trTaxEsc(planLabel(p))}</strong><span>${trTaxEsc(p.description||'Sin descripción')}</span></div></div><div class="form-section"><h4>1 · Sesión y régimen</h4><div class="form-grid">${field('Fecha/hora de entrada','entryDate','datetime-local',v('entryDate',new Date().toISOString().slice(0,16)))}${field('Fecha/hora de salida','exitDate','datetime-local',v('exitDate',''))}${selectField('Muestra','sample',['A','B'],v('sample','B'))}${selectObjField('Régimen de gestión','riskStrategyId',riskOptions,o?.riskStrategyId||r?.id,`data-tr-onchange="applyRiskToOperation(true)"`)}${field('ATR observado (opcional)','atr','number',v('atr',''),'','step="any"')}${selectField('Fase H4','h4Phase',['Impulso','Retroceso','No definida'],v('h4Phase','Impulso'))}</div><div id="opRiskPreview" class="strategy-preview"></div></div><div class="form-section"><h4>2 · Clasificación de la oportunidad</h4><div class="form-grid">${trTaxOperationFields(o,p)}${selectField('Dirección','direction',['LONG','SHORT'],v('direction','LONG'))}${field('Timeframe','timeframe','text',v('timeframe','5M'))}${field('Precio dinámico / objetivo','dtPrice','number',v('dtPrice',''),'','step="any"')}${field('Notas','notes','textarea',v('notes',''),'full')}</div></div><div class="form-section"><h4>3 · Ejecución y resultado</h4><div class="form-grid">${field('Contrato / vencimiento','contract','text',v('contract',getInstrument(r?.instrumentId)?.symbol||''))}${field('Contratos totales','contracts','number',v('contracts',riskCalc(r).contracts),'','readonly')}${selectField('Tipo de entrada','entryType',['LMT','STP'],v('entryType','LMT'))}${field('Precio de entrada','entryPrice','number',v('entryPrice',''),'','step="any"')}${field('Ticks resultado agregados','resultTicks','number',v('resultTicks',''),'','step="any" data-tr-oninput="recalcOperation()"')}${field('Comisiones','commission','number',v('commission',''),'','readonly step="any"')}${field('P&L bruto','pnlGross','number',v('pnlGross',''),'','readonly step="any"')}${field('P&L neto','pnlNet','number',v('pnlNet',''),'','readonly step="any"')}${field('R múltiple bruta','rMultiple','number',v('rMultiple',''),'','readonly step="any"')}${field('MFE (R)','mfe','number',v('mfe',''),'','step="any"')}${field('MAE (R)','mae','number',v('mae',''),'','step="any"')}${selectField('Disciplina','discipline',['Sí','No'],v('discipline','Sí'))}${field('Motivo de indisciplina','disciplineReason','text',v('disciplineReason',''),'span2')}<div class="field span2"><label>Nuevas capturas</label><input id="screens" name="screens" class="input" type="file" accept="image/png,image/jpeg,image/webp" multiple><div class="image-upload-meta"><select id="screenCategory" name="screenCategory" class="select">${imageLabelOptions('Contexto')}</select><input id="screenCaption" name="screenCaption" class="input" placeholder="Nota común para estas imágenes (opcional)"></div><div class="help">Puedes añadir varias imágenes. Se guardan localmente en IndexedDB hasta conectar Supabase.</div>${o?.images?.length?`<div class="existing-images"><span>${o.images.length} imagen(es) ya asociadas</span><div class="thumb-strip">${o.images.map(x=>imageThumb(x,'mini')).join('')}</div></div>`:''}</div></div><div class="notice">La R mostrada aquí es bruta: relación entre ticks obtenidos y riesgo inicial. Las comisiones se conservan separadas para las métricas netas.</div></div></form>`;
   };
-  window.operationForm=operationForm;
 }
 
 async function trTaxSaveOperationCore(){
@@ -437,7 +432,6 @@ saveOperationFromForm=function(){
   if(domain?.command)return domain.command(editingId?'operation.update':'operation.create',()=>trTaxSaveOperationCore(),{persist:true,render:true});
   return trTaxSaveOperationCore();
 };
-window.saveOperationFromForm=saveOperationFromForm;
 
 /* ---------- Shared dynamic filters ---------- */
 function trTaxCollectFilterMap(selector){
@@ -465,7 +459,6 @@ if(typeof labState!=='undefined')labState.taxonomyFilters=labState.taxonomyFilte
 const trTaxReadOpsFiltersBase=typeof readOpsFilters==='function'?readOpsFilters:null;
 if(trTaxReadOpsFiltersBase){
   readOpsFilters=function(){trTaxReadOpsFiltersBase();opsViewState.taxonomyFilters=trTaxCollectFilterMap('[data-tax-filter-ops]');};
-  window.readOpsFilters=readOpsFilters;
 }
 const trTaxBaseFilteredOpsBase=typeof baseFilteredOps==='function'?baseFilteredOps:null;
 if(trTaxBaseFilteredOpsBase){
@@ -474,7 +467,6 @@ if(trTaxBaseFilteredOpsBase){
     const filters=f?.taxonomyFilters||{};
     return base.filter(o=>api.matchesFilters(o,typeof getPlan==='function'?getPlan(o.tradingPlanId):trTaxCurrentPlan(),filters));
   };
-  window.baseFilteredOps=baseFilteredOps;
 }
 const trTaxOperationsFilterPanelBase=typeof operationsFilterPanel==='function'?operationsFilterPanel:null;
 if(trTaxOperationsFilterPanelBase){
@@ -484,20 +476,17 @@ if(trTaxOperationsFilterPanelBase){
     const dynamic=trTaxFilterFields(p,ops,opsViewState.taxonomyFilters,'ops');
     return html.replace('</div><div class="day-filter-row">',`${dynamic}</div><div class="day-filter-row">`);
   };
-  window.operationsFilterPanel=operationsFilterPanel;
 }
 const trTaxResetOpsBase=typeof resetOpsFilters==='function'?resetOpsFilters:null;
-if(trTaxResetOpsBase){resetOpsFilters=function(){opsViewState.taxonomyFilters={};return trTaxResetOpsBase();};window.resetOpsFilters=resetOpsFilters;}
+if(trTaxResetOpsBase){resetOpsFilters=function(){opsViewState.taxonomyFilters={};return trTaxResetOpsBase();};}
 
 const trTaxLabStudyDefaultBase=typeof labStudyDefaultState==='function'?labStudyDefaultState:null;
 if(trTaxLabStudyDefaultBase){
   labStudyDefaultState=function(){return {...trTaxLabStudyDefaultBase(),taxonomyFilters:{}};};
-  window.labStudyDefaultState=labStudyDefaultState;
 }
 const trTaxLabReadBase=typeof labReadFilters==='function'?labReadFilters:null;
 if(trTaxLabReadBase){
   labReadFilters=function(){labState.taxonomyFilters=trTaxCollectFilterMap('[data-tax-filter-lab]');return trTaxLabReadBase();};
-  window.labReadFilters=labReadFilters;
 }
 const trTaxLabFilterPanelBase=typeof labFilterPanel==='function'?labFilterPanel:null;
 if(trTaxLabFilterPanelBase){
@@ -507,10 +496,9 @@ if(trTaxLabFilterPanelBase){
     const dynamic=trTaxFilterFields(p,ops,labState.taxonomyFilters,'lab');
     return html.replace('</div><div class="day-filter-row">',`${dynamic}</div><div class="day-filter-row">`);
   };
-  window.labFilterPanel=labFilterPanel;
 }
 const trTaxLabResetBase=typeof labReset==='function'?labReset:null;
-if(trTaxLabResetBase){labReset=function(){labState.taxonomyFilters={};return trTaxLabResetBase();};window.labReset=labReset;}
+if(trTaxLabResetBase){labReset=function(){labState.taxonomyFilters={};return trTaxLabResetBase();};}
 
 /* ---------- Dynamic analytical breakdown ---------- */
 const trTaxDimensionItemBase=typeof dimensionItem==='function'?dimensionItem:null;
@@ -522,22 +510,18 @@ if(trTaxDimensionItemBase){
     }
     return trTaxDimensionItemBase(o,dim);
   };
-  window.dimensionItem=dimensionItem;
 }
 const trTaxOpsDimValueBase=typeof opsDimensionFilterValue==='function'?opsDimensionFilterValue:null;
 if(trTaxOpsDimValueBase){
   opsDimensionFilterValue=function(dim){if(String(dim).startsWith('tax:'))return opsViewState.taxonomyFilters?.[String(dim).slice(4)]||'';return trTaxOpsDimValueBase(dim);};
-  window.opsDimensionFilterValue=opsDimensionFilterValue;
 }
 const trTaxApplyDimBase=typeof applyDimensionFilter==='function'?applyDimensionFilter:null;
 if(trTaxApplyDimBase){
   applyDimensionFilter=function(dim,val){if(String(dim).startsWith('tax:')){opsViewState.taxonomyFilters=opsViewState.taxonomyFilters||{};opsViewState.taxonomyFilters[String(dim).slice(4)]=val;render();return;}return trTaxApplyDimBase(dim,val);};
-  window.applyDimensionFilter=applyDimensionFilter;
 }
 const trTaxClearDimBase=typeof clearDimensionSelection==='function'?clearDimensionSelection:null;
 if(trTaxClearDimBase){
   clearDimensionSelection=function(dim){if(String(dim).startsWith('tax:')){opsViewState.taxonomyFilters=opsViewState.taxonomyFilters||{};delete opsViewState.taxonomyFilters[String(dim).slice(4)];render();return;}return trTaxClearDimBase(dim);};
-  window.clearDimensionSelection=clearDimensionSelection;
 }
 const trTaxBreakdownBase=typeof breakdownModule==='function'?breakdownModule:null;
 if(trTaxBreakdownBase){
@@ -546,7 +530,6 @@ if(trTaxBreakdownBase){
     const options=api.activeTaxonomies(p).map(t=>`<option value="tax:${trTaxEsc(t.id)}" ${dim===`tax:${t.id}`?'selected':''}>${trTaxEsc(t.name)}</option>`).join('');
     return html.replace('</select>',`${options}</select>`);
   };
-  window.breakdownModule=breakdownModule;
 }
 
 /* ---------- Detail view: expose all current/historical classifications ---------- */
@@ -563,7 +546,6 @@ if(trTaxViewOperationBase){
       if(anchor)modal.insertBefore(section,anchor);else modal.appendChild(section);
     }
   };
-  window.viewOperation=viewOperation;
 }
 
 Object.assign(registry,{

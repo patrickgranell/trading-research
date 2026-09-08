@@ -2,13 +2,16 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const file='taxonomy-runtime.js';
+const blobFile='blob-lifecycle-runtime.js';
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 need(fs.existsSync(file),'Batch 65 RED: falta taxonomy-runtime.js; todavía no existe un dominio configurable de taxonomías.');
+need(fs.existsSync(blobFile),'Batch 65 image deletion: falta Blob Lifecycle Runtime.');
 
 if(fs.existsSync(file)){
   const src=fs.readFileSync(file,'utf8');
+  const blobSrc=fs.existsSync(blobFile)?fs.readFileSync(blobFile,'utf8'):'';
   need(src.includes('TradingResearchTaxonomyDomain'),'Batch 65: falta el API público de dominio de taxonomías.');
   need(src.includes('taxonomyRegistry'),'Batch 65: el Trading Plan no publica un registry durable de taxonomías.');
   need(src.includes('taxonomyValues'),'Batch 65: las operaciones no almacenan clasificaciones por ID estable.');
@@ -38,6 +41,17 @@ if(fs.existsSync(file)){
     'Batch 65 unified UI: la ficha única pierde las referencias LONG/SHORT de Setup.');
   need(src.includes('trTaxSaveUnifiedFicha'),
     'Batch 65 unified UI: falta un único writer para ficha técnica desde el gestor canónico.');
+
+  need(src.includes('trBlobDeleteTaxonomyValueImage'),
+    'Batch 65 image deletion: la ficha canónica permite añadir imágenes pero no ofrece borrado individual.');
+  need(src.includes("'long'")&&src.includes("'short'")&&src.includes("'generic'"),
+    'Batch 65 image deletion: el borrado no cubre Setup LONG/SHORT y referencias genéricas.');
+  need(blobSrc.includes('trBlobDeleteTaxonomyValueImage'),
+    'Batch 65 image deletion: falta una acción segura de Blob Lifecycle para imágenes de taxonomía.');
+  need(blobSrc.includes("trBlobGcRunMutation('taxonomy.value.image.delete.safe'"),
+    'Batch 65 image deletion: eliminar imagen no está protegido por metadata -> persist -> flush -> GC.');
+  need(blobSrc.includes('TRDomainStore.exclusive'),
+    'Batch 65 image deletion: el borrado de imagen no entra por la exclusión durable del Blob Lifecycle.');
 
   const ctx={console};
   vm.createContext(ctx);
@@ -109,4 +123,5 @@ console.log(' - Operations/Lab share dynamic taxonomy filters');
 console.log(' - taxonomy dimensions feed analytical breakdown');
 console.log(' - one canonical taxonomy administration surface; no duplicated legacy panel');
 console.log(' - unified ficha preserves Setup/VD/Context technical data, including Setup LONG/SHORT images');
+console.log(' - taxonomy images support individual safe deletion through Blob Lifecycle');
 console.log(' - every taxonomy value can own optional visual/technical references through durable storage');

@@ -1,23 +1,24 @@
 import fs from 'node:fs';
 
 const html=fs.readFileSync('index.html','utf8');
+const build=fs.readFileSync('build.mjs','utf8');
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
-const match=html.match(/<link\s+rel=["']icon["'][^>]*href=["']data:image\/png;base64,([^"']+)["'][^>]*>/i)
-  || html.match(/<link\s+[^>]*href=["']data:image\/png;base64,([^"']+)["'][^>]*rel=["']icon["'][^>]*>/i);
-need(!!match,'Falta favicon PNG embebido en index.html.');
+need(/<link\s+[^>]*rel=["']icon["'][^>]*href=["']\/favicon\.png["'][^>]*>/i.test(html),'index.html debe referenciar /favicon.png como recurso same-origin.');
 need(/<link\s+[^>]*rel=["']icon["'][^>]*type=["']image\/png["'][^>]*>/i.test(html),'El favicon debe declarar type=image/png.');
 need(/<link\s+[^>]*rel=["']icon["'][^>]*sizes=["']64x64["'][^>]*>/i.test(html),'El favicon debe declarar sizes=64x64.');
+need(!/href=["']data:image\//i.test(html),'No se admite favicon data: porque el CSP de producción no permite data: en img-src.');
 need(!/<link\s+[^>]*rel=["']icon["'][^>]*href=["']https?:\/\//i.test(html),'El favicon no debe depender de una URL externa.');
+need(fs.existsSync('favicon.png'),'Falta el recurso fuente favicon.png.');
+need(/copyFileSync\(\s*["']favicon\.png["']\s*,\s*["']dist\/favicon\.png["']\s*\)/.test(build),'build.mjs debe copiar favicon.png a dist/favicon.png.');
 
-if(match){
-  let bytes=null;
-  try{bytes=Buffer.from(match[1],'base64');}catch{}
-  need(bytes&&bytes.length>=512,'El favicon embebido parece vacío o inválido.');
-  if(bytes&&bytes.length>=24){
-    need(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])),'El favicon no tiene firma PNG válida.');
-    need(bytes.readUInt32BE(16)===64&&bytes.readUInt32BE(20)===64,`El favicon debe ser 64x64; obtuvo ${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}.`);
+if(fs.existsSync('favicon.png')){
+  const bytes=fs.readFileSync('favicon.png');
+  need(bytes.length>=512,'favicon.png parece vacío o inválido.');
+  if(bytes.length>=24){
+    need(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])),'favicon.png no tiene firma PNG válida.');
+    need(bytes.readUInt32BE(16)===64&&bytes.readUInt32BE(20)===64,`favicon.png debe ser 64x64; obtuvo ${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}.`);
   }
 }
 
@@ -27,5 +28,6 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Favicon brand icon gate OK');
-console.log(' - embedded transparent PNG favicon: 64x64');
-console.log(' - no external favicon dependency');
+console.log(' - same-origin /favicon.png: 64x64 PNG');
+console.log(' - build copies favicon.png -> dist/favicon.png');
+console.log(' - no data: or external favicon dependency');

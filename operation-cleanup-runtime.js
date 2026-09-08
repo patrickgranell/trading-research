@@ -4,7 +4,7 @@
 const TR_OPERATION_CLEANUP_VERSION='31.23.52';
 const registry=window.TradingResearchActions;
 if(!registry||typeof registry!=='object')throw new Error('Operation Cleanup: TradingResearchActions no disponible.');
-let deletedOperations=0,deletedImages=0,lastError='';
+let deletedOperations=0,deletedImages=0,deletedTaxonomyImages=0,lastError='';
 
 function trCleanupOperation(id){return state.operations.find(o=>o.id===id)||null;}
 function trCleanupReviewCount(o){const p=typeof globalThis.TradingResearchPlanReadContract.byId==='function'?globalThis.TradingResearchPlanReadContract.byId(o?.tradingPlanId):null;return (p?.reviewNotes||[]).filter(n=>n?.operationId===o?.id).length;}
@@ -52,9 +52,101 @@ function trCleanupDecorateOperationModal(id){
   }
 }
 
+/* Batch 65 · canonical taxonomy ficha image removal.
+ * The metadata/reference is removed and durably flushed first. Physical blob cleanup
+ * is delegated afterwards to Blob Lifecycle's reachability-aware GC. */
+function trCleanupTaxPlan(){return typeof globalThis.TradingResearchPlanReadContract?.current==='function'?globalThis.TradingResearchPlanReadContract.current():null;}
+function trCleanupTaxText(v){return String(v??'').trim();}
+function trCleanupTaxDomain(){return globalThis.TradingResearchTaxonomyDomain||null;}
+function trCleanupTaxValueKey(value){return trCleanupTaxText(value?.legacyValue||value?.name);}
+function trCleanupTaxImageTarget(plan,taxId,valueId,imageId,slot='generic'){
+  const domain=trCleanupTaxDomain();if(!plan||!domain)return null;
+  const tax=domain.taxonomyById(plan,taxId),value=domain.valueById(tax,valueId);if(!tax||!value)return null;
+  const key=trCleanupTaxValueKey(value),id=String(imageId||''),match=list=>(list||[]).some(x=>String(x?.id||'')===id);
+  if(tax.id==='setup'){
+    const def=(plan.setupDefinitions||[]).find(d=>trCleanupTaxText(d?.key)===key)||null;
+    if(slot==='long'&&def&&match(def.imagesLong))return {owner:def,key:'imagesLong',image:(def.imagesLong||[]).find(x=>String(x?.id||'')===id)};
+    if(slot==='short'&&def&&match(def.imagesShort))return {owner:def,key:'imagesShort',image:(def.imagesShort||[]).find(x=>String(x?.id||'')===id)};
+  }
+  if(tax.id==='vd'||tax.id==='context'){
+    const coll=tax.id==='vd'?(plan.vdDefinitions||[]):(plan.contextDefinitions||[]),def=coll.find(d=>trCleanupTaxText(d?.key)===key)||null;
+    if(def&&match(def.images))return {owner:def,key:'images',image:(def.images||[]).find(x=>String(x?.id||'')===id)};
+  }
+  const ref=(plan.visualReferences||[]).find(r=>r?.kind==='taxonomy'&&String(r.taxonomyId)===String(tax.id)&&String(r.valueId)===String(value.id))||null;
+  if(ref&&match(ref.images))return {owner:ref,key:'images',image:(ref.images||[]).find(x=>String(x?.id||'')===id)};
+  return null;
+}
+function trCleanupTaxRemoveImageFromModal(imageId){
+  const form=document.getElementById('trTaxValueFichaForm');if(!form)return;
+  const id=String(imageId||'');
+  for(const img of form.querySelectorAll('img[data-img-id]'))if(String(img.dataset.imgId||'')===id)(img.closest('.image-thumb-btn')||img).remove();
+  for(const btn of form.querySelectorAll('[data-tr-tax-image-delete]'))if(String(btn.dataset.taxImageId||'')===id)btn.remove();
+}
+async function trTaxDeleteTaxonomyValueImage(taxId,valueId,imageId,slot='generic'){
+  const plan=trCleanupTaxPlan(),target=trCleanupTaxImageTarget(plan,taxId,valueId,imageId,slot);if(!plan||!target)return false;
+  const label=target.image?.caption||target.image?.name||'Imagen';
+  if(!confirm(`¿Eliminar la imagen “${label}”?`))return false;
+  const before=typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():(typeof clone==='function'?clone(state):JSON.parse(JSON.stringify(state)));
+  try{
+    if(typeof TRDomainStore==='undefined'||!TRDomainStore?.exclusive||!TRDomainStore?.command)throw new Error('Dominio durable no disponible.');
+    await TRDomainStore.exclusive('taxonomy.value.image.delete',async()=>{
+      TRDomainStore.command('taxonomy.value.image.delete.safe',()=>{
+        const livePlan=trCleanupTaxPlan(),liveTarget=trCleanupTaxImageTarget(livePlan,taxId,valueId,imageId,slot);if(!liveTarget)throw new Error('La referencia de imagen ya no existe.');
+        liveTarget.owner[liveTarget.key]=(liveTarget.owner[liveTarget.key]||[]).filter(x=>String(x?.id||'')!==String(imageId));
+        if(Object.prototype.hasOwnProperty.call(liveTarget.owner,'updatedAt'))liveTarget.owner.updatedAt=new Date().toISOString();
+        livePlan.updatedAt=new Date().toISOString();
+      },{persist:false,render:false});
+      if(typeof persist!=='function')throw new Error('persist() no disponible.');
+      persist();
+      const flushed=typeof trCoreFlush==='function'?await trCoreFlush():false;
+      if(!flushed)throw new Error('No se pudo confirmar persist + flush.');
+    });
+  }catch(e){
+    try{if(typeof trDomainRollbackMemory==='function')trDomainRollbackMemory(before,'taxonomy.value.image.delete.rollback');else state=normalizeState(typeof clone==='function'?clone(before):JSON.parse(JSON.stringify(before)));}catch{}
+    lastError=e?.message||String(e);console.error('[Trading Research · taxonomy image cleanup]',e);alert('No se pudo eliminar la imagen de forma durable: '+lastError);return false;
+  }
+  deletedTaxonomyImages++;
+  trCleanupTaxRemoveImageFromModal(imageId);
+  try{
+    if(typeof registry.runLocalBlobGarbageCollection==='function')await registry.runLocalBlobGarbageCollection();
+  }catch(e){
+    console.warn('[Trading Research · taxonomy image GC pending]',e);
+    try{trCoreShowStorageWarning('La imagen se retiró correctamente de la ficha, pero quedó limpieza del blob pendiente. No se ha eliminado ninguna referencia viva.');}catch{}
+  }
+  return true;
+}
+function trCleanupTaxDecorateFicha(taxId,valueId){
+  const form=document.getElementById('trTaxValueFichaForm');if(!form)return;
+  for(const section of form.querySelectorAll('.form-section')){
+    const title=trCleanupTaxText(section.querySelector('h4')?.textContent);let slot='';
+    if(title.includes('LONG actuales'))slot='long';else if(title.includes('SHORT actuales'))slot='short';else if(title==='Imágenes actuales')slot='generic';
+    if(!slot)continue;
+    for(const img of section.querySelectorAll('img[data-img-id]')){
+      const imageId=String(img.dataset.imgId||'');if(!imageId||section.querySelector(`[data-tr-tax-image-delete][data-tax-image-id="${CSS.escape(imageId)}"]`))continue;
+      const btn=document.createElement('button');btn.type='button';btn.className='btn small danger';btn.textContent='Eliminar imagen';btn.dataset.trTaxImageDelete='1';btn.dataset.taxImageId=imageId;btn.dataset.taxImageSlot=slot;
+      btn.addEventListener('click',()=>{void trTaxDeleteTaxonomyValueImage(taxId,valueId,imageId,slot);});
+      const thumb=img.closest('.image-thumb-btn')||img;thumb.insertAdjacentElement('afterend',btn);
+    }
+  }
+}
+function trCleanupTaxFindLegacyValue(type,key){
+  const taxId=type==='setup'?'setup':type==='vd'?'vd':type==='context'?'context':'';if(!taxId)return null;
+  const plan=trCleanupTaxPlan(),domain=trCleanupTaxDomain();if(!plan||!domain)return null;
+  let clean=String(key||'');try{clean=decodeURIComponent(clean);}catch{}
+  const tax=domain.taxonomyById(plan,taxId),value=(tax?.values||[]).find(v=>[v?.legacyValue,v?.name,...(v?.aliases||[])].some(x=>trCleanupTaxText(x)===trCleanupTaxText(clean)))||null;
+  return value?{taxId,valueId:value.id}:null;
+}
+
 const trCleanupOpenOperationModalBase=openOperationModal;
 openOperationModal=function(id=null){const out=trCleanupOpenOperationModalBase(id);if(id)setTimeout(()=>trCleanupDecorateOperationModal(id),0);return out;};
 Object.assign(registry,{openOperationModal,deleteOperation,deleteOperationImage});
-Object.defineProperty(registry,'__trOperationCleanupDiagnostics',{value:()=>({version:TR_OPERATION_CLEANUP_VERSION,registeredActions:2,deletedOperations,deletedImages,lastError,ok:typeof registry.deleteOperation==='function'&&typeof registry.deleteOperationImage==='function'&&!lastError}),writable:false,enumerable:false,configurable:true});
+
+const trCleanupTaxFichaBase=registry.trTaxOpenValueFicha;
+if(typeof trCleanupTaxFichaBase==='function')registry.trTaxOpenValueFicha=function(taxId,valueId){const out=trCleanupTaxFichaBase.apply(this,arguments);setTimeout(()=>trCleanupTaxDecorateFicha(taxId,valueId),0);return out;};
+const trCleanupLegacyFichaBase=registry.openTaxonomyAssetModal;
+if(typeof trCleanupLegacyFichaBase==='function')registry.openTaxonomyAssetModal=function(type,key=''){const out=trCleanupLegacyFichaBase.apply(this,arguments),resolved=trCleanupTaxFindLegacyValue(type,key);if(resolved)setTimeout(()=>trCleanupTaxDecorateFicha(resolved.taxId,resolved.valueId),0);return out;};
+registry.trTaxDeleteTaxonomyValueImage=trTaxDeleteTaxonomyValueImage;
+
+Object.defineProperty(registry,'__trOperationCleanupDiagnostics',{value:()=>({version:TR_OPERATION_CLEANUP_VERSION,registeredActions:3,deletedOperations,deletedImages,deletedTaxonomyImages,lastError,ok:typeof registry.deleteOperation==='function'&&typeof registry.deleteOperationImage==='function'&&typeof registry.trTaxDeleteTaxonomyValueImage==='function'&&!lastError}),writable:false,enumerable:false,configurable:true});
 })();
 /* ===== END V31.23.52 OPERATION CLEANUP RUNTIME ===== */

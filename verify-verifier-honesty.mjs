@@ -14,7 +14,7 @@ const renderClosure=fs.readFileSync('render-closure-runtime.js','utf8');
 const buildSource=fs.readFileSync('build.mjs','utf8');
 const appPruneVerify=fs.readFileSync('verify-app-global-prune.mjs','utf8');
 const remainingVerify=fs.readFileSync('verify-remaining-global-contract-map.mjs','utf8');
-const ownRuntimes=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const ownRuntimes=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 for(const file of ownRuntimes){
   need(globalVerifySource.includes(file),`verify-global-surface omite ${file}.`);
   need(contractSource.includes(file),`remaining-global-contract-map CLI omite ${file}.`);
@@ -48,10 +48,12 @@ need(contractFixture?.semantics?.scope==='remaining-explicit-object-assign-expor
 need(contractFixture?.semantics?.completeClassicScriptGlobalSurface===false,
   'Remaining Contract Map debe negar cobertura completa de globals clásicos.');
 
+need(finalAudit.includes("taxonomy-runtime"),
+  'Final Audit second-pass no incluye taxonomy-runtime.js.');
 need(finalAudit.includes("persistence-coalescing-runtime"),
   'Final Audit second-pass no incluye persistence-coalescing-runtime.js.');
-need(/finalScriptBlocks\.length\)===17|finalScriptBlocks\.length===17/.test(finalAudit),
-  'Final Audit debe afirmar explícitamente cobertura 17/17 de scripts propios antes del second-pass.');
+need(/finalScriptBlocks\.length\)===18|finalScriptBlocks\.length===18/.test(finalAudit),
+  'Final Audit debe afirmar explícitamente cobertura 18/18 de scripts propios antes del second-pass.');
 
 need(!renderClosure.includes('dynamicSlots===4'),
   'Source Consolidation runtime conserva el gate histórico dynamicSlots===4 aunque D04 exige 0 slots ejecutables.');
@@ -79,6 +81,6 @@ if(fail.length){
   process.exit(1);
 }
 console.log('Verifier honesty gate OK');
-console.log(' - explicit-window tooling declares its limited classic-script scope and covers 16/16 runtime source files');
-console.log(' - Final Audit Structured Event second-pass covers 17/17 own script blocks');
+console.log(' - explicit-window tooling declares its limited classic-script scope and covers 17/17 runtime source files');
+console.log(' - Final Audit Structured Event second-pass covers 18/18 own script blocks');
 console.log(' - CSP runtime reports header-policy evidence, never unchecked/broad Enforced claims');

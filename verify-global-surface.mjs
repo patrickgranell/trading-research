@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import {projectGlobalSurface} from './global-surface-inventory.mjs';
 
-const files=['app.js',...['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js']];
+const files=['app.js',...['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js']];
 const report=projectGlobalSurface(files),d=report.combined,fail=[];
 const need=(c,m)=>{if(!c)fail.push(m);};
 

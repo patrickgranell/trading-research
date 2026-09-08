@@ -89,7 +89,7 @@ export function remainingGlobalContractMap(appSource,{runtimeSources=[],stateAct
 
 if(import.meta.url===`file://${process.argv[1]}`){
   const app=fs.readFileSync(process.argv[2]||'app.js','utf8');
-  const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+  const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
   const rawRuntimes=Object.fromEntries(runtimeFiles.map(f=>[f,fs.readFileSync(f,'utf8')]));
   const stage=prepareRemainingGlobalContractStage(app,{runtimeSources:Object.values(rawRuntimes)});
   const transformedState=transformStateActions(rawRuntimes['state-runtime.js']).source;

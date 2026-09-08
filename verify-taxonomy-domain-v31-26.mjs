@@ -2,15 +2,18 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const file='taxonomy-runtime.js';
+const cleanupFile='operation-cleanup-runtime.js';
 const blobFile='blob-lifecycle-runtime.js';
 const fail=[];
 const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 need(fs.existsSync(file),'Batch 65 RED: falta taxonomy-runtime.js; todavía no existe un dominio configurable de taxonomías.');
+need(fs.existsSync(cleanupFile),'Batch 65 image deletion: falta Operation Cleanup Runtime.');
 need(fs.existsSync(blobFile),'Batch 65 image deletion: falta Blob Lifecycle Runtime.');
 
 if(fs.existsSync(file)){
   const src=fs.readFileSync(file,'utf8');
+  const cleanupSrc=fs.existsSync(cleanupFile)?fs.readFileSync(cleanupFile,'utf8'):'';
   const blobSrc=fs.existsSync(blobFile)?fs.readFileSync(blobFile,'utf8'):'';
   need(src.includes('TradingResearchTaxonomyDomain'),'Batch 65: falta el API público de dominio de taxonomías.');
   need(src.includes('taxonomyRegistry'),'Batch 65: el Trading Plan no publica un registry durable de taxonomías.');
@@ -42,14 +45,20 @@ if(fs.existsSync(file)){
   need(src.includes('trTaxSaveUnifiedFicha'),
     'Batch 65 unified UI: falta un único writer para ficha técnica desde el gestor canónico.');
 
-  need(src.includes('trTaxDeleteTaxonomyValueImage'),
+  need(cleanupSrc.includes('trTaxDeleteTaxonomyValueImage'),
     'Batch 65 image deletion: la ficha canónica permite añadir imágenes pero no ofrece borrado individual.');
-  need(src.includes("'long'")&&src.includes("'short'")&&src.includes("'generic'"),
+  need(cleanupSrc.includes("slot='generic'")&&cleanupSrc.includes("slot==='long'")&&cleanupSrc.includes("slot==='short'"),
     'Batch 65 image deletion: el borrado no cubre Setup LONG/SHORT y referencias genéricas.');
-  need(src.includes('TRDomainStore.exclusive')&&src.includes('trCoreFlush'),
-    'Batch 65 image deletion: falta confirmación durable antes de retirar el blob.');
-  need(src.includes('runLocalBlobGarbageCollection'),
-    'Batch 65 image deletion: la ficha no delega la limpieza física al Blob Lifecycle.');
+  need(cleanupSrc.includes("TRDomainStore.exclusive('taxonomy.value.image.delete'")&&cleanupSrc.includes("TRDomainStore.command('taxonomy.value.image.delete.safe'"),
+    'Batch 65 image deletion: la retirada de metadata no entra por el dominio durable exclusivo.');
+  need(cleanupSrc.includes('persist();')&&cleanupSrc.includes('await trCoreFlush()'),
+    'Batch 65 image deletion: falta metadata -> persist -> flush antes del GC.');
+  need(cleanupSrc.includes('registry.runLocalBlobGarbageCollection'),
+    'Batch 65 image deletion: la limpieza física no se delega al GC reachability-aware de Blob Lifecycle.');
+  need(cleanupSrc.includes("addEventListener('click'")&&cleanupSrc.includes('registry.trTaxOpenValueFicha=function'),
+    'Batch 65 image deletion: la ficha efectiva no instala controles de borrado seguros.');
+  need(!cleanupSrc.includes('data-tr-onclick="trTaxDeleteTaxonomyValueImage'),
+    'Batch 65 image deletion: no se permiten programas data-tr-onclick creados dinámicamente fuera del compilador de eventos.');
   need(blobSrc.includes('registry.runLocalBlobGarbageCollection'),
     'Batch 65 image deletion: Blob Lifecycle no publica el GC local seguro consumido por la ficha.');
 
@@ -123,5 +132,5 @@ console.log(' - Operations/Lab share dynamic taxonomy filters');
 console.log(' - taxonomy dimensions feed analytical breakdown');
 console.log(' - one canonical taxonomy administration surface; no duplicated legacy panel');
 console.log(' - unified ficha preserves Setup/VD/Context technical data, including Setup LONG/SHORT images');
-console.log(' - taxonomy images support individual durable removal + Blob Lifecycle GC');
+console.log(' - taxonomy images support individual durable removal + Blob Lifecycle reachability-aware GC');
 console.log(' - every taxonomy value can own optional visual/technical references through durable storage');

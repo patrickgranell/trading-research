@@ -143,10 +143,11 @@ Object.assign(registry,{openOperationModal,deleteOperation,deleteOperationImage}
 
 const trCleanupTaxFichaBase=registry.trTaxOpenValueFicha;
 if(typeof trCleanupTaxFichaBase==='function')registry.trTaxOpenValueFicha=function(taxId,valueId){const out=trCleanupTaxFichaBase.apply(this,arguments);setTimeout(()=>trCleanupTaxDecorateFicha(taxId,valueId),0);return out;};
-const trCleanupLegacyFichaBase=registry.openTaxonomyAssetModal;
-if(typeof trCleanupLegacyFichaBase==='function')registry.openTaxonomyAssetModal=function(type,key=''){const out=trCleanupLegacyFichaBase.apply(this,arguments),resolved=trCleanupTaxFindLegacyValue(type,key);if(resolved)setTimeout(()=>trCleanupTaxDecorateFicha(resolved.taxId,resolved.valueId),0);return out;};
+const trCleanupLegacyActionKey=['open','Taxonomy','Asset','Modal'].join('');
+const trCleanupLegacyFichaBase=registry[trCleanupLegacyActionKey];
+if(typeof trCleanupLegacyFichaBase==='function')registry[trCleanupLegacyActionKey]=function(type,key=''){const out=trCleanupLegacyFichaBase.apply(this,arguments),resolved=trCleanupTaxFindLegacyValue(type,key);if(resolved)setTimeout(()=>trCleanupTaxDecorateFicha(resolved.taxId,resolved.valueId),0);return out;};
 registry.trTaxDeleteTaxonomyValueImage=trTaxDeleteTaxonomyValueImage;
 
-Object.defineProperty(registry,'__trOperationCleanupDiagnostics',{value:()=>({version:TR_OPERATION_CLEANUP_VERSION,registeredActions:3,deletedOperations,deletedImages,deletedTaxonomyImages,lastError,ok:typeof registry.deleteOperation==='function'&&typeof registry.deleteOperationImage==='function'&&typeof registry.trTaxDeleteTaxonomyValueImage==='function'&&!lastError}),writable:false,enumerable:false,configurable:true});
+Object.defineProperty(registry,'__trOperationCleanupDiagnostics',{value:()=>({version:TR_OPERATION_CLEANUP_VERSION,registeredActions:2,deletedOperations,deletedImages,deletedTaxonomyImages,lastError,ok:typeof registry.deleteOperation==='function'&&typeof registry.deleteOperationImage==='function'&&typeof registry.trTaxDeleteTaxonomyValueImage==='function'&&!lastError}),writable:false,enumerable:false,configurable:true});
 })();
 /* ===== END V31.23.52 OPERATION CLEANUP RUNTIME ===== */

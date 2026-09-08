@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 
-const TR_TAXONOMY_RUNTIME_VERSION='31.26.1';
+const TR_TAXONOMY_RUNTIME_VERSION='31.26.2';
 const TR_TAXONOMY_SCHEMA=2;
 const TR_TAXONOMY_CORE=Object.freeze([
   {id:'setup',name:'Setup',legacyKey:'setup',source:'setups'},
@@ -137,18 +137,9 @@ function canDeleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById
 function deleteValue(plan,taxId,valueId,operations=[]){const tax=taxonomyById(plan,taxId),value=valueById(tax,valueId);if(!tax||!value||!canDeleteValue(plan,taxId,valueId,operations))return false;tax.values=tax.values.filter(v=>v.id!==valueId);tax.updatedAt=trTaxNow();return true;}
 function trTaxSortValues(values){return [...values].sort((a,b)=>String(a.name).localeCompare(String(b.name),'es',{numeric:true}));}
 function selectionOptions(plan,tax){ensurePlan(plan);return trTaxSortValues((tax?.values||[]).filter(v=>v.status!=='archived').map(v=>({...v})));}
-function filterOptionGroups(plan,tax,operations=[]){
-  ensurePlan(plan);
-  const active=selectionOptions(plan,tax),activeIds=new Set(active.map(v=>String(v.id))),historical=new Map();
-  for(const op of trTaxPlanOperations(plan,operations)){
-    const value=operationValue(tax,op);
-    if(value&&!activeIds.has(String(value.id))&&!historical.has(String(value.id)))historical.set(String(value.id),{...value,status:value.status==='archived'?'archived':'historical'});
-  }
-  return {active,historical:trTaxSortValues([...historical.values()])};
-}
-function filterOptions(plan,tax,operations=[]){const groups=filterOptionGroups(plan,tax,operations);return [...groups.active,...groups.historical];}
+function filterOptions(plan,tax,operations=[]){return selectionOptions(plan,tax);}
 
-const api=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,schema:TR_TAXONOMY_SCHEMA,core:TR_TAXONOMY_CORE,ensurePlan,taxonomyById,activeTaxonomies,valueById,operationValue,resolveOperationValueId,operationValueLabel,matchesFilters,createTaxonomy,renameTaxonomy,renameValue,addValue,archiveTaxonomy,archiveValue,canDeleteTaxonomy,deleteTaxonomy,canDeleteValue,deleteValue,selectionOptions,filterOptionGroups,filterOptions});
+const api=Object.freeze({version:TR_TAXONOMY_RUNTIME_VERSION,schema:TR_TAXONOMY_SCHEMA,core:TR_TAXONOMY_CORE,ensurePlan,taxonomyById,activeTaxonomies,valueById,operationValue,resolveOperationValueId,operationValueLabel,matchesFilters,createTaxonomy,renameTaxonomy,renameValue,addValue,archiveTaxonomy,archiveValue,canDeleteTaxonomy,deleteTaxonomy,canDeleteValue,deleteValue,selectionOptions,filterOptions});
 globalThis.TradingResearchTaxonomyDomain=api;
 if(typeof window==='undefined'||!window.document)return;
 
@@ -293,13 +284,12 @@ saveOperationFromForm=function(){if(domain?.command)return domain.command(editin
 
 function trTaxCollectFilterMap(selector){const out={};for(const el of document.querySelectorAll(selector)){const id=el.dataset.taxonomyId||'';if(id)out[id]=el.value||'';}return out;}
 function trTaxStripLegacyFilters(html,ids){for(const id of ids){const re=new RegExp(`<label class="filter-field"><span>[^<]*<\\/span><select id="${id}"[\\s\\S]*?<\\/select><\\/label>`,'g');html=html.replace(re,'');}return html;}
-function trTaxFilterOption(v,current){return `<option value="${trTaxEsc(v.id)}" ${String(current||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':''}</option>`;}
+function trTaxFilterOption(v,current){return `<option value="${trTaxEsc(v.id)}" ${String(current||'')===String(v.id)?'selected':''}>${trTaxEsc(v.name)}</option>`;}
 function trTaxFilterFields(p,ops,current={},target='ops'){
   api.ensurePlan(p);
   return api.activeTaxonomies(p).map(t=>{
-    const groups=api.filterOptionGroups(p,t,ops),id=`trTax${target==='ops'?'Ops':'Lab'}_${t.id}`,selected=current?.[t.id]||'';
-    const active=groups.active.map(v=>trTaxFilterOption(v,selected)).join(''),historical=groups.historical.map(v=>trTaxFilterOption(v,selected)).join('');
-    const options=`<option value="">Todos</option>${active?`<optgroup label="Valores del plan">${active}</optgroup>`:''}${historical?`<optgroup label="Histórico · solo consulta">${historical}</optgroup>`:''}`;
+    const values=api.selectionOptions(p,t),id=`trTax${target==='ops'?'Ops':'Lab'}_${t.id}`,selected=current?.[t.id]||'';
+    const options=`<option value="">Todos</option>${values.map(v=>trTaxFilterOption(v,selected)).join('')}`;
     return target==='ops'?`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-ops="1" class="select" data-tr-onchange="filterOperations()">${options}</select></label>`:`<label class="filter-field"><span>${trTaxEsc(t.name)}</span><select id="${trTaxEsc(id)}" data-taxonomy-id="${trTaxEsc(t.id)}" data-tax-filter-lab="1" class="select" data-tr-onchange="labReadFilters()">${options}</select></label>`;
   }).join('');
 }

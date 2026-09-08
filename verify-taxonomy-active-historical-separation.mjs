@@ -7,10 +7,10 @@ const need=(condition,message)=>{if(!condition)fail.push(message);};
 
 need(source.includes('function trTaxComparisonKey('),'Falta normalización semántica case/accent-insensitive para valores legacy.');
 need(source.includes('function selectionOptions('),'Falta frontera explícita de opciones seleccionables activas.');
-need(source.includes('function filterOptionGroups('),'Falta separación explícita entre valores activos e históricos en filtros.');
+need(!source.includes('Histórico · solo consulta'),'Los filtros no deben exponer una segunda taxonomía histórica visible.');
+need(!source.includes('function filterOptionGroups('),'El dominio de filtros no debe mezclar valores configurados con históricos observados.');
 need(source.includes('api.selectionOptions(p,tax'),'Nueva/Editar operación no consume la frontera de opciones activas.');
-need(source.includes('api.filterOptionGroups(p,t,ops'),'Los filtros no consumen grupos activos/históricos separados.');
-need(source.includes('Histórico · solo consulta'),'La UI no etiqueta los valores históricos como solo consulta.');
+need(source.includes('api.selectionOptions(p,t'),'Los filtros no consumen exclusivamente los valores configurados activos.');
 
 const sandbox={console,structuredClone:globalThis.structuredClone};
 sandbox.globalThis=sandbox;
@@ -41,20 +41,18 @@ if(api){
   need(selectable.length===3,`Nueva operación debe ofrecer solo 3 valores activos; obtuvo ${selectable.length}.`);
   need(selectable.every(v=>['Rápida','Liquidez','Otra'].includes(v.name)),'Nueva operación contiene valores históricos no configurados.');
 
-  const groups=api.filterOptionGroups(plan,tax,ops);
-  need(Array.isArray(groups?.active)&&Array.isArray(groups?.historical),'filterOptionGroups debe devolver active + historical.');
-  need(groups.active.length===3,`Filtro debe conservar 3 valores activos; obtuvo ${groups.active.length}.`);
-  need(groups.historical.length===1,`Filtro debe aislar solo 1 valor histórico no normalizado; obtuvo ${groups.historical.length}.`);
-  need(groups.historical[0]?.name==='ENTRADA EN NIVEL','El único histórico no normalizado esperado es ENTRADA EN NIVEL.');
-  need(!groups.historical.some(v=>['LIQUIDEZ','RAPIDA','Liquidez','Rápida'].includes(v.name)),'Variantes canónicas siguen contaminando el grupo histórico.');
+  const filterable=api.filterOptions(plan,tax,ops);
+  need(filterable.length===3,`Filtro debe ofrecer solo los 3 valores configurados; obtuvo ${filterable.length}.`);
+  need(filterable.every(v=>['Rápida','Liquidez','Otra'].includes(v.name)),'Filtro contiene valores históricos no configurados.');
+  need(!filterable.some(v=>['ENTRADA EN NIVEL','RAPIDA','LIQUIDEZ'].includes(v.name)),'Valores legacy observados siguen contaminando el filtro.');
 }
 
 if(fail.length){
-  console.error('Taxonomy active/historical separation gate FAILED');
+  console.error('Taxonomy configured-only filter gate FAILED');
   for(const x of fail)console.error(' - '+x);
   process.exit(1);
 }
-console.log('Taxonomy active/historical separation gate OK');
+console.log('Taxonomy configured-only filter gate OK');
 console.log(' - operation selectors expose configured active values only');
-console.log(' - case/accent legacy variants resolve to canonical IDs');
-console.log(' - unmatched legacy values remain filterable only under a read-only historical group');
+console.log(' - case/accent legacy variants still resolve to canonical IDs');
+console.log(' - filters expose configured active values only; unmatched legacy values remain data, not taxonomy options');

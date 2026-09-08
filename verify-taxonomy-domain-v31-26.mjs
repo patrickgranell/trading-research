@@ -42,16 +42,16 @@ if(fs.existsSync(file)){
   need(src.includes('trTaxSaveUnifiedFicha'),
     'Batch 65 unified UI: falta un único writer para ficha técnica desde el gestor canónico.');
 
-  need(src.includes('trBlobDeleteTaxonomyValueImage'),
+  need(src.includes('trTaxDeleteTaxonomyValueImage'),
     'Batch 65 image deletion: la ficha canónica permite añadir imágenes pero no ofrece borrado individual.');
   need(src.includes("'long'")&&src.includes("'short'")&&src.includes("'generic'"),
     'Batch 65 image deletion: el borrado no cubre Setup LONG/SHORT y referencias genéricas.');
-  need(blobSrc.includes('trBlobDeleteTaxonomyValueImage'),
-    'Batch 65 image deletion: falta una acción segura de Blob Lifecycle para imágenes de taxonomía.');
-  need(blobSrc.includes("trBlobGcRunMutation('taxonomy.value.image.delete.safe'"),
-    'Batch 65 image deletion: eliminar imagen no está protegido por metadata -> persist -> flush -> GC.');
-  need(blobSrc.includes('TRDomainStore.exclusive'),
-    'Batch 65 image deletion: el borrado de imagen no entra por la exclusión durable del Blob Lifecycle.');
+  need(src.includes('TRDomainStore.exclusive')&&src.includes('trCoreFlush'),
+    'Batch 65 image deletion: falta confirmación durable antes de retirar el blob.');
+  need(src.includes('runLocalBlobGarbageCollection'),
+    'Batch 65 image deletion: la ficha no delega la limpieza física al Blob Lifecycle.');
+  need(blobSrc.includes('registry.runLocalBlobGarbageCollection'),
+    'Batch 65 image deletion: Blob Lifecycle no publica el GC local seguro consumido por la ficha.');
 
   const ctx={console};
   vm.createContext(ctx);
@@ -123,5 +123,5 @@ console.log(' - Operations/Lab share dynamic taxonomy filters');
 console.log(' - taxonomy dimensions feed analytical breakdown');
 console.log(' - one canonical taxonomy administration surface; no duplicated legacy panel');
 console.log(' - unified ficha preserves Setup/VD/Context technical data, including Setup LONG/SHORT images');
-console.log(' - taxonomy images support individual safe deletion through Blob Lifecycle');
+console.log(' - taxonomy images support individual durable removal + Blob Lifecycle GC');
 console.log(' - every taxonomy value can own optional visual/technical references through durable storage');

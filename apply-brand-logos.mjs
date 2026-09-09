@@ -2,25 +2,23 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 const EXPECTED={
-  dark:{prefix:'brand-logo-theme-dark.png.base64.part',sha256:'c1d9f082e1e6ca2735fda2bcffbe0fe7fd4df34bb028de6ae7866f42a5c3e531',bytes:184522,dst:'dist/brand-logo-theme-dark.png'},
-  light:{prefix:'brand-logo-theme-light.png.base64.part',sha256:'391db80af4509cce4e29c5211634d26a53253f2033863edcee2f88505d276199',bytes:195047,dst:'dist/brand-logo-theme-light.png'}
+  dark:{src:'brand-logo-dark.png',sha256:'391db80af4509cce4e29c5211634d26a53253f2033863edcee2f88505d276199',bytes:195047,dst:'dist/brand-logo-theme-dark.png'},
+  light:{src:'brand-logo-light.png',sha256:'c1d9f082e1e6ca2735fda2bcffbe0fe7fd4df34bb028de6ae7866f42a5c3e531',bytes:184522,dst:'dist/brand-logo-theme-light.png'}
 };
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const cspHash=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-function decodeAsset(theme){
+function copyAsset(theme){
   const spec=EXPECTED[theme];
-  const parts=fs.readdirSync('.').filter(f=>f.startsWith(spec.prefix)).sort();
-  if(!parts.length)throw new Error(`Missing ${theme}-theme logo base64 parts.`);
-  const encoded=parts.map(f=>fs.readFileSync(f,'utf8')).join('').replace(/\s+/g,'');
-  const bytes=Buffer.from(encoded,'base64');
+  if(!fs.existsSync(spec.src))throw new Error(`Missing ${theme}-theme source logo: ${spec.src}`);
+  const bytes=fs.readFileSync(spec.src);
   if(bytes.length!==spec.bytes)throw new Error(`${theme}: ${bytes.length} bytes; expected ${spec.bytes}.`);
   const digest=hash(bytes);
   if(digest!==spec.sha256)throw new Error(`${theme}: SHA-256 ${digest}; expected ${spec.sha256}.`);
   fs.writeFileSync(spec.dst,bytes);
   return bytes;
 }
-const dark=decodeAsset('dark');
-const light=decodeAsset('light');
+const dark=copyAsset('dark');
+const light=copyAsset('light');
 let html=fs.readFileSync('dist/index.html','utf8');
 const brandMarkup='<div class="brand tr-brand-logo"><button class="tr-brand-logo-button" type="button" aria-label="Ir al Dashboard"><img class="tr-brand-logo-image tr-brand-logo-image-dark" src="/brand-logo-theme-dark.png" alt="Trading Research"><img class="tr-brand-logo-image tr-brand-logo-image-light" src="/brand-logo-theme-light.png" alt="Trading Research"></button></div>';
 const legacy=/<div class="brand"><div class="brand-dot"><\/div><div><h1>Trading Research<\/h1><small>Backtest &(?:amp;)? Trade Lab<\/small><\/div><\/div>/g;

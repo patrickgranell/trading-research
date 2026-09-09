@@ -17,37 +17,17 @@ jobs:
           ref: v31.26-batch70-theme-brand-logos
           fetch-depth: 0
 
-      - name: Download and verify exact source PNGs
+      - name: Resolve firestorage exact-file download endpoints
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --location --retry 3 \
-            'https://github.com/user-attachments/assets/ec19a6a5-deb5-4e4e-8a11-5b4956f4a268' \
-            --output brand-logo-theme-dark.png.tmp
-          curl --fail --location --retry 3 \
-            'https://github.com/user-attachments/assets/cabd55de-2764-437c-b87b-c9e0ca9376ff' \
-            --output brand-logo-theme-light.png.tmp
-
-          test "$(wc -c < brand-logo-theme-dark.png.tmp | tr -d ' ')" = '184522'
-          test "$(sha256sum brand-logo-theme-dark.png.tmp | awk '{print $1}')" = 'c1d9f082e1e6ca2735fda2bcffbe0fe7fd4df34bb028de6ae7866f42a5c3e531'
-          test "$(wc -c < brand-logo-theme-light.png.tmp | tr -d ' ')" = '195047'
-          test "$(sha256sum brand-logo-theme-light.png.tmp | awk '{print $1}')" = '391db80af4501ed2bd09458fe38f0ac6a4365ab1d6685fd0522078c72edc6199'
-
-          mv brand-logo-theme-dark.png.tmp brand-logo-theme-dark.png
-          mv brand-logo-theme-light.png.tmp brand-logo-theme-light.png
-
-      - name: Commit exact binary assets if needed
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git diff --quiet -- brand-logo-theme-dark.png brand-logo-theme-light.png && \
-             git ls-files --error-unmatch brand-logo-theme-dark.png >/dev/null 2>&1 && \
-             git ls-files --error-unmatch brand-logo-theme-light.png >/dev/null 2>&1; then
-            echo 'Exact assets already committed; nothing to do.'
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add brand-logo-theme-dark.png brand-logo-theme-light.png
-          git commit -m 'Add exact theme brand logo binaries'
-          git push origin HEAD:v31.26-batch70-theme-brand-logos
+            'https://firestorage.ai/ja/f/IBnLmVbuGKZ2' \
+            --output /tmp/firestorage-share.html
+          echo '--- candidate download references ---'
+          grep -Eo 'https?://[^"'"'"' <>]+|href="[^"]+"|src="[^"]+"' /tmp/firestorage-share.html \
+            | grep -Ei 'download|file|asset|api|brand-logo|IBnLmVbuGKZ2' \
+            | head -n 120 || true
+          echo '--- file-name references ---'
+          grep -Ein 'brand-logo|01a0848039be75298124e0db3c7ee3aa|01a08480714572e5938dd67033881d9b' /tmp/firestorage-share.html \
+            | head -n 80 || true

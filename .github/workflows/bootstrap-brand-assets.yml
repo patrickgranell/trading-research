@@ -17,18 +17,25 @@ jobs:
           ref: v31.26-batch70-theme-brand-logos
           fetch-depth: 0
 
-      - name: Inspect firestorage share client bundle
+      - name: Inspect firestorage share chunks
         shell: bash
         run: |
           set -euo pipefail
           base='https://firestorage.ai'
           share='https://firestorage.ai/ja/f/IBnLmVbuGKZ2'
           curl --fail --location --retry 3 "$share" --output /tmp/share.html
-          js_path="$(grep -Eo 'src="[^"]*app/\(files\)/ja/f/page-[^"]+\.js"' /tmp/share.html | head -n1 | cut -d'"' -f2)"
-          test -n "$js_path"
-          curl --fail --location --retry 3 "$base$js_path" --output /tmp/share-page.js
-          echo '--- bundle content ---'
-          cat /tmp/share-page.js
-          echo
-          echo '--- all next chunks in HTML ---'
-          grep -Eo 'src="[^"]+\.js"' /tmp/share.html | cut -d'"' -f2 | sort -u
+          grep -Eo 'src="[^"]+\.js"' /tmp/share.html | cut -d'"' -f2 | sort -u > /tmp/chunks.txt
+          : > /tmp/all.js
+          while IFS= read -r path; do
+            echo "FETCH $path"
+            curl --fail --location --retry 3 "$base$path" >> /tmp/all.js
+            echo >> /tmp/all.js
+          done < /tmp/chunks.txt
+          echo '--- semantic endpoint candidates ---'
+          grep -Eo '.{0,180}(download|file_id|public_id|share_url|signed|presign|api/|/api|storage).{0,240}' /tmp/all.js \
+            | head -n 260 || true
+          echo '--- URL/path candidates ---'
+          grep -Eo 'https?://[^"'"'"' <>]+|/[A-Za-z0-9_?&=./:{}$-]{4,}' /tmp/all.js \
+            | grep -Ei 'api|download|file|folder|share|public|storage|presign|signed' \
+            | sort -u \
+            | head -n 260 || true

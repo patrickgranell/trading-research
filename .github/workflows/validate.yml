@@ -38,5 +38,8 @@ jobs:
       - name: Favicon brand icon gate
         run: node verify-favicon-brand-icon.mjs
 
+      - name: Theme brand logos gate
+        run: node verify-theme-brand-logos.mjs
+
       - name: Build verification
         run: npm run build

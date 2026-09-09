@@ -17,15 +17,22 @@ jobs:
           ref: v31.26-batch70-theme-brand-logos
           fetch-depth: 0
 
-      - name: Resolve exact firestorage files
+      - name: Inspect firestorage cushion/download contract
         shell: bash
         run: |
           set -euo pipefail
-          api='https://api.firestorage.ai/prod/file/shares/IBnLmVbuGKZ2'
-          curl --fail --location --retry 3 "$api/files?maxResults=1000" --output /tmp/files.json
+          chunk='https://firestorage.ai/_next/static/chunks/4899-d89df949f2dbd5af.js'
+          curl --fail --location --retry 3 "$chunk" --output /tmp/app.js
           python - <<'PY'
-          import json
-          with open('/tmp/files.json','r',encoding='utf-8') as f:
-              data=json.load(f)
-          print(json.dumps(data, indent=2, ensure_ascii=False))
+          text=open('/tmp/app.js','r',encoding='utf-8').read()
+          for needle in ['cushion-sessions','async function eD','function eD','requiresCushion','/download']:
+              print('\n===', needle, '===')
+              start=0
+              seen=0
+              while True:
+                  i=text.find(needle,start)
+                  if i<0 or seen>=8: break
+                  print(text[max(0,i-900):min(len(text),i+1800)])
+                  start=i+len(needle)
+                  seen+=1
           PY

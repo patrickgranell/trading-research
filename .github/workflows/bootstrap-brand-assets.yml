@@ -17,17 +17,22 @@ jobs:
           ref: v31.26-batch70-theme-brand-logos
           fetch-depth: 0
 
-      - name: Resolve firestorage exact-file download endpoints
+      - name: Resolve firestorage exact-file API
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 \
-            'https://firestorage.ai/ja/f/IBnLmVbuGKZ2' \
-            --output /tmp/firestorage-share.html
-          echo '--- candidate download references ---'
-          grep -Eo 'https?://[^"'"'"' <>]+|href="[^"]+"|src="[^"]+"' /tmp/firestorage-share.html \
-            | grep -Ei 'download|file|asset|api|brand-logo|IBnLmVbuGKZ2' \
-            | head -n 120 || true
-          echo '--- file-name references ---'
-          grep -Ein 'brand-logo|01a0848039be75298124e0db3c7ee3aa|01a08480714572e5938dd67033881d9b' /tmp/firestorage-share.html \
-            | head -n 80 || true
+          base='https://firestorage.ai'
+          share='https://firestorage.ai/ja/f/IBnLmVbuGKZ2'
+          curl --fail --location --retry 3 "$share" --output /tmp/share.html
+          js_path="$(grep -Eo 'src="[^"]*app/\(files\)/ja/f/page-[^"]+\.js"' /tmp/share.html | head -n1 | cut -d'"' -f2)"
+          test -n "$js_path"
+          echo "JS=$js_path"
+          curl --fail --location --retry 3 "$base$js_path" --output /tmp/share-page.js
+          echo '--- API/path candidates ---'
+          grep -Eo 'https?://[^"'"'"' <>]+|/[A-Za-z0-9_?&=./:{}$-]{4,}' /tmp/share-page.js \
+            | grep -Ei 'api|download|file|folder|share|public|storage|presign|signed' \
+            | sort -u \
+            | head -n 240 || true
+          echo '--- nearby semantic strings ---'
+          grep -Eo '.{0,120}(download|file_id|public_id|share_url|signed|presign).{0,180}' /tmp/share-page.js \
+            | head -n 160 || true

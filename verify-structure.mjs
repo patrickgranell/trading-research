@@ -63,7 +63,7 @@ if((app.match(/TradingResearchOperationChecklistPresentationContract/g)||[]).len
 if((app.match(/TradingResearchRunningChartPresentationContract/g)||[]).length!==1)fail.push('TradingResearchRunningChartPresentationContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchThemeReadContract/g)||[]).length!==1)fail.push('TradingResearchThemeReadContract debe publicarse exactamente una vez en app.js.');
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.25.0')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.26.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("let trCoreWriteBlockReason=''"))fail.push('Falta recovery write lock del core durable.');
 if(!app.includes('function trCoreSetWriteBlock(')||!app.includes('function trCoreClearWriteBlock(')||!app.includes('function trCoreWriteBlocked('))fail.push('Falta ciclo set/clear/query del recovery write lock.');

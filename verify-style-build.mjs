@@ -6,7 +6,7 @@ const inventory=JSON.parse(fs.readFileSync('dist/style-inventory.json','utf8'));
 const fail=[];const need=(c,m)=>{if(!c)fail.push(m);};
 const executableStyleAttrs=[...h.matchAll(/(?:<|\s)style\s*=\s*["']/gi)].length;
 const transformedAttrs=[...h.matchAll(/data-tr-style\s*=\s*["']/gi)].length;
-need(pkg.version==='31.25.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.26.0',`Versión inesperada ${pkg.version}`);
 need(inventory.inlineAttributes>0,'La build esperaba deuda histórica de atributos style en fuente para transformar.');
 need(inventory.effectiveInlineAttributes===0,`Quedan ${inventory.effectiveInlineAttributes} atributos style efectivos tras la transformación.`);
 need(inventory.transform?.kind==='open-tag-context-scanner','La build no declara el scanner context-aware de style attrs.');

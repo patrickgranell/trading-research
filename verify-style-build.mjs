@@ -14,7 +14,7 @@ need(inventory.transform?.selfTest===true,'El build no ejecutó el self-test del
 need(Number(inventory.transform?.appConverted)>0,'El scanner no convirtió atributos style del app bundle.');
 need(executableStyleAttrs===0,`dist/index.html conserva ${executableStyleAttrs} atributos style ejecutables.`);
 need(transformedAttrs>0,'No se detectan atributos data-tr-style transformados en el bundle.');
-need(h.includes('data-tr-style-attr-runtime="31.25.0"'),'Falta el runtime de hidratación style-attr en el bundle.');
+need(h.includes(`data-tr-style-attr-runtime="${pkg.version}"`),'Falta el runtime de hidratación style-attr etiquetado con la release actual en el bundle.');
 need(h.includes("const TR_STYLE_ATTR_VERSION='31.22.0'"),'Runtime style-attr con versión inesperada.');
 need(/style-src-attr 'none'/.test(headers),'La CSP construida no bloquea style-src-attr.');
 need(!/style-src-attr[^\n;]*'unsafe-inline'/.test(headers),'La excepción unsafe-inline de style attrs sigue publicada.');

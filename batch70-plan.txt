@@ -1,1 +1,0 @@
-Theme-aware sidebar brand integration. Draft only; no merge before CI + Cloudflare preview + user visual approval.

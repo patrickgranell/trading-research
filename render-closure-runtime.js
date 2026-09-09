@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.25.0';
-const TR_RELEASE_LABEL='V31.25 · Reaudit Hardening';
+const TR_RELEASE_VERSION='31.26.0';
+const TR_RELEASE_LABEL='V31.26 · Taxonomy + Branding';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';
@@ -41,7 +41,7 @@ const trRenderClosureDataContract=globalThis.TradingResearchDataSecurityPanelCon
 const trRenderClosureDataBase=trRenderClosureDataContract.current();
 if(typeof trRenderClosureDataBase==='function')trRenderClosureDataContract.replace(function(){return trSourceConsolidationPanel()+trRenderClosurePanel()+trRenderClosureDataBase();});
 const trRenderClosureModeContract=globalThis.TradingResearchModeCardPresentationContract;
-const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${globalThis.TradingResearchModeCardStateReadContract.expanded()?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${globalThis.TradingResearchModeCardStateReadContract.expanded()?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.25.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
+const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${globalThis.TradingResearchModeCardStateReadContract.expanded()?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${globalThis.TradingResearchModeCardStateReadContract.expanded()?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.26.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
 trRenderClosureModeContract.replace(trRenderClosureModeCard);
 trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trRenderClosureModeCard();}catch(_){}

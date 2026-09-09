@@ -1,7 +1,7 @@
 {
   "name": "trading-research",
   "private": true,
-  "version": "31.25.0",
+  "version": "31.26.0",
   "scripts": {
     "build": "node verify-lab-filter-parity.mjs && node build.mjs && node emit-favicon.mjs && node apply-brand-logos.mjs && node verify-favicon-build.mjs && node verify-brand-logos-build.mjs && node verify-build.mjs && node verify-csp-build.mjs && node verify-style-build.mjs && node verify-source-consolidation-final.mjs",
     "deploy": "npm run build && wrangler deploy",

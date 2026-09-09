@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.25.0';
-const TR_RELEASE_LABEL='V31.25 · Reaudit Hardening';
+const TR_RELEASE_VERSION='31.26.0';
+const TR_RELEASE_LABEL='V31.26 · Taxonomy + Branding';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';

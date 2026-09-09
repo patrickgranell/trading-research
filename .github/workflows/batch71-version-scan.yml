@@ -1,0 +1,38 @@
+name: Batch 71 Version Scan
+
+on:
+  push:
+    branches:
+      - v31.26-batch71-release-version-alignment
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: v31.26-batch71-release-version-alignment
+          fetch-depth: 0
+
+      - name: Scan remaining V31.25 product-release references
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== 31.25.0 occurrences ==='
+          git grep -n -F '31.25.0' -- ':!*.png' ':!*.ico' || true
+          echo '=== release label occurrences ==='
+          git grep -n -F 'V31.25 · Reaudit Hardening' || true
+
+      - name: Remove temporary scanner
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/batch71-version-scan.yml
+          git commit -m 'Remove temporary Batch 71 version scanner'
+          git push origin HEAD:v31.26-batch71-release-version-alignment

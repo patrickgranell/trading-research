@@ -1,0 +1,12 @@
+[package]
+name = "trading-research-desktop"
+version = "0.1.0"
+description = "Trading Research Desktop"
+authors = ["Trading Research"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.5", features = [] }

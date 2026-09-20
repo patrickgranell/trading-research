@@ -4,31 +4,41 @@
 
 Trading Research Web remains the development/testing channel.
 
-Trading Research Desktop is the conservative local/offline channel. Desktop releases are promoted deliberately after the corresponding application behavior has already been validated on Web whenever that behavior is shared.
+Trading Research Desktop is the conservative local/offline channel. Shared application behavior should normally mature on Web before entering a Desktop stable release. Desktop-specific filesystem/SQLite behavior is validated in Windows builds.
 
-## Desktop 0.1 bootstrap
+## Desktop 0.1 bootstrap — validated
 
-Desktop 0.1 is intentionally small in scope:
+Desktop 0.1 proved that the existing application can be installed on Windows 11, restore a Web Backup V2, persist data across full close/reopen, and open with Internet disconnected.
 
-- Tauri v2 shell for Windows;
-- the existing production frontend is built normally and copied into `desktop-dist/`;
-- the external Supabase SDK tag is removed from the Desktop artifact;
-- Tauri loads only packaged local frontend assets;
-- GitHub Actions builds an NSIS Windows installer;
-- the web deployment and Cloudflare pipeline remain unchanged.
+## Desktop 0.2 native storage foundation
 
-The first runtime smoke is:
+Desktop 0.2 adds a native storage layer without yet changing the source of truth:
 
-1. install on Windows 11;
-2. open Trading Research;
-3. create/edit local test data;
-4. close and reopen the app;
-5. disconnect Internet and verify the application still opens and the local workspace remains available.
+- IndexedDB remains the authoritative workspace store;
+- every Desktop session maintains a SQLite shadow at the app's Windows LocalAppData directory;
+- the Desktop panel can force a durable flush, mirror the workspace and compare SQLite byte-for-byte against the current workspace JSON;
+- the existing certified Backup V2 builder is reused to write complete native `.trbackup` files directly into a local backups directory;
+- native `data/`, `backups/` and `images/` directories are created under the app data root;
+- the external Supabase SDK remains absent from the packaged Desktop artifact;
+- Web/Cloudflare/Supabase behavior is unchanged.
 
-## Persistence in 0.1
+SQLite is deliberately a shadow in 0.2. A mismatch cannot overwrite IndexedDB.
 
-Desktop 0.1 still uses the application's existing IndexedDB/local storage engine inside WebView2. This is a bootstrap stage, not the final Desktop persistence architecture.
+## Manual Desktop 0.2 smoke
 
-The next storage phase will move Desktop authority to SQLite + local files while leaving the Web channel on its current browser/Supabase architecture.
+1. install the 0.2 candidate on Windows 11;
+2. open **Configuración → Datos y seguridad**;
+3. verify the Desktop local-storage panel reports a SQLite path and status;
+4. use **Sincronizar y verificar SQLite** and require exact parity;
+5. use **Crear backup nativo** and confirm a Backup V2 path is reported;
+6. close and reopen the application and re-check SQLite status;
+7. repeat the parity check with Internet disconnected.
 
-No Desktop release should be treated as authoritative for long-term data until the SQLite migration and backup/restore path are explicitly completed and tested.
+Only after this passes should a later batch consider promoting SQLite from shadow to authority.
+
+
+## Desktop 0.2.1 corrective
+
+The first 0.2.0 candidate exposed a UI recursion in the Desktop-only panel: its MutationObserver called paint() when the panel already existed, while paint() mutated the observed DOM again. This could lock the Configuration/Data view.
+
+0.2.1 makes the observer insertion-only when the panel already exists. State/status repainting remains explicit and a permanent verifier rejects the self-triggering pattern.

@@ -27,5 +27,6 @@ if(!runtime.includes('trBackupV2BuildPayload'))fail('Desktop runtime does not re
 if(!runtime.includes('desktop_write_backup'))fail('Desktop runtime does not expose native Backup V2 writing.');
 if(!runtime.includes('desktop_storage_status'))fail('Desktop runtime does not surface native storage status.');
 if(!prepare.includes('desktop-native-runtime.js'))fail('Desktop prepare does not inject the native runtime.');
+if(/if\(document\.getElementById\('trDesktopNativeStorage'\)\)\{paint\(\);return;\}/.test(runtime))fail('Desktop panel MutationObserver can self-trigger through paint().');
 
 console.log('Desktop native storage gate OK: SQLite shadow + parity + native Backup V2 contract present.');

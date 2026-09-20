@@ -5,14 +5,14 @@ const htmlPath='desktop-dist/index.html';
 if(!fs.existsSync(htmlPath))fail('desktop-dist/index.html is missing.');
 
 const html=fs.readFileSync(htmlPath,'utf8');
-if(!html.includes('name="trading-research-desktop-channel" content="0.2.0"'))fail('desktop channel marker is missing.');
-if(!html.includes('data-tr-desktop-native-storage="0.2.0"'))fail('Desktop native runtime was not embedded.');
+if(!html.includes('name="trading-research-desktop-channel" content="0.2.1"'))fail('desktop channel marker is missing.');
+if(!html.includes('data-tr-desktop-native-storage="0.2.1"'))fail('Desktop native runtime was not embedded.');
 if(/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js/i.test(html))fail('Supabase CDN SDK remains in the Desktop artifact.');
 if(/<(?:script|img|link)[^>]+(?:src|href)=["']https?:\/\//i.test(html))fail('an external HTTP(S) asset remains in the Desktop HTML.');
 
 const config=JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json','utf8'));
 if(config.productName!=='Trading Research')fail('unexpected Tauri productName.');
-if(config.version!=='0.2.0')fail('unexpected Desktop version.');
+if(config.version!=='0.2.1')fail('unexpected Desktop version.');
 if(config.build?.frontendDist!=='../desktop-dist')fail('Tauri frontendDist must point at ../desktop-dist.');
 if(config.app?.withGlobalTauri!==true)fail('Tauri JS bridge must be enabled.');
 const targets=Array.isArray(config.bundle?.targets)?config.bundle.targets:[config.bundle?.targets].filter(Boolean);

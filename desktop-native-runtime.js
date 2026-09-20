@@ -4,7 +4,7 @@
  */
 (()=>{
 'use strict';
-const VERSION='0.2.0';
+const VERSION='0.2.1';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 
@@ -109,7 +109,7 @@ function paint(){
   if(pill)pill.textContent=status.lastError?'ERROR':status.busy?'GUARDANDO':status.native?.shadow?'OK':'SIN COPIA';
 }
 function ensurePanel(){
-  if(document.getElementById('trDesktopNativeStorage')){paint();return;}
+  if(document.getElementById('trDesktopNativeStorage'))return;
   const heading=[...document.querySelectorAll('h3')].find(el=>/Copias de seguridad/i.test(el.textContent||''));
   const anchor=heading?.closest('section');
   if(!anchor)return;

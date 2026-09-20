@@ -35,3 +35,10 @@ SQLite is deliberately a shadow in 0.2. A mismatch cannot overwrite IndexedDB.
 7. repeat the parity check with Internet disconnected.
 
 Only after this passes should a later batch consider promoting SQLite from shadow to authority.
+
+
+## Desktop 0.2.1 corrective
+
+The first 0.2.0 candidate exposed a UI recursion in the Desktop-only panel: its MutationObserver called paint() when the panel already existed, while paint() mutated the observed DOM again. This could lock the Configuration/Data view.
+
+0.2.1 makes the observer insertion-only when the panel already exists. State/status repainting remains explicit and a permanent verifier rejects the self-triggering pattern.

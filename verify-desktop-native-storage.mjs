@@ -19,7 +19,7 @@ if(!main.includes('desktop_storage_status'))fail('desktop_storage_status command
 if(!main.includes('desktop_write_backup'))fail('desktop_write_backup command is missing.');
 if(!main.includes('.trbackup'))fail('native Backup V2 file extension is missing.');
 if(!main.includes('generate_handler!'))fail('Tauri invoke handler registration is missing.');
-if(!config.includes('"version": "0.2.0"'))fail('Desktop version must be 0.2.0.');
+if(!config.includes('"version": "0.2.1"'))fail('Desktop version must be 0.2.1.');
 if(!config.includes('"withGlobalTauri": true'))fail('window.__TAURI__ bridge must be enabled for the isolated Desktop runtime.');
 if(!runtime.includes('desktop_mirror_workspace'))fail('Desktop runtime does not mirror the workspace to native storage.');
 if(!runtime.includes('desktop_read_workspace_shadow'))fail('Desktop runtime cannot verify SQLite parity.');

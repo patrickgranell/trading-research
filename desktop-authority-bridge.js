@@ -46,6 +46,11 @@ function trDesktopAuthorityQueueStateWrite(reason='persist'){
   });
   return trCoreWriteChain;
 }
+function trDesktopAuthorityCanonical(value){
+  const sorted=x=>Array.isArray(x)?x.map(sorted):x&&typeof x==='object'?
+    Object.fromEntries(Object.keys(x).sort().map(k=>[k,sorted(x[k])])):x;
+  return JSON.stringify(sorted(value));
+}
 function trDesktopAuthorityReadRecord(raw){
   if(!raw||raw.active!==true||!Number.isSafeInteger(Number(raw.revision))||Number(raw.revision)<1||typeof raw.payload!=='string')throw new Error('No existe registro de autoridad SQLite verificable.');
   const source=JSON.parse(raw.payload);
@@ -69,11 +74,11 @@ async function trDesktopAuthorityBootstrap(){
       state=normalizeState(source);
       if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();
       if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
-      if(JSON.stringify(state)!==JSON.stringify(source))throw new Error('Normalización del workspace SQLite requiere migración explícita; arranque bloqueado.');
+      if(trDesktopAuthorityCanonical(state)!==trDesktopAuthorityCanonical(source))throw new Error('Normalización del workspace SQLite requiere migración explícita; arranque bloqueado.');
       trDesktopAuthorityRevision=Number(record.revision);
       trDesktopAuthorityControl.active=true;
       trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);
-      trCoreMode='sqlite-authority';trCoreHydrated=true;trCoreLastError='';
+      trCoreMode='sqlite-authority';trCoreHydrated=true;trCoreLastError='';trCoreLastSavedAt=record.updatedAt||'';
       trCoreSignalHydrated();
     }else{
       // Only the prior durable IndexedDB source can be promoted, never its SQLite shadow.
@@ -85,7 +90,7 @@ async function trDesktopAuthorityBootstrap(){
       const backup=await trBackupV2BuildPayload();
       await trBackupV2Preflight(backup);
       const payload=JSON.stringify(backup.workspace);
-      if(JSON.stringify(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():clone(state))!==payload) {
+      if(trDesktopAuthorityCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():clone(state))!==trDesktopAuthorityCanonical(backup.workspace)) {
         throw new Error('El workspace cambió durante la preparación del Backup V2. Se rechaza la promoción.');
       }
       const saved=await trDesktopInvoke('desktop_write_backup',{
@@ -100,9 +105,10 @@ async function trDesktopAuthorityBootstrap(){
       if(!promoted?.ok||record?.payload!==payload||Number(record.revision)!==Number(promoted.revision))throw new Error('Promoción/readback SQLite no coincide con Backup V2.');
       trDesktopAuthorityRevision=Number(record.revision);
       trDesktopAuthorityControl.active=true;trCoreMode='sqlite-authority';
-      trCoreLastError='';
+      trCoreLastError='';trCoreLastSavedAt=record.updatedAt||'';
     }
     trDesktopAuthorityControl.migrationPending=false;
+    await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
     document.documentElement.classList.remove('tr-core-loading');
     if(typeof render==='function')render();
   }catch(e){

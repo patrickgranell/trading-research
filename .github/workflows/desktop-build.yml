@@ -10,6 +10,7 @@ on:
       - 'desktop-authority-bridge.js'
       - 'desktop-authority-transform.mjs'
       - 'verify-desktop-sqlite-authority.mjs'
+      - 'verify-desktop-authority-behavior.mjs'
       - 'operation-cleanup-runtime.js'
       - 'verify-plan-deletion.mjs'
       - 'verify-desktop-offline.mjs'

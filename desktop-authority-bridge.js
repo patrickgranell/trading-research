@@ -8,7 +8,7 @@ const trDesktopAuthorityControl={
   revision:()=>trDesktopAuthorityRevision,
   mode:()=>trDesktopAuthorityFailed?'blocked':trDesktopAuthorityControl.active?'sqlite-authority':'migration'
 };
-globalThis.TradingResearchDesktopAuthority=Object.freeze(trDesktopAuthorityControl);
+globalThis.TradingResearchDesktopAuthority=trDesktopAuthorityControl;
 async function trDesktopInvoke(command,args={}){
   const reply=await trDesktopNativeInvoke(command,args);
   return typeof reply==='string'?JSON.parse(reply):reply;

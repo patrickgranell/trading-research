@@ -185,15 +185,15 @@ if(typeof trCleanupLegacyFichaBase==='function')registry[trCleanupLegacyActionKe
 registry.trTaxDeleteTaxonomyValueImage=trTaxDeleteTaxonomyValueImage;
 
 
-/* Batch 75 · plan cards publish inert data attributes, handled by a direct,
- * delegated DOM listener. This does not expand the structured event registry. */
+/* Batch 75 · idempotent DOM decorator. No classic view-function binding or
+ * handler-string evaluator is used. The observer cannot self-trigger indefinitely:
+ * it writes only when controls are missing, and bulk-label writes are equality-guarded. */
 let trPlanDeleteBusy=false;
 function trPlanDeleteMarketReferences(marketData,ids){
   const selected=new Set(ids.map(String)),issues=[];
   for(const key of ['marketMeta','marketTicks','execSets']){
     for(const item of marketData?.[key]||[]){
-      if(selected.has(String(item?.tradingPlanId||''))||selected.has(String(item?.planId||'')))
-        issues.push(key);
+      if(selected.has(String(item?.tradingPlanId||''))||selected.has(String(item?.planId||'')))issues.push(key);
     }
   }
   return [...new Set(issues)];
@@ -207,6 +207,30 @@ function trPlanDeleteUpdateToolbar(){
     button.disabled=trPlanDeleteBusy||selected===0;
   }
 }
+function trPlanDeleteDecorate(){
+  if(currentView!=='plans')return;
+  const grid=document.querySelector('#view .plan-grid');if(!grid)return;
+  const cards=[...grid.querySelectorAll(':scope > .plan-card')],plans=state.tradingPlans||[];
+  if(cards.length!==plans.length)return;
+  for(let i=0;i<cards.length;i++){
+    const p=plans[i],actions=cards[i].querySelector('.plan-actions');
+    if(!p||!actions||actions.querySelector('[data-tr-plan-delete-id]'))continue;
+    const check=document.createElement('label');check.className='btn small';
+    const input=document.createElement('input');input.type='checkbox';input.dataset.trPlanSelect=String(p.id);
+    check.append(input,document.createTextNode(' Seleccionar'));
+    const button=document.createElement('button');button.type='button';button.className='btn small danger';
+    button.dataset.trPlanDeleteId=String(p.id);button.textContent='Eliminar';
+    actions.append(check,button);
+  }
+  if(!grid.previousElementSibling?.matches?.('[data-tr-plan-delete-toolbar]')){
+    const toolbar=document.createElement('div');toolbar.className='actions';
+    toolbar.dataset.trPlanDeleteToolbar='1';
+    const bulk=document.createElement('button');bulk.type='button';bulk.className='btn small danger';
+    bulk.dataset.trPlanDeleteSelected='1';bulk.textContent='Eliminar seleccionados (0)';bulk.disabled=true;
+    toolbar.append(bulk);grid.parentNode.insertBefore(toolbar,grid);
+  }
+  trPlanDeleteUpdateToolbar();
+}
 document.addEventListener('change',event=>{
   if(event.target.closest?.('[data-tr-plan-select]'))trPlanDeleteUpdateToolbar();
 });
@@ -215,6 +239,8 @@ document.addEventListener('click',event=>{
   if(button.dataset.trPlanDeleteId)void trPlanDeleteExecute([button.dataset.trPlanDeleteId]);
   else void trPlanDeleteExecute([...document.querySelectorAll('[data-tr-plan-select]:checked')].map(input=>input.dataset.trPlanSelect));
 });
+new MutationObserver(trPlanDeleteDecorate).observe(document.getElementById('app'),{childList:true,subtree:true});
+queueMicrotask(trPlanDeleteDecorate);
 async function trPlanDeleteExecute(ids){
   if(trPlanDeleteBusy)return;
   let planned,rollbackPath='';

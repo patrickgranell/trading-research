@@ -30,6 +30,7 @@ assert.throws(()=>projection(foreignBatch,['a']),/otro Trading Plan/);
 assert(runtime.includes('trBackupV2BuildPayload')&&runtime.includes('trBackupV2Preflight'),'Deletion requires a certified complete backup');
 assert(runtime.includes('plan-delete-rollback'),'Desktop rollback backup label missing');
 assert(runtime.includes('trCoreFlush')&&runtime.includes('TRDomainStore.exclusive'),'Durable commit boundary missing');
-assert(app.includes('data-tr-plan-delete-id')&&app.includes('data-tr-plan-delete-selected')&&app.includes('data-tr-plan-select'),'Single and bulk deletion UI missing');
+assert(runtime.includes('data-tr-plan-delete-id')&&runtime.includes('data-tr-plan-delete-selected')&&runtime.includes('data-tr-plan-select'),'Single and bulk deletion UI missing');
+assert(!runtime.includes('plansView'),'Runtime must use the explicit view contract, not a classic plansView binding.');
 assert(runtime.includes('trPlanDeleteMarketReferences'),'External Market Data reference guard missing');
 console.log('Plan-deletion gate OK: projection, last-plan guard, foreign references, Backup V2, single/bulk actions.');

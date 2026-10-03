@@ -32,7 +32,7 @@ fn db_path(root: &Path) -> PathBuf {
 /* Independent fsync-confirmed sentinel: a missing/corrupt SQLite file may never
  * be interpreted as a first installation once authority promotion began. */
 fn authority_marker_path(root: &Path) -> PathBuf {
-    root.join("data").join("sqlite-authority.marker")
+    root.join("sqlite-authority.marker")
 }
 fn ensure_authority_marker(root: &Path) -> Result<(),String> {
     let final_path=authority_marker_path(root);
@@ -41,7 +41,7 @@ fn ensure_authority_marker(root: &Path) -> Result<(),String> {
         if size==0 {return Err("Marcador de autoridad SQLite vacío: recuperación obligatoria.".into());}
         return Ok(());
     }
-    let temp=root.join("data").join(".sqlite-authority.marker.tmp");
+    let temp=root.join(".sqlite-authority.marker.tmp");
     {
         let mut file=File::create(&temp).map_err(|e|format!("Marcador de autoridad: {e}"))?;
         file.write_all(b"Trading Research Desktop 0.4: SQLITE WORKSPACE AUTHORITY; never use stale IndexedDB fallback\n")

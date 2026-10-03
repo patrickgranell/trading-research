@@ -28,6 +28,17 @@ once("trCoreMode==='indexeddb'?'IndexedDB.':'el fallback local.'",
      "trCoreMode==='sqlite-authority'?'SQLite.':trCoreMode==='indexeddb'?'IndexedDB.':'el fallback local.'");
 once('/* ===== END V31.11 CORE ===== */',bridge+'\n/* ===== END V31.11 CORE ===== */');
 html=html.slice(0,open)+app.replace(/<\/script/gi,'<\\/script')+html.slice(end);
+/* Fail-closed exclusive operations only in Desktop's generated state runtime. */
+const stateStart=html.indexOf('<script data-tr-state-runtime=');
+if(stateStart<0)throw new Error('Desktop state runtime script missing.');
+const stateOpen=html.indexOf('>',stateStart)+1,stateEnd=html.indexOf('</script>',stateOpen);
+if(stateOpen<1||stateEnd<0)throw new Error('Desktop state runtime boundary missing.');
+let stateScript=html.slice(stateOpen,stateEnd);
+const unsafe="if(typeof trCoreFlush==='function')await trCoreFlush();return await task();";
+if(!stateScript.includes(unsafe))throw new Error('Desktop exclusive flush safety anchor drift.');
+stateScript=stateScript.replace(unsafe,"if(typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('Desktop SQLite: exclusive abortada; flush no confirmado.');return await task();");
+html=html.slice(0,stateOpen)+stateScript+html.slice(stateEnd);
+
 html=html.replace('</head>',()=>'<meta name="trading-research-desktop-authority" content="0.4.0" />\n</head>');
 fs.writeFileSync(file,html);
 console.log('Prepared isolated Desktop 0.4.0 SQLite authority bridge; Web source unaffected.');

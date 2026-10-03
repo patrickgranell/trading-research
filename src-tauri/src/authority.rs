@@ -146,5 +146,33 @@ mod tests {
     #[test] fn promotion_idempotent_and_cas(){let mut c=db();let p=ws(0);let first=promote(&mut c,&p,"rollback.trbackup").unwrap();assert_eq!(first["revision"],1);assert_eq!(promote(&mut c,&p,"rollback.trbackup").unwrap()["alreadyPromoted"],true);assert!(promote(&mut c,&ws(1),"rollback.trbackup").is_err());let write=commit(&mut c,&ws(1),1,"test").unwrap();assert_eq!(write["revision"],2);assert!(commit(&mut c,&ws(0),1,"stale").is_err());assert_eq!(read(&c).unwrap().unwrap()["revision"],2);}
     #[test] fn invalid_write_does_not_advance(){let mut c=db();promote(&mut c,&ws(0),"rollback").unwrap();assert!(commit(&mut c,"{}",1,"invalid").is_err());assert_eq!(read(&c).unwrap().unwrap()["revision"],1);}
     #[test] fn detects_corrupted_hash(){let mut c=db();promote(&mut c,&ws(0),"rollback").unwrap();c.execute("UPDATE workspace_authority SET sha256='bad' WHERE id=1",[]).unwrap();assert!(read(&c).is_err());assert!(commit(&mut c,&ws(1),1,"bad").is_err());}
+    #[test] fn disk_reopen_and_rollback_match(){
+        let dir=std::env::temp_dir().join(format!("tr-b76-disk-{}-{}",std::process::id(),Utc::now().timestamp_millis()));
+        fs::create_dir_all(dir.join("backups")).unwrap();
+        let rollback=dir.join("backups/migration.trbackup");
+        let source=ws(0);
+        let complete=json!({"workspace":serde_json::from_str::<Value>(&source).unwrap(),
+            "manifest":{"schema":2},"images":[],"marketData":{"marketMeta":[],"marketTicks":[],"execSets":[]}
+        }).to_string();
+        fs::write(&rollback,complete).unwrap();
+        verify_rollback(&dir,&rollback,&source).unwrap();
+        assert!(verify_rollback(&dir,&rollback,&ws(1)).is_err());
+        let path=dir.join("test.sqlite3");
+        {
+            let mut c=Connection::open(&path).unwrap();
+            c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;").unwrap();
+            prepare_schema(&c).unwrap();
+            promote(&mut c,&source,rollback.to_str().unwrap()).unwrap();
+            commit(&mut c,&ws(1),1,"durable-test").unwrap();
+        }
+        {
+            let c=Connection::open(&path).unwrap();
+            prepare_schema(&c).unwrap();
+            let current=read(&c).unwrap().unwrap();
+            assert_eq!(current["revision"],2);
+            assert_eq!(current["payload"],ws(1));
+        }
+        let _=fs::remove_dir_all(&dir);
+    }
     #[test] fn rejects_missing_rollback(){let base=std::env::temp_dir().join(format!("tr-b76-{}",std::process::id()));fs::create_dir_all(base.join("backups")).unwrap();assert!(verify_rollback(&base,&base.join("backups/none.trbackup"),&ws(0)).is_err());let _=fs::remove_dir_all(&base);}
 }

@@ -31,6 +31,7 @@ if(!bridge.includes('trDesktopAuthorityQueueStateWrite')||!bridge.includes('expe
 if(!transform.includes("desktop-dist/index.html")||!transform.includes('desktop-authority-bridge.js'))fail('Desktop-only source transform not wired.');
 if(web.includes('TradingResearchDesktopAuthority'))fail('Web source contains Desktop authority changes.');
 if(!html.includes('name="trading-research-desktop-authority" content="0.4.0"'))fail('Desktop authority artifact marker missing.');
+if(!html.includes('exclusive abortada; flush no confirmado'))fail('Desktop exclusive operations ignore failed flush.');
 for(const token of ['trCoreBootstrapIndexedDb','trDesktopAuthorityBootstrap','desktop_commit_authoritative_workspace','desktop_read_authoritative_workspace',"trCoreMode='sqlite-authority'"]){
   if(!html.includes(token))fail('Generated Desktop artifact is missing '+token);
 }

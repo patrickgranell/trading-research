@@ -43,6 +43,9 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Native SQLite authority tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+
       - name: Build Windows Desktop installer
         run: npm run desktop:build
 

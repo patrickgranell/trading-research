@@ -185,9 +185,8 @@ if(typeof trCleanupLegacyFichaBase==='function')registry[trCleanupLegacyActionKe
 registry.trTaxDeleteTaxonomyValueImage=trTaxDeleteTaxonomyValueImage;
 
 
-/* Batch 75 · single and multi-plan cleanup. UI is inserted after plansView renders,
- * using one microtask and no observer, avoiding the Desktop 0.2 observer feedback loop. */
-const trPlanDeleteSelected=new Set();
+/* Batch 75 · plan cards publish inert data attributes, handled by a direct,
+ * delegated DOM listener. This does not expand the structured event registry. */
 let trPlanDeleteBusy=false;
 function trPlanDeleteMarketReferences(marketData,ids){
   const selected=new Set(ids.map(String)),issues=[];
@@ -199,51 +198,22 @@ function trPlanDeleteMarketReferences(marketData,ids){
   }
   return [...new Set(issues)];
 }
-function trPlanDeleteDecorate(){
-  if(currentView!=='plans')return;
-  const grid=document.querySelector('#view .plan-grid');if(!grid)return;
-  const cards=[...grid.querySelectorAll(':scope > .plan-card')],plans=state.tradingPlans||[];
-  if(cards.length!==plans.length)return;
-  for(let i=0;i<cards.length;i++){
-    const p=plans[i],actions=cards[i].querySelector('.plan-actions');
-    if(!p||!actions||actions.querySelector('[data-tr-plan-delete-id]'))continue;
-    cards[i].dataset.planDeleteId=String(p.id);
-    const check=document.createElement('label');
-    check.className='btn small';
-    const input=document.createElement('input');input.type='checkbox';input.dataset.trPlanSelect=String(p.id);
-    input.checked=trPlanDeleteSelected.has(String(p.id));
-    check.append(input,document.createTextNode(' Seleccionar'));
-    const button=document.createElement('button');button.type='button';button.className='btn small danger';
-    button.dataset.trPlanDeleteId=String(p.id);button.textContent='Eliminar';
-    actions.append(check,button);
-  }
-  if(!grid.previousElementSibling?.matches?.('[data-tr-plan-delete-toolbar]')){
-    const toolbar=document.createElement('div');toolbar.className='actions';
-    toolbar.dataset.trPlanDeleteToolbar='1';toolbar.style.marginBottom='12px';
-    const button=document.createElement('button');button.type='button';button.className='btn small danger';
-    button.dataset.trPlanDeleteSelected='1';toolbar.append(button);
-    grid.parentNode.insertBefore(toolbar,grid);
-  }
-  trPlanDeleteUpdateToolbar();
-}
 function trPlanDeleteUpdateToolbar(){
-  const live=new Set((state.tradingPlans||[]).map(p=>String(p.id)));
-  for(const id of [...trPlanDeleteSelected])if(!live.has(id))trPlanDeleteSelected.delete(id);
+  const selected=document.querySelectorAll('[data-tr-plan-select]:checked').length;
   const button=document.querySelector('[data-tr-plan-delete-selected]');
-  if(button){button.textContent='Eliminar seleccionados ('+trPlanDeleteSelected.size+')';button.disabled=trPlanDeleteBusy||!trPlanDeleteSelected.size;}
+  if(button){
+    const next='Eliminar seleccionados ('+selected+')';
+    if(button.textContent!==next)button.textContent=next;
+    button.disabled=trPlanDeleteBusy||selected===0;
+  }
 }
-const trPlanDeletePlansViewBase=plansView;
-plansView=function(){const html=trPlanDeletePlansViewBase.apply(this,arguments);queueMicrotask(trPlanDeleteDecorate);return html;};
 document.addEventListener('change',event=>{
-  const input=event.target.closest?.('[data-tr-plan-select]');if(!input)return;
-  const id=input.dataset.trPlanSelect;
-  if(input.checked)trPlanDeleteSelected.add(id);else trPlanDeleteSelected.delete(id);
-  trPlanDeleteUpdateToolbar();
+  if(event.target.closest?.('[data-tr-plan-select]'))trPlanDeleteUpdateToolbar();
 });
 document.addEventListener('click',event=>{
   const button=event.target.closest?.('[data-tr-plan-delete-id],[data-tr-plan-delete-selected]');if(!button)return;
   if(button.dataset.trPlanDeleteId)void trPlanDeleteExecute([button.dataset.trPlanDeleteId]);
-  else void trPlanDeleteExecute([...trPlanDeleteSelected]);
+  else void trPlanDeleteExecute([...document.querySelectorAll('[data-tr-plan-select]:checked')].map(input=>input.dataset.trPlanSelect));
 });
 async function trPlanDeleteExecute(ids){
   if(trPlanDeleteBusy)return;
@@ -251,7 +221,7 @@ async function trPlanDeleteExecute(ids){
   try{
     planned=trPlanDeletionProjection(TRDomainStore.snapshot(),ids);
     const selected=planned.removedPlans.map(p=>String(p.id));
-    const names=planned.removedPlans.map(p=>planLabel(p)).join('\n• ');
+    const names=planned.removedPlans.map(p=>globalThis.TradingResearchPlanReadContract.label(p)).join('\n• ');
     if(!confirm('Eliminar '+selected.length+' Trading Plan(s):\n• '+names+
       '\n\nSe retirarán sus '+planned.removedOperations.length+' operaciones, '+
       planned.removedBatches.length+' importaciones y '+planned.removedOpportunities.length+
@@ -306,7 +276,6 @@ async function trPlanDeleteExecute(ids){
       const gone=new Set(planned.removedOperations.map(o=>String(o.id)));
       gallerySelected=gallerySelected.filter(id=>!gone.has(String(id)));
     }
-    trPlanDeleteSelected.clear();
     currentView='plans';render();
     try{await registry.runLocalBlobGarbageCollection?.();}
     catch(e){console.warn('[Trading Research · plan delete GC pending]',e);try{trCoreShowStorageWarning('Planes eliminados, pero quedó limpieza de imágenes huérfanas pendiente.');}catch{}}

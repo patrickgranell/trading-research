@@ -297,7 +297,6 @@ async function trPlanDeleteExecute(ids){
         throw e;
       }
     });
-    if(typeof pendingImportPlanId!=='undefined'&&selected.includes(String(pendingImportPlanId)))pendingImportPlanId=null;
     if(typeof gallerySelected!=='undefined'&&Array.isArray(gallerySelected)){
       const gone=new Set(planned.removedOperations.map(o=>String(o.id)));
       gallerySelected=gallerySelected.filter(id=>!gone.has(String(id)));

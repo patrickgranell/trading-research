@@ -254,7 +254,7 @@ async function trPlanDeleteExecute(ids){
       ' oportunidades vinculadas.\nLos contratos y la Biblioteca global seguirán intactos.'+
       '\n\nPrimero se creará un Backup V2 completo. ¿Preparar la eliminación?'))return;
     trPlanDeleteBusy=true;trPlanDeleteUpdateToolbar();
-    if(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked())throw new Error('Hay una recuperación pendiente: eliminación bloqueada.');
+    /* TRDomainStore.exclusive enforces the recovery lock before any mutation. */
     if(typeof trBackupV2BuildPayload!=='function'||typeof trBackupV2Preflight!=='function')throw new Error('Backup V2 no disponible.');
     const payload=await trBackupV2BuildPayload();
     await trBackupV2Preflight(payload);

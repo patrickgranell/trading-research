@@ -20,6 +20,12 @@ once("async function trCorePersistNow(reason='persist'){\n",
      "async function trCorePersistNow(reason='persist'){\n  if(trDesktopAuthorityControl.active)return await trDesktopAuthorityQueueStateWrite(reason);\n");
 once("function trCoreQueueStateWrite(reason='persist'){\n",
      "function trCoreQueueStateWrite(reason='persist'){\n  if(trDesktopAuthorityControl.active)return trDesktopAuthorityQueueStateWrite(reason);\n");
+once("if(trCoreMode!=='indexeddb')return trCoreSafeLocalSet('tradingResearchCloudSnapshotHistory_v2'",
+     "if(trCoreMode!=='indexeddb'&&trCoreMode!=='sqlite-authority')return trCoreSafeLocalSet('tradingResearchCloudSnapshotHistory_v2'");
+once("ok=i.mode==='indexeddb',mode=ok?'IndexedDB · durable'",
+     "ok=i.mode==='sqlite-authority',mode=ok?'SQLite · autoridad'");
+once("trCoreMode==='indexeddb'?'IndexedDB.':'el fallback local.'",
+     "trCoreMode==='sqlite-authority'?'SQLite.':trCoreMode==='indexeddb'?'IndexedDB.':'el fallback local.'");
 once('/* ===== END V31.11 CORE ===== */',bridge+'\n/* ===== END V31.11 CORE ===== */');
 html=html.slice(0,open)+app.replace(/<\/script/gi,'<\\/script')+html.slice(end);
 html=html.replace('</head>',()=>'<meta name="trading-research-desktop-authority" content="0.4.0" />\n</head>');

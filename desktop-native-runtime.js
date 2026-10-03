@@ -64,7 +64,7 @@ async function verifyParity(){
     if(typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('No se confirmó flush antes de comparar.');
     const record=await call('desktop_read_authoritative_workspace');
     if(!record?.active)throw new Error('Todavía no hay autoridad SQLite.');
-    const same=String(record.payload||'')===workspaceJson()&&
+    const same=trBackupV2Canonical(JSON.parse(String(record.payload||'null')))===trBackupV2Canonical(workspaceSnapshot())&&
       Number(record.revision)===Number(globalThis.TradingResearchDesktopAuthority?.revision?.());
     await refreshStatus();
     alert(same?'SQLite (autoridad) coincide exactamente con el workspace y la revisión actual.':

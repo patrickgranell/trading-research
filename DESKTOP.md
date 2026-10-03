@@ -54,3 +54,7 @@ SQLite is still not the day-to-day authority in 0.3. This batch proves complete 
 9. close/reopen and repeat recovery verification with Internet disconnected.
 
 Only after this passes should a later batch consider promoting SQLite to the Desktop source of truth.
+
+## Desktop 0.3.1 plan cleanup candidate
+
+Shared Web/Desktop plan cards gain one-by-one and bulk selection/delete controls. Destructive deletion requires a certified Backup V2 first: native rollback in Desktop or saved browser download confirmation on Web. Plan-linked operations, import batches and opportunities are removed together. Market Data records tied to a selected plan block deletion until a specific cleanup exists; global instruments and shared library are preserved. At least one plan must remain. Durable state persistence, rollback and reachability-aware image GC follow the existing patterns. Manual smoke must cover empty plan, populated test plan, active plan switch, last-plan guard, bulk deletion, full backup restore, desktop offline behavior.

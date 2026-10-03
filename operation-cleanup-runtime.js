@@ -6,6 +6,42 @@ const registry=window.TradingResearchActions;
 if(!registry||typeof registry!=='object')throw new Error('Operation Cleanup: TradingResearchActions no disponible.');
 let deletedOperations=0,deletedImages=0,deletedTaxonomyImages=0,lastError='';
 
+/* PLAN DELETION TESTABLE CORE START */
+function trPlanDeletionProjection(workspace,ids){
+  const selected=new Set((ids||[]).map(String));
+  const plans=Array.isArray(workspace?.tradingPlans)?workspace.tradingPlans:[];
+  if(!selected.size)throw new Error('Selecciona al menos un Trading Plan.');
+  if([...selected].some(id=>!plans.some(p=>String(p.id)===id)))throw new Error('Un Trading Plan seleccionado ya no existe.');
+  if(plans.length-selected.size<1)throw new Error('Debe conservarse al menos un Trading Plan.');
+  const removedPlans=plans.filter(p=>selected.has(String(p.id)));
+  const removedBatches=(workspace.importBatches||[]).filter(b=>selected.has(String(b.tradingPlanId)));
+  const batchIds=new Set(removedBatches.map(b=>String(b.id)));
+  const removedOperations=(workspace.operations||[]).filter(o=>selected.has(String(o.tradingPlanId)));
+  for(const op of workspace.operations||[]){
+    if(batchIds.has(String(op.importBatchId||''))&&!selected.has(String(op.tradingPlanId)))
+      throw new Error('Un lote del plan contiene operaciones asociadas a otro Trading Plan.');
+    if(selected.has(String(op.tradingPlanId))&&op.importBatchId&&
+      (workspace.importBatches||[]).some(b=>String(b.id)===String(op.importBatchId)&&!batchIds.has(String(b.id))))
+      throw new Error('Una operación seleccionada pertenece a un lote de otro Trading Plan.');
+  }
+  const remaining=plans.filter(p=>!selected.has(String(p.id)));
+  const current=selected.has(String(workspace.currentPlanId))?
+    (remaining.find(p=>p.status!=='archived')||remaining[0]).id:workspace.currentPlanId;
+  return {
+    next:{
+      tradingPlans:remaining,
+      operations:(workspace.operations||[]).filter(o=>!selected.has(String(o.tradingPlanId))),
+      importBatches:(workspace.importBatches||[]).filter(b=>!selected.has(String(b.tradingPlanId))),
+      opportunities:(workspace.opportunities||[]).filter(o=>!selected.has(String(o.tradingPlanId))),
+      currentPlanId:current
+    },
+    removedPlans,removedOperations,removedBatches,
+    removedOpportunities:(workspace.opportunities||[]).filter(o=>selected.has(String(o.tradingPlanId)))
+  };
+}
+/* PLAN DELETION TESTABLE CORE END */
+
+
 function trCleanupOperation(id){return state.operations.find(o=>o.id===id)||null;}
 function trCleanupReviewCount(o){const p=typeof globalThis.TradingResearchPlanReadContract.byId==='function'?globalThis.TradingResearchPlanReadContract.byId(o?.tradingPlanId):null;return (p?.reviewNotes||[]).filter(n=>n?.operationId===o?.id).length;}
 function trCleanupUpdateImportBatch(o){if(!o?.importBatchId)return;const b=state.importBatches.find(x=>x.id===o.importBatchId);if(b)b.operationCount=state.operations.filter(x=>x.importBatchId===o.importBatchId).length;}
@@ -147,6 +183,134 @@ const trCleanupLegacyActionKey=['open','Taxonomy','Asset','Modal'].join('');
 const trCleanupLegacyFichaBase=registry[trCleanupLegacyActionKey];
 if(typeof trCleanupLegacyFichaBase==='function')registry[trCleanupLegacyActionKey]=function(type,key=''){const out=trCleanupLegacyFichaBase.apply(this,arguments),resolved=trCleanupTaxFindLegacyValue(type,key);if(resolved)setTimeout(()=>trCleanupTaxDecorateFicha(resolved.taxId,resolved.valueId),0);return out;};
 registry.trTaxDeleteTaxonomyValueImage=trTaxDeleteTaxonomyValueImage;
+
+
+/* Batch 75 · idempotent DOM decorator. No classic view-function binding or
+ * handler-string evaluator is used. The observer cannot self-trigger indefinitely:
+ * it writes only when controls are missing, and bulk-label writes are equality-guarded. */
+let trPlanDeleteBusy=false;
+function trPlanDeleteMarketReferences(marketData,ids){
+  const selected=new Set(ids.map(String)),issues=[];
+  for(const key of ['marketMeta','marketTicks','execSets']){
+    for(const item of marketData?.[key]||[]){
+      if(selected.has(String(item?.tradingPlanId||''))||selected.has(String(item?.planId||'')))issues.push(key);
+    }
+  }
+  return [...new Set(issues)];
+}
+function trPlanDeleteUpdateToolbar(){
+  const selected=document.querySelectorAll('[data-tr-plan-select]:checked').length;
+  const button=document.querySelector('[data-tr-plan-delete-selected]');
+  if(button){
+    const next='Eliminar seleccionados ('+selected+')';
+    if(button.textContent!==next)button.textContent=next;
+    button.disabled=trPlanDeleteBusy||selected===0;
+  }
+}
+function trPlanDeleteDecorate(){
+  if(currentView!=='plans')return;
+  const grid=document.querySelector('#view .plan-grid');if(!grid)return;
+  const cards=[...grid.querySelectorAll(':scope > .plan-card')],plans=state.tradingPlans||[];
+  if(cards.length!==plans.length)return;
+  for(let i=0;i<cards.length;i++){
+    const p=plans[i],actions=cards[i].querySelector('.plan-actions');
+    if(!p||!actions||actions.querySelector('[data-tr-plan-delete-id]'))continue;
+    const check=document.createElement('label');check.className='btn small';
+    const input=document.createElement('input');input.type='checkbox';input.dataset.trPlanSelect=String(p.id);
+    check.append(input,document.createTextNode(' Seleccionar'));
+    const button=document.createElement('button');button.type='button';button.className='btn small danger';
+    button.dataset.trPlanDeleteId=String(p.id);button.textContent='Eliminar';
+    actions.append(check,button);
+  }
+  if(!grid.previousElementSibling?.matches?.('[data-tr-plan-delete-toolbar]')){
+    const toolbar=document.createElement('div');toolbar.className='actions';
+    toolbar.dataset.trPlanDeleteToolbar='1';
+    const bulk=document.createElement('button');bulk.type='button';bulk.className='btn small danger';
+    bulk.dataset.trPlanDeleteSelected='1';bulk.textContent='Eliminar seleccionados (0)';bulk.disabled=true;
+    toolbar.append(bulk);grid.parentNode.insertBefore(toolbar,grid);
+  }
+  trPlanDeleteUpdateToolbar();
+}
+document.addEventListener('change',event=>{
+  if(event.target.closest?.('[data-tr-plan-select]'))trPlanDeleteUpdateToolbar();
+});
+document.addEventListener('click',event=>{
+  const button=event.target.closest?.('[data-tr-plan-delete-id],[data-tr-plan-delete-selected]');if(!button)return;
+  if(button.dataset.trPlanDeleteId)void trPlanDeleteExecute([button.dataset.trPlanDeleteId]);
+  else void trPlanDeleteExecute([...document.querySelectorAll('[data-tr-plan-select]:checked')].map(input=>input.dataset.trPlanSelect));
+});
+new MutationObserver(trPlanDeleteDecorate).observe(document.getElementById('app'),{childList:true,subtree:true});
+queueMicrotask(trPlanDeleteDecorate);
+async function trPlanDeleteExecute(ids){
+  if(trPlanDeleteBusy)return;
+  let planned,rollbackPath='';
+  try{
+    planned=trPlanDeletionProjection(TRDomainStore.snapshot(),ids);
+    const selected=planned.removedPlans.map(p=>String(p.id));
+    const names=planned.removedPlans.map(p=>globalThis.TradingResearchPlanReadContract.label(p)).join('\n• ');
+    if(!confirm('Eliminar '+selected.length+' Trading Plan(s):\n• '+names+
+      '\n\nSe retirarán sus '+planned.removedOperations.length+' operaciones, '+
+      planned.removedBatches.length+' importaciones y '+planned.removedOpportunities.length+
+      ' oportunidades vinculadas.\nLos contratos y la Biblioteca global seguirán intactos.'+
+      '\n\nPrimero se creará un Backup V2 completo. ¿Preparar la eliminación?'))return;
+    trPlanDeleteBusy=true;trPlanDeleteUpdateToolbar();
+    /* TRDomainStore.exclusive enforces the recovery lock before any mutation. */
+    if(typeof trBackupV2BuildPayload!=='function'||typeof trBackupV2Preflight!=='function')throw new Error('Backup V2 no disponible.');
+    const payload=await trBackupV2BuildPayload();
+    await trBackupV2Preflight(payload);
+    const linked=trPlanDeleteMarketReferences(payload.marketData,selected);
+    if(linked.length)throw new Error('El plan tiene registros externos vinculados en '+linked.join(', ')+
+      '. El borrado se ha bloqueado para evitar referencias huérfanas; conserva este plan hasta disponer de su limpieza específica.');
+    const original=JSON.stringify(payload.workspace);
+    const nativeInvoke=globalThis.__TAURI__?.core?.invoke;
+    if(typeof nativeInvoke==='function'){
+      const meta=await nativeInvoke('desktop_write_backup',{payload:JSON.stringify(payload),label:'plan-delete-rollback'});
+      const result=typeof meta==='string'?JSON.parse(meta):meta;
+      if(!result?.ok||!result.path)throw new Error('El Backup V2 nativo no fue confirmado.');
+      rollbackPath=result.path;
+    }else{
+      trBackupV2DownloadPayload(payload);
+      if(!confirm('Se ha iniciado la descarga de la copia completa Backup V2.\n\nComprueba que el archivo .trbackup está guardado fuera de la aplicación. ¿Confirmas que lo tienes?'))return;
+      rollbackPath='Backup V2 descargado en tu equipo';
+    }
+    const phrase='ELIMINAR '+selected.length;
+    if(prompt('Backup anterior: '+rollbackPath+
+      '\n\nEsta eliminación incluye los datos vinculados de los planes seleccionados. Para confirmar escribe exactamente:\n'+phrase)!==phrase)return;
+    await TRDomainStore.exclusive('plan.delete.safe',async()=>{
+      const current=TRDomainStore.snapshot();
+      if(JSON.stringify(current)!==original)throw new Error('El workspace ha cambiado después del backup. Repite la operación para respaldar los datos actuales.');
+      const projected=trPlanDeletionProjection(current,selected);
+      const before=current;
+      try{
+        TRDomainStore.command('plan.delete.safe',()=>{
+          state.tradingPlans=projected.next.tradingPlans;
+          state.operations=projected.next.operations;
+          state.importBatches=projected.next.importBatches;
+          state.opportunities=projected.next.opportunities;
+          state.currentPlanId=projected.next.currentPlanId;
+        },{persist:true,render:false});
+        if(!(await trCoreFlush()))throw new Error('No se confirmó el guardado durable de la eliminación.');
+      }catch(e){
+        if(typeof trDomainRollbackMemory==='function'&&trDomainRollbackMemory(before,'plan.delete.rollback')){
+          await trCorePersistNow('plan-delete-rollback');await trCoreFlush();
+        }
+        throw e;
+      }
+    });
+    if(typeof gallerySelected!=='undefined'&&Array.isArray(gallerySelected)){
+      const gone=new Set(planned.removedOperations.map(o=>String(o.id)));
+      gallerySelected=gallerySelected.filter(id=>!gone.has(String(id)));
+    }
+    currentView='plans';render();
+    try{await registry.runLocalBlobGarbageCollection?.();}
+    catch(e){console.warn('[Trading Research · plan delete GC pending]',e);try{trCoreShowStorageWarning('Planes eliminados, pero quedó limpieza de imágenes huérfanas pendiente.');}catch{}}
+    alert('Eliminación confirmada: '+selected.length+' Trading Plan(s).\nCopia de rollback:\n'+rollbackPath);
+  }catch(e){
+    console.error('[Trading Research · plan deletion]',e);
+    alert('No se han eliminado los planes, o no se pudo confirmar la operación: '+(e?.message||String(e))+
+      (rollbackPath?'\n\nCopia previa:\n'+rollbackPath:''));
+  }finally{trPlanDeleteBusy=false;trPlanDeleteUpdateToolbar();}
+}
 
 Object.defineProperty(registry,'__trOperationCleanupDiagnostics',{value:()=>({version:TR_OPERATION_CLEANUP_VERSION,registeredActions:2,deletedOperations,deletedImages,deletedTaxonomyImages,lastError,ok:typeof registry.deleteOperation==='function'&&typeof registry.deleteOperationImage==='function'&&typeof registry.trTaxDeleteTaxonomyValueImage==='function'&&!lastError}),writable:false,enumerable:false,configurable:true});
 })();

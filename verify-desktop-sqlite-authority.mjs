@@ -21,6 +21,7 @@ for(const name of ['desktop_promote_workspace_authority','desktop_commit_authori
   if(!bridge.includes(name)&&name!=='desktop_authority_status'&&!read('desktop-native-runtime.js').includes(name))fail('Desktop bridge cannot call '+name);
 }
 if(!main.includes('PRAGMA synchronous=FULL'))fail('SQLite full-sync durability missing.');
+if(!main.includes('sqlite-authority.marker')||!main.includes('guarded_authority_status')||!main.includes('file.sync_all()'))fail('Independent fail-closed authority marker missing.');
 if(!schema.includes('Sha256')||!schema.includes('transaction()')||!schema.includes('expected_revision'))fail('Native integrity/CAS boundary incomplete.');
 if(!schema.includes('verify_rollback')||!main.includes('authority::verify_rollback'))fail('No verified physical rollback gate.');
 if(!bridge.includes('trBackupV2Preflight(backup)')||!bridge.includes('desktop_write_backup')||!bridge.includes('desktop_promote_workspace_authority'))fail('Backup V2 promotion sequence missing.');

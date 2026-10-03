@@ -47,6 +47,14 @@ fn open_db(root: &Path) -> Result<Connection, String> {
            sha256 TEXT NOT NULL,
            bytes INTEGER NOT NULL
          );
+         CREATE TABLE IF NOT EXISTS recovery_snapshot (
+           id INTEGER PRIMARY KEY CHECK (id = 1),
+           payload TEXT NOT NULL,
+           source TEXT NOT NULL,
+           created_at TEXT NOT NULL,
+           sha256 TEXT NOT NULL,
+           bytes INTEGER NOT NULL
+         );
          CREATE TABLE IF NOT EXISTS native_meta (
            key TEXT PRIMARY KEY,
            value TEXT NOT NULL
@@ -77,6 +85,20 @@ fn validate_backup_v2(payload: &str) -> Result<(), String> {
         return Err("El payload no tiene la estructura completa de Backup V2.".into());
     }
     Ok(())
+}
+
+fn safe_backup_label(label: Option<String>) -> String {
+    let raw = label.unwrap_or_else(|| "backup-v2".into());
+    let clean: String = raw
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
+        .collect();
+    let clean = clean.trim_matches('-');
+    if clean.is_empty() {
+        "backup-v2".into()
+    } else {
+        clean.chars().take(64).collect()
+    }
 }
 
 #[tauri::command]
@@ -134,10 +156,63 @@ fn desktop_read_workspace_shadow(app: AppHandle) -> Result<Option<String>, Strin
 }
 
 #[tauri::command]
+fn desktop_store_recovery_snapshot(
+    app: AppHandle,
+    payload: String,
+    source: String,
+) -> Result<String, String> {
+    validate_backup_v2(&payload)?;
+    let root = native_root(&app)?;
+    let mut conn = open_db(&root)?;
+    let created_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+    let sha256 = sha256_text(&payload);
+    let bytes = payload.len() as i64;
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("No se pudo iniciar recovery transaction: {e}"))?;
+    tx.execute(
+        "INSERT INTO recovery_snapshot(id,payload,source,created_at,sha256,bytes)
+         VALUES(1,?1,?2,?3,?4,?5)
+         ON CONFLICT(id) DO UPDATE SET
+           payload=excluded.payload,
+           source=excluded.source,
+           created_at=excluded.created_at,
+           sha256=excluded.sha256,
+           bytes=excluded.bytes",
+        params![payload, source, created_at, sha256, bytes],
+    )
+    .map_err(|e| format!("No se pudo escribir recovery_snapshot: {e}"))?;
+    tx.commit()
+        .map_err(|e| format!("No se pudo confirmar recovery_snapshot: {e}"))?;
+
+    Ok(json!({
+        "ok": true,
+        "createdAt": created_at,
+        "source": source,
+        "sha256": sha256,
+        "bytes": bytes
+    })
+    .to_string())
+}
+
+#[tauri::command]
+fn desktop_read_recovery_snapshot(app: AppHandle) -> Result<Option<String>, String> {
+    let root = native_root(&app)?;
+    let conn = open_db(&root)?;
+    conn.query_row(
+        "SELECT payload FROM recovery_snapshot WHERE id=1",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map_err(|e| format!("No se pudo leer recovery_snapshot: {e}"))
+}
+
+#[tauri::command]
 fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
     let root = native_root(&app)?;
     let conn = open_db(&root)?;
-    let row = conn
+    let shadow_row = conn
         .query_row(
             "SELECT updated_at,reason,sha256,bytes FROM workspace_shadow WHERE id=1",
             [],
@@ -152,6 +227,21 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
         )
         .optional()
         .map_err(|e| format!("No se pudo consultar workspace_shadow: {e}"))?;
+    let recovery_row = conn
+        .query_row(
+            "SELECT created_at,source,sha256,bytes FROM recovery_snapshot WHERE id=1",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|e| format!("No se pudo consultar recovery_snapshot: {e}"))?;
 
     let backup_dir = root.join("backups");
     let backup_count = fs::read_dir(&backup_dir)
@@ -160,7 +250,7 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
         .filter(|entry| entry.path().extension().and_then(|x| x.to_str()) == Some("trbackup"))
         .count();
 
-    let shadow = row.map(|(updated_at, reason, sha256, bytes)| {
+    let shadow = shadow_row.map(|(updated_at, reason, sha256, bytes)| {
         json!({
             "updatedAt": updated_at,
             "reason": reason,
@@ -168,26 +258,40 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
             "bytes": bytes
         })
     });
+    let recovery = recovery_row.map(|(created_at, source, sha256, bytes)| {
+        json!({
+            "createdAt": created_at,
+            "source": source,
+            "sha256": sha256,
+            "bytes": bytes
+        })
+    });
 
     Ok(json!({
-        "version": "0.2.0",
+        "version": "0.3.0",
         "rootPath": root.to_string_lossy(),
         "dbPath": db_path(&root).to_string_lossy(),
         "backupPath": backup_dir.to_string_lossy(),
         "imagesPath": root.join("images").to_string_lossy(),
         "backupCount": backup_count,
-        "shadow": shadow
+        "shadow": shadow,
+        "recovery": recovery
     })
     .to_string())
 }
 
 #[tauri::command]
-fn desktop_write_backup(app: AppHandle, payload: String) -> Result<String, String> {
+fn desktop_write_backup(
+    app: AppHandle,
+    payload: String,
+    label: Option<String>,
+) -> Result<String, String> {
     validate_backup_v2(&payload)?;
     let root = native_root(&app)?;
     let backup_dir = root.join("backups");
     let stamp = Utc::now().timestamp_millis();
-    let file_name = format!("Trading-Research-backup-v2-{stamp}.trbackup");
+    let safe_label = safe_backup_label(label);
+    let file_name = format!("Trading-Research-{safe_label}-{stamp}.trbackup");
     let final_path = backup_dir.join(file_name);
     let temp_path = backup_dir.join(format!(".backup-{stamp}.tmp"));
 
@@ -206,7 +310,8 @@ fn desktop_write_backup(app: AppHandle, payload: String) -> Result<String, Strin
         "ok": true,
         "path": final_path.to_string_lossy(),
         "bytes": payload.len(),
-        "sha256": sha256_text(&payload)
+        "sha256": sha256_text(&payload),
+        "label": safe_label
     })
     .to_string())
 }
@@ -216,6 +321,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             desktop_mirror_workspace,
             desktop_read_workspace_shadow,
+            desktop_store_recovery_snapshot,
+            desktop_read_recovery_snapshot,
             desktop_storage_status,
             desktop_write_backup
         ])

@@ -10,35 +10,47 @@ Trading Research Desktop is the conservative local/offline channel. Shared appli
 
 Desktop 0.1 proved that the existing application can be installed on Windows 11, restore a Web Backup V2, persist data across full close/reopen, and open with Internet disconnected.
 
-## Desktop 0.2 native storage foundation
+## Desktop 0.2.1 native storage foundation — validated
 
-Desktop 0.2 adds a native storage layer without yet changing the source of truth:
+Desktop 0.2.1 keeps IndexedDB authoritative and adds:
+- a byte-parity SQLite workspace shadow;
+- exact manual parity verification;
+- native Backup V2 files under LocalAppData;
+- offline operation after close/reopen.
 
-- IndexedDB remains the authoritative workspace store;
-- every Desktop session maintains a SQLite shadow at the app's Windows LocalAppData directory;
-- the Desktop panel can force a durable flush, mirror the workspace and compare SQLite byte-for-byte against the current workspace JSON;
-- the existing certified Backup V2 builder is reused to write complete native `.trbackup` files directly into a local backups directory;
-- native `data/`, `backups/` and `images/` directories are created under the app data root;
-- the external Supabase SDK remains absent from the packaged Desktop artifact;
-- Web/Cloudflare/Supabase behavior is unchanged.
+The 0.2.0 candidate exposed a Desktop-only MutationObserver self-loop in the Data & Security panel. 0.2.1 corrected it and a permanent verifier rejects that pattern.
 
-SQLite is deliberately a shadow in 0.2. A mismatch cannot overwrite IndexedDB.
+## Desktop 0.3 complete SQLite recovery
 
-## Manual Desktop 0.2 smoke
+Desktop 0.3 keeps IndexedDB authoritative for normal operation, but SQLite becomes a complete recovery source.
 
-1. install the 0.2 candidate on Windows 11;
+A single `recovery_snapshot` record stores the full certified Backup V2 payload:
+- workspace;
+- every referenced image;
+- Market Data metadata/ticks;
+- execution sets;
+- Backup V2 manifest and hashes.
+
+The Desktop UI can:
+1. build + preflight a certified Backup V2 payload;
+2. store it atomically as the current SQLite recovery point;
+3. read it back and run the normal Backup V2 preflight again;
+4. restore it using the existing recoverable Backup V2 restore protocol.
+
+Before any recovery restore, Desktop automatically creates a physical native Backup V2 file labelled `desktop-recovery-rollback` from the current state. If recovery fails, that rollback file remains outside SQLite.
+
+SQLite is still not the day-to-day authority in 0.3. This batch proves complete read/recovery semantics before authority is promoted.
+
+## Manual Desktop 0.3 smoke
+
+1. install 0.3 over 0.2.1 and confirm existing Desktop data remains;
 2. open **Configuración → Datos y seguridad**;
-3. verify the Desktop local-storage panel reports a SQLite path and status;
-4. use **Sincronizar y verificar SQLite** and require exact parity;
-5. use **Crear backup nativo** and confirm a Backup V2 path is reported;
-6. close and reopen the application and re-check SQLite status;
-7. repeat the parity check with Internet disconnected.
+3. require **Sincronizar y verificar SQLite** to pass;
+4. click **Crear punto de recuperación**;
+5. click **Verificar recuperación** and require Backup V2 validation success;
+6. create one harmless temporary change after the recovery point;
+7. click **Restaurar desde SQLite** and confirm the temporary change disappears while the recovery-point data returns;
+8. confirm a new rollback `.trbackup` was created automatically;
+9. close/reopen and repeat recovery verification with Internet disconnected.
 
-Only after this passes should a later batch consider promoting SQLite from shadow to authority.
-
-
-## Desktop 0.2.1 corrective
-
-The first 0.2.0 candidate exposed a UI recursion in the Desktop-only panel: its MutationObserver called paint() when the panel already existed, while paint() mutated the observed DOM again. This could lock the Configuration/Data view.
-
-0.2.1 makes the observer insertion-only when the panel already exists. State/status repainting remains explicit and a permanent verifier rejects the self-triggering pattern.
+Only after this passes should a later batch consider promoting SQLite to the Desktop source of truth.

@@ -1,16 +1,15 @@
-/* Trading Research Desktop 0.3 · native recovery foundation.
+/* Trading Research Desktop 0.4 · SQLite authority + native recovery.
  * Desktop-only: injected after the normal verified web build.
- * IndexedDB remains authoritative for daily writes. SQLite now holds:
- * 1) a byte-parity workspace shadow, and
- * 2) one complete Backup V2 recovery snapshot for controlled recovery.
+ * SQLite authority holds the workspace. Images/Market Data remain in dedicated
+ * IndexedDB stores and complete Backup V2 recovery is retained.
  */
 (()=>{
 'use strict';
-const VERSION='0.3.1';
+const VERSION='0.4.0';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 
-let status={version:VERSION,ready:false,busy:false,lastMirror:null,lastError:'',native:null};
+let status={version:VERSION,ready:false,busy:false,lastMirror:null,lastError:'',native:null,authority:null};
 let mirrorTimer=null;
 
 function parseNative(value){
@@ -36,6 +35,7 @@ function backupCounts(prepared){
 async function refreshStatus(){
   try{
     status.native=await call('desktop_storage_status');
+    status.authority=await call('desktop_authority_status');
     status.ready=true;status.lastError='';
   }catch(e){status.lastError=e?.message||String(e);}
   paint();
@@ -55,25 +55,22 @@ async function mirror(reason='desktop-auto'){
   }finally{status.busy=false;paint();}
 }
 function scheduleMirror(reason='domain-commit'){
+  if(globalThis.TradingResearchDesktopAuthority?.active)return;
   clearTimeout(mirrorTimer);
   mirrorTimer=setTimeout(()=>void mirror(reason),500);
 }
 async function verifyParity(){
   try{
-    if(typeof trCoreFlush==='function'){
-      const ok=await trCoreFlush();
-      if(!ok)throw new Error('IndexedDB no pudo completar flush antes de comparar.');
-    }
-    await mirror('manual-parity');
-    const nativePayload=await invoke('desktop_read_workspace_shadow');
-    const current=workspaceJson();
-    const same=String(nativePayload||'')===current;
+    if(typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('No se confirmó flush antes de comparar.');
+    const record=await call('desktop_read_authoritative_workspace');
+    if(!record?.active)throw new Error('Todavía no hay autoridad SQLite.');
+    const same=String(record.payload||'')===workspaceJson()&&
+      Number(record.revision)===Number(globalThis.TradingResearchDesktopAuthority?.revision?.());
     await refreshStatus();
-    alert(same
-      ? 'SQLite coincide exactamente con el workspace actual.'
-      : 'SQLite NO coincide con el workspace actual. IndexedDB sigue siendo la autoridad; no se ha sustituido ningún dato.');
+    alert(same?'SQLite (autoridad) coincide exactamente con el workspace y la revisión actual.':
+      'SQLite authority NO coincide con el workspace actual. No se usará un fallback silencioso.');
     return same;
-  }catch(e){status.lastError=e?.message||String(e);paint();alert('No se pudo verificar SQLite: '+status.lastError);return false;}
+  }catch(e){status.lastError=e?.message||String(e);paint();alert('No se pudo verificar SQLite authority: '+status.lastError);return false;}
 }
 async function buildCertifiedBackupV2(){
   if(typeof trBackupV2BuildPayload!=='function'||typeof trBackupV2Preflight!=='function')throw new Error('Backup V2 certificado no está disponible.');
@@ -170,10 +167,10 @@ function panelHtml(){
   const stateLabel=status.lastError?'ERROR':status.busy?'TRABAJANDO':s?'OK':'SIN COPIA';
   return '<section id="trDesktopNativeStorage" class="card panel config-wide">'+
     '<div class="panel-title"><div><h3>Desktop · almacenamiento local</h3>'+
-    '<div class="help">Desktop 0.3 mantiene IndexedDB como autoridad diaria, verifica un espejo SQLite y permite guardar/restaurar un punto de recuperación Backup V2 completo dentro de SQLite.</div></div>'+
+    '<div class="help">Desktop 0.4: SQLite es la autoridad del workspace. Imágenes y Market Data conservan sus almacenes especializados IndexedDB y la recuperación completa Backup V2.</div></div>'+
     '<span class="stable-pill">'+escDesktop(stateLabel)+'</span></div>'+
     '<div class="security-actions">'+
-    '<button class="btn primary" type="button" data-desktop-native-action="parity">Sincronizar y verificar SQLite</button>'+
+    '<button class="btn primary" type="button" data-desktop-native-action="parity">Verificar autoridad SQLite</button>'+
     '<button class="btn" type="button" data-desktop-native-action="recovery-create">Crear punto de recuperación</button>'+
     '<button class="btn" type="button" data-desktop-native-action="recovery-verify">Verificar recuperación</button>'+
     '<button class="btn" type="button" data-desktop-native-action="recovery-restore">Restaurar desde SQLite</button>'+
@@ -184,11 +181,12 @@ function panelHtml(){
     '</section>';
 }
 function statusHtml(){
-  const n=status.native||{},s=n.shadow||null,r=n.recovery||null;
+  const n=status.native||{},s=n.shadow||null,r=n.recovery||null,a=status.authority||null;
   if(status.lastError)return '<strong>Error nativo:</strong> '+escDesktop(status.lastError);
   if(!status.ready)return 'Inicializando almacenamiento local…';
-  return '<strong>SQLite:</strong> '+escDesktop(n.dbPath||'—')+
-    '<br><strong>Espejo:</strong> '+(s?escDesktop(s.updatedAt)+' · '+fmtBytes(s.bytes)+' · '+shortHash(s.sha256):'todavía vacío')+
+  return '<strong>Autoridad SQLite:</strong> '+(a?.active?'ACTIVA · revisión '+escDesktop(a.revision)+' · '+shortHash(a.sha256):'NO PROMOVIDA')+
+    '<br><strong>SQLite:</strong> '+escDesktop(n.dbPath||'—')+
+    '<br><strong>Espejo de compatibilidad:</strong> '+(s?escDesktop(s.updatedAt)+' · '+fmtBytes(s.bytes)+' · '+shortHash(s.sha256):'todavía vacío')+
     '<br><strong>Recuperación completa:</strong> '+(r?escDesktop(r.createdAt)+' · '+fmtBytes(r.bytes)+' · '+shortHash(r.sha256):'todavía no creada')+
     '<br><strong>Backups:</strong> '+escDesktop(n.backupCount??0)+' · '+escDesktop(n.backupPath||'—')+
     '<br><strong>Imágenes:</strong> directorio preparado · '+escDesktop(n.imagesPath||'—');
@@ -227,7 +225,6 @@ async function bootstrap(){
     await new Promise(resolve=>setTimeout(resolve,25));
   }
   await refreshStatus();
-  await mirror('desktop-bootstrap');
   ensurePanel();
 }
 globalThis.TradingResearchDesktopNativeStorage=Object.freeze({

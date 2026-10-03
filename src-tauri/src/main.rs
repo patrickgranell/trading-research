@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod authority;
+
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
@@ -61,6 +63,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
          );",
     )
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
+    authority::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -316,9 +319,43 @@ fn desktop_write_backup(
     .to_string())
 }
 
+/* Batch 76: no authority is created from a shadow. Promotion requires a
+ * separately fsync-confirmed, byte-present native Backup V2 for this workspace. */
+#[tauri::command]
+fn desktop_authority_status(app: AppHandle) -> Result<String,String> {
+    let root=native_root(&app)?;
+    authority::status(&open_db(&root)?).map(|value| value.to_string())
+}
+#[tauri::command]
+fn desktop_read_authoritative_workspace(app: AppHandle) -> Result<Option<String>,String> {
+    let root=native_root(&app)?;
+    authority::read(&open_db(&root)?).map(|value|value.map(|v|v.to_string()))
+}
+#[tauri::command]
+fn desktop_promote_workspace_authority(
+    app: AppHandle, payload:String, rollback_path:String
+) -> Result<String,String> {
+    let root=native_root(&app)?;
+    authority::verify_rollback(&root,Path::new(&rollback_path),&payload)?;
+    let mut conn=open_db(&root)?;
+    authority::promote(&mut conn,&payload,&rollback_path).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_commit_authoritative_workspace(
+    app: AppHandle, payload:String, expected_revision:i64, reason:String
+) -> Result<String,String> {
+    let root=native_root(&app)?;
+    let mut conn=open_db(&root)?;
+    authority::commit(&mut conn,&payload,expected_revision,&reason).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_authority_status,
+            desktop_read_authoritative_workspace,
+            desktop_promote_workspace_authority,
+            desktop_commit_authoritative_workspace,
             desktop_mirror_workspace,
             desktop_read_workspace_shadow,
             desktop_store_recovery_snapshot,

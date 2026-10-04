@@ -39,6 +39,21 @@ if(!stateScript.includes(unsafe))throw new Error('Desktop exclusive flush safety
 stateScript=stateScript.replace(unsafe,"if(typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('Desktop SQLite: exclusive abortada; flush no confirmado.');return await task();");
 html=html.slice(0,stateOpen)+stateScript+html.slice(stateEnd);
 
+/* The complete Backup V2 recovery journal must remain Web-identical.
+ * On Desktop promoted SQLite, restoring a certified workspace must preserve
+ * its exact validated payload; legacy normalization is non-idempotent.
+ */
+const backupStart=html.indexOf('<script data-tr-backup-v2-runtime=');
+if(backupStart<0)throw new Error('Desktop Backup V2 runtime script missing.');
+const backupOpen=html.indexOf('>',backupStart)+1,backupEnd=html.indexOf('</script>',backupOpen);
+if(backupOpen<1||backupEnd<0)throw new Error('Desktop Backup V2 runtime boundary missing.');
+let backupScript=html.slice(backupOpen,backupEnd);
+const oldRestore="state=normalizeState(trBackupV2Clone(workspace));if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();";
+const safeRestore="if(globalThis.TradingResearchDesktopAuthority?.active){if(!trCoreIsValidWorkspacePayload(workspace))throw new Error('Workspace Backup V2 inválido para autoridad SQLite.');state=trBackupV2Clone(workspace);}else{"+oldRestore+"}";
+if(backupScript.split(oldRestore).length!==2)throw new Error('Desktop Backup V2 restore normalization anchor drift.');
+backupScript=backupScript.replace(oldRestore,safeRestore);
+html=html.slice(0,backupOpen)+backupScript+html.slice(backupEnd);
+
 html=html.replace('</head>',()=>'<meta name="trading-research-desktop-authority" content="0.4.0" />\n</head>');
 fs.writeFileSync(file,html);
 console.log('Prepared isolated Desktop 0.4.0 SQLite authority bridge; Web source unaffected.');

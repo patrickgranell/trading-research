@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const bridge=fs.readFileSync('desktop-authority-bridge.js','utf8');
 const copy=x=>JSON.parse(JSON.stringify(x));
 const seed=()=>({tradingPlans:[{id:'p'}],operations:[],opportunities:[],importBatches:[],settings:{instruments:[]}});
-function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false}={}){
+function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false,nonIdempotentNormalize=false}={}){
   let record=active?{active:true,payload:JSON.stringify(seed()),revision:1,sha256:'test',updatedAt:'test'}:null;
   const calls=[],root={innerHTML:''};let durable=seed(),preflights=0;const ctx={
     console:{error:()=>{}},Promise,setTimeout,clearTimeout,
@@ -15,7 +15,9 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
     trCoreWriteAllowed:()=>!ctx.block,
     trCoreOpenDb:async()=>({}),trCoreGetAll:async()=>[],trCoreGet:async()=>({payload:copy(durable)}),TR_CORE_STATE_STORE:'coreState',TR_CORE_STATE_ID:'workspace',
     trCoreIsValidWorkspacePayload:obj=>!!obj&&Array.isArray(obj.tradingPlans)&&obj.tradingPlans.length>0&&Array.isArray(obj.operations),
-    normalizeState:copy,ensureAllPlansV8:()=>{},ensureMasterLibrary:()=>{},
+    normalizeState:x=>{ctx.normalizationCalls=(ctx.normalizationCalls||0)+1;return nonIdempotentNormalize?{...copy(x),reconstructedByLegacyNormalizer:true}:copy(x);},
+    ensureAllPlansV8:()=>{ctx.legacyEnsureCalls=(ctx.legacyEnsureCalls||0)+1;},
+    ensureMasterLibrary:()=>{ctx.legacyEnsureCalls=(ctx.legacyEnsureCalls||0)+1;},
     trCoreSignalHydrated:()=>{ctx.signaled=true;},trCoreFlush:async()=>true,
     trCorePersistNow:async()=>{durable=copy(ctx.state);return true;},
     clone:copy,TR_CORE_SNAPSHOT_STORE:'snapshots',
@@ -81,9 +83,21 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
   assert(!t.calls.includes('desktop_promote_workspace_authority'),'unsettled workspace cannot promote SQLite');
 }
 {
-  const t=harness({active:true});await t.api.boot();
-  assert.equal(t.ctx.trCoreMode,'sqlite-authority');assert(!t.calls.includes('desktop_write_backup'));
+  // Real manual regression: first run promoted the workspace, second launch
+  // passed native SHA validation but legacy normalizeState was not idempotent.
+  // SQLite is authoritative: boot must preserve its exact payload, including
+  // extension fields, without reconstructing or rewriting an existing record.
+  const t=harness({active:true,nonIdempotentNormalize:true});
+  const nativeBefore=t.getRecord().payload;
+  await t.api.boot();
+  assert.equal(t.ctx.trCoreMode,'sqlite-authority');
+  assert.equal(t.ctx.trCoreFatal,false,'valid authoritative SQLite must survive a non-idempotent legacy normalizer');
+  assert.equal(t.ctx.normalizationCalls||0,0,'legacy normalizer must not run on already authoritative SQLite');
+  assert.equal(t.ctx.legacyEnsureCalls||0,0,'legacy schema fillers must not mutate native source on boot');
+  assert.equal(JSON.stringify(t.ctx.state),nativeBefore,'hydrated state must exactly match the SHA-verified record');
+  assert(!t.calls.includes('desktop_write_backup'));
   assert(!t.calls.includes('desktop_promote_workspace_authority'),'Promoted SQLite must bypass legacy migration');
+  assert(!t.calls.includes('desktop_commit_authoritative_workspace'),'Boot must not advance SQLite revision');
 }
 {
   const t=harness({failStatus:true});await t.api.boot();

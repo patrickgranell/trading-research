@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod authority;
+mod native_images;
 
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -95,6 +96,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
     )
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
     authority::prepare_schema(&conn)?;
+    native_images::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -398,9 +400,37 @@ mod marker_tests {
         let _=fs::remove_dir_all(root);
     }
 }
+/* Batch 77: read-only relative to the current Image IndexedDB authority.
+ * These commands stage and verify immutable, hashed native objects; they DO
+ * NOT promote image authority or alter image UX/backup/GC in Desktop 0.4.
+ */
+#[tauri::command]
+fn desktop_stage_native_image(app:AppHandle,id:String,data:String,sha256:String,mime:String,name:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let mut conn=open_db(&root)?;
+    native_images::stage(&mut conn,&root,&id,&data,&sha256,&mime,&name).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_read_staged_image(app:AppHandle,id:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::read(&conn,&root,&id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_verify_staged_images(app:AppHandle,expected:String)->Result<String,String>{
+    let pairs:Vec<(String,String)>=serde_json::from_str(&expected)
+        .map_err(|e|format!("Inventario esperado inválido: {e}"))?;
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::verify(&conn,&root,&pairs).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_stage_native_image,
+            desktop_read_staged_image,
+            desktop_verify_staged_images,
             desktop_authority_status,
             desktop_read_authoritative_workspace,
             desktop_promote_workspace_authority,

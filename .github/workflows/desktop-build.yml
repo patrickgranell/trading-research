@@ -11,6 +11,7 @@ on:
       - 'desktop-authority-transform.mjs'
       - 'verify-desktop-sqlite-authority.mjs'
       - 'verify-desktop-authority-behavior.mjs'
+      - 'verify-desktop-authority-restore.mjs'
       - 'operation-cleanup-runtime.js'
       - 'verify-plan-deletion.mjs'
       - 'verify-desktop-offline.mjs'

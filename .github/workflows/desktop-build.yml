@@ -17,6 +17,8 @@ on:
       - 'verify-desktop-offline.mjs'
       - 'verify-desktop-native-storage.mjs'
       - 'package.json'
+      - 'DESKTOP-NATIVE-IMAGES.md'
+      - 'verify-desktop-native-images.mjs'
       - 'DESKTOP.md'
       - '.github/workflows/desktop-build.yml'
 

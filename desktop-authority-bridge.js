@@ -105,10 +105,13 @@ async function trDesktopAuthorityBootstrap(){
       await trCoreOpenDb(); // Images, Market Data and recovery journal remain IndexedDB.
       const record=await trDesktopInvoke('desktop_read_authoritative_workspace');
       const source=trDesktopAuthorityReadRecord(record);
-      state=normalizeState(source);
-      if(typeof ensureAllPlansV8==='function')ensureAllPlansV8();
-      if(typeof ensureMasterLibrary==='function')ensureMasterLibrary();
-      if(trDesktopAuthorityCanonical(state)!==trDesktopAuthorityCanonical(source))throw new Error('Normalización del workspace SQLite requiere migración explícita; arranque bloqueado.');
+      // This is an already validated, hash-verified SQLite workspace, not a
+      // legacy import. normalizeState/ensureAllPlansV8/ensureMasterLibrary are
+      // NOT identity transforms; calling them on every boot can add fields,
+      // regenerate defaults or timestamps and falsely reject a correct record.
+      // Read the exact authoritative payload. Future schema upgrades must
+      // write an explicit SQLite CAS revision after their own Backup V2.
+      state=source;
       trDesktopAuthorityRevision=Number(record.revision);
       trDesktopAuthorityControl.active=true;
       trCoreSnapshotCache=(await trCoreGetAll(TR_CORE_SNAPSHOT_STORE)).sort((a,b)=>String(b?.savedAt||'').localeCompare(String(a?.savedAt||''))).slice(0,3);

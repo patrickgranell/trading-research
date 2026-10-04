@@ -58,3 +58,30 @@ Only after this passes should a later batch consider promoting SQLite to the Des
 ## Desktop 0.3.1 plan cleanup candidate
 
 Shared Web/Desktop plan cards gain one-by-one and bulk selection/delete controls. Destructive deletion requires a certified Backup V2 first: native rollback in Desktop or saved browser download confirmation on Web. Plan-linked operations, import batches and opportunities are removed together. Market Data records tied to a selected plan block deletion until a specific cleanup exists; global instruments and shared library are preserved. At least one plan must remain. Durable state persistence, rollback and reachability-aware image GC follow the existing patterns. Manual smoke must cover empty plan, populated test plan, active plan switch, last-plan guard, bulk deletion, full backup restore, desktop offline behavior.
+
+## Desktop 0.4.0 SQLite workspace authority — certified (Batch 76 / PR #90)
+
+Desktop 0.4.0 has the native SQLite `workspace_authority` record as day-to-day
+workspace source of truth, with SHA-256 and monotonic revision/CAS commits. The
+first upgrade from IndexedDB requires a complete preflighted Backup V2 and a
+physical fsync-confirmed native rollback before promotion. A separate
+AppLocalData sentinel rejects silent migration from stale IndexedDB when an
+already promoted SQLite authority is missing. The 0.4 Hotfix 3 offline smoke
+validated migration, temporary fifth-plan persistence across restart, full
+recovery of the original 4-plan / 154-operation dataset and zero audit errors.
+Candidate and merged Git Tree match; Cloudflare production has the PR #90 version
+active.
+
+Image bytes and Market Data remain in distinct Tauri WebView IndexedDB stores:
+the complete native Backup V2 can recover them, but SQLite workspace authority
+must not be described as all-data native authority.
+
+## Batch 77 onward — planned, NOT released
+
+Batch 77 incrementally promotes screenshot/image bytes to native
+content-addressed files plus SQLite metadata. The first PR commits contain
+only isolated, non-authoritative staging APIs and tests; they DO NOT change
+the certified 0.4 live image path. See `DESKTOP-NATIVE-IMAGES.md`.
+Batch 78 will address chunked native Market Data; Batch 79 will certify
+cold recovery and full native portability. No new user installation until the
+exact-head gates and one grouped offline smoke are ready.

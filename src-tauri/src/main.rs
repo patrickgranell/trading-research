@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod authority;
+
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
@@ -25,6 +27,37 @@ fn native_root(app: &AppHandle) -> Result<PathBuf, String> {
 
 fn db_path(root: &Path) -> PathBuf {
     root.join("data").join("trading-research.sqlite3")
+}
+
+/* Independent fsync-confirmed sentinel: a missing/corrupt SQLite file may never
+ * be interpreted as a first installation once authority promotion began. */
+fn authority_marker_path(root: &Path) -> PathBuf {
+    root.join("sqlite-authority.marker")
+}
+fn ensure_authority_marker(root: &Path) -> Result<(),String> {
+    let final_path=authority_marker_path(root);
+    if final_path.exists() {
+        let size=fs::metadata(&final_path).map_err(|e|format!("Marcador SQLite inaccesible: {e}"))?.len();
+        if size==0 {return Err("Marcador de autoridad SQLite vacío: recuperación obligatoria.".into());}
+        return Ok(());
+    }
+    let temp=root.join(".sqlite-authority.marker.tmp");
+    {
+        let mut file=File::create(&temp).map_err(|e|format!("Marcador de autoridad: {e}"))?;
+        file.write_all(b"Trading Research Desktop 0.4: SQLITE WORKSPACE AUTHORITY; never use stale IndexedDB fallback\n")
+            .map_err(|e|format!("Marcador de autoridad write: {e}"))?;
+        file.sync_all().map_err(|e|format!("Marcador de autoridad fsync: {e}"))?;
+    }
+    fs::rename(&temp,&final_path).map_err(|e|format!("Marcador de autoridad publish: {e}"))?;
+    Ok(())
+}
+fn guarded_authority_status(root:&Path,conn:&Connection)->Result<Value,String>{
+    let status=authority::status(conn)?;
+    if !status["active"].as_bool().unwrap_or(false) && authority_marker_path(root).exists() {
+        return Err("Existe marcador de SQLite promovido, pero falta el registro de autoridad. No se permite migrar desde IndexedDB obsoleto. Recuperación obligatoria.".into());
+    }
+    if status["active"].as_bool().unwrap_or(false) {ensure_authority_marker(root)?;}
+    Ok(status)
 }
 
 fn sha256_text(value: &str) -> String {
@@ -61,6 +94,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
          );",
     )
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
+    authority::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -268,7 +302,7 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
     });
 
     Ok(json!({
-        "version": "0.3.0",
+        "version": "0.4.0",
         "rootPath": root.to_string_lossy(),
         "dbPath": db_path(&root).to_string_lossy(),
         "backupPath": backup_dir.to_string_lossy(),
@@ -316,9 +350,61 @@ fn desktop_write_backup(
     .to_string())
 }
 
+/* Batch 76: no authority is created from a shadow. Promotion requires a
+ * separately fsync-confirmed, byte-present native Backup V2 for this workspace. */
+#[tauri::command]
+fn desktop_authority_status(app: AppHandle) -> Result<String,String> {
+    let root=native_root(&app)?;
+    guarded_authority_status(&root,&open_db(&root)?).map(|value| value.to_string())
+}
+#[tauri::command]
+fn desktop_read_authoritative_workspace(app: AppHandle) -> Result<Option<String>,String> {
+    let root=native_root(&app)?;
+    authority::read(&open_db(&root)?).map(|value|value.map(|v|v.to_string()))
+}
+#[tauri::command]
+fn desktop_promote_workspace_authority(
+    app: AppHandle, payload:String, rollback_path:String
+) -> Result<String,String> {
+    let root=native_root(&app)?;
+    authority::verify_rollback(&root,Path::new(&rollback_path),&payload)?;
+    let mut conn=open_db(&root)?;
+    // Sentinel precedes the promotion commit: interrupted promotion fails closed.
+    guarded_authority_status(&root,&conn)?;
+    ensure_authority_marker(&root)?;
+    authority::promote(&mut conn,&payload,&rollback_path).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_commit_authoritative_workspace(
+    app: AppHandle, payload:String, expected_revision:i64, reason:String
+) -> Result<String,String> {
+    let root=native_root(&app)?;
+    let mut conn=open_db(&root)?;
+    authority::commit(&mut conn,&payload,expected_revision,&reason).map(|v|v.to_string())
+}
+
+#[cfg(test)]
+mod marker_tests {
+    use super::*;
+    #[test]
+    fn missing_authority_after_marker_is_fatal() {
+        let root=std::env::temp_dir().join(format!("tr-b76-marker-{}-{}",std::process::id(),Utc::now().timestamp_millis()));
+        fs::create_dir_all(root.join("data")).unwrap();
+        let conn=Connection::open_in_memory().unwrap();
+        authority::prepare_schema(&conn).unwrap();
+        assert_eq!(guarded_authority_status(&root,&conn).unwrap()["active"],false);
+        ensure_authority_marker(&root).unwrap();
+        assert!(guarded_authority_status(&root,&conn).is_err());
+        let _=fs::remove_dir_all(root);
+    }
+}
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_authority_status,
+            desktop_read_authoritative_workspace,
+            desktop_promote_workspace_authority,
+            desktop_commit_authoritative_workspace,
             desktop_mirror_workspace,
             desktop_read_workspace_shadow,
             desktop_store_recovery_snapshot,

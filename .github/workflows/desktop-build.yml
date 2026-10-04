@@ -7,6 +7,11 @@ on:
       - 'src-tauri/**'
       - 'desktop-prepare.mjs'
       - 'desktop-native-runtime.js'
+      - 'desktop-authority-bridge.js'
+      - 'desktop-authority-transform.mjs'
+      - 'verify-desktop-sqlite-authority.mjs'
+      - 'verify-desktop-authority-behavior.mjs'
+      - 'verify-desktop-authority-restore.mjs'
       - 'operation-cleanup-runtime.js'
       - 'verify-plan-deletion.mjs'
       - 'verify-desktop-offline.mjs'
@@ -43,13 +48,19 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Prepare Desktop frontend for native tests
+        run: npm run desktop:prepare
+
+      - name: Native SQLite authority tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
       - name: Build Windows Desktop installer
         run: npm run desktop:build
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: TradingResearch-Desktop-0.3.1-Windows-x64
+          name: TradingResearch-Desktop-0.4.0-Windows-x64
           path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 14

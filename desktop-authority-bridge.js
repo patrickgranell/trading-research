@@ -64,6 +64,40 @@ async function trDesktopAuthorityWaitBackup(){
   }
   throw new Error('Backup V2 no estuvo disponible antes de la migración.');
 }
+/* A 0.3.1 hydration event can finish normalizing domain state while images and
+ * Market Data are being serialized by Backup V2. Do not promote an older
+ * snapshot, but do not call this data loss after the FIRST ordinary drift.
+ * Require two independent, equal sources: current domain and durable IndexedDB.
+ * Each changed attempt is flushed and rebuilt; bounded non-quiescence fails closed.
+ */
+function trDesktopMigrationSnapshot(){
+  return typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():clone(state);
+}
+async function trDesktopMigrationMatches(backup){
+  if(!(await trCoreFlush()))throw new Error('La cola previa IndexedDB no confirmó sus escrituras.');
+  const current=trDesktopMigrationSnapshot();
+  const durable=await trCoreGet(TR_CORE_STATE_STORE,TR_CORE_STATE_ID);
+  if(!trCoreIsValidWorkspacePayload(durable?.payload))throw new Error('El workspace durable IndexedDB no supera la validación.');
+  const expected=trDesktopAuthorityCanonical(backup.workspace);
+  return expected===trDesktopAuthorityCanonical(current)&&expected===trDesktopAuthorityCanonical(durable.payload);
+}
+async function trDesktopAuthorityPrepareMigration(){
+  for(let attempt=1;attempt<=5;attempt++){
+    if(!(await trCoreFlush()))throw new Error('No se pudo vaciar la cola IndexedDB previa a migración.');
+    // The bootstrap hydration and schema-normalization callbacks may still
+    // be queued after trCoreBootstrapIndexedDb resolves. Persist those
+    // legitimate adjustments before materializing the candidate backup.
+    if(!(await trCorePersistNow('desktop-migration-stabilize')))throw new Error('No se pudo confirmar el workspace de migración en IndexedDB.');
+    if(!(await trCoreFlush()))throw new Error('IndexedDB no confirmó la normalización previa a migración.');
+    const backup=await trBackupV2BuildPayload();
+    await trBackupV2Preflight(backup);
+    if(await trDesktopMigrationMatches(backup))return backup;
+    // Never promote the old candidate: a changed workspace requires a NEW
+    // complete manifest and image/Market Data preflight.
+    await new Promise(resolve=>setTimeout(resolve,25));
+  }
+  throw new Error('El workspace no se estabilizó tras 5 verificaciones Backup V2 / IndexedDB. No se ha promovido SQLite.');
+}
 async function trDesktopAuthorityBootstrap(){
   try{
     const native=await trDesktopInvoke('desktop_authority_status');
@@ -86,13 +120,12 @@ async function trDesktopAuthorityBootstrap(){
       if(trCoreFatal||!trCoreHydrated||trCoreMode!=='indexeddb')throw new Error('IndexedDB previo no es una fuente de migración durable válida.');
       await trDesktopAuthorityWaitBackup();
       if(await trBackupV2JournalGet())throw new Error('Restore journal pendiente. Completa recuperación con la versión anterior antes de promover.');
-      if(!(await trCoreFlush()))throw new Error('No se pudo vaciar la cola IndexedDB previa a migración.');
-      const backup=await trBackupV2BuildPayload();
-      await trBackupV2Preflight(backup);
+      const backup=await trDesktopAuthorityPrepareMigration();
       const payload=JSON.stringify(backup.workspace);
-      if(trDesktopAuthorityCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():clone(state))!==trDesktopAuthorityCanonical(backup.workspace)) {
-        throw new Error('El workspace cambió durante la preparación del Backup V2. Se rechaza la promoción.');
-      }
+      // There is no user-visible UI during promotion, but domain callbacks
+      // are asynchronous: block new writes and recheck the durable snapshot.
+      trCoreSetWriteBlock('desktop-authority-promotion');
+      if(!(await trDesktopMigrationMatches(backup)))throw new Error('El workspace cambió justo antes de publicar el backup físico. Promoción rechazada.');
       const saved=await trDesktopInvoke('desktop_write_backup',{
         payload:JSON.stringify(backup),label:'desktop-authority-migration-rollback'
       });
@@ -106,6 +139,7 @@ async function trDesktopAuthorityBootstrap(){
       trDesktopAuthorityRevision=Number(record.revision);
       trDesktopAuthorityControl.active=true;trCoreMode='sqlite-authority';
       trCoreLastError='';trCoreLastSavedAt=record.updatedAt||'';
+      trCoreClearWriteBlock('desktop-authority-promotion');
     }
     trDesktopAuthorityControl.migrationPending=false;
     await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();

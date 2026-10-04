@@ -145,9 +145,21 @@ async function restoreRecoverySnapshot(){
     if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.desktop-sqlite',run);
     else await run();
 
+    // A successful journal is not sufficient: the native CAS revision and
+    // exact recovered payload must be durably observable BEFORE success.
+    if(typeof trCoreFlush==='function'&&!(await trCoreFlush()))throw new Error('SQLite no confirmó flush después de restaurar.');
+    const native=await call('desktop_read_authoritative_workspace');
+    const expected=trBackupV2Canonical(prepared.workspace);
+    if(!native?.active||
+       Number(native.revision)!==Number(globalThis.TradingResearchDesktopAuthority?.revision?.())||
+       trBackupV2Canonical(JSON.parse(String(native.payload||'null')))!==expected||
+       trBackupV2Canonical(workspaceSnapshot())!==expected){
+      throw new Error('Readback SQLite no coincide exactamente con el workspace restaurado. Estado bloqueado para revisión.');
+    }
     await trBackupV2RefreshUiAfterRestore();
     if(typeof trBackupV2SetRecoveryUiBlocked==='function')trBackupV2SetRecoveryUiBlocked(false);
-    await mirror('desktop-recovery-restore');
+    // Do not call the obsolete shadow mirror during an authoritative restore:
+    // status.busy is true and its early return would hide the stale shadow.
     await refreshStatus();
     alert('Recuperación SQLite completada y confirmada de forma durable.\n\nBackup de rollback previo:\n'+rollbackResult.path);
     return true;

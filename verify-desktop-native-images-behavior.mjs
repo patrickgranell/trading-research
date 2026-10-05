@@ -93,6 +93,9 @@ function harness({failStage=false,failBackup=false,failPromotion=false}={}){
   assert(!t.blocked,'Failure before native authority commit remains recoverable without fatalizing workspace');
   assert.equal(t.ctx.TradingResearchDesktopImageAuthority.active,false);
 }
+const backupRuntime=fs.readFileSync('backup-v2-runtime.js','utf8');
+assert(backupRuntime.includes("out.push({...rec,restoreOriginalId:id})"),
+  'Backup V2 staged-image readback must recover restoreOriginalId from the manifest after native round-trip metadata loss.');
 if(fs.existsSync('desktop-dist/index.html')){
   const html=fs.readFileSync('desktop-dist/index.html','utf8');
   assert(html.includes('data-tr-desktop-native-images="batch77-staging"'),'Desktop artifact missing native image runtime');

@@ -10,6 +10,21 @@ const trDesktopAuthorityControl={
 };
 globalThis.TradingResearchDesktopAuthority=trDesktopAuthorityControl;
 
+async function trDesktopRefreshWorkspaceAuthorityFromNative(){
+  const native=await trDesktopInvoke('desktop_authority_status');
+  if(!native?.active)return {active:false};
+  const record=await trDesktopInvoke('desktop_read_authoritative_workspace');
+  const source=trDesktopAuthorityReadRecord(record);
+  state=source;
+  trDesktopAuthorityRevision=Number(record.revision)||0;
+  trDesktopAuthorityControl.active=true;
+  trDesktopAuthorityControl.migrationPending=false;
+  trCoreMode='sqlite-authority';trCoreHydrated=true;trCoreLastError='';trCoreLastSavedAt=record.updatedAt||'';
+  trCoreSignalHydrated();
+  return {active:true,revision:trDesktopAuthorityRevision};
+}
+trDesktopAuthorityControl.refreshFromNative=trDesktopRefreshWorkspaceAuthorityFromNative;
+
 let trDesktopImageGeneration=0;
 let trDesktopImageFailed=false;
 let trDesktopImageWriteChain=Promise.resolve(true);

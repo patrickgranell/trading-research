@@ -221,9 +221,11 @@ function trBackupV2ReleaseRecoveryLock(lockOrJournal){
   return typeof trCoreClearWriteBlock==='function'?trCoreClearWriteBlock(reason):true;
 }
 function trBackupV2SetRecoveryUiBlocked(blocked){
-  const effective=!!blocked||(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked());
-  try{document.documentElement.classList.toggle('tr-core-loading',effective);}catch{}
-  return effective;
+  // Recovery write protection is a data-integrity concern, not a second app
+  // bootstrap. Only trCoreBootstrap owns the global tr-core-loading screen.
+  // In-session restores stay visible and rely on durable write locks plus the
+  // recovery/status panels for user feedback.
+  return !!blocked||(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked());
 }
 function trBackupV2StageId(restoreId,id){return `${TR_BACKUP_V2_STAGE_PREFIX}${restoreId}::${id}`;}
 
@@ -242,7 +244,16 @@ async function trBackupV2StageImages(prepared,journal){
 }
 async function trBackupV2StageRecords(journal){
   const records=await getAllImageRecords(),map=new Map(records.map(x=>[String(x.id),x])),out=[];
-  for(const id of journal.manifest.expectedImageIds||[]){const rec=map.get(trBackupV2StageId(journal.restoreId,id));if(!rec)throw new Error(`Falta imagen staged ${id}.`);out.push(rec);}return out;
+  for(const rawId of journal.manifest.expectedImageIds||[]){
+    const id=String(rawId||''),rec=map.get(trBackupV2StageId(journal.restoreId,id));
+    if(!rec)throw new Error(`Falta imagen staged ${id}.`);
+    // Desktop native-image authority persists the staged object by its staged
+    // ID but intentionally stores only canonical image metadata. Therefore
+    // restoreOriginalId is not guaranteed to survive a native round-trip.
+    // The manifest is the authoritative mapping; reattach it on readback.
+    out.push({...rec,restoreOriginalId:id});
+  }
+  return out;
 }
 async function trBackupV2VerifyStage(journal){
   const records=await trBackupV2StageRecords(journal);
@@ -322,6 +333,15 @@ async function trBackupV2RecoverPending(existingJournal=null){
   const recoveryLock=trBackupV2AcquireRecoveryLock(journal);
   try{
     if(Number(journal.schema)!==TR_BACKUP_V2_SCHEMA||!journal.targetWorkspace||!journal.manifest)throw new Error('Restore journal V2 inválido.');
+    // "prepared" is provably pre-Market: the protocol advances to
+    // images-staged before the Market Data transaction starts. Aborting here
+    // is safer than inferring progress from hashes that may already match when
+    // the user restores a backup identical to the current workspace.
+    if(String(journal.phase||'prepared')==='prepared'){
+      await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();
+      trBackupV2ReleaseRecoveryLock(recoveryLock);
+      return {status:'aborted-before-market'};
+    }
     const marketMatches=await trBackupV2MarketMatchesManifest(journal.manifest);
     const currentWorkspaceHash=await trBackupV2HashCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():state);
     if(!marketMatches){

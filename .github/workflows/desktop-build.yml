@@ -27,6 +27,10 @@ on:
       - 'desktop-native-images-transform.mjs'
       - 'desktop-native-market-runtime.js'
       - 'desktop-native-market-transform.mjs'
+      - 'desktop-portable-recovery-runtime.js'
+      - 'verify-desktop-portable-recovery.mjs'
+      - 'verify-desktop-portable-recovery-behavior.mjs'
+      - 'DESKTOP-PORTABLE-RECOVERY.md'
       - 'DESKTOP.md'
       - '.github/workflows/desktop-build.yml'
 
@@ -70,7 +74,7 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: TradingResearch-Desktop-0.6.0-Windows-x64
+          name: TradingResearch-Desktop-0.7.0-Windows-x64
           path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 14

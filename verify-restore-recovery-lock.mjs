@@ -151,9 +151,23 @@ if(helperStart>=0&&helperEnd>helperStart&&protocolStart>=0&&protocolEnd>protocol
   const journal={
     schema:2,
     restoreId:'RST2_RECOVER',
+    phase:'images-staged',
     targetWorkspace:{sentinel:'target'},
     manifest:{hashes:{workspace:'target-hash'}}
   };
+
+  {
+    const calls=[];
+    lockState.reason='';
+    const preparedJournal={...journal,phase:'prepared'};
+    context.trBackupV2CleanupStage=async()=>calls.push('stage-cleanup');
+    context.trBackupV2JournalDelete=async()=>calls.push('journal-delete');
+    const out=await context.recover(preparedJournal);
+    need(out?.status==='aborted-before-market','Prepared recovery no abortó antes de Market Data.');
+    need(JSON.stringify(calls)===JSON.stringify(['stage-cleanup','journal-delete']),
+      'Prepared recovery ejecutó una secuencia inesperada: '+calls.join(' -> '));
+    need(lockState.reason==='','Prepared safe abort no liberó el lock.');
+  }
 
   {
     const calls=[];
@@ -213,11 +227,13 @@ if(helperStart>=0&&helperEnd>helperStart&&protocolStart>=0&&protocolEnd>protocol
 
   {
     lockState.reason='backup-v2-restore-recovery:RST2_RECOVER';
-    context.uiBlock(false);
-    need(lockState.ui===true,'La UI se habilita mientras el core sigue write-locked.');
+    const blocked=context.uiBlock(false);
+    need(blocked===true,'Recovery UI contract no refleja el durable write lock activo.');
+    need(lockState.ui===false,'Recovery no debe reutilizar la pantalla global de bootstrap mientras la app está abierta.');
     lockState.reason='';
-    context.uiBlock(false);
-    need(lockState.ui===false,'La UI no se libera después de resolver el lock.');
+    const released=context.uiBlock(false);
+    need(released===false,'Recovery UI contract no refleja la liberación del durable lock.');
+    need(lockState.ui===false,'La pantalla global de bootstrap no debe ser controlada por Backup V2.');
   }
 }
 
@@ -232,4 +248,4 @@ console.log(' - pending journal => durable write lock');
 console.log(' - DomainStore/proxy + core persistence reject user writes');
 console.log(' - post-Market fault keeps lock active');
 console.log(' - forward recovery or safe pre-Market abort clears lock');
-console.log(' - on-load lock waits for durable hydration; UI remains blocked meanwhile');
+console.log(' - on-load lock waits for durable hydration; write protection remains fail-closed without reusing the boot veil');

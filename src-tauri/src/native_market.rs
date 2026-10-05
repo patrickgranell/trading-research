@@ -615,6 +615,59 @@ pub(crate) fn read_active_chunk(conn:&Connection,id:&str,index:i64)->Result<Valu
     if parsed.len() as i64!=count||sha_text(&payload)!=hash{return Err("Chunk Market Data activo corrupto.".into());}
     Ok(json!({"id":id,"chunkIndex":index,"rowCount":count,"sha256":hash,"payload":payload,"authority":true}))
 }
+
+pub(crate) fn backup_ticks_hash(conn:&Connection,ordered_ids_json:&str)->Result<Value,String>{
+    if authority_row(conn)?.is_none(){return Err("Autoridad Market Data nativa no activa.".into());}
+    let ids:Vec<String>=serde_json::from_str(ordered_ids_json).map_err(|e|format!("IDs Market Data para hash Backup V2: {e}"))?;
+    let mut seen=HashSet::new();
+    for id in &ids{checked_id(id)?;if !seen.insert(id.clone()){return Err("IDs Market Data duplicados para hash Backup V2.".into());}}
+    let active_ids:HashSet<String>={
+        let mut s=conn.prepare("SELECT dataset_id FROM market_tick_catalog_active").map_err(|e|e.to_string())?;
+        let rows=s.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?
+            .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+        rows.into_iter().collect()
+    };
+    if active_ids!=seen{return Err("Inventario marketTicks nativo no coincide con el Backup V2 source.".into());}
+
+    let mut digest=Sha256::new();digest.update(b"[");let mut total_rows=0i64;
+    for (dataset_pos,id) in ids.iter().enumerate(){
+        if dataset_pos>0{digest.update(b",");}
+        let id_json=serde_json::to_string(id).map_err(|e|e.to_string())?;
+        digest.update(b"{\"id\":");digest.update(id_json.as_bytes());digest.update(b",\"ticks\":[");
+
+        let (chunk_count,row_count,aggregate):(i64,i64,String)=conn.query_row(
+          "SELECT chunk_count,row_count,aggregate_sha256 FROM market_tick_catalog_active WHERE dataset_id=?1",
+          params![id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))
+        ).map_err(|e|format!("Catálogo activo {id}: {e}"))?;
+        checked_hash(&aggregate)?;
+        if chunk_count<=0||row_count<=0||row_count as usize>MAX_DATASET_ROWS{return Err(format!("Catálogo activo fuera de límites: {id}."));}
+
+        let mut q=conn.prepare("SELECT chunk_index,row_count,payload,sha256 FROM market_tick_chunk_active WHERE dataset_id=?1 ORDER BY chunk_index")
+          .map_err(|e|format!("Chunks activos {id}: {e}"))?;
+        let mapped=q.query_map(params![id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?)))
+          .map_err(|e|format!("Filas chunks activos {id}: {e}"))?;
+        let mut info=Vec::new();let mut count=0i64;let mut wrote_rows=false;
+        for (pos,x) in mapped.enumerate(){
+            let (idx,n,payload,hash)=x.map_err(|e|e.to_string())?;
+            if idx!=pos as i64{return Err(format!("Chunks activos no contiguos: {id}."));}
+            checked_hash(&hash)?;
+            let parsed=tick_payload(&payload)?;
+            if parsed.len() as i64!=n||sha_text(&payload)!=hash{return Err(format!("Chunk activo corrupto: {id}#{idx}."));}
+            let bytes=payload.as_bytes();
+            if bytes.len()<2||bytes[0]!=b'['||bytes[bytes.len()-1]!=b']'{return Err(format!("Payload chunk inválido para hash Backup V2: {id}#{idx}."));}
+            let inner=&bytes[1..bytes.len()-1];
+            if !inner.is_empty(){if wrote_rows{digest.update(b",");}digest.update(inner);wrote_rows=true;}
+            count+=n;info.push((idx,n,hash));
+        }
+        if info.len() as i64!=chunk_count||count!=row_count||aggregate_from_rows(&info)!=aggregate{
+            return Err(format!("Readback histórico nativo no coincide: {id}."));
+        }
+        digest.update(b"]}");total_rows+=row_count;
+    }
+    digest.update(b"]");
+    let sha256=digest.finalize().iter().map(|b|format!("{b:02x}")).collect::<String>();
+    Ok(json!({"ok":true,"sha256":sha256,"datasets":ids.len(),"ticks":total_rows}))
+}
 fn pending_op(conn:&Connection,op:&str)->Result<(i64,String),String>{
     checked_id(op)?;
     conn.query_row("SELECT expected_generation,reason FROM market_pending_op WHERE op_id=?1",params![op],|r|Ok((r.get(0)?,r.get(1)?)))
@@ -886,6 +939,22 @@ mod tests{
         assert_eq!(out["generation"],1);assert_eq!(out["datasets"],1);assert!(authority_marker_path(&root).exists());
         let st=authority_status(&c,&root,true).unwrap();
         assert_eq!(st["active"],true);assert_eq!(st["meta"],1);assert_eq!(st["execSets"],1);assert_eq!(st["ticks"],2);
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn backup_ticks_hash_matches_backup_v2_canonical_shape(){
+        let root=std::env::temp_dir().join(format!("tr-b79-tick-hash-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        let (g,_)=stage_complete_one(&mut c);
+        promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
+        let payload=read_active_chunk(&c,"MD1",0).unwrap()["payload"].as_str().unwrap().to_string();
+        let expected=format!(r#"[{{"id":"MD1","ticks":{payload}}}]"#);
+        let out=backup_ticks_hash(&c,r#"["MD1"]"#).unwrap();
+        assert_eq!(out["sha256"],hash(&expected));
+        assert_eq!(out["datasets"],1);assert_eq!(out["ticks"],2);
+        assert!(backup_ticks_hash(&c,r#"[]"#).is_err(),"hash inventory must match active catalogs exactly");
         let _=fs::remove_dir_all(root);
     }
 

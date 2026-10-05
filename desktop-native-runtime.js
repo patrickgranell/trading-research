@@ -5,7 +5,7 @@
  */
 (()=>{
 'use strict';
-const VERSION='0.6.0';
+const VERSION='0.7.0';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 
@@ -162,6 +162,12 @@ async function restoreRecoverySnapshot(){
         throw new Error('La recuperación terminó, pero la autoridad nativa de imágenes no superó la verificación profunda.');
       }
     }
+    if(globalThis.TradingResearchDesktopMarketAuthority?.active){
+      const marketCheck=await globalThis.TradingResearchDesktopNativeMarketData?.status?.(true);
+      if(!marketCheck?.authority?.active||marketCheck.authority.deepVerified!==true){
+        throw new Error('La recuperación terminó, pero la autoridad nativa de Market Data no superó la verificación profunda.');
+      }
+    }
     await trBackupV2RefreshUiAfterRestore();
     if(typeof trBackupV2SetRecoveryUiBlocked==='function')trBackupV2SetRecoveryUiBlocked(false);
     // Do not call the obsolete shadow mirror during an authoritative restore:
@@ -185,7 +191,7 @@ function panelHtml(){
   const stateLabel=status.lastError?'ERROR':status.busy?'TRABAJANDO':s?'OK':'SIN COPIA';
   return '<section id="trDesktopNativeStorage" class="card panel config-wide">'+
     '<div class="panel-title"><div><h3>Desktop · almacenamiento local</h3>'+
-    '<div class="help">Desktop 0.5 candidate: SQLite es la autoridad del workspace. '+(globalThis.TradingResearchDesktopImageAuthority?.active?'Imágenes: almacenamiento nativo verificado.':'Imágenes: IndexedDB hasta completar Batch 77.')+' Market Data continúa en IndexedDB y Backup V2 cubre recuperación completa.</div></div>'+
+    '<div class="help">Desktop 0.7: SQLite es la autoridad del workspace. '+(globalThis.TradingResearchDesktopImageAuthority?.active?'Imágenes: almacenamiento nativo verificado.':'Imágenes: IndexedDB pendiente de promoción.')+' '+(globalThis.TradingResearchDesktopMarketAuthority?.active?'Market Data: almacenamiento nativo verificado.':'Market Data: IndexedDB pendiente de promoción.')+' Backup V2 cubre recuperación portable completa.</div></div>'+
     '<span class="stable-pill">'+escDesktop(stateLabel)+'</span></div>'+
     '<div class="security-actions">'+
     '<button class="btn primary" type="button" data-desktop-native-action="parity">Verificar autoridad SQLite</button>'+

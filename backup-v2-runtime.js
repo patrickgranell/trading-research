@@ -221,9 +221,11 @@ function trBackupV2ReleaseRecoveryLock(lockOrJournal){
   return typeof trCoreClearWriteBlock==='function'?trCoreClearWriteBlock(reason):true;
 }
 function trBackupV2SetRecoveryUiBlocked(blocked){
-  const effective=!!blocked||(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked());
-  try{document.documentElement.classList.toggle('tr-core-loading',effective);}catch{}
-  return effective;
+  // Recovery write protection is a data-integrity concern, not a second app
+  // bootstrap. Only trCoreBootstrap owns the global tr-core-loading screen.
+  // In-session restores stay visible and rely on durable write locks plus the
+  // recovery/status panels for user feedback.
+  return !!blocked||(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked());
 }
 function trBackupV2StageId(restoreId,id){return `${TR_BACKUP_V2_STAGE_PREFIX}${restoreId}::${id}`;}
 

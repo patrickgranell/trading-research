@@ -35,7 +35,7 @@ function trDesktopImageStop(error){
   trCoreSetWriteBlock('desktop-native-image-authority-error');
   const e=error instanceof Error?error:new Error(String(error));
   console.error('[Trading Research · Native image authority]',e);
-  trDesktopAuthorityStop(e);
+  trDesktopAuthorityStop(e,'Imágenes nativas');
 }
 function trDesktopImageBase64(blob){
   return new Promise((resolve,reject)=>{
@@ -134,15 +134,17 @@ globalThis.TradingResearchDesktopImageBridge=Object.freeze({
   block:trDesktopImageStop,
   refresh:trDesktopImageBootstrapAuthority
 });
-function trDesktopAuthorityStop(error){
+function trDesktopAuthorityStop(error,area='SQLite'){
   trDesktopAuthorityFailed=true;
   trCoreFatal=true;trCoreHydrated=false;trCoreMode='fatal';
-  trCoreSetWriteBlock('desktop-sqlite-authority-error');
-  trCoreLastError='Desktop SQLite: '+(error?.message||String(error));
-  console.error('[Trading Research · SQLite authority]',error);
+  trCoreSetWriteBlock(area==='SQLite'?'desktop-sqlite-authority-error':'desktop-native-image-authority-error');
+  trCoreLastError='Desktop '+area+': '+(error?.message||String(error));
+  console.error('[Trading Research · '+area+' authority]',error);
   document.documentElement.classList.remove('tr-core-loading');
   const root=document.getElementById('app');
-  if(root)root.innerHTML='<main class="tr-core-fatal"><h1>Trading Research</h1><h2>SQLite requiere recuperación</h2><p>'+String(trCoreLastError).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p><p>No se ha sustituido SQLite por IndexedDB. Conserva tus archivos .trbackup; no introduzcas datos nuevos en este estado.</p></main>';
+  const title=area==='SQLite'?'SQLite requiere recuperación':'Almacenamiento nativo de imágenes requiere recuperación';
+  const detail=area==='SQLite'?'No se ha sustituido SQLite por IndexedDB.':'No se ha sustituido el almacenamiento nativo por el IndexedDB antiguo.';
+  if(root)root.innerHTML='<main class="tr-core-fatal"><h1>Trading Research</h1><h2>'+title+'</h2><p>'+String(trCoreLastError).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p><p>'+detail+' Conserva tus archivos .trbackup; no introduzcas datos nuevos en este estado.</p></main>';
 }
 function trDesktopAuthorityQueueStateWrite(reason='persist'){
   if(!trDesktopAuthorityControl.active||trDesktopAuthorityFailed||!trCoreWriteAllowed(reason))return Promise.resolve(false);

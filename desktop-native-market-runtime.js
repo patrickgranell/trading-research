@@ -111,7 +111,8 @@ async function prepareStaging(){
   }
   return {raw,prepared,rollback,generation,inventory,verified};
 }
-async function migrateNativeMarketData(){
+async function migrateNativeMarketData(options={}){
+  const silent=!!options?.silent;
   if(ui.busy)return null;
   ui.busy=true;ui.lastError='';ui.lastRollbackPath='';paint();
   let staged=null,promotionAttempted=false,promoted=false;
@@ -139,7 +140,7 @@ async function migrateNativeMarketData(){
     }
     await status(true);
     endMigration();
-    alert('Migración Market Data completada.\n\nAutoridad: NATIVA · generación '+Number(ui.authority?.generation||1)+
+    if(!silent)alert('Migración Market Data completada.\n\nAutoridad: NATIVA · generación '+Number(ui.authority?.generation||1)+
       '\nHistóricos: '+Number(ui.authority?.datasets||0)+' · Grid: '+Number(ui.authority?.execSets||0)+
       '\nTicks: '+Number(ui.authority?.ticks||0).toLocaleString('es-ES')+
       '\nRollback previo:\n'+String(staged.rollback.path));
@@ -159,7 +160,7 @@ async function migrateNativeMarketData(){
         globalThis.TradingResearchDesktopMarketBridge?.block?.(e);
       }
     }else endMigration();
-    alert('No se pudo completar la migración nativa de Market Data: '+ui.lastError+
+    if(!silent)alert('No se pudo completar la migración nativa de Market Data: '+ui.lastError+
       (staged?.rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(staged?.rollback?.path||ui.lastRollbackPath):''));
     return null;
   }finally{

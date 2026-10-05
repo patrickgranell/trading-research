@@ -69,7 +69,8 @@ async function stageReferencedImages(){
     return null;
   }finally{endMigration();ui.busy=false;paint();}
 }
-async function migrateNativeImages(){
+async function migrateNativeImages(options={}){
+  const silent=!!options?.silent;
   if(ui.busy)return null;
   ui.busy=true;ui.lastError='';ui.lastRollbackPath='';paint();
   let rollback=null,promoted=false;
@@ -91,14 +92,14 @@ async function migrateNativeImages(){
     if(JSON.stringify(postExpected)!==JSON.stringify(staged.expected))throw new Error('Backup V2 posterior a promoción no conserva exactamente los hashes de imágenes.');
     await status(true);
     endMigration();
-    alert('Migración de imágenes completada.\n\nAutoridad: NATIVA · generación '+Number(ui.authority?.generation||1)+
+    if(!silent)alert('Migración de imágenes completada.\n\nAutoridad: NATIVA · generación '+Number(ui.authority?.generation||1)+
       '\nImágenes verificadas: '+staged.expected.length+'\nRollback previo: '+rollback.path);
     return promotedResult;
   }catch(e){
     ui.lastError=e?.message||String(e);console.error('[Trading Research Desktop · Native image migration]',e);
     if(promoted)globalThis.TradingResearchDesktopImageBridge?.block?.(e);
     else endMigration();
-    alert('No se pudo completar la migración nativa de imágenes: '+ui.lastError+(rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(rollback?.path||ui.lastRollbackPath):''));
+    if(!silent)alert('No se pudo completar la migración nativa de imágenes: '+ui.lastError+(rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(rollback?.path||ui.lastRollbackPath):''));
     return null;
   }finally{
     if(!promoted)endMigration();

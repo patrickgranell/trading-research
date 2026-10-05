@@ -741,6 +741,9 @@ fn portable_restore_row(conn:&Connection)->Result<Option<(String,String,String,S
     ).optional().map_err(|e|format!("Lectura journal restore portable: {e}"))
 }
 fn portable_restore_begin_root(root:&Path,source_path:&str,source_sha256:&str,rollback_path:&str,rollback_sha256:&str)->Result<Value,String>{
+    let source_file=canonical_native_backup_path(root,source_path)?;
+    let rollback_file=canonical_native_backup_path(root,rollback_path)?;
+    if source_file==rollback_file{return Err("Source y rollback del restore portable deben ser archivos físicos distintos.".into());}
     let (_,source_sha)=validated_native_backup(root,source_path)?;
     let (_,rollback_sha)=validated_native_backup(root,rollback_path)?;
     if source_sha!=source_sha256||rollback_sha!=rollback_sha256{return Err("Hash de backup source/rollback no coincide con el journal portable.".into());}
@@ -893,6 +896,7 @@ mod portable_restore_tests{
         let(root,source,source_sha,rollback,rollback_sha)=setup();
         portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap();
         assert_eq!(portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap()["resumed"],true);
+        assert!(portable_restore_begin_root(&root,&source,&source_sha,&source,&source_sha).is_err());
         let other=root.join("backups/other.trbackup");fs::write(&other,payload()).unwrap();
         assert!(portable_restore_begin_root(&root,&other.to_string_lossy(),&source_sha,&rollback,&rollback_sha).is_err());
         let _=fs::remove_dir_all(root);

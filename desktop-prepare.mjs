@@ -13,6 +13,9 @@ if(!fs.existsSync('desktop-native-runtime.js')){
 if(!fs.existsSync('desktop-native-images-runtime.js')){
   throw new Error('Desktop native images runtime is missing.');
 }
+if(!fs.existsSync('desktop-native-market-runtime.js')){
+  throw new Error('Desktop native Market Data runtime is missing.');
+}
 
 fs.rmSync(desktopDir,{recursive:true,force:true});
 fs.cpSync(sourceDir,desktopDir,{recursive:true});
@@ -27,9 +30,10 @@ html=html.replace('</head>','  <meta name="trading-research-desktop-channel" con
 
 const runtime=fs.readFileSync('desktop-native-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
 const imageRuntime=fs.readFileSync('desktop-native-images-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
-html=html.replace('</body>',()=>'<script data-tr-desktop-native-storage="0.5.1">'+runtime+'</script>\n<script data-tr-desktop-native-images="batch77-staging">'+imageRuntime+'</script>\n</body>');
+const marketRuntime=fs.readFileSync('desktop-native-market-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
+html=html.replace('</body>',()=>'<script data-tr-desktop-native-storage="0.5.1">'+runtime+'</script>\n<script data-tr-desktop-native-images="batch77-staging">'+imageRuntime+'</script>\n<script data-tr-desktop-native-marketdata="batch78">'+marketRuntime+'</script>\n</body>');
 
 fs.writeFileSync(indexPath,html);
 fs.rmSync(desktopDir+'/_headers',{force:true});
 
-console.log('Prepared offline Desktop 0.5.1 artifact with native recovery + Batch 77 image staging runtime -> desktop-dist/');
+console.log('Prepared offline Desktop 0.5.1 staging artifact with native recovery + Batch 77 images + Batch 78 Market Data runtime -> desktop-dist/');

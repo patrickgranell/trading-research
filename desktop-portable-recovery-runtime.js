@@ -139,8 +139,15 @@ async function recoverOrRunRestore(prepared,journal){
     const pending=typeof trBackupV2JournalGet==='function'?await trBackupV2JournalGet():null;
     if(pending){
       if(typeof trBackupV2RecoverPending!=='function')throw new Error('Existe journal Backup V2 pendiente, pero no está disponible su recuperación.');
-      await trBackupV2RecoverPending(pending);
-      return {recovered:true};
+      const recovery=await trBackupV2RecoverPending(pending);
+      if(recovery?.status==='aborted-before-market'){
+        // Nothing destructive was published. Start the source restore now
+        // instead of advancing the portable journal as if restore had landed.
+        await trBackupV2RestoreProtocol(prepared);
+        return {recovered:false,restartedAfterSafeAbort:true};
+      }
+      if(recovery?.status==='completed-forward')return {recovered:true};
+      throw new Error('Estado Backup V2 pendiente no reconocido: '+String(recovery?.status||''));
     }
     await trBackupV2RestoreProtocol(prepared);
     return {recovered:false};

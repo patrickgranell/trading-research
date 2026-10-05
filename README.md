@@ -14,7 +14,7 @@ Trading Research es una aplicación local-first para registrar operaciones, anal
 
 ### Persistencia y autoridad de estado
 
-**Web:** el workspace durable usa IndexedDB como autoridad primaria. **Desktop 0.4 (PR #90):** después de una migración Backup V2 validada, SQLite es la autoridad del workspace y confirma cada commit con revisión/CAS. Las imágenes y Market Data siguen en almacenes IndexedDB especializados, protegidos por Backup V2; su promoción nativa queda para lotes separados. `localStorage` no es una segunda fuente de verdad del workspace; se conserva únicamente para configuración pequeña, compatibilidad/migración y señales de bootstrap.
+**Web:** el workspace durable usa IndexedDB como autoridad primaria. **Desktop 0.6 (PR #92):** SQLite es autoridad del workspace; las imágenes usan almacenamiento nativo content-addressed; Market Data (`marketMeta`, `marketTicks`, `execSets`) usa SQLite nativo con chunks y CAS. Backup V2 cubre los tres dominios. Batch 79 / Desktop 0.7 añade recuperación portable reanudable para reconstruir una instalación completa desde una sola copia. `localStorage` no es una segunda fuente de verdad del workspace; se conserva únicamente para configuración pequeña, compatibilidad/migración y señales de bootstrap.
 
 `state-runtime.js` separa el dominio durable de la UI efímera mediante `TRDomainStore` y `TRUIStore`. Las mutaciones profundas del dominio están observadas por Proxy y los comandos controlados coalescen persistencia y render.
 

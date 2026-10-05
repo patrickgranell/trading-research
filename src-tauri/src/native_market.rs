@@ -804,4 +804,91 @@ mod tests{
         }
         let _=fs::remove_file(path);
     }
+
+    fn stage_complete_one(c:&mut Connection)->(i64,String){
+        let g=begin(c);
+        let m=obj("MD1","meta");let mh=hash(&m);stage_meta(c,g,"MD1",&m,&mh).unwrap();
+        let p=ticks(2,0);let ph=hash(&p);stage_tick_chunk(c,g,"MD1",0,&p,&ph).unwrap();
+        let a=agg(&[(0,2,ph)]);finalize_dataset(c,g,"MD1",1,2,&a).unwrap();
+        let e=r#"{"id":"EX1","marketDatasetId":"MD1"}"#.to_string();let eh=hash(&e);stage_exec(c,g,"EX1",&e,&eh).unwrap();
+        let inv=json!({"meta":[{"id":"MD1","sha256":mh}],"ticks":[{"id":"MD1","rowCount":2,"chunkCount":1,"aggregateSha256":a}],"exec":[{"id":"EX1","sha256":eh}]}).to_string();
+        verify_stage(c,g,&inv).unwrap();(g,inv)
+    }
+
+    #[test]
+    fn promotion_is_bound_to_certified_inventory_and_marker(){
+        let root=std::env::temp_dir().join(format!("tr-b78-promote-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        let (g,_inv)=stage_complete_one(&mut c);
+        let out=promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
+        assert_eq!(out["generation"],1);assert_eq!(out["datasets"],1);assert!(authority_marker_path(&root).exists());
+        let st=authority_status(&c,&root,true).unwrap();
+        assert_eq!(st["active"],true);assert_eq!(st["meta"],1);assert_eq!(st["execSets"],1);assert_eq!(st["ticks"],2);
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn promotion_rechecks_staging_after_certification(){
+        let root=std::env::temp_dir().join(format!("tr-b78-tamper-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        let (g,_inv)=stage_complete_one(&mut c);
+        c.execute("UPDATE market_tick_chunk_native SET payload='[[9,0,9,9,9,9]]' WHERE generation=?1 AND dataset_id='MD1'",params![g]).unwrap();
+        assert!(promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).is_err());
+        assert!(authority_row(&c).unwrap().is_none());
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn live_cas_commit_is_atomic_and_relation_safe(){
+        let root=std::env::temp_dir().join(format!("tr-b78-live-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        let (g,_)=stage_complete_one(&mut c);
+        promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
+
+        begin_live_op(&mut c,"OP1",1,"replace history").unwrap();
+        let meta=obj("MD1","new");stage_live_record(&mut c,"OP1","marketMeta","MD1",&meta,&hash(&meta)).unwrap();
+        let p=ticks(3,10);let ph=hash(&p);stage_live_tick_chunk(&mut c,"OP1","MD1",0,&p,&ph).unwrap();
+        let a=agg(&[(0,3,ph)]);finalize_live_tick(&mut c,"OP1","MD1",1,3,&a).unwrap();
+        let commit=commit_live_op(&mut c,"OP1").unwrap();assert_eq!(commit["generation"],2);
+        assert_eq!(authority_status(&c,&root,true).unwrap()["ticks"],3);
+        assert!(begin_live_op(&mut c,"STALE",1,"stale").is_err());
+
+        begin_live_op(&mut c,"BAD",2,"orphan").unwrap();
+        stage_live_delete(&mut c,"BAD","marketMeta","MD1").unwrap();
+        assert!(commit_live_op(&mut c,"BAD").is_err());
+        assert!(get_record(&c,"marketMeta","MD1").unwrap().is_some());
+        assert_eq!(authority_status(&c,&root,false).unwrap()["generation"],2);
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn marker_without_market_authority_is_fatal(){
+        let root=std::env::temp_dir().join(format!("tr-b78-marker-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        ensure_authority_marker(&root).unwrap();
+        assert!(authority_status(&c,&root,false).is_err());
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn active_authority_survives_real_sqlite_reopen(){
+        let root=std::env::temp_dir().join(format!("tr-b78-reopen-active-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();let db=root.join("market.sqlite");
+        {
+            let mut c=Connection::open(&db).unwrap();prepare_schema(&c).unwrap();
+            let (g,_)=stage_complete_one(&mut c);
+            promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
+        }
+        {
+            let c=Connection::open(&db).unwrap();prepare_schema(&c).unwrap();
+            let st=authority_status(&c,&root,true).unwrap();
+            assert_eq!(st["active"],true);assert_eq!(st["generation"],1);assert_eq!(st["ticks"],2);
+            assert_eq!(list_catalogs(&c).unwrap().as_array().unwrap().len(),1);
+        }
+        let _=fs::remove_dir_all(root);
+    }
 }

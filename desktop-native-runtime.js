@@ -1,11 +1,11 @@
-/* Trading Research Desktop 0.4 · SQLite authority + native recovery.
+/* Trading Research Desktop 0.5 · SQLite workspace + native image authority candidate.
  * Desktop-only: injected after the normal verified web build.
  * SQLite authority holds the workspace. Images/Market Data remain in dedicated
  * IndexedDB stores and complete Backup V2 recovery is retained.
  */
 (()=>{
 'use strict';
-const VERSION='0.4.0';
+const VERSION='0.5.0';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 

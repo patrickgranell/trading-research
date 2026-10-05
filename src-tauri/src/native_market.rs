@@ -918,6 +918,19 @@ mod tests{
     }
 
     #[test]
+    fn active_record_reads_reject_hash_tampering(){
+        let root=std::env::temp_dir().join(format!("tr-b78-record-hash-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();
+        let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
+        let (g,_)=stage_complete_one(&mut c);
+        promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
+        c.execute("UPDATE market_meta_active SET payload='{\"id\":\"MD1\",\"x\":\"tampered\"}' WHERE id='MD1'",[]).unwrap();
+        assert!(get_record(&c,"marketMeta","MD1").is_err());
+        assert!(list_records(&c,"marketMeta").is_err());
+        let _=fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn marker_without_market_authority_is_fatal(){
         let root=std::env::temp_dir().join(format!("tr-b78-marker-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
         fs::create_dir_all(&root).unwrap();

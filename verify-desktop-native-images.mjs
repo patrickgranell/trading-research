@@ -21,5 +21,11 @@ assert(main.includes('native_images::prepare_schema(&conn)'), 'native staging sc
 assert(cargo.includes('base64 = "0.22"'),'base64 dependency missing');
 assert(spec.includes('Batch 78')&&spec.includes('Batch 79'),'staged roadmap absent');
 assert(!desktop.includes('desktop_stage_native_image'),'Certified Desktop workspace authority bridge must not auto switch image storage before certification');
+assert(desktop.includes('trDesktopImageBootstrapAuthority')&&desktop.includes('trDesktopImageQueueBatch'),'Desktop image authority must bootstrap before UI and serialize CAS writes.');
 assert(fs.readFileSync('desktop-native-images-runtime.js','utf8').includes("label:'desktop-image-stage-rollback'"),'Image staging must require native Backup V2 first');
 console.log('Batch 77 native image staging wiring PASS — NOT image authority. Web/Desktop 0.4 behavior unchanged.');
+
+if(fs.existsSync('desktop-dist/index.html')){
+  const html=fs.readFileSync('desktop-dist/index.html','utf8');
+  for(const token of ['trading-research-desktop-native-images','trDesktopImageWriteFile(file,id)','trDesktopImageReadBlob(id)',"trDesktopImageWriteTransaction(puts,deletes,'backup-v2.images')",'trDesktopImageGcDeleteLocalIds(targets)'])assert(html.includes(token),'Generated Desktop artifact missing native image route: '+token);
+}

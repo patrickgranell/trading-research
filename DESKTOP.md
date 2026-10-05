@@ -76,12 +76,14 @@ Image bytes and Market Data remain in distinct Tauri WebView IndexedDB stores:
 the complete native Backup V2 can recover them, but SQLite workspace authority
 must not be described as all-data native authority.
 
-## Batch 77 onward — planned, NOT released
+## Desktop 0.5.1 native images — certified (Batch 77 / PR #91)
 
-Batch 77 incrementally promotes screenshot/image bytes to native
-content-addressed files plus SQLite metadata. The first PR commits contain
-only isolated, non-authoritative staging APIs and tests; they DO NOT change
-the certified 0.4 live image path. See `DESKTOP-NATIVE-IMAGES.md`.
-Batch 78 will address chunked native Market Data; Batch 79 will certify
-cold recovery and full native portability. No new user installation until the
-exact-head gates and one grouped offline smoke are ready.
+Referenced image blobs are native, content-addressed by SHA-256 and catalogued in SQLite. Promotion is Backup-V2-first, fail-closed and restart durable. Manual certification verified generation 1 with 3 referenced images after full close/reopen.
+
+## Desktop 0.6.0 native Market Data — certified (Batch 78 / PR #92)
+
+`marketMeta`, `marketTicks` and `execSets` are native. Ticks cross the Tauri boundary in chunks of at most 25,000 rows; meta/ticks exact pairing and Grid references are transactionally enforced. Manual certification verified generation 1, 2 historical datasets, 2 Grid and 278,286 ticks after restart and a real historical read.
+
+## Desktop 0.7 portable recovery — Batch 79 DRAFT
+
+One complete Backup V2 is the portability boundary. A native source copy and rollback are fsync-confirmed before mutation; a SQLite journal blocks writes and records monotonic phases `prepared -> restored -> images-native -> market-native -> verified`. Restart resumes from the physical source backup. Final closure requires exact rebuilt Backup V2 domain hashes plus deep workspace/image/Market Data verification. See `DESKTOP-PORTABLE-RECOVERY.md`.

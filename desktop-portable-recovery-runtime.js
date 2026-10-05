@@ -93,12 +93,22 @@ async function advance(journal,nextPhase){
   ui.journal=journal;paint();
   return journal;
 }
-async function runRestoreProtocol(prepared){
+async function recoverOrRunRestore(prepared){
   if(typeof trBackupV2RestoreProtocol!=='function')throw new Error('Restore Backup V2 no disponible.');
-  const run=()=>trBackupV2RestoreProtocol(prepared);
-  if(typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive)await TRDomainStore.exclusive('backup.restore-v2.desktop-portable',run);
-  else await run();
+  const run=async()=>{
+    const pending=typeof trBackupV2JournalGet==='function'?await trBackupV2JournalGet():null;
+    if(pending){
+      if(typeof trBackupV2RecoverPending!=='function')throw new Error('Existe journal Backup V2 pendiente, pero no está disponible su recuperación.');
+      await trBackupV2RecoverPending(pending);
+      return {recovered:true};
+    }
+    await trBackupV2RestoreProtocol(prepared);
+    return {recovered:false};
+  };
+  const result=typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive?
+    await TRDomainStore.exclusive('backup.restore-v2.desktop-portable',run):await run();
   await trBackupV2RefreshUiAfterRestore?.();
+  return result;
 }
 async function ensureNativeImages(){
   let check=await globalThis.TradingResearchDesktopNativeImages?.status?.(true);
@@ -137,7 +147,7 @@ async function execute(prepared,journal,{announce=true}={}){
   try{
     let j=journal;
     if(j.phase==='prepared'){
-      await runRestoreProtocol(prepared);
+      await recoverOrRunRestore(prepared);
       j=await advance(j,'restored');
     }
     if(j.phase==='restored'){
@@ -178,6 +188,10 @@ async function startFromFile(file){
   if(ui.busy||!file)return null;
   if(!globalThis.TradingResearchDesktopAuthority?.active){
     alert('SQLite workspace authority todavía no está activa. No se inicia el restore portable.');
+    return null;
+  }
+  if(typeof trBackupV2JournalGet==='function'&&await trBackupV2JournalGet()){
+    alert('Existe una restauración Backup V2 pendiente. Debe recuperarse antes de iniciar un restore portable nuevo.');
     return null;
   }
   let sourceText,sourcePrepared;

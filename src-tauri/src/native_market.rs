@@ -315,11 +315,18 @@ pub(crate) fn read_chunk(conn:&Connection,g:i64,id:&str,index:i64)->Result<Value
     Ok(json!({"generation":g,"datasetId":id,"chunkIndex":index,"rowCount":rows,"sha256":hash,"payload":payload,"authority":false}))
 }
 fn exact_inventory(conn:&Connection,table:&str,g:i64)->Result<Vec<(String,String)>,String>{
-    let sql=format!("SELECT id,sha256 FROM {table} WHERE generation=?1 ORDER BY id");
+    let sql=format!("SELECT id,payload,sha256 FROM {table} WHERE generation=?1 ORDER BY id");
     let mut stmt=conn.prepare(&sql).map_err(|e|format!("Inventario {table}: {e}"))?;
-    let rows=stmt.query_map(params![g],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))
+    let rows=stmt.query_map(params![g],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?)))
       .map_err(|e|format!("Filas inventario {table}: {e}"))?;
-    rows.map(|x|x.map_err(|e|format!("Fila inventario {table}: {e}"))).collect()
+    let mut out=Vec::new();
+    for row in rows{
+        let (id,payload,hash)=row.map_err(|e|format!("Fila inventario {table}: {e}"))?;
+        object_payload(&payload,&id,table)?;
+        if sha_text(&payload)!=hash{return Err(format!("Payload staging {table} corrupto: {id}."));}
+        out.push((id,hash));
+    }
+    Ok(out)
 }
 fn parse_pairs(v:&Value,name:&str)->Result<Vec<(String,String)>,String>{
     let arr=v.as_array().ok_or_else(||format!("Inventario {name} debe ser array."))?;

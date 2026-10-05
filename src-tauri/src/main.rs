@@ -570,6 +570,74 @@ fn desktop_market_staging_status(app:AppHandle)->Result<String,String>{
     native_market::status(&conn).map(|v|v.to_string())
 }
 
+#[tauri::command]
+fn desktop_market_authority_status(app:AppHandle,deep:Option<bool>)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::authority_status(&conn,&root,deep.unwrap_or(false)).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_promote_authority(app:AppHandle,generation:i64,rollback_path:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let (_payload,sha)=validated_native_backup(&root,&rollback_path)?;
+    let mut conn=open_db(&root)?;
+    native_market::promote(&mut conn,&root,generation,&rollback_path,&sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_list_records(app:AppHandle,store:String)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::list_records(&conn,&store).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_get_record(app:AppHandle,store:String,id:String)->Result<Option<String>,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::get_record(&conn,&store,&id).map(|v|v.map(|x|x.to_string()))
+}
+#[tauri::command]
+fn desktop_market_list_catalogs(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::list_catalogs(&conn).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_read_active_chunk(app:AppHandle,dataset_id:String,chunk_index:i64)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::read_active_chunk(&conn,&dataset_id,chunk_index).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_begin_live_op(app:AppHandle,op_id:String,expected_generation:i64,reason:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::begin_live_op(&mut conn,&op_id,expected_generation,&reason).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_record(app:AppHandle,op_id:String,store:String,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_record(&mut conn,&op_id,&store,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_delete(app:AppHandle,op_id:String,store:String,id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_delete(&mut conn,&op_id,&store,&id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_tick_chunk(app:AppHandle,op_id:String,dataset_id:String,chunk_index:i64,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_tick_chunk(&mut conn,&op_id,&dataset_id,chunk_index,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_finalize_live_tick(app:AppHandle,op_id:String,dataset_id:String,chunk_count:i64,row_count:i64,aggregate_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::finalize_live_tick(&mut conn,&op_id,&dataset_id,chunk_count,row_count,&aggregate_sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_commit_live_op(app:AppHandle,op_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::commit_live_op(&mut conn,&op_id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_abort_live_op(app:AppHandle,op_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::abort_live_op(&mut conn,&op_id).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -581,6 +649,19 @@ fn main() {
             desktop_market_verify_staging,
             desktop_market_read_staged_chunk,
             desktop_market_staging_status,
+            desktop_market_authority_status,
+            desktop_market_promote_authority,
+            desktop_market_list_records,
+            desktop_market_get_record,
+            desktop_market_list_catalogs,
+            desktop_market_read_active_chunk,
+            desktop_market_begin_live_op,
+            desktop_market_stage_live_record,
+            desktop_market_stage_live_delete,
+            desktop_market_stage_live_tick_chunk,
+            desktop_market_finalize_live_tick,
+            desktop_market_commit_live_op,
+            desktop_market_abort_live_op,
             desktop_stage_native_image,
             desktop_read_staged_image,
             desktop_verify_staged_images,

@@ -20,11 +20,12 @@ function stable(v){
   return v;
 }
 function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false,workspaceActive=true}={}){
-  const calls=[],alerts=[],blocks=new Set(),timers=[];
+  const calls=[],alerts=[],timers=[];
+  let blockReason='',loading=false;
   let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
   let imageNow=imageActive,marketNow=marketActive,workspaceNow=workspaceActive,phase=journalPhase;
   const document={
-    documentElement:{},
+    documentElement:{classList:{toggle(_name,value){loading=!!value;},remove(){loading=false;}}},
     addEventListener(){},
     getElementById(){return null;}
   };
@@ -37,12 +38,15 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     atob:v=>Buffer.from(String(v),'base64').toString('binary'),
     alert:v=>alerts.push(String(v)),confirm:()=>true,
     Math,Date,JSON,Number,String,Array,Object,Promise,Error,Uint8Array,
-    trCoreSetWriteBlock:r=>blocks.add(r),trCoreClearWriteBlock:r=>blocks.delete(r),
-    trBackupV2SetRecoveryUiBlocked(){},
+    trCoreSetWriteBlock:r=>{blockReason=String(r||'');return blockReason;},
+    trCoreClearWriteBlock:r=>{if(!r||blockReason===String(r))blockReason='';return !blockReason;},
+    trCoreWriteBlocked:()=>!!blockReason,
+    trCorePersistenceInfo:()=>({writeBlocked:!!blockReason,writeBlockReason:blockReason}),
+    trBackupV2SetRecoveryUiBlocked(blocked){const effective=!!blocked||!!blockReason;loading=effective;return effective;},
     trBackupV2Canonical:v=>JSON.stringify(stable(v)),
     trBackupV2Preflight:async raw=>JSON.parse(JSON.stringify(raw)),
     trBackupV2BuildPayload:async()=>JSON.parse(JSON.stringify(restored?source:current)),
-    trBackupV2RefreshUiAfterRestore:async()=>true,
+    trBackupV2RefreshUiAfterRestore:async()=>{assert.equal(blockReason,'','portable UI refresh must run only after the portable recovery write lock is released');calls.push({cmd:'refreshUi'});return true;},
     trBackupV2JournalGet:async()=>backupJournalPending?{id:'backup-v2-pending'}:null,
     trBackupV2RecoverPending:async()=>{assert.equal(backupJournalPending,true);backupJournalPending=false;restored=true;calls.push({cmd:'recoverBackupJournal'});return {status:'recovered'};},
     trBackupV2RestoreProtocol:async()=>{restored=true;calls.push({cmd:'restoreProtocol'});return {ok:true};},
@@ -100,7 +104,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   };
   context.globalThis=context;
   vm.runInContext(runtime,vm.createContext(context),{timeout:1500});
-  return {ctx:context,api:context.TradingResearchDesktopPortableRecovery,calls,alerts,blocks,timers,get cleared(){return cleared;},get phase(){return phase;},get restored(){return restored;}};
+  return {ctx:context,api:context.TradingResearchDesktopPortableRecovery,calls,alerts,timers,get blockReason(){return blockReason;},get loading(){return loading;},get cleared(){return cleared;},get phase(){return phase;},get restored(){return restored;}};
 }
 
 {
@@ -126,7 +130,9 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   assert(t.calls.some(x=>x.cmd==='migrateMarket'),'fresh target must promote restored Market Data to native authority');
   const advances=t.calls.filter(x=>x.cmd==='desktop_portable_restore_advance').map(x=>x.args.nextPhase);
   assert.deepEqual(advances,['restored','images-native','market-native','verified']);
-  assert(!t.blocks.has('desktop-portable-restore'),'write block must release only after verified clear');
+  assert.equal(t.blockReason,'','write block must be released after verified clear');
+  assert.equal(t.loading,false,'workspace loading veil must be removed after successful portable restore');
+  assert(t.calls.some(x=>x.cmd==='refreshUi'),'successful portable restore must refresh UI after release');
 }
 
 {
@@ -152,7 +158,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   const t=harness({journalPhase:'prepared',statusFailure:true});
   const out=await t.api.resumePending({announce:false});
   assert.equal(out.status,'blocked');
-  assert(t.blocks.has('desktop-portable-restore'),'unreadable pending journal/source must remain write-blocked');
+  assert.equal(t.blockReason,'desktop-portable-restore','unreadable pending journal/source must remain write-blocked');
   assert.equal(t.cleared,false);
 }
 

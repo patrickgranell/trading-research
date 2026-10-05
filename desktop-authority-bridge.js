@@ -14,8 +14,8 @@ let trDesktopImageGeneration=0;
 let trDesktopImageFailed=false;
 let trDesktopImageWriteChain=Promise.resolve(true);
 const trDesktopImageAuthorityControl={
-  active:false,failed:()=>trDesktopImageFailed,generation:()=>trDesktopImageGeneration,
-  version:'0.5.0-b77',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':'indexeddb'
+  active:false,migrationPending:false,failed:()=>trDesktopImageFailed,generation:()=>trDesktopImageGeneration,
+  version:'0.5.0-b77',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':trDesktopImageAuthorityControl.migrationPending?'migration':'indexeddb'
 };
 globalThis.TradingResearchDesktopImageAuthority=trDesktopImageAuthorityControl;
 async function trDesktopInvoke(command,args={}){
@@ -130,6 +130,8 @@ globalThis.TradingResearchDesktopImageBridge=Object.freeze({
   clear:trDesktopImageClear,deleteIds:trDesktopImageDeleteIds,writeTransaction:trDesktopImageWriteTransaction,
   gcDeleteIds:trDesktopImageGcDeleteLocalIds,
   setPromoted:(generation)=>{trDesktopImageGeneration=Number(generation)||0;trDesktopImageAuthorityControl.active=trDesktopImageGeneration>0;},
+  setMigrationPending:(value)=>{trDesktopImageAuthorityControl.migrationPending=!!value;},
+  block:trDesktopImageStop,
   refresh:trDesktopImageBootstrapAuthority
 });
 function trDesktopAuthorityStop(error){

@@ -190,6 +190,12 @@ async function startFromFile(file){
     alert('SQLite workspace authority todavía no está activa. No se inicia el restore portable.');
     return null;
   }
+  const existingPortable=await call('desktop_portable_restore_status');
+  if(existingPortable?.active){
+    ui.journal=existingPortable;paint();
+    alert('Ya existe una recuperación portable pendiente. Usa «Reanudar recuperación» en lugar de seleccionar otra copia.');
+    return null;
+  }
   if(typeof trBackupV2JournalGet==='function'&&await trBackupV2JournalGet()){
     alert('Existe una restauración Backup V2 pendiente. Debe recuperarse antes de iniciar un restore portable nuevo.');
     return null;
@@ -246,8 +252,8 @@ function panel(){
   return '<section class="card panel" id="desktop-portable-recovery-panel">'+
     '<div class="panel-title"><div><h3>Desktop · recuperación portable</h3><small>Batch 79: un Backup V2 reconstruye workspace, imágenes y Market Data nativos con journal reanudable.</small></div>'+
     '<span class="stable-pill '+(ui.lastError?'bad':j?'warn':ui.lastResult?'ok':'')+'">'+(ui.lastError?'ERROR':ui.busy?'TRABAJANDO':j?'RECUPERANDO':ui.lastResult?'VERIFICADO':'LISTO')+'</span></div>'+
-    '<div class="actions"><button class="btn primary" type="button" data-desktop-portable-action="restore" '+(ui.busy?'disabled':'')+'>Restaurar Backup V2 portable</button>'+
-    (j?'<button class="btn" type="button" data-desktop-portable-action="resume" '+(ui.busy?'disabled':'')+'>Reanudar recuperación</button>':'')+
+    '<div class="actions">'+(!j?'<button class="btn primary" type="button" data-desktop-portable-action="restore" '+(ui.busy?'disabled':'')+'>Restaurar Backup V2 portable</button>':'')+
+    (j?'<button class="btn primary" type="button" data-desktop-portable-action="resume" '+(ui.busy?'disabled':'')+'>Reanudar recuperación</button>':'')+
     '<button class="btn small" type="button" data-desktop-portable-action="refresh">Actualizar estado</button></div>'+
     '<div class="notice">'+(j?'<strong>Restore pendiente:</strong> fase '+esc(j.phase)+'<br><strong>Source:</strong> '+esc(j.sourcePath):
       ui.lastResult?'<strong>Última recuperación:</strong> verificada · imágenes '+esc(ui.lastResult.images)+' · revisión workspace '+esc(ui.lastResult.workspaceRevision):

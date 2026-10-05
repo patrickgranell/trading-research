@@ -136,6 +136,11 @@ function bridgeHarness(){
       if(cmd==='desktop_market_finalize_live_tick')return JSON.stringify({ok:true,rowCount:args.rowCount,chunkCount:args.chunkCount});
       if(cmd==='desktop_market_commit_live_op'){generation++;return JSON.stringify({ok:true,generation,updatedAt:'x'});}
       if(cmd==='desktop_market_abort_live_op')return JSON.stringify({ok:true});
+      if(cmd==='desktop_market_list_records'){
+        if(args.store==='marketMeta')return JSON.stringify([{id:'MD1',instrument:'CL'}]);
+        if(args.store==='execSets')return JSON.stringify([{id:'EX1',marketDatasetId:'MD1',rows:[]}]);
+        throw Error('unexpected list store '+args.store);
+      }
       if(cmd==='desktop_market_list_catalogs')return JSON.stringify([{id:'MD1',chunkCount:2,rowCount:3,aggregateSha256:'a'.repeat(64)}]);
       if(cmd==='desktop_market_read_active_chunk'){
         const p=args.chunkIndex===0?[[1,0,1,1,1,1],[2,0,2,2,2,1]]:[[3,0,3,3,3,1]];
@@ -168,6 +173,29 @@ function bridgeHarness(){
   const reconstructed=await t.ctx.TradingResearchDesktopMarketBridge.get('marketTicks','MD1');
   assert.equal(reconstructed.ticks.length,3);
   assert.deepEqual(JSON.parse(JSON.stringify(reconstructed.ticks[2])),[3,0,3,3,3,1]);
+}
+{
+  const t=bridgeHarness();
+  const replacement={
+    marketMeta:[{id:'MD2',instrument:'MNQ'}],
+    marketTicks:[{id:'MD2',ticks:[[10,0,1,1,1,1],[11,0,2,2,2,1]]}],
+    execSets:[{id:'EX2',marketDatasetId:'MD2',rows:[]}]
+  };
+  assert.equal(await t.ctx.TradingResearchDesktopMarketBridge.replaceAll(replacement),true);
+  const begin=t.calls.filter(x=>x.cmd==='desktop_market_begin_live_op');
+  const commits=t.calls.filter(x=>x.cmd==='desktop_market_commit_live_op');
+  const dels=t.calls.filter(x=>x.cmd==='desktop_market_stage_live_delete');
+  const puts=t.calls.filter(x=>x.cmd==='desktop_market_stage_live_record');
+  const tickChunks=t.calls.filter(x=>x.cmd==='desktop_market_stage_live_tick_chunk');
+  assert.equal(begin.length,1,'Backup V2 native replacement must be one CAS operation');
+  assert.equal(commits.length,1,'Backup V2 native replacement must commit exactly once');
+  assert(dels.some(x=>x.args.store==='marketMeta'&&x.args.id==='MD1'));
+  assert(dels.some(x=>x.args.store==='marketTicks'&&x.args.id==='MD1'));
+  assert(dels.some(x=>x.args.store==='execSets'&&x.args.id==='EX1'));
+  assert(puts.some(x=>x.args.store==='marketMeta'&&x.args.id==='MD2'));
+  assert(puts.some(x=>x.args.store==='execSets'&&x.args.id==='EX2'));
+  assert.equal(tickChunks.length,1);
+  assert.equal(JSON.parse(tickChunks[0].args.payload).length,2);
 }
 
 if(fs.existsSync('desktop-dist/index.html')){

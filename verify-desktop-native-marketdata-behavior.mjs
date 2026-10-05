@@ -16,8 +16,8 @@ function uiDocument(){
     createElement(){return {id:'',innerHTML:'',insertAdjacentElement(){}};}
   };
 }
-function migrationHarness({failBackup=false,failStage=false,failPromote=false}={}){
-  const calls=[],alerts=[],locks=[];let active=false,generation=0,blocked=false;
+function migrationHarness({failBackup=false,failStage=false,failPromote=false,failAfterMarker=false}={}){
+  const calls=[],alerts=[],locks=[];let active=false,generation=0,blocked=false,markerBroken=false;
   const meta={id:'MD1',instrument:'CL',rowCount:3};
   const tick={id:'MD1',ticks:[[1,0,1,1,1,1],[2,0,2,2,2,1],[3,0,3,3,3,1]]};
   const exec={id:'EX1',marketDatasetId:'MD1',rows:[]};
@@ -62,10 +62,14 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false}={
       if(cmd==='desktop_market_finalize_dataset')return JSON.stringify({ok:true,rowCount:args.rowCount,chunkCount:args.chunkCount,authority:false});
       if(cmd==='desktop_market_verify_staging')return JSON.stringify({ok:true,generation:1,meta:1,datasets:1,execSets:1,authority:false});
       if(cmd==='desktop_market_promote_authority'){
+        if(failAfterMarker){markerBroken=true;throw Error('promote failed after marker');}
         if(failPromote)throw Error('promote failed');
         active=true;generation=1;return JSON.stringify({ok:true,active:true,generation:1,meta:1,datasets:1,execSets:1,ticks:3});
       }
-      if(cmd==='desktop_market_authority_status')return JSON.stringify({ok:true,active,generation,meta:active?1:0,datasets:active?1:0,execSets:active?1:0,ticks:active?3:0,deepVerified:!!args?.deep});
+      if(cmd==='desktop_market_authority_status'){
+        if(markerBroken)throw Error('marker exists without authority row');
+        return JSON.stringify({ok:true,active,generation,meta:active?1:0,datasets:active?1:0,execSets:active?1:0,ticks:active?3:0,deepVerified:!!args?.deep});
+      }
       if(cmd==='desktop_market_staging_status')return JSON.stringify({ok:true,active,generation,staging:{generation:1,completed:true}});
       throw Error('unexpected '+cmd);
     }}}
@@ -108,7 +112,13 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false}={
 {
   const t=migrationHarness({failPromote:true});
   await t.ctx.TradingResearchDesktopNativeMarketData.migrateNativeMarketData();
-  assert.equal(t.blocked,true,'Failure after promotion attempt must fail closed because marker publication may have started');
+  assert.equal(t.blocked,false,'Failure before marker publication may safely retain IndexedDB authority');
+  assert.equal(t.ctx.TradingResearchDesktopMarketAuthority.active,false);
+}
+{
+  const t=migrationHarness({failAfterMarker:true});
+  await t.ctx.TradingResearchDesktopNativeMarketData.migrateNativeMarketData();
+  assert.equal(t.blocked,true,'Marker-without-authority must fail closed and never return to stale IndexedDB');
 }
 
 /* Bridge behavior: chunked live commit + bounded read reconstruction. */

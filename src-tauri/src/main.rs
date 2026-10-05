@@ -698,6 +698,11 @@ fn desktop_market_read_active_chunk(app:AppHandle,dataset_id:String,chunk_index:
     native_market::read_active_chunk(&conn,&dataset_id,chunk_index).map(|v|v.to_string())
 }
 #[tauri::command]
+fn desktop_market_backup_ticks_hash(app:AppHandle,ordered_ids_json:String)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::backup_ticks_hash(&conn,&ordered_ids_json).map(|v|v.to_string())
+}
+#[tauri::command]
 fn desktop_market_begin_live_op(app:AppHandle,op_id:String,expected_generation:i64,reason:String)->Result<String,String>{
     let root=native_root(&app)?;let mut conn=open_db(&root)?;
     native_market::begin_live_op(&mut conn,&op_id,expected_generation,&reason).map(|v|v.to_string())
@@ -992,6 +997,7 @@ fn main() {
             desktop_market_get_record,
             desktop_market_list_catalogs,
             desktop_market_read_active_chunk,
+            desktop_market_backup_ticks_hash,
             desktop_market_begin_live_op,
             desktop_market_stage_live_record,
             desktop_market_stage_live_delete,

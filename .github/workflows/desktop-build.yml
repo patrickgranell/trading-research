@@ -21,6 +21,7 @@ on:
       - 'verify-desktop-native-images.mjs'
       - 'verify-desktop-native-images-behavior.mjs'
       - 'desktop-native-images-runtime.js'
+      - 'desktop-native-images-transform.mjs'
       - 'DESKTOP.md'
       - '.github/workflows/desktop-build.yml'
 

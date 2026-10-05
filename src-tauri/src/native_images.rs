@@ -239,6 +239,15 @@ pub(crate) fn authority_status(conn:&Connection,root:&Path,deep:bool)->Result<Va
     Ok(json!({"ok":true,"active":false,"generation":0,"catalogRecords":0,"deepVerified":deep}))
 }
 pub(crate) fn promote(conn:&mut Connection,root:&Path,expected:&[(String,String)],backup_path:&str,backup_sha:&str)->Result<Value,String>{
+    if let Some((generation,existing_path,existing_sha,promoted_at,_))=authority_row(conn)?{
+        if existing_path!=backup_path||existing_sha!=backup_sha{
+            return Err("La autoridad de imágenes ya fue promovida con otro rollback; no se re-promueve.".into());
+        }
+        ensure_authority_marker(root)?;
+        let count=verify_catalog_presence(conn,root,true)?;
+        return Ok(json!({"ok":true,"active":true,"generation":generation,"images":count,
+          "promotedAt":promoted_at,"idempotent":true}));
+    }
     let staging:Option<(String,String,String)>=conn.query_row(
       "SELECT inventory_json,backup_path,backup_sha256 FROM image_staging_state WHERE id=1",[],
       |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()
@@ -405,6 +414,47 @@ mod tests{
     #[test] fn marker_without_authority_is_fatal(){
         let(root,c)=setup();ensure_authority_marker(&root).unwrap();
         assert!(authority_status(&c,&root,false).is_err());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test] fn repeated_promotion_never_prunes_newer_catalog(){
+        let(root,mut c)=setup();let sha=hex(b"x");let backup_sha=hex(b"backup");
+        stage(&mut c,&root,"a",&STANDARD.encode(b"x"),&sha,"image/png","x").unwrap();
+        finalize(&mut c,&root,&[("a".into(),sha.clone())],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        promote(&mut c,&root,&[("a".into(),sha.clone())],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        let put=json!({"id":"b","data":STANDARD.encode(b"y"),"sha256":hex(b"y"),"mime":"image/png","name":"y","updatedAt":""});
+        batch_commit(&mut c,&root,&[put],&[],1,"add-b").unwrap();
+        let again=promote(&mut c,&root,&[("a".into(),sha)],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        assert_eq!(again["generation"],2);assert_eq!(again["idempotent"],true);
+        assert!(row(&c,"b").unwrap().is_some());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test] fn authority_survives_real_sqlite_reopen(){
+        let root=std::env::temp_dir().join(format!("tr-b77-reopen-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(&root).unwrap();let db=root.join("images.sqlite");
+        let sha=hex(b"persist");let backup_sha=hex(b"backup");
+        {
+          let mut c=Connection::open(&db).unwrap();prepare_schema(&c).unwrap();
+          stage(&mut c,&root,"a",&STANDARD.encode(b"persist"),&sha,"image/png","persist").unwrap();
+          finalize(&mut c,&root,&[("a".into(),sha.clone())],"C:/safe/reopen.trbackup",&backup_sha).unwrap();
+          promote(&mut c,&root,&[("a".into(),sha)],"C:/safe/reopen.trbackup",&backup_sha).unwrap();
+        }
+        {
+          let c=Connection::open(&db).unwrap();prepare_schema(&c).unwrap();
+          let status=authority_status(&c,&root,true).unwrap();
+          assert_eq!(status["active"],true);assert_eq!(status["generation"],1);assert_eq!(status["catalogRecords"],1);
+          assert_eq!(read_active(&c,&root,"a").unwrap()["authority"],true);
+        }
+        let _=fs::remove_dir_all(root);
+    }
+    #[test] fn stale_cas_can_leave_only_unreferenced_object_not_catalog_mutation(){
+        let(root,mut c)=setup();let sha=hex(b"x");let backup_sha=hex(b"backup");
+        stage(&mut c,&root,"a",&STANDARD.encode(b"x"),&sha,"image/png","x").unwrap();
+        finalize(&mut c,&root,&[("a".into(),sha.clone())],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        promote(&mut c,&root,&[("a".into(),sha)],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        let put=json!({"id":"b","data":STANDARD.encode(b"orphan"),"sha256":hex(b"orphan"),"mime":"image/png","name":"o","updatedAt":""});
+        assert!(batch_commit(&mut c,&root,&[put],&[],0,"stale").is_err());
+        assert!(row(&c,"b").unwrap().is_none());
+        let gc=gc_objects(&c,&root).unwrap();assert_eq!(gc["removed"],1);
         let _=fs::remove_dir_all(root);
     }
 }

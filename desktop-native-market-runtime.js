@@ -123,8 +123,19 @@ async function migrateNativeMarketData(){
     return result;
   }catch(e){
     ui.lastError=e?.message||String(e);console.error('[Trading Research Desktop · Native Market Data migration]',e);
-    if(promoted||promotionAttempted)globalThis.TradingResearchDesktopMarketBridge?.block?.(e);
-    else endMigration();
+    if(promoted)globalThis.TradingResearchDesktopMarketBridge?.block?.(e);
+    else if(promotionAttempted){
+      try{
+        const probe=await call('desktop_market_authority_status',{deep:false});
+        if(probe?.active){
+          globalThis.TradingResearchDesktopMarketBridge?.setPromoted?.(Number(probe.generation)||1);
+          globalThis.TradingResearchDesktopMarketBridge?.block?.(e);
+        }else endMigration();
+      }catch{
+        // Marker-without-row or unreadable authority: never fall back silently.
+        globalThis.TradingResearchDesktopMarketBridge?.block?.(e);
+      }
+    }else endMigration();
     alert('No se pudo completar la migración nativa de Market Data: '+ui.lastError+
       (staged?.rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(staged?.rollback?.path||ui.lastRollbackPath):''));
     return null;

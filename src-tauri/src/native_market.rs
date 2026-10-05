@@ -796,7 +796,7 @@ mod tests{
     }
     fn agg(chunks:&[(i64,i64,String)])->String{aggregate_from_rows(chunks)}
     fn begin(c:&mut Connection)->i64{
-        begin_stage(c,"C:\\\\backups\\\\safe.trbackup",&"a".repeat(64)).unwrap()["generation"].as_i64().unwrap()
+        begin_stage(c,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap()["generation"].as_i64().unwrap()
     }
 
     #[test]
@@ -880,6 +880,8 @@ mod tests{
         fs::create_dir_all(&root).unwrap();
         let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();
         let (g,_inv)=stage_complete_one(&mut c);
+        assert!(promote(&mut c,&root,g,"C:\\backups\\different.trbackup",&"a".repeat(64)).is_err(),
+          "promotion must reject a rollback path different from the staged/certified path");
         let out=promote(&mut c,&root,g,"C:\\backups\\safe.trbackup",&"a".repeat(64)).unwrap();
         assert_eq!(out["generation"],1);assert_eq!(out["datasets"],1);assert!(authority_marker_path(&root).exists());
         let st=authority_status(&c,&root,true).unwrap();

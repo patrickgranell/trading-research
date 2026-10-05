@@ -353,6 +353,23 @@ fn verify_stage_inventory(conn:&Connection,g:i64,inventory_json:&str)->Result<Va
           params![g,id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))
         ).optional().map_err(|e|format!("Catálogo ticks verify: {e}"))?;
         if actual!=Some((chunks,rows,hash.to_owned())){return Err(format!("Catálogo ticks no coincide: {id}."));}
+        let mut q=conn.prepare(
+          "SELECT chunk_index,row_count,payload,sha256 FROM market_tick_chunk_native
+           WHERE generation=?1 AND dataset_id=?2 ORDER BY chunk_index"
+        ).map_err(|e|format!("Chunks staging verify {id}: {e}"))?;
+        let mapped=q.query_map(params![g,id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?)))
+          .map_err(|e|format!("Filas chunks staging verify {id}: {e}"))?;
+        let mut info=Vec::new();let mut total=0i64;
+        for (pos,row) in mapped.enumerate(){
+            let (idx,count,payload,chunk_hash)=row.map_err(|e|e.to_string())?;
+            if idx!=pos as i64{return Err(format!("Chunks staging no contiguos: {id}."));}
+            let parsed=tick_payload(&payload)?;
+            if parsed.len() as i64!=count||sha_text(&payload)!=chunk_hash{return Err(format!("Chunk staging corrupto: {id}#{idx}."));}
+            total+=count;info.push((idx,count,chunk_hash));
+        }
+        if info.len() as i64!=chunks||total!=rows||aggregate_from_rows(&info)!=hash{
+            return Err(format!("Histórico staging no coincide con catálogo: {id}."));
+        }
     }
     let catalog_ids:Vec<String>={
         let mut stmt=conn.prepare("SELECT dataset_id FROM market_tick_catalog_native WHERE generation=?1 ORDER BY dataset_id")

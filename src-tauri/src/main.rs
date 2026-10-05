@@ -740,51 +740,47 @@ fn portable_restore_row(conn:&Connection)->Result<Option<(String,String,String,S
       [],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))
     ).optional().map_err(|e|format!("Lectura journal restore portable: {e}"))
 }
-#[tauri::command]
-fn desktop_portable_restore_begin(app:AppHandle,source_path:String,source_sha256:String,rollback_path:String,rollback_sha256:String)->Result<String,String>{
-    let root=native_root(&app)?;
-    let (_,source_sha)=validated_native_backup(&root,&source_path)?;
-    let (_,rollback_sha)=validated_native_backup(&root,&rollback_path)?;
+fn portable_restore_begin_root(root:&Path,source_path:&str,source_sha256:&str,rollback_path:&str,rollback_sha256:&str)->Result<Value,String>{
+    let (_,source_sha)=validated_native_backup(root,source_path)?;
+    let (_,rollback_sha)=validated_native_backup(root,rollback_path)?;
     if source_sha!=source_sha256||rollback_sha!=rollback_sha256{return Err("Hash de backup source/rollback no coincide con el journal portable.".into());}
-    let mut conn=open_db(&root)?;
+    let mut conn=open_db(root)?;
     if let Some((phase,sp,ss,rp,rs,updated))=portable_restore_row(&conn)?{
         if sp!=source_path||ss!=source_sha256||rp!=rollback_path||rs!=rollback_sha256{
             return Err("Ya existe un restore portable pendiente ligado a otros backups.".into());
         }
-        ensure_portable_restore_marker(&root)?;
-        return Ok(json!({"ok":true,"active":true,"resumed":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}).to_string());
+        ensure_portable_restore_marker(root)?;
+        return Ok(json!({"ok":true,"active":true,"resumed":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}));
     }
-    if portable_restore_marker_path(&root).exists(){return Err("Existe marcador de restore portable sin journal SQLite. Recuperación obligatoria.".into());}
-    ensure_portable_restore_marker(&root)?;
+    if portable_restore_marker_path(root).exists(){return Err("Existe marcador de restore portable sin journal SQLite. Recuperación obligatoria.".into());}
+    ensure_portable_restore_marker(root)?;
     let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
     let tx=conn.transaction().map_err(|e|format!("Inicio journal restore portable: {e}"))?;
     tx.execute("INSERT INTO portable_restore_journal(id,phase,source_path,source_sha256,rollback_path,rollback_sha256,started_at,updated_at) VALUES(1,'prepared',?1,?2,?3,?4,?5,?5)",
       params![source_path,source_sha256,rollback_path,rollback_sha256,now]).map_err(|e|format!("Escritura journal restore portable: {e}"))?;
     tx.commit().map_err(|e|format!("Commit journal restore portable: {e}"))?;
-    Ok(json!({"ok":true,"active":true,"resumed":false,"phase":"prepared","sourcePath":source_path,"sourceSha256":source_sha256,"rollbackPath":rollback_path,"rollbackSha256":rollback_sha256,"updatedAt":now}).to_string())
+    Ok(json!({"ok":true,"active":true,"resumed":false,"phase":"prepared","sourcePath":source_path,"sourceSha256":source_sha256,"rollbackPath":rollback_path,"rollbackSha256":rollback_sha256,"updatedAt":now}))
 }
-#[tauri::command]
-fn desktop_portable_restore_status(app:AppHandle)->Result<String,String>{
-    let root=native_root(&app)?;let conn=open_db(&root)?;
+fn portable_restore_status_root(root:&Path)->Result<Value,String>{
+    let conn=open_db(root)?;
     let row=portable_restore_row(&conn)?;
     if row.is_none(){
-        if portable_restore_marker_path(&root).exists(){return Err("Marcador de restore portable presente sin journal SQLite. Recuperación obligatoria.".into());}
-        return Ok(json!({"ok":true,"active":false}).to_string());
+        if portable_restore_marker_path(root).exists(){return Err("Marcador de restore portable presente sin journal SQLite. Recuperación obligatoria.".into());}
+        return Ok(json!({"ok":true,"active":false}));
     }
     let (phase,sp,ss,rp,rs,updated)=row.unwrap();
     portable_phase_rank(&phase).ok_or("Fase de restore portable desconocida.")?;
-    ensure_portable_restore_marker(&root)?;
-    let (_,source_sha)=validated_native_backup(&root,&sp)?;
-    let (_,rollback_sha)=validated_native_backup(&root,&rp)?;
+    ensure_portable_restore_marker(root)?;
+    let (_,source_sha)=validated_native_backup(root,&sp)?;
+    let (_,rollback_sha)=validated_native_backup(root,&rp)?;
     if source_sha!=ss||rollback_sha!=rs{return Err("Backup source/rollback del restore portable cambió desde el journal.".into());}
-    Ok(json!({"ok":true,"active":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}).to_string())
+    Ok(json!({"ok":true,"active":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}))
 }
-#[tauri::command]
-fn desktop_portable_restore_advance(app:AppHandle,expected_phase:String,next_phase:String)->Result<String,String>{
-    let expected=portable_phase_rank(&expected_phase).ok_or("Fase esperada portable inválida.")?;
-    let next=portable_phase_rank(&next_phase).ok_or("Fase siguiente portable inválida.")?;
+fn portable_restore_advance_root(root:&Path,expected_phase:&str,next_phase:&str)->Result<Value,String>{
+    let expected=portable_phase_rank(expected_phase).ok_or("Fase esperada portable inválida.")?;
+    let next=portable_phase_rank(next_phase).ok_or("Fase siguiente portable inválida.")?;
     if next!=expected+1{return Err("Transición de fase portable no secuencial.".into());}
-    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    let mut conn=open_db(root)?;
     let row=portable_restore_row(&conn)?.ok_or("No existe restore portable pendiente.")?;
     if row.0!=expected_phase{return Err(format!("Fase portable obsoleta: esperada {expected_phase}, real {}.",row.0));}
     let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
@@ -793,19 +789,38 @@ fn desktop_portable_restore_advance(app:AppHandle,expected_phase:String,next_pha
       .map_err(|e|format!("Avance restore portable: {e}"))?;
     if changed!=1{return Err("CAS de fase restore portable rechazado.".into());}
     tx.commit().map_err(|e|format!("Commit fase restore portable: {e}"))?;
-    Ok(json!({"ok":true,"phase":next_phase,"updatedAt":now}).to_string())
+    Ok(json!({"ok":true,"phase":next_phase,"updatedAt":now}))
 }
-#[tauri::command]
-fn desktop_portable_restore_clear(app:AppHandle)->Result<String,String>{
-    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+fn portable_restore_clear_root(root:&Path)->Result<Value,String>{
+    let mut conn=open_db(root)?;
     let row=portable_restore_row(&conn)?.ok_or("No existe restore portable pendiente.")?;
     if row.0!="verified"{return Err("Restore portable no puede cerrarse antes de verified.".into());}
     let tx=conn.transaction().map_err(|e|format!("Inicio cierre restore portable: {e}"))?;
     tx.execute("DELETE FROM portable_restore_journal WHERE id=1",[]).map_err(|e|format!("Borrado journal restore portable: {e}"))?;
     tx.commit().map_err(|e|format!("Commit cierre restore portable: {e}"))?;
-    let marker=portable_restore_marker_path(&root);
+    let marker=portable_restore_marker_path(root);
     if marker.exists(){fs::remove_file(&marker).map_err(|e|format!("Borrado marcador restore portable: {e}"))?;}
-    Ok(json!({"ok":true,"active":false}).to_string())
+    Ok(json!({"ok":true,"active":false}))
+}
+#[tauri::command]
+fn desktop_portable_restore_begin(app:AppHandle,source_path:String,source_sha256:String,rollback_path:String,rollback_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    portable_restore_begin_root(&root,&source_path,&source_sha256,&rollback_path,&rollback_sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_status(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;
+    portable_restore_status_root(&root).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_advance(app:AppHandle,expected_phase:String,next_phase:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    portable_restore_advance_root(&root,&expected_phase,&next_phase).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_clear(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;
+    portable_restore_clear_root(&root).map(|v|v.to_string())
 }
 #[tauri::command]
 fn desktop_read_native_backup_chunk(app:AppHandle,path:String,offset:u64,max_bytes:usize)->Result<String,String>{
@@ -820,6 +835,65 @@ fn desktop_read_native_backup_chunk(app:AppHandle,path:String,offset:u64,max_byt
     let read=file.read(&mut buf).map_err(|e|format!("Lectura chunk backup portable: {e}"))?;
     buf.truncate(read);
     Ok(json!({"ok":true,"offset":offset,"bytes":read,"totalBytes":size,"eof":offset+read as u64>=size,"dataB64":STANDARD.encode(buf)}).to_string())
+}
+
+#[cfg(test)]
+mod portable_restore_tests{
+    use super::*;
+    fn payload()->String{
+        json!({"format":"trading-research-backup","schema":2,"manifest":{},"workspace":{"tradingPlans":[]},"images":[],"marketData":{"marketMeta":[],"marketTicks":[],"execSets":[]}}).to_string()
+    }
+    fn setup()->(PathBuf,String,String,String,String){
+        let root=std::env::temp_dir().join(format!("tr-b79-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(root.join("data")).unwrap();fs::create_dir_all(root.join("backups")).unwrap();fs::create_dir_all(root.join("images")).unwrap();
+        let source=root.join("backups/source.trbackup");let rollback=root.join("backups/rollback.trbackup");
+        let body=payload();fs::write(&source,&body).unwrap();fs::write(&rollback,&body).unwrap();
+        let sha=sha256_text(&body);
+        (root,source.to_string_lossy().to_string(),sha.clone(),rollback.to_string_lossy().to_string(),sha)
+    }
+    #[test]
+    fn portable_journal_survives_reopen_and_clears_only_after_verified(){
+        let(root,source,source_sha,rollback,rollback_sha)=setup();
+        let begun=portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap();
+        assert_eq!(begun["phase"],"prepared");assert!(portable_restore_marker_path(&root).exists());
+        drop(open_db(&root).unwrap());
+        assert_eq!(portable_restore_status_root(&root).unwrap()["phase"],"prepared");
+        assert!(portable_restore_advance_root(&root,"prepared","images-native").is_err());
+        for (from,to) in [("prepared","restored"),("restored","images-native"),("images-native","market-native"),("market-native","verified")]{
+            assert_eq!(portable_restore_advance_root(&root,from,to).unwrap()["phase"],to);
+        }
+        assert_eq!(portable_restore_status_root(&root).unwrap()["phase"],"verified");
+        portable_restore_clear_root(&root).unwrap();
+        assert_eq!(portable_restore_status_root(&root).unwrap()["active"],false);
+        assert!(!portable_restore_marker_path(&root).exists());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test]
+    fn portable_journal_fails_closed_when_source_disappears(){
+        let(root,source,source_sha,rollback,rollback_sha)=setup();
+        portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap();
+        fs::remove_file(&source).unwrap();
+        assert!(portable_restore_status_root(&root).is_err());
+        assert!(portable_restore_marker_path(&root).exists());
+        let conn=open_db(&root).unwrap();assert!(portable_restore_row(&conn).unwrap().is_some());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test]
+    fn portable_marker_without_journal_is_fatal(){
+        let(root,_source,_sha,_rollback,_rsha)=setup();
+        ensure_portable_restore_marker(&root).unwrap();
+        assert!(portable_restore_status_root(&root).is_err());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test]
+    fn portable_begin_is_idempotent_only_for_same_physical_backups(){
+        let(root,source,source_sha,rollback,rollback_sha)=setup();
+        portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap();
+        assert_eq!(portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap()["resumed"],true);
+        let other=root.join("backups/other.trbackup");fs::write(&other,payload()).unwrap();
+        assert!(portable_restore_begin_root(&root,&other.to_string_lossy(),&source_sha,&rollback,&rollback_sha).is_err());
+        let _=fs::remove_dir_all(root);
+    }
 }
 
 fn main() {

@@ -9,10 +9,129 @@ const trDesktopAuthorityControl={
   mode:()=>trDesktopAuthorityFailed?'blocked':trDesktopAuthorityControl.active?'sqlite-authority':'migration'
 };
 globalThis.TradingResearchDesktopAuthority=trDesktopAuthorityControl;
+
+let trDesktopImageGeneration=0;
+let trDesktopImageFailed=false;
+let trDesktopImageWriteChain=Promise.resolve(true);
+const trDesktopImageAuthorityControl={
+  active:false,failed:()=>trDesktopImageFailed,generation:()=>trDesktopImageGeneration,
+  version:'0.5.0-b77',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':'indexeddb'
+};
+globalThis.TradingResearchDesktopImageAuthority=trDesktopImageAuthorityControl;
 async function trDesktopInvoke(command,args={}){
   const reply=await trDesktopNativeInvoke(command,args);
   return typeof reply==='string'?JSON.parse(reply):reply;
 }
+
+async function trDesktopImageBootstrapAuthority(){
+  const status=await trDesktopInvoke('desktop_native_image_authority_status',{deep:false});
+  trDesktopImageAuthorityControl.active=!!status?.active;
+  trDesktopImageGeneration=Number(status?.generation)||0;
+  if(trDesktopImageAuthorityControl.active&&trDesktopImageGeneration<1)throw new Error('Autoridad de imágenes activa sin generación válida.');
+  return status;
+}
+function trDesktopImageStop(error){
+  trDesktopImageFailed=true;
+  trCoreSetWriteBlock('desktop-native-image-authority-error');
+  const e=error instanceof Error?error:new Error(String(error));
+  console.error('[Trading Research · Native image authority]',e);
+  trDesktopAuthorityStop(e);
+}
+function trDesktopImageBase64(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result||'').split(',')[1]||'');
+    r.onerror=()=>reject(r.error||new Error('No se pudo serializar imagen.'));
+    r.readAsDataURL(blob);
+  });
+}
+async function trDesktopImageSha(blob){
+  const bytes=await blob.arrayBuffer();
+  const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function trDesktopImageBlob(data,type='application/octet-stream'){
+  const bin=atob(String(data||'')),bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return new Blob([bytes],{type});
+}
+function trDesktopImageQueueBatch(puts=[],deletes=[],reason='image.commit'){
+  if(!trDesktopImageAuthorityControl.active||trDesktopImageFailed)return Promise.reject(new Error('Autoridad nativa de imágenes no disponible.'));
+  trDesktopImageWriteChain=trDesktopImageWriteChain.then(async()=>{
+    if(trDesktopImageFailed)throw new Error('Autoridad nativa de imágenes bloqueada.');
+    const previous=trDesktopImageGeneration;
+    try{
+      const result=await trDesktopInvoke('desktop_native_image_batch',{
+        puts:JSON.stringify(puts),deletes:JSON.stringify(deletes),
+        expectedGeneration:previous,reason:String(reason||'image.commit')
+      });
+      if(!result?.ok||Number(result.generation)!==previous+1)throw new Error('Commit nativo de imágenes no confirmó la siguiente generación.');
+      trDesktopImageGeneration=Number(result.generation);
+      return result;
+    }catch(e){trDesktopImageStop(e);throw e;}
+  });
+  return trDesktopImageWriteChain;
+}
+async function trDesktopImageWriteFile(file,id){
+  const data=await trDesktopImageBase64(file),sha256=await trDesktopImageSha(file);
+  await trDesktopImageQueueBatch([{
+    id:String(id),data,sha256,mime:String(file.type||'application/octet-stream'),
+    name:String(file.name||'imagen'),updatedAt:new Date().toISOString()
+  }],[],'image.file.put');
+  return true;
+}
+async function trDesktopImageReadBlob(id){
+  if(!trDesktopImageAuthorityControl.active)throw new Error('Lectura nativa solicitada sin autoridad activa.');
+  const rec=await trDesktopInvoke('desktop_read_native_image',{id:String(id)});
+  if(!rec?.authority||!rec.data)throw new Error('Imagen nativa no verificable: '+String(id));
+  return trDesktopImageBlob(rec.data,rec.mime||'application/octet-stream');
+}
+async function trDesktopImageListRecords(){
+  if(!trDesktopImageAuthorityControl.active)throw new Error('Lista nativa solicitada sin autoridad activa.');
+  const rows=await trDesktopInvoke('desktop_list_native_images');
+  const out=[];
+  for(const meta of rows||[]){
+    const rec=await trDesktopInvoke('desktop_read_native_image',{id:String(meta.id)});
+    out.push({id:String(meta.id),blob:trDesktopImageBlob(rec.data,rec.mime||meta.mime),
+      name:meta.name||'imagen',type:meta.mime||rec.mime||'application/octet-stream',
+      updatedAt:meta.updatedAt||'',sha256:meta.sha256||rec.sha256||''});
+  }
+  return out;
+}
+async function trDesktopImageClear(){
+  const rows=await trDesktopInvoke('desktop_list_native_images'),ids=(rows||[]).map(x=>String(x.id));
+  if(ids.length)await trDesktopImageQueueBatch([],ids,'image.clear');
+  return true;
+}
+async function trDesktopImageDeleteIds(ids,reason='image.delete'){
+  const unique=[...new Set((ids||[]).filter(Boolean).map(String))];
+  if(unique.length)await trDesktopImageQueueBatch([],unique,reason);
+  return unique.length;
+}
+async function trDesktopImageWriteTransaction(puts=[],deletes=[],reason='image.batch'){
+  const nativePuts=[];
+  for(const rec of puts||[]){
+    if(!(rec?.blob instanceof Blob))throw new Error('Put nativo sin Blob: '+String(rec?.id||''));
+    nativePuts.push({
+      id:String(rec.id),data:await trDesktopImageBase64(rec.blob),sha256:await trDesktopImageSha(rec.blob),
+      mime:String(rec.type||rec.blob.type||'application/octet-stream'),name:String(rec.name||'imagen'),
+      updatedAt:String(rec.updatedAt||'')
+    });
+  }
+  return trDesktopImageQueueBatch(nativePuts,(deletes||[]).map(String),reason);
+}
+async function trDesktopImageGcDeleteLocalIds(ids){
+  const count=await trDesktopImageDeleteIds(ids,'image.gc.catalog');
+  await trDesktopInvoke('desktop_gc_native_image_objects');
+  return count;
+}
+globalThis.TradingResearchDesktopImageBridge=Object.freeze({
+  writeFile:trDesktopImageWriteFile,readBlob:trDesktopImageReadBlob,listRecords:trDesktopImageListRecords,
+  clear:trDesktopImageClear,deleteIds:trDesktopImageDeleteIds,writeTransaction:trDesktopImageWriteTransaction,
+  gcDeleteIds:trDesktopImageGcDeleteLocalIds,
+  setPromoted:(generation)=>{trDesktopImageGeneration=Number(generation)||0;trDesktopImageAuthorityControl.active=trDesktopImageGeneration>0;},
+  refresh:trDesktopImageBootstrapAuthority
+});
 function trDesktopAuthorityStop(error){
   trDesktopAuthorityFailed=true;
   trCoreFatal=true;trCoreHydrated=false;trCoreMode='fatal';
@@ -144,6 +263,7 @@ async function trDesktopAuthorityBootstrap(){
       trCoreLastError='';trCoreLastSavedAt=record.updatedAt||'';
       trCoreClearWriteBlock('desktop-authority-promotion');
     }
+    await trDesktopImageBootstrapAuthority();
     trDesktopAuthorityControl.migrationPending=false;
     await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
     document.documentElement.classList.remove('tr-core-loading');

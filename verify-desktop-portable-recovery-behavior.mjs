@@ -98,13 +98,15 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
 }
 
 {
-  const t=harness();
+  const t=harness({imageActive:false,marketActive:false});
   const file={text:async()=>sourceText};
   const result=await t.api.startFromFile(file);
   assert(result,'portable restore should complete');
   assert.equal(t.cleared,true,'verified journal must be cleared');
   assert.equal(t.phase,null);
   assert(t.calls.some(x=>x.cmd==='restoreProtocol'),'source Backup V2 must restore before verification');
+  assert(t.calls.some(x=>x.cmd==='migrateImages'),'fresh target must promote restored images to native authority');
+  assert(t.calls.some(x=>x.cmd==='migrateMarket'),'fresh target must promote restored Market Data to native authority');
   const advances=t.calls.filter(x=>x.cmd==='desktop_portable_restore_advance').map(x=>x.args.nextPhase);
   assert.deepEqual(advances,['restored','images-native','market-native','verified']);
   assert(!t.blocks.has('desktop-portable-restore'),'write block must release only after verified clear');

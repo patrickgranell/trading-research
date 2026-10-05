@@ -864,7 +864,9 @@ mod portable_restore_tests{
         let begun=portable_restore_begin_root(&root,&source,&source_sha,&rollback,&rollback_sha).unwrap();
         assert_eq!(begun["phase"],"prepared");assert!(portable_restore_marker_path(&root).exists());
         drop(open_db(&root).unwrap());
+        fs::remove_file(portable_restore_marker_path(&root)).unwrap();
         assert_eq!(portable_restore_status_root(&root).unwrap()["phase"],"prepared");
+        assert!(portable_restore_marker_path(&root).exists(),"row-without-marker must self-heal on status");
         assert!(portable_restore_advance_root(&root,"prepared","images-native").is_err());
         for (from,to) in [("prepared","restored"),("restored","images-native"),("images-native","market-native"),("market-native","verified")]{
             assert_eq!(portable_restore_advance_root(&root,from,to).unwrap()["phase"],to);

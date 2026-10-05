@@ -756,12 +756,13 @@ fn portable_restore_begin_root(root:&Path,source_path:&str,source_sha256:&str,ro
         return Ok(json!({"ok":true,"active":true,"resumed":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}));
     }
     if portable_restore_marker_path(root).exists(){return Err("Existe marcador de restore portable sin journal SQLite. Recuperación obligatoria.".into());}
-    ensure_portable_restore_marker(root)?;
     let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
     let tx=conn.transaction().map_err(|e|format!("Inicio journal restore portable: {e}"))?;
     tx.execute("INSERT INTO portable_restore_journal(id,phase,source_path,source_sha256,rollback_path,rollback_sha256,started_at,updated_at) VALUES(1,'prepared',?1,?2,?3,?4,?5,?5)",
       params![source_path,source_sha256,rollback_path,rollback_sha256,now]).map_err(|e|format!("Escritura journal restore portable: {e}"))?;
     tx.commit().map_err(|e|format!("Commit journal restore portable: {e}"))?;
+    // Row first, marker second: a crash can only leave a recoverable row-without-marker.
+    ensure_portable_restore_marker(root)?;
     Ok(json!({"ok":true,"active":true,"resumed":false,"phase":"prepared","sourcePath":source_path,"sourceSha256":source_sha256,"rollbackPath":rollback_path,"rollbackSha256":rollback_sha256,"updatedAt":now}))
 }
 fn portable_restore_status_root(root:&Path)->Result<Value,String>{

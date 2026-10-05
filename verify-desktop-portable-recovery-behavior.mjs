@@ -20,7 +20,8 @@ function stable(v){
   return v;
 }
 function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false}={}){
-  const calls=[],alerts=[],blocks=new Set(),timers=[];let restored=false,cleared=false;
+  const calls=[],alerts=[],blocks=new Set(),timers=[];
+  let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
   let imageNow=imageActive,marketNow=marketActive,phase=journalPhase;
   const document={
     documentElement:{},

@@ -263,42 +263,43 @@ const pct = v => `${(Number(v)||0).toFixed(1)}%`;
 const fmtDate = iso => { if(!iso)return '—'; const d=new Date(iso); return isNaN(d)?iso:d.toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'}); };
 const fmtDateOnly = iso => { if(!iso)return '—'; const d=new Date(iso); return isNaN(d)?iso:d.toLocaleDateString('es-ES'); };
 
-const OPERATION_LAYER_LABELS=Object.freeze({
-  backtest:'Backtest',
-  replay:'Replay',
-  sim:'Sim',
-  live:'Live',
-  pending:'Pendiente',
-  unclassified:'Sin clasificar'
-});
-function operationExecutionEnvironment(o){
-  if(o?.raw?.source==='ankora'||o?.recordClass==='backtest')return '';
-  const env=String(o?.executionEnvironment||o?.executionIntent||o?.executionEvidence?.environment||'').toLowerCase();
-  return ['pending','replay','sim','live','manual'].includes(env)?env:'';
-}
-function operationRecordClass(o){
-  if(!o||typeof o!=='object')return 'unclassified';
-  if(o?.raw?.source==='ankora')return 'backtest';
-  const evidenceEnv=String(o?.executionEvidence?.environment||'').toLowerCase();
-  if(['pending','replay','sim','live'].includes(evidenceEnv))return 'execution';
-  if(['backtest','execution','unclassified'].includes(o.recordClass))return o.recordClass;
-  return ['pending','replay','sim','live'].includes(operationExecutionEnvironment(o))?'execution':'unclassified';
-}
-function operationLayer(o){
-  const recordClass=operationRecordClass(o);
-  if(recordClass==='backtest')return 'backtest';
-  if(recordClass!=='execution')return 'unclassified';
-  const env=operationExecutionEnvironment(o);
-  return ['replay','sim','live','pending'].includes(env)?env:'unclassified';
-}
-function normalizeOperationSemantics(o){
-  const out={...o};
-  if(out?.raw?.source==='ankora'||out.recordClass==='backtest'){out.recordClass='backtest';return out;}
-  const env=String(out.executionEnvironment||out.executionIntent||out.executionEvidence?.environment||'').toLowerCase();
-  if(['pending','replay','sim','live'].includes(env)){out.recordClass='execution';out.executionEnvironment=env;}
-  else if(out.recordClass!=='execution')out.recordClass='unclassified';
-  return out;
-}
+Object.defineProperty(globalThis,'TradingResearchOperationSemanticsContract',{value:Object.freeze((()=>{
+  const labels=Object.freeze({backtest:'Backtest',replay:'Replay',sim:'Sim',live:'Live',pending:'Pendiente',unclassified:'Sin clasificar'});
+  function executionEnvironment(o){
+    if(o?.raw?.source==='ankora'||o?.recordClass==='backtest')return '';
+    const env=String(o?.executionEnvironment||o?.executionIntent||o?.executionEvidence?.environment||'').toLowerCase();
+    return ['pending','replay','sim','live','manual'].includes(env)?env:'';
+  }
+  function recordClass(o){
+    if(!o||typeof o!=='object')return 'unclassified';
+    if(o?.raw?.source==='ankora')return 'backtest';
+    const evidenceEnv=String(o?.executionEvidence?.environment||'').toLowerCase();
+    if(['pending','replay','sim','live'].includes(evidenceEnv))return 'execution';
+    if(['backtest','execution','unclassified'].includes(o.recordClass))return o.recordClass;
+    return ['pending','replay','sim','live'].includes(executionEnvironment(o))?'execution':'unclassified';
+  }
+  function layer(o){
+    const cls=recordClass(o);
+    if(cls==='backtest')return 'backtest';
+    if(cls!=='execution')return 'unclassified';
+    const env=executionEnvironment(o);
+    return ['replay','sim','live','pending'].includes(env)?env:'unclassified';
+  }
+  function normalize(o){
+    const out={...o};
+    if(out?.raw?.source==='ankora'||out.recordClass==='backtest'){out.recordClass='backtest';return out;}
+    const env=String(out.executionEnvironment||out.executionIntent||out.executionEvidence?.environment||'').toLowerCase();
+    if(['pending','replay','sim','live'].includes(env)){out.recordClass='execution';out.executionEnvironment=env;}
+    else if(out.recordClass!=='execution')out.recordClass='unclassified';
+    return out;
+  }
+  function counts(operations,planId){
+    const out={backtest:0,replay:0,sim:0,live:0,pending:0,unclassified:0};
+    for(const o of operations||[]){if(o?.tradingPlanId!==planId)continue;const key=layer(o);out[key]=(out[key]||0)+1;}
+    return out;
+  }
+  return Object.freeze({labels,executionEnvironment,recordClass,layer,normalize,counts,label:o=>labels[layer(o)]||layer(o)});
+})()),writable:false,enumerable:false,configurable:false});
 
 function makeBlankPlan(meta={}){
   const id=meta.id||uid('TP');
@@ -353,7 +354,7 @@ function migrateLegacy(raw){
   const s=raw?.settings||{};
   const plan={id:'TP_MIGRATED_V1',familyId:'TPF_TP_MIGRATED',parentPlanId:null,familyName:'Plan migrado',name:'Plan migrado',version:'v1',description:'Configuración migrada automáticamente desde Trading Research V2.',status:'active',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),setups:Array.isArray(s.setups)?s.setups:clone(basePlanConfig.setups),vd:Array.isArray(s.vd)?s.vd:clone(basePlanConfig.vd),nr:Array.isArray(s.nr)?s.nr:clone(basePlanConfig.nr),hypotheses:Array.isArray(s.hypotheses)?s.hypotheses:clone(basePlanConfig.hypotheses),discretionaryTargets:Array.isArray(s.discretionaryTargets)?s.discretionaryTargets:clone(basePlanConfig.discretionaryTargets),emotionConfig:clone(basePlanConfig.emotionConfig),riskManagement:clone(basePlanConfig.riskManagement),riskStrategies:(Array.isArray(s.riskStrategies)?s.riskStrategies:clone(basePlanConfig.riskStrategies)).map(r=>normalizeRiskStrategy(r,instruments))};
   const planSnap=planSnapshot(plan);
-  return {operations:(Array.isArray(raw?.operations)?raw.operations:[]).map(o=>normalizeOperationSemantics({...o,tradingPlanId:plan.id,tradingPlanName:plan.name,tradingPlanVersion:plan.version,tradingPlanSnapshot:o.tradingPlanSnapshot||planSnap})),opportunities:Array.isArray(raw?.opportunities)?raw.opportunities:[],importBatches:[],settings:{instruments},tradingPlans:[plan],currentPlanId:plan.id};
+  return {operations:(Array.isArray(raw?.operations)?raw.operations:[]).map(o=>globalThis.TradingResearchOperationSemanticsContract.normalize({...o,tradingPlanId:plan.id,tradingPlanName:plan.name,tradingPlanVersion:plan.version,tradingPlanSnapshot:o.tradingPlanSnapshot||planSnap})),opportunities:Array.isArray(raw?.opportunities)?raw.opportunities:[],importBatches:[],settings:{instruments},tradingPlans:[plan],currentPlanId:plan.id};
 }
 function normalizeState(raw){
   if(!raw||typeof raw!=='object') return clone(defaultState);
@@ -365,7 +366,7 @@ function normalizeState(raw){
   out.tradingPlans=raw.tradingPlans.map(p=>{const id=p?.id||uid('TP'),key=String(p?.familyName||p?.name||id);let familyId=p?.familyId||familyIds.get(key);if(!familyId){familyId=`TPF_${id}`;familyIds.set(key,familyId);}return normalizePlan({...p,id,familyId},out.settings.instruments);});
   if(!out.tradingPlans.length) out.tradingPlans=[normalizePlan(clone(defaultState.tradingPlans[0]),out.settings.instruments)];
   out.currentPlanId=out.tradingPlans.some(p=>p.id===raw.currentPlanId)?raw.currentPlanId:out.tradingPlans[0].id;
-  out.operations=Array.isArray(raw.operations)?raw.operations.map(o=>normalizeOperationSemantics({...o,tradingPlanId:o.tradingPlanId||out.currentPlanId})):[];
+  out.operations=Array.isArray(raw.operations)?raw.operations.map(o=>globalThis.TradingResearchOperationSemanticsContract.normalize({...o,tradingPlanId:o.tradingPlanId||out.currentPlanId})):[];
   out.opportunities=Array.isArray(raw.opportunities)?raw.opportunities:[];
   out.importBatches=Array.isArray(raw.importBatches)?raw.importBatches:[];
   return out;
@@ -385,10 +386,6 @@ function planLabel(p){return p?`${p.name} · ${p.version}`:'Sin plan';}
 function planSnapshot(p){if(!p)return null;return {id:p.id,familyId:p.familyId||`TPF_${p.id}`,parentPlanId:p.parentPlanId||null,familyName:p.familyName,name:p.name,version:p.version,description:p.description||'',capturedAt:new Date().toISOString()};}
 function switchPlan(id){if(!getPlan(id))return;state.currentPlanId=id;persist();render();}
 function currentOps(){return state.operations.filter(o=>o.tradingPlanId===state.currentPlanId);}
-function operationsForPlan(planId){return state.operations.filter(o=>o.tradingPlanId===planId);}
-function currentOpsByLayer(layer){const ops=currentOps();return layer?ops.filter(o=>operationLayer(o)===layer):ops;}
-function planLayerCounts(plan){const counts={backtest:0,replay:0,sim:0,live:0,pending:0,unclassified:0};for(const o of operationsForPlan(plan?.id)){const layer=operationLayer(o);counts[layer]=(counts[layer]||0)+1;}return counts;}
-function operationLayerLabel(o){const layer=operationLayer(o);return OPERATION_LAYER_LABELS[layer]||layer;}
 function getInstrument(id){return state.settings.instruments.find(i=>i.id===id);}
 function getRisk(id,plan=getCurrentPlan()){return plan?.riskStrategies?.find(r=>r.id===id);}
 function riskCalc(r){
@@ -482,7 +479,7 @@ function baseFilteredOps(f=opsViewState,ops=currentOps(),blockMap=opBlockMap()){
     if(f.days?.length&&!f.days.includes(d.getDay()))return false;
     if(f.month&&String(d.getMonth()+1)!==String(f.month))return false;if(f.year&&String(d.getFullYear())!==String(f.year))return false;
     if(f.direction&&o.direction!==f.direction)return false;if(f.setup&&o.setup!==f.setup)return false;if(f.vd&&o.vd!==f.vd)return false;if(f.nr&&o.nr!==f.nr)return false;if(f.hypothesis&&o.hypothesis!==f.hypothesis)return false;
-    if(f.risk&&o.riskStrategyId!==f.risk)return false;if(f.layer&&operationLayer(o)!==f.layer)return false;if(f.source&&(o.raw?.source||'manual')!==f.source)return false;if(f.result&&o.result!==f.result)return false;
+    if(f.risk&&o.riskStrategyId!==f.risk)return false;if(f.layer&&globalThis.TradingResearchOperationSemanticsContract.layer(o)!==f.layer)return false;if(f.source&&(o.raw?.source||'manual')!==f.source)return false;if(f.result&&o.result!==f.result)return false;
     const symbol=String(o.contract||o.instrumentSnapshot?.symbol||'').trim().split(/\s+/)[0];if(f.contract&&symbol!==f.contract)return false;
     if(f.block&&String(blockMap.get(o.id)||'')!==String(f.block))return false;
     if(f.emotion&&!operationEmotionValues(o).includes(f.emotion))return false;if(f.behavior&&!(o.emotional?.behaviors||[]).includes(f.behavior))return false;
@@ -524,7 +521,7 @@ function heatmapModule(ops){
   return `<section class="card panel analytics-module wide-module"><div class="panel-title"><div><h3>Mapa de calor · día × hora</h3><small>Expectancy; pulsa una celda para filtrar</small></div><span>${metricUnitLabel(opsViewState.unit)}</span></div><div class="heat-wrap"><table class="heat-table"><thead><tr><th></th>${hours.map(h=>`<th>${String(h).padStart(2,'0')}:00</th>`).join('')}</tr></thead><tbody>${days.map(d=>`<tr><th>${DOW_LABELS[d]}</th>${hours.map(h=>{const s=cells[`${d}-${h}`],v=s.expectancy,a=Math.min(.65,.10+Math.abs(v)/maxAbs*.55),bg=v>0?`rgba(124,240,196,${a})`:v<0?`rgba(255,123,138,${a})`:'rgba(255,255,255,.03)';return `<td data-tr-onclick="applyHeatCell(${d},${h})" style="background:${bg}" title="${s.n} operaciones · ${metricStatText(v,opsViewState.unit)}"><strong>${s.n?metricStatText(v,opsViewState.unit):'—'}</strong><small>${s.n} op.</small></td>`}).join('')}</tr>`).join('')}</tbody></table></div></section>`;
 }
 function dimensionItem(o,dim){
-  if(dim==='setup')return {key:o.setup||'Sin setup',label:o.setup||'Sin setup'};if(dim==='vd')return {key:o.vd||'Sin VD',label:o.vd||'Sin VD'};if(dim==='nr')return {key:o.nr||'Sin NR',label:o.nr||'Sin NR'};if(dim==='hypothesis')return {key:o.hypothesis||'Sin hipótesis',label:o.hypothesis||'Sin hipótesis'};if(dim==='strategy')return {key:o.riskStrategyId||'',label:o.riskStrategyName||'No clasificada'};if(dim==='direction')return {key:o.direction||'—',label:o.direction||'—'};if(dim==='contract'){const x=String(o.contract||o.instrumentSnapshot?.symbol||'—').trim().split(/\s+/)[0];return {key:x,label:x};}if(dim==='layer'){const x=operationLayer(o);return {key:x,label:OPERATION_LAYER_LABELS[x]||x};}if(dim==='source'){const x=o.raw?.source==='ankora'?'ankora':'manual';return {key:x,label:x==='ankora'?'Ankora':'Manual'};}if(dim==='result')return {key:o.result||'pending',label:o.result==='win'?'Ganadora':o.result==='loss'?'Perdedora':o.result==='flat'?'Flat':'Pendiente'};if(dim==='month'){const d=new Date(o.entryDate),key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;return {key,label:`${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`};}return {key:'',label:'—'};
+  if(dim==='setup')return {key:o.setup||'Sin setup',label:o.setup||'Sin setup'};if(dim==='vd')return {key:o.vd||'Sin VD',label:o.vd||'Sin VD'};if(dim==='nr')return {key:o.nr||'Sin NR',label:o.nr||'Sin NR'};if(dim==='hypothesis')return {key:o.hypothesis||'Sin hipótesis',label:o.hypothesis||'Sin hipótesis'};if(dim==='strategy')return {key:o.riskStrategyId||'',label:o.riskStrategyName||'No clasificada'};if(dim==='direction')return {key:o.direction||'—',label:o.direction||'—'};if(dim==='contract'){const x=String(o.contract||o.instrumentSnapshot?.symbol||'—').trim().split(/\s+/)[0];return {key:x,label:x};}if(dim==='layer'){const x=globalThis.TradingResearchOperationSemanticsContract.layer(o);return {key:x,label:globalThis.TradingResearchOperationSemanticsContract.labels[x]||x};}if(dim==='source'){const x=o.raw?.source==='ankora'?'ankora':'manual';return {key:x,label:x==='ankora'?'Ankora':'Manual'};}if(dim==='result')return {key:o.result||'pending',label:o.result==='win'?'Ganadora':o.result==='loss'?'Perdedora':o.result==='flat'?'Flat':'Pendiente'};if(dim==='month'){const d=new Date(o.entryDate),key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;return {key,label:`${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`};}return {key:'',label:'—'};
 }
 function breakdownModule(ops){
   const dim=opsViewState.dimension||'setup',groups=new Map();ops.forEach(o=>{const x=dimensionItem(o,dim);if(!groups.has(x.key))groups.set(x.key,{key:x.key,label:x.label,ops:[]});groups.get(x.key).ops.push(o);});const rows=[...groups.values()].map(g=>({...g,stats:calcMetricStats(g.ops,opsViewState.unit,opsViewState.basis)})).sort((a,b)=>b.stats.expectancy-a.stats.expectancy).slice(0,14),maxAbs=Math.max(...rows.map(r=>Math.abs(r.stats.expectancy)),1);
@@ -534,7 +531,7 @@ function breakdownModule(ops){
 
 function opsTable(ops,unit=opsViewState.unit,basis=opsViewState.basis){
   if(!ops.length)return '<div class="empty">No hay operaciones con estos filtros.</div>';const blocks=opBlockMap();
-  return `<div class="table-wrap"><table class="table analytics-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Día</th><th>Bloque</th><th>Símbolo</th><th>Dirección</th><th>Setup</th><th>VD</th><th>NR</th><th>Hipótesis</th><th>Régimen</th><th>Ámbito</th><th>Origen</th><th>Resultado</th><th>${metricUnitLabel(unit)} ${basis==='net'?'neto':'bruto'}</th><th>Ticks</th><th>P&L neto</th><th>Comisión</th><th>Acciones</th></tr></thead><tbody>${ops.map(o=>{const d=new Date(o.entryDate);return `<tr><td>${fmtDateOnly(o.entryDate)}</td><td>${isNaN(d)?'—':d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</td><td>${isNaN(d)?'—':DOW_LABELS[d.getDay()]}</td><td>B${String(blocks.get(o.id)||'—').padStart(2,'0')}</td><td>${esc(o.contract||o.instrumentSnapshot?.symbol||'—')}</td><td>${esc(o.direction||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.nr||'—')}</td><td>${esc(o.hypothesis||'—')}</td><td>${esc(o.riskStrategyName||o.riskStrategyId||'—')}</td><td><span class="badge">${esc(operationLayerLabel(o))}</span></td><td><span class="badge">${o.raw?.source==='ankora'?'Ankora':'Manual'}</span></td><td><span class="badge ${resultClass(o)}">${o.result==='win'?'Ganadora':o.result==='loss'?'Perdedora':o.result==='flat'?'Flat':'Pendiente'}</span></td><td class="${opMetricValue(o,unit,basis)>=0?'positive':'negative'}"><strong>${metricStatText(opMetricValue(o,unit,basis),unit)}</strong></td><td>${Number(o.resultTicks||0)>=0?'+':''}${Number(o.resultTicks||0).toFixed(1)}t</td><td>${money(o.pnlNet||0,o.instrumentSnapshot?.currency||'USD')}</td><td>${money(o.commission||0,o.instrumentSnapshot?.currency||'USD')}</td><td><button class="btn small" data-tr-onclick="viewOperation('${o.id}')">Ver</button> <button class="btn small" data-tr-onclick="editOperation('${o.id}')">Editar</button></td></tr>`}).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="table analytics-table"><thead><tr><th>Fecha</th><th>Hora</th><th>Día</th><th>Bloque</th><th>Símbolo</th><th>Dirección</th><th>Setup</th><th>VD</th><th>NR</th><th>Hipótesis</th><th>Régimen</th><th>Ámbito</th><th>Origen</th><th>Resultado</th><th>${metricUnitLabel(unit)} ${basis==='net'?'neto':'bruto'}</th><th>Ticks</th><th>P&L neto</th><th>Comisión</th><th>Acciones</th></tr></thead><tbody>${ops.map(o=>{const d=new Date(o.entryDate);return `<tr><td>${fmtDateOnly(o.entryDate)}</td><td>${isNaN(d)?'—':d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</td><td>${isNaN(d)?'—':DOW_LABELS[d.getDay()]}</td><td>B${String(blocks.get(o.id)||'—').padStart(2,'0')}</td><td>${esc(o.contract||o.instrumentSnapshot?.symbol||'—')}</td><td>${esc(o.direction||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.nr||'—')}</td><td>${esc(o.hypothesis||'—')}</td><td>${esc(o.riskStrategyName||o.riskStrategyId||'—')}</td><td><span class="badge">${esc(globalThis.TradingResearchOperationSemanticsContract.label(o))}</span></td><td><span class="badge">${o.raw?.source==='ankora'?'Ankora':'Manual'}</span></td><td><span class="badge ${resultClass(o)}">${o.result==='win'?'Ganadora':o.result==='loss'?'Perdedora':o.result==='flat'?'Flat':'Pendiente'}</span></td><td class="${opMetricValue(o,unit,basis)>=0?'positive':'negative'}"><strong>${metricStatText(opMetricValue(o,unit,basis),unit)}</strong></td><td>${Number(o.resultTicks||0)>=0?'+':''}${Number(o.resultTicks||0).toFixed(1)}t</td><td>${money(o.pnlNet||0,o.instrumentSnapshot?.currency||'USD')}</td><td>${money(o.commission||0,o.instrumentSnapshot?.currency||'USD')}</td><td><button class="btn small" data-tr-onclick="viewOperation('${o.id}')">Ver</button> <button class="btn small" data-tr-onclick="editOperation('${o.id}')">Editar</button></td></tr>`}).join('')}</tbody></table></div>`;
 }
 function opsAnalyticsHtml(ops){
   const mods=opsViewState.modules||[];return `${mixedInstrumentWarning(ops)}${opsSummaryHtml(ops)}<div class="analytics-grid">${mods.includes('equity')?opsEquityModule(ops):''}${mods.includes('distribution')?distributionModule(ops):''}${mods.includes('heatmap')?heatmapModule(ops):''}${mods.includes('breakdown')?breakdownModule(ops):''}</div>${mods.includes('table')?`<section class="card panel table-module"><div class="panel-title"><div><h3>Registro filtrado</h3><small>${ops.length} operaciones visibles</small></div><span>${metricUnitLabel(opsViewState.unit)} · ${opsViewState.basis==='net'?'Neto':'Bruto'}</span></div>${opsTable(ops)}</section>`:''}`;
@@ -606,7 +603,7 @@ function shell(){
 function navBtn(id,icon,label){return `<button class="${currentView===id?'active':''}" data-tr-onclick="navigate('${id}')"><span class="icon">${icon}</span><span>${label}</span></button>`;}
 function pageHead(title,desc,actions=''){return `<div class="topbar"><div class="page-title"><h2>${title}</h2><p>${desc}</p></div><div class="actions">${actions}</div></div>`;}
 function kpi(label,value,sub){return `<div class="card kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;}
-function activePlanBanner(){const p=getCurrentPlan(),layers=p?planLayerCounts(p):{backtest:0,replay:0,sim:0,live:0,pending:0,unclassified:0};return `<div class="plan-banner"><div><span class="mini-label">Trading Plan activo</span><strong>${esc(planLabel(p))}</strong><span>${esc(p?.description||'Sin descripción')}</span><div class="chips"><span class="tag">Backtest ${layers.backtest}</span><span class="tag">Replay ${layers.replay}</span><span class="tag">Sim ${layers.sim}</span><span class="tag">Live ${layers.live}</span>${layers.pending?`<span class="tag">Pendiente ${layers.pending}</span>`:''}${layers.unclassified?`<span class="tag">Sin clasificar ${layers.unclassified}</span>`:''}</div></div><button class="btn small" data-tr-onclick="navigate('plans')">Cambiar / gestionar</button></div>`;}
+function activePlanBanner(){const p=getCurrentPlan(),layers=p?globalThis.TradingResearchOperationSemanticsContract.counts(state.operations,p.id):{backtest:0,replay:0,sim:0,live:0,pending:0,unclassified:0};return `<div class="plan-banner"><div><span class="mini-label">Trading Plan activo</span><strong>${esc(planLabel(p))}</strong><span>${esc(p?.description||'Sin descripción')}</span><div class="chips"><span class="tag">Backtest ${layers.backtest}</span><span class="tag">Replay ${layers.replay}</span><span class="tag">Sim ${layers.sim}</span><span class="tag">Live ${layers.live}</span>${layers.pending?`<span class="tag">Pendiente ${layers.pending}</span>`:''}${layers.unclassified?`<span class="tag">Sin clasificar ${layers.unclassified}</span>`:''}</div></div><button class="btn small" data-tr-onclick="navigate('plans')">Cambiar / gestionar</button></div>`;}
 
 function dashboard(){
   const ops=currentOps(),stats=calcStats(ops),bySetup={};ops.forEach(o=>bySetup[o.setup]=(bySetup[o.setup]||0)+1);const top=Object.entries(bySetup).sort((a,b)=>b[1]-a[1]).slice(0,6),max=top[0]?.[1]||1;
@@ -648,7 +645,7 @@ function showBlock(i){
 function openBlockInOperations(i){opsViewState.block=String(i+1);currentView='operations';render();}
 
 function plansView(){
-  const cards=state.tradingPlans.map(p=>{const s=calcStats(state.operations.filter(o=>o.tradingPlanId===p.id)),imports=state.importBatches.filter(b=>b.tradingPlanId===p.id).length,layers=planLayerCounts(p);return `<section class="card plan-card ${p.id===state.currentPlanId?'selected-plan':''}"><div class="plan-card-head"><div><div class="plan-title">${esc(p.name)} <span class="badge">${esc(p.version)}</span> ${p.status==='archived'?'<span class="badge">Archivado</span>':''}</div><div class="config-meta">Familia: ${esc(p.familyName||p.name)} · creado ${fmtDateOnly(p.createdAt)} · Backtest ${layers.backtest} · Replay ${layers.replay} · Sim ${layers.sim} · Live ${layers.live}${layers.unclassified?` · Sin clasificar ${layers.unclassified}`:''}</div></div>${p.id===state.currentPlanId?'<span class="badge win">Activo</span>':''}</div><p>${esc(p.description||'Sin descripción')}</p><div class="plan-metrics"><div><span>Trades</span><strong>${s.n}</strong></div><div><span>Expectancy</span><strong class="${s.expectancy>=0?'positive':'negative'}">${s.expectancy>=0?'+':''}${s.expectancy.toFixed(2)}R</strong></div><div><span>Setups</span><strong>${p.setups.length}</strong></div><div><span>Estrategias</span><strong>${p.riskStrategies.length}</strong></div><div><span>Importaciones</span><strong>${imports}</strong></div></div><div class="actions plan-actions"><button class="btn small primary" data-tr-onclick="switchPlanAndOpen('${p.id}')">Abrir</button><button class="btn small" data-tr-onclick="openPlanModal('${p.id}')">Editar</button><button class="btn small" data-tr-onclick="openPlanModal(null,'${p.id}')">Clonar versión</button><button class="btn small" data-tr-onclick="togglePlanStatus('${p.id}')">${p.status==='archived'?'Reactivar':'Archivar'}</button></div></section>`}).join('');
+  const cards=state.tradingPlans.map(p=>{const s=calcStats(state.operations.filter(o=>o.tradingPlanId===p.id)),imports=state.importBatches.filter(b=>b.tradingPlanId===p.id).length,layers=globalThis.TradingResearchOperationSemanticsContract.counts(state.operations,p.id);return `<section class="card plan-card ${p.id===state.currentPlanId?'selected-plan':''}"><div class="plan-card-head"><div><div class="plan-title">${esc(p.name)} <span class="badge">${esc(p.version)}</span> ${p.status==='archived'?'<span class="badge">Archivado</span>':''}</div><div class="config-meta">Familia: ${esc(p.familyName||p.name)} · creado ${fmtDateOnly(p.createdAt)} · Backtest ${layers.backtest} · Replay ${layers.replay} · Sim ${layers.sim} · Live ${layers.live}${layers.unclassified?` · Sin clasificar ${layers.unclassified}`:''}</div></div>${p.id===state.currentPlanId?'<span class="badge win">Activo</span>':''}</div><p>${esc(p.description||'Sin descripción')}</p><div class="plan-metrics"><div><span>Trades</span><strong>${s.n}</strong></div><div><span>Expectancy</span><strong class="${s.expectancy>=0?'positive':'negative'}">${s.expectancy>=0?'+':''}${s.expectancy.toFixed(2)}R</strong></div><div><span>Setups</span><strong>${p.setups.length}</strong></div><div><span>Estrategias</span><strong>${p.riskStrategies.length}</strong></div><div><span>Importaciones</span><strong>${imports}</strong></div></div><div class="actions plan-actions"><button class="btn small primary" data-tr-onclick="switchPlanAndOpen('${p.id}')">Abrir</button><button class="btn small" data-tr-onclick="openPlanModal('${p.id}')">Editar</button><button class="btn small" data-tr-onclick="openPlanModal(null,'${p.id}')">Clonar versión</button><button class="btn small" data-tr-onclick="togglePlanStatus('${p.id}')">${p.status==='archived'?'Reactivar':'Archivar'}</button></div></section>`}).join('');
   const batches=[...state.importBatches].sort((a,b)=>new Date(b.importedAt)-new Date(a.importedAt));
   return `${pageHead('Trading Plans','Cada plan/versión puede contener de forma independiente Backtest, Replay, Sim y Live. Ningún ámbito obliga a existir a otro; los datos siguen perteneciendo a su TP/versión.',`<button class="btn primary" data-tr-onclick="openPlanModal()">+ Nuevo plan desde cero</button>`)}<div class="plan-grid">${cards}</div><section class="card panel" style="margin-top:18px"><div class="panel-title"><div><h3>Comparación rápida de planes</h3><div class="help">Primera capa comparativa. El Laboratorio multidimensional vendrá encima de esta estructura.</div></div></div>${planComparisonTable()}</section><section class="card panel" style="margin-top:18px"><div class="panel-title"><div><h3>Historial de importaciones</h3><div class="help">Cada fichero queda identificado y asociado a un Trading Plan concreto.</div></div><button class="btn small" data-tr-onclick="openImportModal()">+ Importar Ankora</button></div>${importBatchTable(batches)}</section>`;
 }
@@ -6841,8 +6838,8 @@ render();
 const V316_APP_LABEL='V31.6.1 · Execution Reconciliation';
 const V316_ENV_LABELS={manual:'Sin clasificar · manual',pending:'Pendiente NinjaTrader',replay:'NinjaTrader Replay',sim:'NinjaTrader Sim',live:'NinjaTrader Live',backtest:'Backtest / Research'};
 const v316Ui={...(window.v316Ui||{}),tab:'reconcile',environment:'replay'};
-function v316Env(o){if(operationRecordClass(o)==='backtest')return 'backtest';return operationExecutionEnvironment(o)||'manual';}
-function v316EligibleOp(o){return o&&o.tradingPlanId===state.currentPlanId&&operationRecordClass(o)==='execution'&&['pending','replay','sim','live'].includes(v316Env(o));}
+function v316Env(o){if(globalThis.TradingResearchOperationSemanticsContract.recordClass(o)==='backtest')return 'backtest';return globalThis.TradingResearchOperationSemanticsContract.executionEnvironment(o)||'manual';}
+function v316EligibleOp(o){return o&&o.tradingPlanId===state.currentPlanId&&globalThis.TradingResearchOperationSemanticsContract.recordClass(o)==='execution'&&['pending','replay','sim','live'].includes(v316Env(o));}
 function v316WallInput(ms){if(!Number.isFinite(Number(ms)))return '';const d=new Date(Number(ms)),p=n=>String(n).padStart(2,'0');return `${d.getUTCFullYear()}-${p(d.getUTCMonth()+1)}-${p(d.getUTCDate())}T${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`;}
 function v316InputWallMs(s){const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+(m[6]||0)):NaN;}
 function v316InstrumentTickSize(instrument){const root=v314NormInstrument(instrument).split(' ')[0],inst=(state.settings?.instruments||[]).find(x=>String(x.symbol||'').toUpperCase()===root);return Number(inst?.tickSize)||.01;}
@@ -6859,11 +6856,11 @@ function v316LinkedOpFor(set,trade){const key=v316ExecKey(set,trade);return stat
 function v316CanMatchEnvironment(op,set){const opEnv=v316Env(op),setEnv=v316EnvForSet(set);return opEnv==='pending'||opEnv===setEnv;}
 function v316CandidateScore(op,trade,tickSize,environment){if(!v316EligibleOp(op)||op?.executionEvidence?.linkedAt)return null;const opEnv=v316Env(op);if(opEnv!=='pending'&&opEnv!==environment)return null;if(v314NormInstrument(op.contract||op.instrumentSnapshot?.symbol)!==v314NormInstrument(trade.instrument))return null;if(String(op.direction||'').toUpperCase()!==String(trade.direction||'').toUpperCase())return null;const om=v316InputWallMs(op.entryDate),dt=Number.isFinite(om)?Math.abs(om-trade.entryWallMs)/60000:999,price=Number(op.entryPrice),pt=Number.isFinite(price)&&price>0?Math.abs(price-trade.entryPrice)/tickSize:null;let score=Math.min(120,dt*2)+(pt===null?12:Math.min(60,pt*4));if(op.executionEvidence?.executionKey&&op.executionEvidence.executionKey!==trade.id)score+=40;const label=score<=8?'Alta':score<=25?'Buena':score<=60?'Posible':'Débil';return {op,score,dt,pt,label,cls:score<=25?'good':score<=60?'mid':'bad'};}
 function v316BestCandidate(set,trade,meta){const tick=Number(meta?.tickSize)||v316InstrumentTickSize(trade.instrument),environment=v316EnvForSet(set);return state.operations.map(o=>v316CandidateScore(o,trade,tick,environment)).filter(Boolean).sort((a,b)=>a.score-b.score)[0]||null;}
-function v316ExecutionSection(o){const env=v316Env(o),locked=operationRecordClass(o)==='backtest',ev=o?.executionEvidence;return `<div class="form-section execution-intent-section"><h4>Execution Evidence · NinjaTrader</h4><div class="form-grid"><label class="field"><span>Entorno operativo</span><select id="v316-execution-intent" class="select" ${locked?'disabled':''}>${Object.entries(V316_ENV_LABELS).filter(([k])=>k!=='backtest'||locked).map(([k,l])=>`<option value="${k}" ${env===k?'selected':''}>${esc(l)}</option>`).join('')}</select></label><div class="field span2"><label>Estado de vinculación</label><div class="readonly-box">${ev?.linkedAt?`Vinculada · ${esc(V316_ENV_LABELS[ev.environment]||ev.environment||'NinjaTrader')} · ${esc(ev.sourceFile||'Grid')}`:locked?'Backtest Ankora · excluido de conciliación':'Sin ejecución NinjaTrader vinculada'}</div></div></div><div class="help">Marca <b>Pendiente NinjaTrader</b> antes de operar si quieres que el Grid pueda localizar esta operación. Ankora nunca entra automáticamente en esta capa.</div></div>`;}
+function v316ExecutionSection(o){const env=v316Env(o),locked=globalThis.TradingResearchOperationSemanticsContract.recordClass(o)==='backtest',ev=o?.executionEvidence;return `<div class="form-section execution-intent-section"><h4>Execution Evidence · NinjaTrader</h4><div class="form-grid"><label class="field"><span>Entorno operativo</span><select id="v316-execution-intent" class="select" ${locked?'disabled':''}>${Object.entries(V316_ENV_LABELS).filter(([k])=>k!=='backtest'||locked).map(([k,l])=>`<option value="${k}" ${env===k?'selected':''}>${esc(l)}</option>`).join('')}</select></label><div class="field span2"><label>Estado de vinculación</label><div class="readonly-box">${ev?.linkedAt?`Vinculada · ${esc(V316_ENV_LABELS[ev.environment]||ev.environment||'NinjaTrader')} · ${esc(ev.sourceFile||'Grid')}`:locked?'Backtest Ankora · excluido de conciliación':'Sin ejecución NinjaTrader vinculada'}</div></div></div><div class="help">Marca <b>Pendiente NinjaTrader</b> antes de operar si quieres que el Grid pueda localizar esta operación. Ankora nunca entra automáticamente en esta capa.</div></div>`;}
 const operationFormV316Base=operationForm;
 operationForm=function(o,r,p){let html=operationFormV316Base(o,r,p),sec=v316ExecutionSection(o);const anchor='<div class="form-section"><h4>1 · Sesión y régimen</h4>';return html.includes(anchor)?html.replace(anchor,sec+anchor):html.replace('</form>',sec+'</form>');};
 const saveOperationFromFormV316Base=saveOperationFromForm;
-saveOperationFromForm=async function(){const target=editingId||null,planId=state.currentPlanId,before=new Set(state.operations.filter(o=>o.tradingPlanId===planId).map(o=>o.id)),intent=document.getElementById('v316-execution-intent')?.value||null;await saveOperationFromFormV316Base();if(document.getElementById('operationForm'))return;const op=target?state.operations.find(o=>o.id===target):state.operations.find(o=>o.tradingPlanId===planId&&!before.has(o.id));if(op&&operationRecordClass(op)!=='backtest'&&intent){op.executionIntent=intent;if(op.executionEvidence?.linkedAt){op.recordClass='execution';op.executionEnvironment=String(op.executionEvidence.environment||intent);}else if(['pending','replay','sim','live'].includes(intent)){op.recordClass='execution';op.executionEnvironment=intent;}else{op.recordClass='unclassified';op.executionEnvironment='';}op.updatedAt=new Date().toISOString();persist();render();}};
+saveOperationFromForm=async function(){const target=editingId||null,planId=state.currentPlanId,before=new Set(state.operations.filter(o=>o.tradingPlanId===planId).map(o=>o.id)),intent=document.getElementById('v316-execution-intent')?.value||null;await saveOperationFromFormV316Base();if(document.getElementById('operationForm'))return;const op=target?state.operations.find(o=>o.id===target):state.operations.find(o=>o.tradingPlanId===planId&&!before.has(o.id));if(op&&globalThis.TradingResearchOperationSemanticsContract.recordClass(op)!=='backtest'&&intent){op.executionIntent=intent;if(op.executionEvidence?.linkedAt){op.recordClass='execution';op.executionEnvironment=String(op.executionEvidence.environment||intent);}else if(['pending','replay','sim','live'].includes(intent)){op.recordClass='execution';op.executionEnvironment=intent;}else{op.recordClass='unclassified';op.executionEnvironment='';}op.updatedAt=new Date().toISOString();persist();render();}};
 function v316SetTab(tab){v316Ui.tab=tab;if(tab==='running')v315RunningUi.tab='running';else v315RunningUi.tab='calibration';render();if(tab==='running')setTimeout(v315EnsureRunningLoaded,0);}
 function v316MarketTabs(){return `<div class="md-phase-tabs"><button class="${v316Ui.tab==='calibration'?'active':''}" data-tr-onclick="v316SetTab('calibration')"><strong>1 · Calibración</strong><span>Fills + MFE/MAE</span></button><button class="${v316Ui.tab==='running'?'active':''}" data-tr-onclick="v316SetTab('running')"><strong>2 · Running P&L</strong><span>Recorrido intratrade</span></button><button class="${v316Ui.tab==='reconcile'?'active':''}" data-tr-onclick="v316SetTab('reconcile')"><strong>3 · Vinculación</strong><span>Journal ↔ NinjaTrader</span></button></div>`;}
 function v316SetExecEnvironment(value){if(!['replay','sim','live'].includes(value))return;v316Ui.environment=value;render();}

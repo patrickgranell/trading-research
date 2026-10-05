@@ -19,6 +19,14 @@ const SCHEMA: &str = "CREATE TABLE IF NOT EXISTS image_staging (
   mime TEXT NOT NULL,
   name TEXT NOT NULL,
   staged_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS image_staging_state (
+  id INTEGER PRIMARY KEY CHECK(id=1),
+  inventory_json TEXT NOT NULL,
+  inventory_sha256 TEXT NOT NULL,
+  backup_path TEXT NOT NULL,
+  backup_sha256 TEXT NOT NULL,
+  completed_at TEXT NOT NULL
 );";
 pub(crate) fn prepare_schema(conn:&Connection)->Result<(),String>{
     conn.execute_batch(SCHEMA).map_err(|e|format!("Native image staging schema: {e}"))
@@ -109,6 +117,55 @@ pub(crate) fn verify(conn:&Connection,root:&Path,expected:&[(String,String)])->R
     }
     Ok(json!({"ok":true,"stagedImages":expected.len(),"authority":false}))
 }
+
+fn inventory_json(expected:&[(String,String)])->Result<String,String>{
+    let mut copy=expected.to_vec();
+    copy.sort_by(|a,b|a.0.cmp(&b.0));
+    let mut seen=std::collections::HashSet::new();
+    for (id,hash) in &copy {
+        checked_id(id)?; checked_hash(hash)?;
+        if !seen.insert(id.clone()){return Err("ID duplicado en inventario de staging.".into());}
+    }
+    serde_json::to_string(&copy).map_err(|e|format!("Inventario de staging JSON: {e}"))
+}
+pub(crate) fn finalize(conn:&mut Connection,root:&Path,expected:&[(String,String)],backup_path:&str,backup_sha:&str)->Result<Value,String>{
+    verify(conn,root,expected)?;
+    checked_hash(backup_sha)?;
+    let inventory=inventory_json(expected)?;
+    let inventory_sha=hex(inventory.as_bytes());
+    let completed=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
+    let tx=conn.transaction().map_err(|e|format!("Transacción cierre staging imágenes: {e}"))?;
+    tx.execute("INSERT INTO image_staging_state(id,inventory_json,inventory_sha256,backup_path,backup_sha256,completed_at)
+      VALUES(1,?1,?2,?3,?4,?5)
+      ON CONFLICT(id) DO UPDATE SET inventory_json=excluded.inventory_json,inventory_sha256=excluded.inventory_sha256,
+      backup_path=excluded.backup_path,backup_sha256=excluded.backup_sha256,completed_at=excluded.completed_at",
+      params![inventory,inventory_sha,backup_path,backup_sha,completed])
+      .map_err(|e|format!("Cierre staging imágenes: {e}"))?;
+    tx.commit().map_err(|e|format!("Commit cierre staging imágenes: {e}"))?;
+    Ok(json!({"ok":true,"authority":false,"stagedImages":expected.len(),"inventorySha256":inventory_sha,
+      "backupPath":backup_path,"backupSha256":backup_sha,"completedAt":completed}))
+}
+pub(crate) fn status(conn:&Connection,root:&Path)->Result<Value,String>{
+    let catalog:i64=conn.query_row("SELECT COUNT(*) FROM image_staging",[],|r|r.get(0))
+      .map_err(|e|format!("Conteo catálogo imágenes: {e}"))?;
+    let state:Option<(String,String,String,String)>=conn.query_row(
+      "SELECT inventory_sha256,backup_path,backup_sha256,completed_at FROM image_staging_state WHERE id=1",[],
+      |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()
+      .map_err(|e|format!("Estado staging imágenes: {e}"))?;
+    let object_dir=root.join("images").join("objects");
+    let mut objects=0_i64;
+    if object_dir.exists(){
+      objects=fs::read_dir(&object_dir).map_err(|e|format!("Inventario objetos nativos: {e}"))?
+        .filter_map(Result::ok).filter(|e|e.path().extension().and_then(|x|x.to_str())==Some("blob")).count() as i64;
+    }
+    Ok(match state {
+      Some((inventory_sha,backup_path,backup_sha,completed))=>json!({"ok":true,"authority":false,"complete":true,
+        "catalogRecords":catalog,"objects":objects,"inventorySha256":inventory_sha,"backupPath":backup_path,
+        "backupSha256":backup_sha,"completedAt":completed}),
+      None=>json!({"ok":true,"authority":false,"complete":false,"catalogRecords":catalog,"objects":objects})
+    })
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
@@ -142,6 +199,17 @@ mod tests{
         assert!(verify(&c,&root,&[("a".into(),sha.clone())]).is_err());
         stage(&mut c,&root,"a",&STANDARD.encode(b"x"),&sha,"image/png","x").unwrap();
         assert!(verify(&c,&root,&[("a".into(),sha.clone()),("a".into(),sha)]).is_err());
+        let _=fs::remove_dir_all(root);
+    }
+    #[test] fn finalize_records_only_verified_inventory_and_backup_hash(){
+        let(root,mut c)=setup();let sha=hex(b"x");
+        stage(&mut c,&root,"a",&STANDARD.encode(b"x"),&sha,"image/png","x").unwrap();
+        let backup_sha=hex(b"backup");
+        let done=finalize(&mut c,&root,&[("a".into(),sha.clone())],"C:/safe/rollback.trbackup",&backup_sha).unwrap();
+        assert_eq!(done["stagedImages"],1);
+        let st=status(&c,&root).unwrap();
+        assert_eq!(st["complete"],true); assert_eq!(st["catalogRecords"],1); assert_eq!(st["authority"],false);
+        assert!(finalize(&mut c,&root,&[("missing".into(),sha)],"x",&backup_sha).is_err());
         let _=fs::remove_dir_all(root);
     }
 }

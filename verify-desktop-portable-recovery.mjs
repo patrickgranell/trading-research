@@ -6,6 +6,7 @@ const main=fs.readFileSync('src-tauri/src/main.rs','utf8');
 const prepare=fs.readFileSync('desktop-prepare.mjs','utf8');
 const market=fs.readFileSync('desktop-native-market-runtime.js','utf8');
 const web=fs.readFileSync('app.js','utf8');
+const built=fs.readFileSync('desktop-dist/index.html','utf8');
 
 for(const token of [
   'desktop_portable_restore_begin','desktop_portable_restore_status','desktop_portable_restore_advance',
@@ -29,6 +30,7 @@ assert(runtime.includes("TradingResearchDesktopNativeImages")&&runtime.includes(
 assert(runtime.includes("sourcePath")&&runtime.includes("rollbackPath"),'Portable journal must bind both physical backups.');
 assert(runtime.includes("finalVerify(prepared)")&&runtime.includes("sameHashes(prepared.manifest?.hashes,rebuilt.manifest?.hashes)"),'Final restore must require exact Backup V2 domain hashes.');
 assert(prepare.includes('desktop-portable-recovery-runtime.js')&&prepare.includes('data-tr-desktop-portable-recovery="batch79"'),'Desktop artifact must embed portable recovery runtime.');
+assert(built.includes('data-tr-desktop-portable-recovery="batch79"')&&built.includes('desktop_portable_restore_begin'),'Generated Desktop artifact must contain the Batch 79 runtime and native command contract.');
 assert(market.includes('Market Data todavía usa IndexedDB.'),'Batch 78 Verify UX silence must be fixed.');
 assert(!web.includes('desktop_portable_restore_begin')&&!web.includes('desktop-portable-recovery'),'Web source must remain isolated from Desktop portable recovery.');
 console.log('Batch 79 portable recovery static boundary PASS.');

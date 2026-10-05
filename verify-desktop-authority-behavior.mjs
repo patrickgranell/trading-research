@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const bridge=fs.readFileSync('desktop-authority-bridge.js','utf8');
 const copy=x=>JSON.parse(JSON.stringify(x));
 const seed=()=>({tradingPlans:[{id:'p'}],operations:[],opportunities:[],importBatches:[],settings:{instruments:[]}});
-function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false,nonIdempotentNormalize=false,imageActive=false,failImageStatus=false}={}){
+function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false,nonIdempotentNormalize=false,imageActive=false,failImageStatus=false,marketActive=false,failMarketStatus=false}={}){
   let record=active?{active:true,payload:JSON.stringify(seed()),revision:1,sha256:'test',updatedAt:'test'}:null;
   const calls=[],root={innerHTML:''};let durable=seed(),preflights=0;const ctx={
     console:{error:()=>{}},Promise,setTimeout,clearTimeout,
@@ -33,6 +33,7 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
     calls.push(name);
     if(name==='desktop_authority_status'){if(failStatus)throw Error('authority status corrupted');return JSON.stringify(record?{active:true,revision:record.revision}:{active:false});}
     if(name==='desktop_native_image_authority_status'){if(failImageStatus)throw Error('image authority corrupted');return JSON.stringify(imageActive?{ok:true,active:true,generation:4,catalogRecords:3}:{ok:true,active:false,generation:0,catalogRecords:0});}
+    if(name==='desktop_market_authority_status'){if(failMarketStatus)throw Error('market authority corrupted');return JSON.stringify(marketActive?{ok:true,active:true,generation:7,meta:2,datasets:1,execSets:1,ticks:100}:{ok:true,active:false,generation:0,meta:0,datasets:0,execSets:0,ticks:0});}
     if(name==='desktop_read_authoritative_workspace')return JSON.stringify(record);
     if(name==='desktop_write_backup')return JSON.stringify({ok:true,path:'C:/native/backups/rollback.trbackup',bytes:123});
     if(name==='desktop_promote_workspace_authority'){
@@ -48,7 +49,7 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
     throw Error('Unexpected native command '+name);
   }}};
   const context=vm.createContext(ctx);
-  const api=vm.runInContext(bridge+'\n;({boot:trDesktopAuthorityBootstrap,queue:trDesktopAuthorityQueueStateWrite,control:trDesktopAuthorityControl,imageControl:trDesktopImageAuthorityControl})',context,{timeout:1000});
+  const api=vm.runInContext(bridge+'\n;({boot:trDesktopAuthorityBootstrap,queue:trDesktopAuthorityQueueStateWrite,control:trDesktopAuthorityControl,imageControl:trDesktopImageAuthorityControl,marketControl:trDesktopMarketAuthorityControl})',context,{timeout:1000});
   return {ctx,api,calls,root,getRecord:()=>record,getPreflights:()=>preflights,getDurable:()=>durable};
 }
 {
@@ -92,6 +93,16 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
 {
   const tImageFail=harness({active:true,failImageStatus:true});await tImageFail.api.boot();
   assert.equal(tImageFail.ctx.trCoreFatal,true,'corrupt native image authority must fail closed instead of stale Image IndexedDB fallback');
+}
+{
+  const tMarket=harness({active:true,imageActive:true,marketActive:true});await tMarket.api.boot();
+  assert.equal(tMarket.api.marketControl.active,true,'promoted Market Data authority must be known before UI is released');
+  assert.equal(tMarket.api.marketControl.generation(),7);
+  assert.equal(tMarket.ctx.trCoreFatal,false);
+}
+{
+  const tMarketFail=harness({active:true,imageActive:true,failMarketStatus:true});await tMarketFail.api.boot();
+  assert.equal(tMarketFail.ctx.trCoreFatal,true,'corrupt native Market Data authority must fail closed instead of stale Market Data IndexedDB fallback');
 }
 {
   // Real manual regression: first run promoted the workspace, second launch

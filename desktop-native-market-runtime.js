@@ -15,6 +15,29 @@ async function shaText(value){
   const digest=await crypto.subtle.digest('SHA-256',bytes);
   return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
+function bytesBase64(bytes){
+  let binary='';
+  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+32768,bytes.length)));
+  return btoa(binary);
+}
+async function writePhysicalRollbackStream(raw){
+  const payload=JSON.stringify(raw),bytes=new TextEncoder().encode(payload);
+  const sessionId='B78-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
+  await call('desktop_backup_stream_begin',{sessionId});
+  try{
+    for(let offset=0;offset<bytes.length;offset+=524288){
+      const chunk=bytes.subarray(offset,Math.min(offset+524288,bytes.length));
+      const out=await call('desktop_backup_stream_append',{sessionId,dataB64:bytesBase64(chunk)});
+      if(!out?.ok)throw new Error('Chunk de rollback físico no confirmado.');
+    }
+    const final=await call('desktop_backup_stream_finalize',{sessionId,label:'desktop-market-stage-rollback'});
+    if(!final?.ok||!final.path||Number(final.bytes)!==bytes.length)throw new Error('Rollback físico por stream no coincide con Backup V2.');
+    return final;
+  }catch(e){
+    try{await call('desktop_backup_stream_abort',{sessionId});}catch{}
+    throw e;
+  }
+}
 async function status(deep=false){
   try{
     ui.staging=await call('desktop_market_staging_status');
@@ -57,7 +80,7 @@ async function prepareStaging(){
   if(typeof trBackupV2BuildPayload!=='function'||typeof trBackupV2Preflight!=='function')throw new Error('Backup V2 no está disponible.');
   const raw=await trBackupV2BuildPayload();
   const prepared=await trBackupV2Preflight(raw);
-  const rollback=await call('desktop_write_backup',{payload:JSON.stringify(raw),label:'desktop-market-stage-rollback'});
+  const rollback=await writePhysicalRollbackStream(raw);
   if(!rollback?.ok||!rollback.path||!(Number(rollback.bytes)>0))throw new Error('No se confirmó rollback físico previo a Market Data.');
   ui.lastRollbackPath=String(rollback.path);
 

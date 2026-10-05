@@ -67,7 +67,7 @@ function paint(){
 }
 function mount(){
   if(document.getElementById('desktop-native-images-host')){paint();return;}
-  const native=document.getElementById('desktop-native-storage-card')||document.querySelector('[data-desktop-native-storage]');
+  const native=document.getElementById('trDesktopNativeStorage');
   if(!native)return;
   const host=document.createElement('div');host.id='desktop-native-images-host';
   native.insertAdjacentElement('afterend',host);paint();

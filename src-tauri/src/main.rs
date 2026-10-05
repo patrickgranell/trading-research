@@ -894,6 +894,75 @@ mod portable_restore_tests{
         assert!(portable_restore_begin_root(&root,&other.to_string_lossy(),&source_sha,&rollback,&rollback_sha).is_err());
         let _=fs::remove_dir_all(root);
     }
+    #[test]
+    fn fresh_root_reconstructs_all_native_authorities_and_survives_reopen(){
+        use base64::{engine::general_purpose::STANDARD,Engine as _};
+        let root=std::env::temp_dir().join(format!("tr-b79-cold-{}-{}",std::process::id(),Utc::now().timestamp_nanos_opt().unwrap_or(0)));
+        fs::create_dir_all(root.join("data")).unwrap();fs::create_dir_all(root.join("backups")).unwrap();fs::create_dir_all(root.join("images")).unwrap();
+
+        let workspace=json!({
+          "tradingPlans":[{"id":"TP1"}],"operations":[{"id":"OP1"}],"opportunities":[],"importBatches":[],
+          "settings":{"instruments":[]}
+        });
+        let image_bytes=b"portable-image";
+        let image_data=STANDARD.encode(image_bytes);
+        let image_sha=sha256_text("portable-image");
+        let meta=json!({"id":"MD1","instrument":"CL"});let meta_text=meta.to_string();let meta_sha=sha256_text(&meta_text);
+        let exec=json!({"id":"EX1","marketDatasetId":"MD1"});let exec_text=exec.to_string();let exec_sha=sha256_text(&exec_text);
+        let ticks=json!([[1,0,1,1,1,1]]).to_string();let tick_sha=sha256_text(&ticks);
+        let aggregate=sha256_text(&format!("0:1:{tick_sha}\n"));
+        let backup=json!({
+          "format":"trading-research-backup","schema":2,"manifest":{},
+          "workspace":workspace,
+          "images":[{"id":"IMG1","data":image_data,"sha256":image_sha,"type":"image/png","name":"proof.png"}],
+          "marketData":{"marketMeta":[meta],"marketTicks":[{"id":"MD1","ticks":[[1,0,1,1,1,1]]}],"execSets":[exec]}
+        }).to_string();
+        let source=root.join("backups/portable-source.trbackup");fs::write(&source,&backup).unwrap();
+        let source_path=source.to_string_lossy().to_string();
+        let (_,backup_sha)=validated_native_backup(&root,&source_path).unwrap();
+        let workspace_text=serde_json::from_str::<Value>(&backup).unwrap()["workspace"].to_string();
+
+        {
+            let mut conn=open_db(&root).unwrap();
+            authority::verify_rollback(&root,&source,&workspace_text).unwrap();
+            ensure_authority_marker(&root).unwrap();
+            authority::promote(&mut conn,&workspace_text,&source_path).unwrap();
+
+            let expected_images=vec![("IMG1".to_string(),image_sha.clone())];
+            assert_eq!(backup_image_inventory(&backup).unwrap(),expected_images);
+            native_images::stage(&mut conn,&root,"IMG1",&STANDARD.encode(image_bytes),&image_sha,"image/png","proof.png").unwrap();
+            native_images::finalize(&mut conn,&root,&expected_images,&source_path,&backup_sha).unwrap();
+            native_images::promote(&mut conn,&root,&expected_images,&source_path,&backup_sha).unwrap();
+
+            let generation=native_market::begin_stage(&mut conn,&source_path,&backup_sha).unwrap()["generation"].as_i64().unwrap();
+            native_market::stage_meta(&mut conn,generation,"MD1",&meta_text,&meta_sha).unwrap();
+            native_market::stage_exec(&mut conn,generation,"EX1",&exec_text,&exec_sha).unwrap();
+            native_market::stage_tick_chunk(&mut conn,generation,"MD1",0,&ticks,&tick_sha).unwrap();
+            native_market::finalize_dataset(&mut conn,generation,"MD1",1,1,&aggregate).unwrap();
+            let inventory=json!({
+              "meta":[{"id":"MD1","sha256":meta_sha}],
+              "exec":[{"id":"EX1","sha256":exec_sha}],
+              "ticks":[{"id":"MD1","rowCount":1,"chunkCount":1,"aggregateSha256":aggregate}]
+            }).to_string();
+            native_market::verify_stage(&mut conn,generation,&inventory).unwrap();
+            native_market::promote(&mut conn,&root,generation,&source_path,&backup_sha).unwrap();
+        }
+
+        {
+            let conn=open_db(&root).unwrap();
+            let ws=authority::read(&conn).unwrap().unwrap();
+            assert_eq!(serde_json::from_str::<Value>(ws["payload"].as_str().unwrap()).unwrap(),workspace);
+            let images=native_images::authority_status(&conn,&root,true).unwrap();
+            assert_eq!(images["active"],true);assert_eq!(images["catalogRecords"],1);
+            let image=native_images::read_active(&conn,&root,"IMG1").unwrap();
+            assert_eq!(image["sha256"],image_sha);
+            let market=native_market::authority_status(&conn,&root,true).unwrap();
+            assert_eq!(market["active"],true);assert_eq!(market["datasets"],1);assert_eq!(market["execSets"],1);assert_eq!(market["ticks"],1);
+            assert!(native_market::get_record(&conn,"marketMeta","MD1").unwrap().is_some());
+            assert_eq!(native_market::read_active_chunk(&conn,"MD1",0).unwrap()["rowCount"],1);
+        }
+        let _=fs::remove_dir_all(root);
+    }
 }
 
 fn main() {

@@ -203,7 +203,7 @@ pub(crate) fn begin_stage(conn:&mut Connection,rollback_path:&str,rollback_sha:&
     let tx=conn.transaction().map_err(|e|format!("Inicio staging Market Data: {e}"))?;
     clear_generation(&tx,g)?;
     tx.execute(
-      "INSERT INTO market_stage_state(id,generation,rollback_path,rollback_sha256,started_at,completed_at)
+      "INSERT INTO market_stage_state(id,generation,rollback_path,rollback_sha256,started_at,completed_at,inventory_json,inventory_sha256)
        VALUES(1,?1,?2,?3,?4,NULL,NULL,NULL)
        ON CONFLICT(id) DO UPDATE SET generation=excluded.generation,rollback_path=excluded.rollback_path,
          rollback_sha256=excluded.rollback_sha256,started_at=excluded.started_at,completed_at=NULL,inventory_json=NULL,inventory_sha256=NULL",

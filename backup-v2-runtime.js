@@ -244,7 +244,16 @@ async function trBackupV2StageImages(prepared,journal){
 }
 async function trBackupV2StageRecords(journal){
   const records=await getAllImageRecords(),map=new Map(records.map(x=>[String(x.id),x])),out=[];
-  for(const id of journal.manifest.expectedImageIds||[]){const rec=map.get(trBackupV2StageId(journal.restoreId,id));if(!rec)throw new Error(`Falta imagen staged ${id}.`);out.push(rec);}return out;
+  for(const rawId of journal.manifest.expectedImageIds||[]){
+    const id=String(rawId||''),rec=map.get(trBackupV2StageId(journal.restoreId,id));
+    if(!rec)throw new Error(`Falta imagen staged ${id}.`);
+    // Desktop native-image authority persists the staged object by its staged
+    // ID but intentionally stores only canonical image metadata. Therefore
+    // restoreOriginalId is not guaranteed to survive a native round-trip.
+    // The manifest is the authoritative mapping; reattach it on readback.
+    out.push({...rec,restoreOriginalId:id});
+  }
+  return out;
 }
 async function trBackupV2VerifyStage(journal){
   const records=await trBackupV2StageRecords(journal);

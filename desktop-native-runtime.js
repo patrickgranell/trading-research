@@ -5,7 +5,7 @@
  */
 (()=>{
 'use strict';
-const VERSION='0.5.1';
+const VERSION='0.6.0';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 

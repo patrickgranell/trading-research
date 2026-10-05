@@ -24,32 +24,37 @@ function fromB64(value){
   for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
   return out;
 }
-function setBlock(on){
-  if(on){
-    trCoreSetWriteBlock?.(LOCK);
-    trBackupV2SetRecoveryUiBlocked?.(true);
-  }else{
-    trCoreClearWriteBlock?.(LOCK);
-    trBackupV2SetRecoveryUiBlocked?.(false);
-  }
+function setWriteBlock(on){
+  if(on)trCoreSetWriteBlock?.(LOCK);
+  else trCoreClearWriteBlock?.(LOCK);
 }
 function currentWriteBlock(){
   try{return String(trCorePersistenceInfo?.().writeBlockReason||'');}catch{return typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked()?'unknown':'';}
 }
 function holdRecoveryBlock(){
   if(!(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked()))trCoreSetWriteBlock?.(LOCK);
-  trBackupV2SetRecoveryUiBlocked?.(true);
 }
-function releaseWriteBlockKeepVeil(){
+function releaseWriteBlock(){
   trCoreClearWriteBlock?.(LOCK);
   const remaining=currentWriteBlock();
   if(remaining)throw new Error('Restore portable verificado, pero sigue activo un bloqueo durable: '+remaining);
-  // UI refresh may need read/ephemeral callbacks that are forbidden by the
-  // durable write lock. Keep the full-screen veil until refresh completes.
-  trBackupV2SetRecoveryUiBlocked?.(true);
 }
-function clearProbe(){try{trCoreClearWriteBlock?.(PROBE_LOCK);}catch{}}
-function acquireProbe(){try{trCoreSetWriteBlock?.(PROBE_LOCK);}catch{}}
+function clearProbe(){}
+function acquireProbe(){}
+function returnToDataViewNow(){
+  try{
+    currentView='config';
+    globalThis.TradingResearchConfigTabStateContract?.set?.('data');
+    if(typeof render==='function')render();
+  }catch{}
+}
+function backgroundRefresh(){
+  Promise.resolve().then(async()=>{
+    try{await trBackupV2RefreshUiAfterRestore?.();}catch(e){console.warn('[Trading Research Desktop · Portable recovery UI refresh]',e);}
+    try{await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();}catch(e){console.warn('[Trading Research Desktop · Portable native refresh]',e);}
+    paint();
+  });
+}
 function canonical(v){return typeof trBackupV2Canonical==='function'?trBackupV2Canonical(v):JSON.stringify(v);}
 function sameHashes(a,b){
   if(!a||!b)return false;
@@ -198,14 +203,20 @@ async function finalVerify(prepared){
   return {workspaceRevision:Number(nativeWorkspace?.revision||0),images:Number(images.catalogRecords||0),market};
 }
 async function execute(prepared,journal,{announce=true}={}){
-  setBlock(true);clearProbe();
+  clearProbe();
   ui.busy=true;ui.lastError='';ui.journal=journal;paint();
   try{
     let j=journal;
+    // The in-session portable restore must never reuse the boot-only
+    // tr-core-loading veil. Backup V2 owns its durable lock while the
+    // workspace transaction runs; after it returns we take the portable lock
+    // for native rebuild/verification.
     if(j.phase==='prepared'){
       await recoverOrRunRestore(prepared,j);
+      setWriteBlock(true);
       j=await advance(j,'restored');
-    }
+    }else setWriteBlock(true);
+
     if(j.phase==='restored'){
       await ensureNativeImages();
       j=await advance(j,'images-native');
@@ -221,18 +232,18 @@ async function execute(prepared,journal,{announce=true}={}){
     }
     if(j.phase==='verified'){
       verified=verified||await finalVerify(prepared);
-      // Do not refresh/render the application while the portable recovery
-      // durable write lock is active. The real Windows smoke proved that this
-      // could leave the session permanently behind «Cargando workspace…» even
-      // though the durable restore had already completed. Release only the
-      // write lock here, keep the visual veil, refresh, then clear the journal.
-      releaseWriteBlockKeepVeil();
-      await trBackupV2RefreshUiAfterRestore?.();
-      await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
+
+      // The verified phase is the commit point. Clear the durable portable
+      // journal and release the write lock BEFORE any UI/diagnostic refresh.
+      // A slow refresh must never trap the user behind a fake boot screen.
       await call('desktop_portable_restore_clear');
       ui.journal=null;ui.lastResult=verified;
-      setBlock(false);
+      releaseWriteBlock();
+      ui.busy=false;
+      returnToDataViewNow();
       paint();
+      backgroundRefresh();
+
       if(announce)alert('Restauración portable completada y verificada.\n\n'+sourceSummary(prepared)+
         '\n\nWorkspace SQLite + imágenes nativas + Market Data nativo confirmados tras reconstruir Backup V2.');
       return verified;
@@ -243,7 +254,7 @@ async function execute(prepared,journal,{announce=true}={}){
     console.error('[Trading Research Desktop · Portable recovery]',e);
     holdRecoveryBlock();paint();
     if(announce)alert('La restauración portable no pudo finalizar: '+ui.lastError+
-      '\n\nEl journal y los backups físicos se conservan. No introduzcas datos nuevos; al volver a abrir Desktop se intentará reanudar.');
+      '\n\nEl journal y los backups físicos se conservan. La aplicación permanece visible, pero las escrituras quedan bloqueadas hasta reanudar o completar la recuperación.');
     return null;
   }finally{ui.busy=false;paint();}
 }
@@ -296,7 +307,7 @@ async function resumePending({announce=true}={}){
   try{
     journal=await call('desktop_portable_restore_status');
     if(!journal?.active){clearProbe();ui.journal=null;paint();return {status:'none'};}
-    ui.journal=journal;setBlock(true);clearProbe();paint();
+    ui.journal=journal;clearProbe();paint();
     const text=await readNativeBackupText(journal.sourcePath);
     const {prepared}=await prepareText(text);
     const result=await execute(prepared,journal,{announce});

@@ -33,6 +33,21 @@ function setBlock(on){
     trBackupV2SetRecoveryUiBlocked?.(false);
   }
 }
+function currentWriteBlock(){
+  try{return String(trCorePersistenceInfo?.().writeBlockReason||'');}catch{return typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked()?'unknown':'';}
+}
+function holdRecoveryBlock(){
+  if(!(typeof trCoreWriteBlocked==='function'&&trCoreWriteBlocked()))trCoreSetWriteBlock?.(LOCK);
+  trBackupV2SetRecoveryUiBlocked?.(true);
+}
+function releaseWriteBlockKeepVeil(){
+  trCoreClearWriteBlock?.(LOCK);
+  const remaining=currentWriteBlock();
+  if(remaining)throw new Error('Restore portable verificado, pero sigue activo un bloqueo durable: '+remaining);
+  // UI refresh may need read/ephemeral callbacks that are forbidden by the
+  // durable write lock. Keep the full-screen veil until refresh completes.
+  trBackupV2SetRecoveryUiBlocked?.(true);
+}
 function clearProbe(){try{trCoreClearWriteBlock?.(PROBE_LOCK);}catch{}}
 function acquireProbe(){try{trCoreSetWriteBlock?.(PROBE_LOCK);}catch{}}
 function canonical(v){return typeof trBackupV2Canonical==='function'?trBackupV2Canonical(v):JSON.stringify(v);}
@@ -119,7 +134,6 @@ async function recoverOrRunRestore(prepared,journal){
   };
   const result=typeof TRDomainStore!=='undefined'&&TRDomainStore?.exclusive?
     await TRDomainStore.exclusive('backup.restore-v2.desktop-portable',run):await run();
-  await trBackupV2RefreshUiAfterRestore?.();
   return result;
 }
 async function ensureNativeImages(){
@@ -177,10 +191,17 @@ async function execute(prepared,journal,{announce=true}={}){
     }
     if(j.phase==='verified'){
       verified=verified||await finalVerify(prepared);
+      // Do not refresh/render the application while the portable recovery
+      // durable write lock is active. The real Windows smoke proved that this
+      // could leave the session permanently behind «Cargando workspace…» even
+      // though the durable restore had already completed. Release only the
+      // write lock here, keep the visual veil, refresh, then clear the journal.
+      releaseWriteBlockKeepVeil();
+      await trBackupV2RefreshUiAfterRestore?.();
+      await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
       await call('desktop_portable_restore_clear');
       ui.journal=null;ui.lastResult=verified;
       setBlock(false);
-      await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
       paint();
       if(announce)alert('Restauración portable completada y verificada.\n\n'+sourceSummary(prepared)+
         '\n\nWorkspace SQLite + imágenes nativas + Market Data nativo confirmados tras reconstruir Backup V2.');
@@ -190,7 +211,7 @@ async function execute(prepared,journal,{announce=true}={}){
   }catch(e){
     ui.lastError=e?.message||String(e);
     console.error('[Trading Research Desktop · Portable recovery]',e);
-    setBlock(true);paint();
+    holdRecoveryBlock();paint();
     if(announce)alert('La restauración portable no pudo finalizar: '+ui.lastError+
       '\n\nEl journal y los backups físicos se conservan. No introduzcas datos nuevos; al volver a abrir Desktop se intentará reanudar.');
     return null;
@@ -250,7 +271,7 @@ async function resumePending({announce=true}={}){
     const result=await execute(prepared,journal,{announce});
     return result?{status:'completed',result}:{status:'pending'};
   }catch(e){
-    clearProbe();setBlock(true);
+    clearProbe();holdRecoveryBlock();
     ui.lastError=e?.message||String(e);paint();
     console.error('[Trading Research Desktop · Portable recovery bootstrap]',e);
     if(announce)alert('Existe un restore portable pendiente que no puede reanudarse automáticamente: '+ui.lastError+

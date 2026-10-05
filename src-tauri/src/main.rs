@@ -431,9 +431,13 @@ fn validated_native_backup(root:&Path,rollback_path:&str)->Result<(String,String
     if candidate.parent()!=Some(backup_root.as_path()) || candidate.extension().and_then(|x|x.to_str())!=Some("trbackup"){
         return Err("El rollback de staging no pertenece al directorio nativo de backups.".into());
     }
+    // Read exactly once: the payload we validate must be the same bytes whose
+    // hash is bound into staging/promotion. A second filesystem read creates
+    // an unnecessary TOCTOU window.
     let payload=fs::read_to_string(&candidate).map_err(|e|format!("Lectura rollback de staging: {e}"))?;
     validate_backup_v2(&payload)?;
-    Ok((payload,sha256_text(&fs::read_to_string(candidate).map_err(|e|format!("Relectura rollback de staging: {e}"))?)))
+    let payload_sha=sha256_text(&payload);
+    Ok((payload,payload_sha))
 }
 fn backup_image_inventory(payload:&str)->Result<Vec<(String,String)>,String>{
     let value:Value=serde_json::from_str(payload).map_err(|e|format!("Rollback JSON inválido: {e}"))?;

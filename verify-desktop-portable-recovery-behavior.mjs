@@ -44,6 +44,14 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     trCorePersistenceInfo:()=>({writeBlocked:!!blockReason,writeBlockReason:blockReason}),
     trBackupV2SetRecoveryUiBlocked(blocked){const effective=!!blocked||!!blockReason;loading=effective;return effective;},
     trBackupV2Canonical:v=>JSON.stringify(stable(v)),
+    trBackupV2SortRecords:rows=>JSON.parse(JSON.stringify(rows||[])).sort((a,b)=>String(a?.id||'').localeCompare(String(b?.id||''))),
+    trBackupV2HashCanonical:async v=>{
+      const got=JSON.stringify(stable(v));
+      if(got===JSON.stringify(stable(source.workspace)))return 'w';
+      if(got===JSON.stringify(stable(source.marketData.marketMeta)))return 'm';
+      if(got===JSON.stringify(stable(source.marketData.execSets)))return 'e';
+      throw new Error('unexpected canonical hash input');
+    },
     trBackupV2Preflight:async raw=>JSON.parse(JSON.stringify(raw)),
     trBackupV2BuildPayload:async()=>JSON.parse(JSON.stringify(restored?source:current)),
     trBackupV2RefreshUiAfterRestore:async()=>{assert.equal(blockReason,'','portable UI refresh must run only after the portable recovery write lock is released');calls.push({cmd:'refreshUi'});return true;},
@@ -99,6 +107,15 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
         return JSON.stringify({ok:true,offset:0,bytes:bytes.length,totalBytes:bytes.length,eof:true,dataB64:bytes.toString('base64')});
       }
       if(cmd==='desktop_read_authoritative_workspace')return JSON.stringify({active:true,payload:JSON.stringify(source.workspace),revision:9});
+      if(cmd==='desktop_list_native_images')return JSON.stringify([{id:'IMG1',sha256:'i'}]);
+      if(cmd==='desktop_market_list_records'){
+        if(args.store==='marketMeta')return JSON.stringify(source.marketData.marketMeta);
+        if(args.store==='execSets')return JSON.stringify(source.marketData.execSets);
+      }
+      if(cmd==='desktop_market_backup_ticks_hash'){
+        assert.equal(args.orderedIdsJson,JSON.stringify(['MD1']));
+        return JSON.stringify({ok:true,sha256:'t',datasets:1,ticks:1});
+      }
       throw new Error('Unexpected command '+cmd);
     }}}
   };

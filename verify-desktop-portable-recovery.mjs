@@ -20,13 +20,15 @@ for(const token of [
 
 for(const token of [
   "streamBackupText","readNativeBackupText","resumePending","recoverOrRunRestore",
-  "ensureNativeImages","ensureNativeMarket","finalVerify","sameHashes",
+  "ensureWorkspaceAuthority","ensureNativeImages","ensureNativeMarket","finalVerify","sameHashes",
   "desktop-portable-restore-probe","desktop-portable-restore"
 ])assert(runtime.includes(token),'Missing portable runtime invariant '+token);
 
 assert(runtime.includes("trBackupV2Preflight")&&runtime.includes("trBackupV2BuildPayload"),'Portable restore must preflight source and rebuild final Backup V2.');
 assert(runtime.includes("trBackupV2JournalGet")&&runtime.includes("trBackupV2RecoverPending"),'Portable restore must serialize/resume the underlying Backup V2 journal before advancing.');
 assert(runtime.includes("TradingResearchDesktopNativeImages")&&runtime.includes("TradingResearchDesktopNativeMarketData"),'Portable restore must converge both native authorities.');
+assert(runtime.includes("desktop_promote_workspace_authority")&&runtime.includes("refreshFromNative"),'Fresh target must be able to promote and adopt SQLite workspace authority from source Backup V2.');
+assert(!runtime.includes("SQLite workspace authority todavía no está activa. No se inicia el restore portable."),'Portable recovery must not reject a truly fresh target solely because workspace authority is inactive.');
 assert(runtime.includes("sourcePath")&&runtime.includes("rollbackPath"),'Portable journal must bind both physical backups.');
 assert(runtime.includes("finalVerify(prepared)")&&runtime.includes("sameHashes(prepared.manifest?.hashes,rebuilt.manifest?.hashes)"),'Final restore must require exact Backup V2 domain hashes.');
 assert(prepare.includes('desktop-portable-recovery-runtime.js')&&prepare.includes('data-tr-desktop-portable-recovery="batch79"'),'Desktop artifact must embed portable recovery runtime.');

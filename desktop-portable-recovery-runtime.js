@@ -93,8 +93,20 @@ async function advance(journal,nextPhase){
   ui.journal=journal;paint();
   return journal;
 }
-async function recoverOrRunRestore(prepared){
+async function ensureWorkspaceAuthority(prepared,journal){
+  if(globalThis.TradingResearchDesktopAuthority?.active)return true;
+  const promoted=await call('desktop_promote_workspace_authority',{
+    payload:JSON.stringify(prepared.workspace),rollbackPath:String(journal.sourcePath)
+  });
+  if(!promoted?.ok)throw new Error('No se pudo promover SQLite workspace desde el Backup V2 source.');
+  const refreshed=await globalThis.TradingResearchDesktopAuthority?.refreshFromNative?.();
+  if(!refreshed?.active||!globalThis.TradingResearchDesktopAuthority?.active)
+    throw new Error('SQLite workspace source se promovió, pero el runtime no pudo adoptar la nueva autoridad.');
+  return true;
+}
+async function recoverOrRunRestore(prepared,journal){
   if(typeof trBackupV2RestoreProtocol!=='function')throw new Error('Restore Backup V2 no disponible.');
+  await ensureWorkspaceAuthority(prepared,journal);
   const run=async()=>{
     const pending=typeof trBackupV2JournalGet==='function'?await trBackupV2JournalGet():null;
     if(pending){
@@ -147,7 +159,7 @@ async function execute(prepared,journal,{announce=true}={}){
   try{
     let j=journal;
     if(j.phase==='prepared'){
-      await recoverOrRunRestore(prepared);
+      await recoverOrRunRestore(prepared,j);
       j=await advance(j,'restored');
     }
     if(j.phase==='restored'){
@@ -186,10 +198,9 @@ async function execute(prepared,journal,{announce=true}={}){
 }
 async function startFromFile(file){
   if(ui.busy||!file)return null;
-  if(!globalThis.TradingResearchDesktopAuthority?.active){
-    alert('SQLite workspace authority todavía no está activa. No se inicia el restore portable.');
-    return null;
-  }
+  // A truly fresh Desktop may not yet have a SQLite workspace authority.
+  // Portable recovery is allowed to promote the source Backup V2 itself, but
+  // only after its physical source copy and portable journal are durably bound.
   const existingPortable=await call('desktop_portable_restore_status');
   if(existingPortable?.active){
     ui.journal=existingPortable;paint();

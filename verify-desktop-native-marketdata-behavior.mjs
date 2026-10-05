@@ -29,6 +29,7 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false,fa
   };
   const ctx={
     console:{log(){},warn(){},error(){}},crypto:webcrypto,TextEncoder,
+    btoa:value=>Buffer.from(String(value),'binary').toString('base64'),
     alert:x=>alerts.push(String(x)),setTimeout:()=>0,MutationObserver:class{observe(){}},document:uiDocument(),
     TradingResearchDesktopAuthority:{active:true},
     TradingResearchDesktopImageAuthority:{active:true},

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const runtime=fs.readFileSync('desktop-portable-recovery-runtime.js','utf8');
+const backupRuntime=fs.readFileSync('backup-v2-runtime.js','utf8');
 const main=fs.readFileSync('src-tauri/src/main.rs','utf8');
 const prepare=fs.readFileSync('desktop-prepare.mjs','utf8');
 const market=fs.readFileSync('desktop-native-market-runtime.js','utf8');
@@ -32,6 +33,7 @@ assert(!runtime.includes("SQLite workspace authority todavía no está activa. N
 assert(runtime.includes("sourcePath")&&runtime.includes("rollbackPath"),'Portable journal must bind both physical backups.');
 assert(runtime.includes("finalVerify(prepared)")&&runtime.includes("desktop_market_backup_ticks_hash")&&runtime.includes("trBackupV2HashCanonical(metaRows)"),'Final restore must require exact Backup V2 domain hashes without rebuilding all tick history in WebView memory.');
 assert(!runtime.includes('trBackupV2SetRecoveryUiBlocked'),'Portable in-session recovery must never reuse the boot-only tr-core-loading veil.');
+assert(!backupRuntime.includes("classList.toggle('tr-core-loading'"),'Backup/restore runtime must not control the boot-only global loading screen.');
 assert(runtime.includes('returnToDataViewNow()')&&runtime.includes('backgroundRefresh()'),'Verified restore must return the UI synchronously before non-critical refresh work.');
 const finalBody=runtime.slice(runtime.indexOf('async function finalVerify'),runtime.indexOf('async function execute'));
 assert(!finalBody.includes('trBackupV2BuildPayload'),'Final portable verification must not rebuild the full Backup V2 payload in WebView memory.');

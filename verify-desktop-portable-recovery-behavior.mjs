@@ -19,7 +19,7 @@ function stable(v){
   if(v&&typeof v==='object'){const o={};for(const k of Object.keys(v).sort())o[k]=stable(v[k]);return o;}
   return v;
 }
-function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false,workspaceActive=true}={}){
+function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false,backupRecoveryStatus='completed-forward',workspaceActive=true}={}){
   const calls=[],alerts=[],timers=[];
   let blockReason='',loading=false,veilCalls=0;
   let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
@@ -56,7 +56,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     trBackupV2BuildPayload:async()=>JSON.parse(JSON.stringify(restored?source:current)),
     trBackupV2RefreshUiAfterRestore:async()=>{assert.equal(blockReason,'','portable UI refresh must run only after the portable recovery write lock is released');calls.push({cmd:'refreshUi'});return true;},
     trBackupV2JournalGet:async()=>backupJournalPending?{id:'backup-v2-pending'}:null,
-    trBackupV2RecoverPending:async()=>{assert.equal(backupJournalPending,true);backupJournalPending=false;restored=true;calls.push({cmd:'recoverBackupJournal'});return {status:'recovered'};},
+    trBackupV2RecoverPending:async()=>{assert.equal(backupJournalPending,true);backupJournalPending=false;calls.push({cmd:'recoverBackupJournal'});if(backupRecoveryStatus==='completed-forward')restored=true;return {status:backupRecoveryStatus};},
     trBackupV2RestoreProtocol:async()=>{restored=true;calls.push({cmd:'restoreProtocol'});return {ok:true};},
     TRDomainStore:{exclusive:async(_r,fn)=>fn()},
     TradingResearchDesktopAuthority:{active:workspaceNow,refreshFromNative:async()=>{workspaceNow=true;context.TradingResearchDesktopAuthority.active=true;calls.push({cmd:'refreshWorkspaceAuthority'});return {active:true,revision:1};}},
@@ -170,6 +170,15 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   assert.equal(out.status,'completed');
   assert(t.calls.some(x=>x.cmd==='recoverBackupJournal'),'pending Backup V2 journal must recover before portable phase advance');
   assert(!t.calls.some(x=>x.cmd==='restoreProtocol'),'portable resume must not start a second Backup V2 restore while one is recoverable');
+  assert.equal(t.cleared,true);
+}
+
+{
+  const t=harness({journalPhase:'prepared',imageActive:true,marketActive:true,backupJournalPending:true,backupRecoveryStatus:'aborted-before-market'});
+  const out=await t.api.resumePending({announce:false});
+  assert.equal(out.status,'completed');
+  assert(t.calls.some(x=>x.cmd==='recoverBackupJournal'),'pre-Market pending journal must be resolved first');
+  assert(t.calls.some(x=>x.cmd==='restoreProtocol'),'safe pre-Market abort must restart the source Backup V2 restore before portable phase advance');
   assert.equal(t.cleared,true);
 }
 

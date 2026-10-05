@@ -694,16 +694,22 @@ pub(crate) fn finalize_live_tick(conn:&mut Connection,op:&str,id:&str,chunk_coun
 fn validate_active_relations_tx(tx:&rusqlite::Transaction<'_>)->Result<(),String>{
     let meta:HashSet<String>={
         let mut s=tx.prepare("SELECT id FROM market_meta_active").map_err(|e|e.to_string())?;
-        s.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?.into_iter().collect()
+        let rows=s.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?
+            .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+        rows.into_iter().collect()
     };
     let ticks:HashSet<String>={
         let mut s=tx.prepare("SELECT dataset_id FROM market_tick_catalog_active").map_err(|e|e.to_string())?;
-        s.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?.into_iter().collect()
+        let rows=s.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?
+            .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+        rows.into_iter().collect()
     };
     if meta!=ticks{return Err("Commit Market Data rompería la paridad marketMeta/marketTicks.".into());}
     let payloads:Vec<(String,String)>={
         let mut s=tx.prepare("SELECT id,payload FROM market_exec_active").map_err(|e|e.to_string())?;
-        s.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?))).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?
+        let rows=s.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?))).map_err(|e|e.to_string())?
+            .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;
+        rows
     };
     for (id,p) in payloads{
         let v:Value=serde_json::from_str(&p).map_err(|e|format!("execSet {id}: {e}"))?;

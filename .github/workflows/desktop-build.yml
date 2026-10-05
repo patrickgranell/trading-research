@@ -18,6 +18,8 @@ on:
       - 'verify-desktop-native-storage.mjs'
       - 'package.json'
       - 'DESKTOP-NATIVE-IMAGES.md'
+      - 'DESKTOP-NATIVE-MARKETDATA.md'
+      - 'verify-desktop-native-marketdata.mjs'
       - 'verify-desktop-native-images.mjs'
       - 'verify-desktop-native-images-behavior.mjs'
       - 'desktop-native-images-runtime.js'

@@ -454,7 +454,11 @@ fn verify_active(conn:&Connection,deep:bool)->Result<Value,String>{
         checked_id(&id)?;checked_hash(&aggregate)?;
         if !dataset_ids.insert(id.clone()){return Err(format!("Histórico nativo duplicado: {id}."));}
         if chunks<=0||rows<=0||rows as usize>MAX_DATASET_ROWS{return Err(format!("Catálogo histórico inválido: {id}."));}
-        if deep{
+        {
+            // Even shallow boot verification must prove that the catalog has a
+            // complete contiguous chunk set. Deep mode additionally hashes and
+            // parses payload bytes, which is intentionally deferred for large
+            // histories until explicit verify/read.
             let mut q=conn.prepare("SELECT chunk_index,row_count,payload,sha256 FROM market_tick_chunk_active WHERE dataset_id=?1 ORDER BY chunk_index")
               .map_err(|e|format!("Chunks activos {id}: {e}"))?;
             let mapped=q.query_map(params![id],|r|Ok((r.get::<_,i64>(0)?,r.get::<_,i64>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?)))
@@ -463,8 +467,12 @@ fn verify_active(conn:&Connection,deep:bool)->Result<Value,String>{
             for (pos,x) in mapped.enumerate(){
                 let (idx,n,payload,hash)=x.map_err(|e|e.to_string())?;
                 if idx!=pos as i64{return Err(format!("Chunks activos no contiguos: {id}."));}
-                let parsed=tick_payload(&payload)?;
-                if parsed.len() as i64!=n||sha_text(&payload)!=hash{return Err(format!("Chunk activo corrupto: {id}#{idx}."));}
+                if n<=0||n as usize>MAX_CHUNK_ROWS{return Err(format!("Chunk activo fuera de límites: {id}#{idx}."));}
+                checked_hash(&hash)?;
+                if deep{
+                    let parsed=tick_payload(&payload)?;
+                    if parsed.len() as i64!=n||sha_text(&payload)!=hash{return Err(format!("Chunk activo corrupto: {id}#{idx}."));}
+                }
                 count+=n;info.push((idx,n,hash));
             }
             if info.len() as i64!=chunks||count!=rows||aggregate_from_rows(&info)!=aggregate{

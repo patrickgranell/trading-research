@@ -10,7 +10,7 @@ const cargo=fs.readFileSync('src-tauri/Cargo.toml','utf8');
 const web=fs.readFileSync('app.js','utf8');
 const desktop=fs.readFileSync('desktop-authority-bridge.js','utf8');
 const spec=fs.readFileSync('DESKTOP-NATIVE-IMAGES.md','utf8');
-for(const cmd of ['desktop_stage_native_image','desktop_read_staged_image','desktop_verify_staged_images','desktop_finalize_native_image_staging','desktop_native_image_staging_status']){
+for(const cmd of ['desktop_stage_native_image','desktop_read_staged_image','desktop_verify_staged_images','desktop_finalize_native_image_staging','desktop_native_image_staging_status','desktop_native_image_authority_status','desktop_promote_native_image_authority','desktop_native_image_batch','desktop_read_native_image','desktop_list_native_images','desktop_gc_native_image_objects']){
   assert(main.includes(cmd),'Native staging RPC missing '+cmd);
   assert(!web.includes(cmd),'Web code must never access native image staging RPC');
 }
@@ -18,6 +18,10 @@ for(const requirement of ['MAX_IMAGE_BYTES','Sha256','checked_id','checked_hash'
   assert(module.includes(requirement),'Native staging invariant missing '+requirement);
 }
 assert(main.includes('native_images::prepare_schema(&conn)'), 'native staging schema not registered');
+assert(module.includes('gc_objects'),'Native image authority invariant missing gc_objects');
+assert(module.includes('batch_commit'),'Native image authority invariant missing batch_commit');
+assert(module.includes('require_generation'),'Native image authority invariant missing require_generation');
+assert(module.includes('native-images-authority.marker'),'Native image authority invariant missing native-images-authority.marker');
 assert(cargo.includes('base64 = "0.22"'),'base64 dependency missing');
 assert(spec.includes('Batch 78')&&spec.includes('Batch 79'),'staged roadmap absent');
 assert(!desktop.includes('desktop_stage_native_image'),'Certified Desktop workspace authority bridge must not auto switch image storage before certification');

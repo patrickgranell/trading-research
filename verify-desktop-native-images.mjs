@@ -29,6 +29,9 @@ assert(!desktop.includes('desktop_stage_native_image'),'Certified Desktop worksp
 assert(desktop.includes('trDesktopImageBootstrapAuthority')&&desktop.includes('trDesktopImageQueueBatch'),'Desktop image authority must bootstrap before UI and serialize CAS writes.');
 assert(desktop.includes("trDesktopAuthorityStop(e,'Imágenes nativas')")&&desktop.includes('Almacenamiento nativo de imágenes requiere recuperación'),'Native-image corruption must surface its own recovery boundary.');
 assert(fs.readFileSync('desktop-native-images-runtime.js','utf8').includes("label:'desktop-image-stage-rollback'"),'Image staging must require native Backup V2 first');
+const imageRuntime=fs.readFileSync('desktop-native-images-runtime.js','utf8');
+assert(imageRuntime.includes("if(document.getElementById('desktop-native-images-host'))return;"),'Native image mount must no-op when host already exists.');
+assert(!/desktop-native-images-host'\)\)\{paint\(\);return;\}/.test(imageRuntime),'MutationObserver must never repaint an already-mounted native image host.');
 console.log('Batch 77 native image staging wiring PASS — NOT image authority. Web/Desktop 0.4 behavior unchanged.');
 
 if(fs.existsSync('desktop-dist/index.html')){

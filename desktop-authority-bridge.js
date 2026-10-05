@@ -15,7 +15,7 @@ let trDesktopImageFailed=false;
 let trDesktopImageWriteChain=Promise.resolve(true);
 const trDesktopImageAuthorityControl={
   active:false,migrationPending:false,failed:()=>trDesktopImageFailed,generation:()=>trDesktopImageGeneration,
-  version:'0.5.0-b77',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':trDesktopImageAuthorityControl.migrationPending?'migration':'indexeddb'
+  version:'0.5.1-b77-hotfix1',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':trDesktopImageAuthorityControl.migrationPending?'migration':'indexeddb'
 };
 globalThis.TradingResearchDesktopImageAuthority=trDesktopImageAuthorityControl;
 async function trDesktopInvoke(command,args={}){

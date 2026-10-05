@@ -372,7 +372,7 @@ mod tests{
     #[test]
     fn exact_inventory_pairs_and_exec_reference(){
         let mut c=Connection::open_in_memory().unwrap();prepare_schema(&c).unwrap();let g=begin(&mut c);
-        let m=obj("MD1","meta"),mh=hash(&m);stage_meta(&mut c,g,"MD1",&m,&mh).unwrap();
+        let m=obj("MD1","meta");let mh=hash(&m);stage_meta(&mut c,g,"MD1",&m,&mh).unwrap();
         let p=ticks(2,0);let ph=hash(&p);stage_tick_chunk(&mut c,g,"MD1",0,&p,&ph).unwrap();
         let a=agg(&[(0,2,ph)]);finalize_dataset(&mut c,g,"MD1",1,2,&a).unwrap();
         let e=r#"{"id":"EX1","marketDatasetId":"MD1"}"#.to_string();let eh=hash(&e);stage_exec(&mut c,g,"EX1",&e,&eh).unwrap();

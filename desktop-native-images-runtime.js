@@ -98,7 +98,7 @@ async function migrateNativeImages(){
     ui.lastError=e?.message||String(e);console.error('[Trading Research Desktop · Native image migration]',e);
     if(promoted)globalThis.TradingResearchDesktopImageBridge?.block?.(e);
     else endMigration();
-    alert('No se pudo completar la migración nativa de imágenes: '+ui.lastError+(rollback?.path?'\n\nRollback conservado en:\n'+rollback.path:''));
+    alert('No se pudo completar la migración nativa de imágenes: '+ui.lastError+(rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(rollback?.path||ui.lastRollbackPath):''));
     return null;
   }finally{
     if(!promoted)endMigration();

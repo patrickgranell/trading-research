@@ -19,10 +19,10 @@ function stable(v){
   if(v&&typeof v==='object'){const o={};for(const k of Object.keys(v).sort())o[k]=stable(v[k]);return o;}
   return v;
 }
-function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false}={}){
+function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false,workspaceActive=true}={}){
   const calls=[],alerts=[],blocks=new Set(),timers=[];
   let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
-  let imageNow=imageActive,marketNow=marketActive,phase=journalPhase;
+  let imageNow=imageActive,marketNow=marketActive,workspaceNow=workspaceActive,phase=journalPhase;
   const document={
     documentElement:{},
     addEventListener(){},
@@ -47,7 +47,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     trBackupV2RecoverPending:async()=>{assert.equal(backupJournalPending,true);backupJournalPending=false;restored=true;calls.push({cmd:'recoverBackupJournal'});return {status:'recovered'};},
     trBackupV2RestoreProtocol:async()=>{restored=true;calls.push({cmd:'restoreProtocol'});return {ok:true};},
     TRDomainStore:{exclusive:async(_r,fn)=>fn()},
-    TradingResearchDesktopAuthority:{active:true},
+    TradingResearchDesktopAuthority:{active:workspaceNow,refreshFromNative:async()=>{workspaceNow=true;context.TradingResearchDesktopAuthority.active=true;calls.push({cmd:'refreshWorkspaceAuthority'});return {active:true,revision:1};}},
     TradingResearchDesktopNativeStorage:{refresh:async()=>true},
     TradingResearchDesktopNativeImages:{
       status:async()=>({authority:{active:imageNow,deepVerified:imageNow,catalogRecords:imageNow?1:0,generation:imageNow?1:0}}),
@@ -70,6 +70,12 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
         return JSON.stringify({ok:true,path:'C:/app/backups/'+label+'.trbackup',bytes,sha256:(label.includes('source')?'b':'a').repeat(64)});
       }
       if(cmd==='desktop_backup_stream_abort')return JSON.stringify({ok:true});
+      if(cmd==='desktop_promote_workspace_authority'){
+        assert.equal(args.payload,JSON.stringify(source.workspace));
+        assert(String(args.rollbackPath).includes('portable-restore-source'));
+        workspaceNow=true;
+        return JSON.stringify({ok:true,revision:1});
+      }
       if(cmd==='desktop_portable_restore_begin'){
         phase='prepared';
         return JSON.stringify({ok:true,active:true,resumed:false,phase,sourcePath:args.sourcePath,sourceSha256:args.sourceSha256,rollbackPath:args.rollbackPath,rollbackSha256:args.rollbackSha256});
@@ -95,6 +101,17 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   context.globalThis=context;
   vm.runInContext(runtime,vm.createContext(context),{timeout:1500});
   return {ctx:context,api:context.TradingResearchDesktopPortableRecovery,calls,alerts,blocks,timers,get cleared(){return cleared;},get phase(){return phase;},get restored(){return restored;}};
+}
+
+{
+  const t=harness({workspaceActive:false,imageActive:false,marketActive:false});
+  const file={text:async()=>sourceText};
+  const result=await t.api.startFromFile(file);
+  assert(result,'truly fresh target must recover from portable Backup V2');
+  assert(t.calls.some(x=>x.cmd==='desktop_promote_workspace_authority'),'fresh target must promote source workspace into SQLite');
+  assert(t.calls.some(x=>x.cmd==='refreshWorkspaceAuthority'),'runtime must adopt newly promoted SQLite authority before restore');
+  assert.equal(t.ctx.TradingResearchDesktopAuthority.active,true);
+  assert.equal(t.cleared,true);
 }
 
 {

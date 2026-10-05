@@ -333,6 +333,15 @@ async function trBackupV2RecoverPending(existingJournal=null){
   const recoveryLock=trBackupV2AcquireRecoveryLock(journal);
   try{
     if(Number(journal.schema)!==TR_BACKUP_V2_SCHEMA||!journal.targetWorkspace||!journal.manifest)throw new Error('Restore journal V2 inválido.');
+    // "prepared" is provably pre-Market: the protocol advances to
+    // images-staged before the Market Data transaction starts. Aborting here
+    // is safer than inferring progress from hashes that may already match when
+    // the user restores a backup identical to the current workspace.
+    if(String(journal.phase||'prepared')==='prepared'){
+      await trBackupV2CleanupStage(journal);await trBackupV2JournalDelete();
+      trBackupV2ReleaseRecoveryLock(recoveryLock);
+      return {status:'aborted-before-market'};
+    }
     const marketMatches=await trBackupV2MarketMatchesManifest(journal.manifest);
     const currentWorkspaceHash=await trBackupV2HashCanonical(typeof TRDomainStore!=='undefined'&&TRDomainStore?.snapshot?TRDomainStore.snapshot():state);
     if(!marketMatches){

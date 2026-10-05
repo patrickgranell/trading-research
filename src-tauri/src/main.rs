@@ -9,7 +9,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -62,6 +62,29 @@ fn guarded_authority_status(root:&Path,conn:&Connection)->Result<Value,String>{
     Ok(status)
 }
 
+fn portable_restore_marker_path(root:&Path)->PathBuf{root.join("portable-restore.marker")}
+fn ensure_portable_restore_marker(root:&Path)->Result<(),String>{
+    let final_path=portable_restore_marker_path(root);
+    if final_path.exists(){
+        if fs::metadata(&final_path).map_err(|e|format!("Marcador portable inaccesible: {e}"))?.len()==0{
+            return Err("Marcador de restore portable vacío: recuperación obligatoria.".into());
+        }
+        return Ok(());
+    }
+    let temp=root.join(".portable-restore.marker.tmp");
+    {
+        let mut file=File::create(&temp).map_err(|e|format!("Marcador restore portable: {e}"))?;
+        file.write_all(b"Trading Research Desktop 0.7: PORTABLE RESTORE PENDING; block writes until verified\n")
+            .map_err(|e|format!("Marcador restore portable write: {e}"))?;
+        file.sync_all().map_err(|e|format!("Marcador restore portable fsync: {e}"))?;
+    }
+    fs::rename(&temp,&final_path).map_err(|e|format!("Marcador restore portable publish: {e}"))?;
+    Ok(())
+}
+fn portable_phase_rank(value:&str)->Option<usize>{
+    ["prepared","restored","images-native","market-native","verified"].iter().position(|x|*x==value)
+}
+
 fn sha256_text(value: &str) -> String {
     let digest = Sha256::digest(value.as_bytes());
     digest.iter().map(|b| format!("{b:02x}")).collect()
@@ -93,6 +116,16 @@ fn open_db(root: &Path) -> Result<Connection, String> {
          CREATE TABLE IF NOT EXISTS native_meta (
            key TEXT PRIMARY KEY,
            value TEXT NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS portable_restore_journal (
+           id INTEGER PRIMARY KEY CHECK (id = 1),
+           phase TEXT NOT NULL,
+           source_path TEXT NOT NULL,
+           source_sha256 TEXT NOT NULL,
+           rollback_path TEXT NOT NULL,
+           rollback_sha256 TEXT NOT NULL,
+           started_at TEXT NOT NULL,
+           updated_at TEXT NOT NULL
          );",
     )
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
@@ -485,12 +518,16 @@ fn desktop_verify_staged_images(app:AppHandle,expected:String)->Result<String,St
     native_images::verify(&conn,&root,&pairs).map(|v|v.to_string())
 }
 
-fn validated_native_backup(root:&Path,rollback_path:&str)->Result<(String,String),String>{
+fn canonical_native_backup_path(root:&Path,backup_path:&str)->Result<PathBuf,String>{
     let backup_root=root.join("backups").canonicalize().map_err(|e|format!("Directorio de backups nativos: {e}"))?;
-    let candidate=PathBuf::from(rollback_path).canonicalize().map_err(|e|format!("Backup de rollback no existe: {e}"))?;
+    let candidate=PathBuf::from(backup_path).canonicalize().map_err(|e|format!("Backup nativo no existe: {e}"))?;
     if candidate.parent()!=Some(backup_root.as_path()) || candidate.extension().and_then(|x|x.to_str())!=Some("trbackup"){
-        return Err("El rollback de staging no pertenece al directorio nativo de backups.".into());
+        return Err("El backup no pertenece al directorio nativo backups/.".into());
     }
+    Ok(candidate)
+}
+fn validated_native_backup(root:&Path,rollback_path:&str)->Result<(String,String),String>{
+    let candidate=canonical_native_backup_path(root,rollback_path)?;
     // Read exactly once: the payload we validate must be the same bytes whose
     // hash is bound into staging/promotion. A second filesystem read creates
     // an unnecessary TOCTOU window.
@@ -696,6 +733,95 @@ fn desktop_market_abort_live_op(app:AppHandle,op_id:String)->Result<String,Strin
     native_market::abort_live_op(&mut conn,&op_id).map(|v|v.to_string())
 }
 
+
+fn portable_restore_row(conn:&Connection)->Result<Option<(String,String,String,String,String,String)>,String>{
+    conn.query_row(
+      "SELECT phase,source_path,source_sha256,rollback_path,rollback_sha256,updated_at FROM portable_restore_journal WHERE id=1",
+      [],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))
+    ).optional().map_err(|e|format!("Lectura journal restore portable: {e}"))
+}
+#[tauri::command]
+fn desktop_portable_restore_begin(app:AppHandle,source_path:String,source_sha256:String,rollback_path:String,rollback_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let (_,source_sha)=validated_native_backup(&root,&source_path)?;
+    let (_,rollback_sha)=validated_native_backup(&root,&rollback_path)?;
+    if source_sha!=source_sha256||rollback_sha!=rollback_sha256{return Err("Hash de backup source/rollback no coincide con el journal portable.".into());}
+    let mut conn=open_db(&root)?;
+    if let Some((phase,sp,ss,rp,rs,updated))=portable_restore_row(&conn)?{
+        if sp!=source_path||ss!=source_sha256||rp!=rollback_path||rs!=rollback_sha256{
+            return Err("Ya existe un restore portable pendiente ligado a otros backups.".into());
+        }
+        ensure_portable_restore_marker(&root)?;
+        return Ok(json!({"ok":true,"active":true,"resumed":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}).to_string());
+    }
+    if portable_restore_marker_path(&root).exists(){return Err("Existe marcador de restore portable sin journal SQLite. Recuperación obligatoria.".into());}
+    ensure_portable_restore_marker(&root)?;
+    let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
+    let tx=conn.transaction().map_err(|e|format!("Inicio journal restore portable: {e}"))?;
+    tx.execute("INSERT INTO portable_restore_journal(id,phase,source_path,source_sha256,rollback_path,rollback_sha256,started_at,updated_at) VALUES(1,'prepared',?1,?2,?3,?4,?5,?5)",
+      params![source_path,source_sha256,rollback_path,rollback_sha256,now]).map_err(|e|format!("Escritura journal restore portable: {e}"))?;
+    tx.commit().map_err(|e|format!("Commit journal restore portable: {e}"))?;
+    Ok(json!({"ok":true,"active":true,"resumed":false,"phase":"prepared","sourcePath":source_path,"sourceSha256":source_sha256,"rollbackPath":rollback_path,"rollbackSha256":rollback_sha256,"updatedAt":now}).to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_status(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    let row=portable_restore_row(&conn)?;
+    if row.is_none(){
+        if portable_restore_marker_path(&root).exists(){return Err("Marcador de restore portable presente sin journal SQLite. Recuperación obligatoria.".into());}
+        return Ok(json!({"ok":true,"active":false}).to_string());
+    }
+    let (phase,sp,ss,rp,rs,updated)=row.unwrap();
+    portable_phase_rank(&phase).ok_or("Fase de restore portable desconocida.")?;
+    ensure_portable_restore_marker(&root)?;
+    let (_,source_sha)=validated_native_backup(&root,&sp)?;
+    let (_,rollback_sha)=validated_native_backup(&root,&rp)?;
+    if source_sha!=ss||rollback_sha!=rs{return Err("Backup source/rollback del restore portable cambió desde el journal.".into());}
+    Ok(json!({"ok":true,"active":true,"phase":phase,"sourcePath":sp,"sourceSha256":ss,"rollbackPath":rp,"rollbackSha256":rs,"updatedAt":updated}).to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_advance(app:AppHandle,expected_phase:String,next_phase:String)->Result<String,String>{
+    let expected=portable_phase_rank(&expected_phase).ok_or("Fase esperada portable inválida.")?;
+    let next=portable_phase_rank(&next_phase).ok_or("Fase siguiente portable inválida.")?;
+    if next!=expected+1{return Err("Transición de fase portable no secuencial.".into());}
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    let row=portable_restore_row(&conn)?.ok_or("No existe restore portable pendiente.")?;
+    if row.0!=expected_phase{return Err(format!("Fase portable obsoleta: esperada {expected_phase}, real {}.",row.0));}
+    let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
+    let tx=conn.transaction().map_err(|e|format!("Inicio avance restore portable: {e}"))?;
+    let changed=tx.execute("UPDATE portable_restore_journal SET phase=?1,updated_at=?2 WHERE id=1 AND phase=?3",params![next_phase,now,expected_phase])
+      .map_err(|e|format!("Avance restore portable: {e}"))?;
+    if changed!=1{return Err("CAS de fase restore portable rechazado.".into());}
+    tx.commit().map_err(|e|format!("Commit fase restore portable: {e}"))?;
+    Ok(json!({"ok":true,"phase":next_phase,"updatedAt":now}).to_string())
+}
+#[tauri::command]
+fn desktop_portable_restore_clear(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    let row=portable_restore_row(&conn)?.ok_or("No existe restore portable pendiente.")?;
+    if row.0!="verified"{return Err("Restore portable no puede cerrarse antes de verified.".into());}
+    let tx=conn.transaction().map_err(|e|format!("Inicio cierre restore portable: {e}"))?;
+    tx.execute("DELETE FROM portable_restore_journal WHERE id=1",[]).map_err(|e|format!("Borrado journal restore portable: {e}"))?;
+    tx.commit().map_err(|e|format!("Commit cierre restore portable: {e}"))?;
+    let marker=portable_restore_marker_path(&root);
+    if marker.exists(){fs::remove_file(&marker).map_err(|e|format!("Borrado marcador restore portable: {e}"))?;}
+    Ok(json!({"ok":true,"active":false}).to_string())
+}
+#[tauri::command]
+fn desktop_read_native_backup_chunk(app:AppHandle,path:String,offset:u64,max_bytes:usize)->Result<String,String>{
+    use base64::{engine::general_purpose::STANDARD,Engine as _};
+    let root=native_root(&app)?;let file_path=canonical_native_backup_path(&root,&path)?;
+    if max_bytes==0||max_bytes>DESKTOP_BACKUP_STREAM_CHUNK_MAX{return Err("Lectura de backup solicita un chunk fuera de límites.".into());}
+    let size=fs::metadata(&file_path).map_err(|e|format!("Metadata backup portable: {e}"))?.len();
+    if offset>size{return Err("Offset de backup fuera de rango.".into());}
+    let mut file=File::open(&file_path).map_err(|e|format!("Apertura backup portable: {e}"))?;
+    file.seek(SeekFrom::Start(offset)).map_err(|e|format!("Seek backup portable: {e}"))?;
+    let mut buf=vec![0u8;max_bytes.min((size-offset) as usize)];
+    let read=file.read(&mut buf).map_err(|e|format!("Lectura chunk backup portable: {e}"))?;
+    buf.truncate(read);
+    Ok(json!({"ok":true,"offset":offset,"bytes":read,"totalBytes":size,"eof":offset+read as u64>=size,"dataB64":STANDARD.encode(buf)}).to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -720,6 +846,11 @@ fn main() {
             desktop_market_finalize_live_tick,
             desktop_market_commit_live_op,
             desktop_market_abort_live_op,
+            desktop_portable_restore_begin,
+            desktop_portable_restore_status,
+            desktop_portable_restore_advance,
+            desktop_portable_restore_clear,
+            desktop_read_native_backup_chunk,
             desktop_stage_native_image,
             desktop_read_staged_image,
             desktop_verify_staged_images,

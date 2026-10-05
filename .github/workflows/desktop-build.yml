@@ -19,6 +19,8 @@ on:
       - 'package.json'
       - 'DESKTOP-NATIVE-IMAGES.md'
       - 'verify-desktop-native-images.mjs'
+      - 'verify-desktop-native-images-behavior.mjs'
+      - 'desktop-native-images-runtime.js'
       - 'DESKTOP.md'
       - '.github/workflows/desktop-build.yml'
 

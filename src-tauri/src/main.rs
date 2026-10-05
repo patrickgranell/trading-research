@@ -2,6 +2,7 @@
 
 mod authority;
 mod native_images;
+mod native_market;
 
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -97,6 +98,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
     authority::prepare_schema(&conn)?;
     native_images::prepare_schema(&conn)?;
+    native_market::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -522,9 +524,63 @@ fn desktop_gc_native_image_objects(app:AppHandle)->Result<String,String>{
     native_images::gc_objects(&conn,&root).map(|v|v.to_string())
 }
 
+
+/* Batch 78 · Market Data native staging only. These commands never switch
+ * authority; IndexedDB remains live until the bounded migration is certified. */
+#[tauri::command]
+fn desktop_market_begin_staging(app:AppHandle,rollback_path:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let (_payload,backup_sha)=validated_native_backup(&root,&rollback_path)?;
+    let mut conn=open_db(&root)?;
+    native_market::begin_stage(&mut conn,&rollback_path,&backup_sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_meta(app:AppHandle,generation:i64,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_meta(&mut conn,generation,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_exec(app:AppHandle,generation:i64,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_exec(&mut conn,generation,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_tick_chunk(app:AppHandle,generation:i64,dataset_id:String,chunk_index:i64,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_tick_chunk(&mut conn,generation,&dataset_id,chunk_index,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_finalize_dataset(app:AppHandle,generation:i64,dataset_id:String,chunk_count:i64,row_count:i64,aggregate_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::finalize_dataset(&mut conn,generation,&dataset_id,chunk_count,row_count,&aggregate_sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_verify_staging(app:AppHandle,generation:i64,inventory:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::verify_stage(&mut conn,generation,&inventory).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_read_staged_chunk(app:AppHandle,generation:i64,dataset_id:String,chunk_index:i64)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::read_chunk(&conn,generation,&dataset_id,chunk_index).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_staging_status(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::status(&conn).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_market_begin_staging,
+            desktop_market_stage_meta,
+            desktop_market_stage_exec,
+            desktop_market_stage_tick_chunk,
+            desktop_market_finalize_dataset,
+            desktop_market_verify_staging,
+            desktop_market_read_staged_chunk,
+            desktop_market_staging_status,
             desktop_stage_native_image,
             desktop_read_staged_image,
             desktop_verify_staged_images,

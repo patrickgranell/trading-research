@@ -6,7 +6,7 @@
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 const LOCK='desktop-native-image-migration';
-const ui={busy:false,lastError:'',staging:null,authority:null};
+const ui={busy:false,lastError:'',lastRollbackPath:'',staging:null,authority:null};
 function parse(v){if(typeof v==='string'){try{return JSON.parse(v);}catch{}}return v;}
 async function call(cmd,args={}){return parse(await invoke(cmd,args));}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -39,6 +39,7 @@ async function prepareStaging(){
   const prepared=await trBackupV2Preflight(raw);
   const rollback=await call('desktop_write_backup',{payload:JSON.stringify(raw),label:'desktop-image-stage-rollback'});
   if(!rollback?.ok||!rollback.path||!(Number(rollback.bytes)>0))throw new Error('No se confirmó el rollback físico previo.');
+  ui.lastRollbackPath=String(rollback.path);
   const images=prepared.images||[];
   for(const im of images){
     await call('desktop_stage_native_image',{
@@ -55,7 +56,7 @@ async function prepareStaging(){
 }
 async function stageReferencedImages(){
   if(ui.busy)return null;
-  ui.busy=true;ui.lastError='';paint();let rollback=null;
+  ui.busy=true;ui.lastError='';ui.lastRollbackPath='';paint();let rollback=null;
   try{
     await beginMigration();
     const staged=await prepareStaging();rollback=staged.rollback;
@@ -64,13 +65,13 @@ async function stageReferencedImages(){
     return staged.final;
   }catch(e){
     ui.lastError=e?.message||String(e);console.error('[Trading Research Desktop · Native image staging]',e);
-    alert('No se pudo preparar el almacenamiento nativo de imágenes: '+ui.lastError+(rollback?.path?'\n\nRollback conservado en:\n'+rollback.path:''));
+    alert('No se pudo preparar el almacenamiento nativo de imágenes: '+ui.lastError+(rollback?.path||ui.lastRollbackPath?'\n\nRollback conservado en:\n'+String(rollback?.path||ui.lastRollbackPath):''));
     return null;
   }finally{endMigration();ui.busy=false;paint();}
 }
 async function migrateNativeImages(){
   if(ui.busy)return null;
-  ui.busy=true;ui.lastError='';paint();
+  ui.busy=true;ui.lastError='';ui.lastRollbackPath='';paint();
   let rollback=null,promoted=false;
   try{
     await beginMigration();

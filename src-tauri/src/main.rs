@@ -795,11 +795,14 @@ fn portable_restore_clear_root(root:&Path)->Result<Value,String>{
     let mut conn=open_db(root)?;
     let row=portable_restore_row(&conn)?.ok_or("No existe restore portable pendiente.")?;
     if row.0!="verified"{return Err("Restore portable no puede cerrarse antes de verified.".into());}
+    // Remove the marker first. If the process dies before deleting the SQLite
+    // row, status sees the verified row and recreates the marker, so cleanup is
+    // resumable. The inverse order could leave a fatal orphan marker.
+    let marker=portable_restore_marker_path(root);
+    if marker.exists(){fs::remove_file(&marker).map_err(|e|format!("Borrado marcador restore portable: {e}"))?;}
     let tx=conn.transaction().map_err(|e|format!("Inicio cierre restore portable: {e}"))?;
     tx.execute("DELETE FROM portable_restore_journal WHERE id=1",[]).map_err(|e|format!("Borrado journal restore portable: {e}"))?;
     tx.commit().map_err(|e|format!("Commit cierre restore portable: {e}"))?;
-    let marker=portable_restore_marker_path(root);
-    if marker.exists(){fs::remove_file(&marker).map_err(|e|format!("Borrado marcador restore portable: {e}"))?;}
     Ok(json!({"ok":true,"active":false}))
 }
 #[tauri::command]

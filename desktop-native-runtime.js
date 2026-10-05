@@ -1,11 +1,11 @@
-/* Trading Research Desktop 0.4 · SQLite authority + native recovery.
+/* Trading Research Desktop 0.5 · SQLite workspace + native image authority candidate.
  * Desktop-only: injected after the normal verified web build.
  * SQLite authority holds the workspace. Images/Market Data remain in dedicated
  * IndexedDB stores and complete Backup V2 recovery is retained.
  */
 (()=>{
 'use strict';
-const VERSION='0.4.0';
+const VERSION='0.5.1';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 
@@ -156,6 +156,12 @@ async function restoreRecoverySnapshot(){
        trBackupV2Canonical(workspaceSnapshot())!==expected){
       throw new Error('Readback SQLite no coincide exactamente con el workspace restaurado. Estado bloqueado para revisión.');
     }
+    if(globalThis.TradingResearchDesktopImageAuthority?.active){
+      const imageCheck=await globalThis.TradingResearchDesktopNativeImages?.status?.(true);
+      if(!imageCheck?.authority?.active||imageCheck.authority.deepVerified!==true){
+        throw new Error('La recuperación terminó, pero la autoridad nativa de imágenes no superó la verificación profunda.');
+      }
+    }
     await trBackupV2RefreshUiAfterRestore();
     if(typeof trBackupV2SetRecoveryUiBlocked==='function')trBackupV2SetRecoveryUiBlocked(false);
     // Do not call the obsolete shadow mirror during an authoritative restore:
@@ -179,7 +185,7 @@ function panelHtml(){
   const stateLabel=status.lastError?'ERROR':status.busy?'TRABAJANDO':s?'OK':'SIN COPIA';
   return '<section id="trDesktopNativeStorage" class="card panel config-wide">'+
     '<div class="panel-title"><div><h3>Desktop · almacenamiento local</h3>'+
-    '<div class="help">Desktop 0.4: SQLite es la autoridad del workspace. Imágenes y Market Data conservan sus almacenes especializados IndexedDB y la recuperación completa Backup V2.</div></div>'+
+    '<div class="help">Desktop 0.5 candidate: SQLite es la autoridad del workspace. '+(globalThis.TradingResearchDesktopImageAuthority?.active?'Imágenes: almacenamiento nativo verificado.':'Imágenes: IndexedDB hasta completar Batch 77.')+' Market Data continúa en IndexedDB y Backup V2 cubre recuperación completa.</div></div>'+
     '<span class="stable-pill">'+escDesktop(stateLabel)+'</span></div>'+
     '<div class="security-actions">'+
     '<button class="btn primary" type="button" data-desktop-native-action="parity">Verificar autoridad SQLite</button>'+

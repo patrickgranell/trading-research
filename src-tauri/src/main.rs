@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod authority;
+mod native_images;
 
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -95,6 +96,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
     )
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
     authority::prepare_schema(&conn)?;
+    native_images::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -302,7 +304,7 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
     });
 
     Ok(json!({
-        "version": "0.4.0",
+        "version": "0.5.1",
         "rootPath": root.to_string_lossy(),
         "dbPath": db_path(&root).to_string_lossy(),
         "backupPath": backup_dir.to_string_lossy(),
@@ -398,9 +400,142 @@ mod marker_tests {
         let _=fs::remove_dir_all(root);
     }
 }
+/* Batch 77: read-only relative to the current Image IndexedDB authority.
+ * These commands stage and verify immutable, hashed native objects; they DO
+ * NOT promote image authority or alter image UX/backup/GC in Desktop 0.4.
+ */
+#[tauri::command]
+fn desktop_stage_native_image(app:AppHandle,id:String,data:String,sha256:String,mime:String,name:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let mut conn=open_db(&root)?;
+    native_images::stage(&mut conn,&root,&id,&data,&sha256,&mime,&name).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_read_staged_image(app:AppHandle,id:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::read(&conn,&root,&id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_verify_staged_images(app:AppHandle,expected:String)->Result<String,String>{
+    let pairs:Vec<(String,String)>=serde_json::from_str(&expected)
+        .map_err(|e|format!("Inventario esperado inválido: {e}"))?;
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::verify(&conn,&root,&pairs).map(|v|v.to_string())
+}
+
+fn validated_native_backup(root:&Path,rollback_path:&str)->Result<(String,String),String>{
+    let backup_root=root.join("backups").canonicalize().map_err(|e|format!("Directorio de backups nativos: {e}"))?;
+    let candidate=PathBuf::from(rollback_path).canonicalize().map_err(|e|format!("Backup de rollback no existe: {e}"))?;
+    if candidate.parent()!=Some(backup_root.as_path()) || candidate.extension().and_then(|x|x.to_str())!=Some("trbackup"){
+        return Err("El rollback de staging no pertenece al directorio nativo de backups.".into());
+    }
+    // Read exactly once: the payload we validate must be the same bytes whose
+    // hash is bound into staging/promotion. A second filesystem read creates
+    // an unnecessary TOCTOU window.
+    let payload=fs::read_to_string(&candidate).map_err(|e|format!("Lectura rollback de staging: {e}"))?;
+    validate_backup_v2(&payload)?;
+    let payload_sha=sha256_text(&payload);
+    Ok((payload,payload_sha))
+}
+fn backup_image_inventory(payload:&str)->Result<Vec<(String,String)>,String>{
+    let value:Value=serde_json::from_str(payload).map_err(|e|format!("Rollback JSON inválido: {e}"))?;
+    let images=value.get("images").and_then(Value::as_array).ok_or("Rollback sin imágenes.")?;
+    let mut out=Vec::with_capacity(images.len());
+    for image in images{
+        let id=image.get("id").and_then(Value::as_str).ok_or("Imagen de rollback sin id.")?;
+        let sha=image.get("sha256").and_then(Value::as_str).ok_or("Imagen de rollback sin SHA-256.")?;
+        out.push((id.to_owned(),sha.to_owned()));
+    }
+    out.sort();
+    Ok(out)
+}
+#[tauri::command]
+fn desktop_finalize_native_image_staging(app:AppHandle,expected:String,rollback_path:String)->Result<String,String>{
+    let mut pairs:Vec<(String,String)>=serde_json::from_str(&expected)
+        .map_err(|e|format!("Inventario esperado inválido: {e}"))?;
+    pairs.sort();
+    let root=native_root(&app)?;
+    let (backup_payload,backup_sha)=validated_native_backup(&root,&rollback_path)?;
+    if backup_image_inventory(&backup_payload)?!=pairs{
+        return Err("El rollback Backup V2 no contiene exactamente el inventario de imágenes staged.".into());
+    }
+    let mut conn=open_db(&root)?;
+    native_images::finalize(&mut conn,&root,&pairs,&rollback_path,&backup_sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_native_image_staging_status(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::status(&conn,&root).map(|v|v.to_string())
+}
+
+#[tauri::command]
+fn desktop_native_image_authority_status(app:AppHandle,deep:Option<bool>)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::authority_status(&conn,&root,deep.unwrap_or(false)).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_promote_native_image_authority(app:AppHandle,expected:String,rollback_path:String)->Result<String,String>{
+    let mut pairs:Vec<(String,String)>=serde_json::from_str(&expected)
+        .map_err(|e|format!("Inventario esperado inválido: {e}"))?;
+    pairs.sort();
+    let root=native_root(&app)?;
+    let (backup_payload,backup_sha)=validated_native_backup(&root,&rollback_path)?;
+    if backup_image_inventory(&backup_payload)?!=pairs{
+        return Err("El rollback Backup V2 no coincide con el inventario que se intenta promover.".into());
+    }
+    let mut conn=open_db(&root)?;
+    native_images::promote(&mut conn,&root,&pairs,&rollback_path,&backup_sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_native_image_batch(
+    app:AppHandle,puts:String,deletes:String,expected_generation:i64,reason:String
+)->Result<String,String>{
+    let put_values:Vec<Value>=serde_json::from_str(&puts).map_err(|e|format!("Puts imágenes inválidos: {e}"))?;
+    let delete_ids:Vec<String>=serde_json::from_str(&deletes).map_err(|e|format!("Deletes imágenes inválidos: {e}"))?;
+    let root=native_root(&app)?;
+    let mut conn=open_db(&root)?;
+    native_images::batch_commit(&mut conn,&root,&put_values,&delete_ids,expected_generation,&reason).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_read_native_image(app:AppHandle,id:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::read_active(&conn,&root,&id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_list_native_images(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    if !native_images::authority_status(&conn,&root,false)?.get("active").and_then(Value::as_bool).unwrap_or(false){
+        return Err("Autoridad de imágenes nativas no activa.".into());
+    }
+    native_images::list(&conn).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_gc_native_image_objects(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;
+    let conn=open_db(&root)?;
+    native_images::gc_objects(&conn,&root).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_stage_native_image,
+            desktop_read_staged_image,
+            desktop_verify_staged_images,
+            desktop_finalize_native_image_staging,
+            desktop_native_image_staging_status,
+            desktop_native_image_authority_status,
+            desktop_promote_native_image_authority,
+            desktop_native_image_batch,
+            desktop_read_native_image,
+            desktop_list_native_images,
+            desktop_gc_native_image_objects,
             desktop_authority_status,
             desktop_read_authoritative_workspace,
             desktop_promote_workspace_authority,

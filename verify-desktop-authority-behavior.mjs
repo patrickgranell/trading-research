@@ -5,7 +5,7 @@ import vm from 'node:vm';
 const bridge=fs.readFileSync('desktop-authority-bridge.js','utf8');
 const copy=x=>JSON.parse(JSON.stringify(x));
 const seed=()=>({tradingPlans:[{id:'p'}],operations:[],opportunities:[],importBatches:[],settings:{instruments:[]}});
-function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false,nonIdempotentNormalize=false}={}){
+function harness({active=false,failStatus=false,failPreflight=false,failCommit=false,driftOnce=false,alwaysDrift=false,nonIdempotentNormalize=false,imageActive=false,failImageStatus=false}={}){
   let record=active?{active:true,payload:JSON.stringify(seed()),revision:1,sha256:'test',updatedAt:'test'}:null;
   const calls=[],root={innerHTML:''};let durable=seed(),preflights=0;const ctx={
     console:{error:()=>{}},Promise,setTimeout,clearTimeout,
@@ -32,6 +32,7 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
   ctx.__TAURI__={core:{invoke:async(name,args={})=>{
     calls.push(name);
     if(name==='desktop_authority_status'){if(failStatus)throw Error('authority status corrupted');return JSON.stringify(record?{active:true,revision:record.revision}:{active:false});}
+    if(name==='desktop_native_image_authority_status'){if(failImageStatus)throw Error('image authority corrupted');return JSON.stringify(imageActive?{ok:true,active:true,generation:4,catalogRecords:3}:{ok:true,active:false,generation:0,catalogRecords:0});}
     if(name==='desktop_read_authoritative_workspace')return JSON.stringify(record);
     if(name==='desktop_write_backup')return JSON.stringify({ok:true,path:'C:/native/backups/rollback.trbackup',bytes:123});
     if(name==='desktop_promote_workspace_authority'){
@@ -47,7 +48,7 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
     throw Error('Unexpected native command '+name);
   }}};
   const context=vm.createContext(ctx);
-  const api=vm.runInContext(bridge+'\n;({boot:trDesktopAuthorityBootstrap,queue:trDesktopAuthorityQueueStateWrite,control:trDesktopAuthorityControl})',context,{timeout:1000});
+  const api=vm.runInContext(bridge+'\n;({boot:trDesktopAuthorityBootstrap,queue:trDesktopAuthorityQueueStateWrite,control:trDesktopAuthorityControl,imageControl:trDesktopImageAuthorityControl})',context,{timeout:1000});
   return {ctx,api,calls,root,getRecord:()=>record,getPreflights:()=>preflights,getDurable:()=>durable};
 }
 {
@@ -81,6 +82,16 @@ function harness({active=false,failStatus=false,failPreflight=false,failCommit=f
   assert.equal(t.getPreflights(),5,'migration retry count must be bounded');
   assert(!t.calls.includes('desktop_write_backup'),'unsettled workspace cannot create migration backup');
   assert(!t.calls.includes('desktop_promote_workspace_authority'),'unsettled workspace cannot promote SQLite');
+}
+{
+  const tImage=harness({active:true,imageActive:true});await tImage.api.boot();
+  assert.equal(tImage.api.imageControl.active,true,'promoted image authority must be known before UI is released');
+  assert.equal(tImage.api.imageControl.generation(),4);
+  assert.equal(tImage.ctx.trCoreFatal,false);
+}
+{
+  const tImageFail=harness({active:true,failImageStatus:true});await tImageFail.api.boot();
+  assert.equal(tImageFail.ctx.trCoreFatal,true,'corrupt native image authority must fail closed instead of stale Image IndexedDB fallback');
 }
 {
   // Real manual regression: first run promoted the workspace, second launch

@@ -36,6 +36,6 @@ if(!html.includes('exclusive abortada; flush no confirmado'))fail('Desktop exclu
 for(const token of ['trCoreBootstrapIndexedDb','trDesktopAuthorityBootstrap','desktop_commit_authoritative_workspace','desktop_read_authoritative_workspace',"trCoreMode='sqlite-authority'"]){
   if(!html.includes(token))fail('Generated Desktop artifact is missing '+token);
 }
-if(!config.includes('"version": "0.4.0"'))fail('Desktop version 0.4.0 not configured.');
+if(!config.includes('"version": "0.5.1"'))fail('Desktop package version 0.5.1 not configured; SQLite authority contract marker remains 0.4.0.');
 assert(!html.includes('cdn.jsdelivr.net/npm/@supabase/'),'Desktop must remain offline.');
 console.log('Desktop 0.4 SQLite authority wiring gate OK: only desktop-dist routes native boot/commit, backup before promotion, no Web mutation.');

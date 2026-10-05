@@ -363,7 +363,8 @@ fn desktop_backup_stream_finalize(app:AppHandle,session_id:String,label:Option<S
     File::open(&temp).and_then(|mut f|f.read_to_string(&mut payload))
       .map_err(|e|format!("Lectura final stream backup: {e}"))?;
     validate_backup_v2(&payload)?;
-    let safe_label=safe_backup_label(label),stamp=Utc::now().timestamp_millis();
+    let safe_label=safe_backup_label(label);
+    let stamp=Utc::now().timestamp_millis();
     let final_path=root.join("backups").join(format!("Trading-Research-{safe_label}-{stamp}.trbackup"));
     fs::rename(&temp,&final_path).map_err(|e|format!("Publicación stream backup: {e}"))?;
     Ok(json!({"ok":true,"path":final_path.to_string_lossy(),"bytes":payload.len(),"sha256":sha256_text(&payload),"label":safe_label}).to_string())

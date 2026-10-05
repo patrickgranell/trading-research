@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS market_stage_state (
   rollback_path TEXT NOT NULL,
   rollback_sha256 TEXT NOT NULL,
   started_at TEXT NOT NULL,
-  completed_at TEXT
+  completed_at TEXT,
+  inventory_json TEXT,
+  inventory_sha256 TEXT
 );
 CREATE TABLE IF NOT EXISTS market_meta_native (
   generation INTEGER NOT NULL,
@@ -202,9 +204,9 @@ pub(crate) fn begin_stage(conn:&mut Connection,rollback_path:&str,rollback_sha:&
     clear_generation(&tx,g)?;
     tx.execute(
       "INSERT INTO market_stage_state(id,generation,rollback_path,rollback_sha256,started_at,completed_at)
-       VALUES(1,?1,?2,?3,?4,NULL)
+       VALUES(1,?1,?2,?3,?4,NULL,NULL,NULL)
        ON CONFLICT(id) DO UPDATE SET generation=excluded.generation,rollback_path=excluded.rollback_path,
-         rollback_sha256=excluded.rollback_sha256,started_at=excluded.started_at,completed_at=NULL",
+         rollback_sha256=excluded.rollback_sha256,started_at=excluded.started_at,completed_at=NULL,inventory_json=NULL,inventory_sha256=NULL",
       params![g,rollback_path,rollback_sha,at]
     ).map_err(|e|format!("Registro staging Market Data: {e}"))?;
     tx.commit().map_err(|e|format!("Commit staging Market Data: {e}"))?;
@@ -331,8 +333,7 @@ fn parse_pairs(v:&Value,name:&str)->Result<Vec<(String,String)>,String>{
     }
     out.sort_by(|a,b|a.0.cmp(&b.0));Ok(out)
 }
-pub(crate) fn verify_stage(conn:&mut Connection,g:i64,inventory_json:&str)->Result<Value,String>{
-    require_stage(conn,g)?;
+fn verify_stage_inventory(conn:&Connection,g:i64,inventory_json:&str)->Result<Value,String>{
     let v:Value=serde_json::from_str(inventory_json).map_err(|e|format!("Inventario Market Data JSON: {e}"))?;
     let meta_expected=parse_pairs(v.get("meta").unwrap_or(&Value::Null),"meta")?;
     let exec_expected=parse_pairs(v.get("exec").unwrap_or(&Value::Null),"exec")?;
@@ -372,10 +373,16 @@ pub(crate) fn verify_stage(conn:&mut Connection,g:i64,inventory_json:&str)->Resu
             if !meta_ids.contains(md){return Err(format!("execSet {id} referencia histórico inexistente {md}."));}
         }
     }
+    Ok(json!({"ok":true,"generation":g,"meta":meta_expected.len(),"datasets":datasets.len(),"execSets":exec_expected.len(),"authority":false}))
+}
+pub(crate) fn verify_stage(conn:&mut Connection,g:i64,inventory_json:&str)->Result<Value,String>{
+    require_stage(conn,g)?;
+    let verified=verify_stage_inventory(conn,g,inventory_json)?;
     let completed=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
-    conn.execute("UPDATE market_stage_state SET completed_at=?1 WHERE id=1 AND generation=?2",params![completed,g])
-      .map_err(|e|format!("Cierre staging Market Data: {e}"))?;
-    Ok(json!({"ok":true,"generation":g,"meta":meta_expected.len(),"datasets":datasets.len(),"execSets":exec_expected.len(),"completedAt":completed,"authority":false}))
+    let inventory_sha=sha_text(inventory_json);
+    conn.execute("UPDATE market_stage_state SET completed_at=?1,inventory_json=?2,inventory_sha256=?3 WHERE id=1 AND generation=?4",
+      params![completed,inventory_json,inventory_sha,g]).map_err(|e|format!("Cierre staging Market Data: {e}"))?;
+    let mut out=verified;out["completedAt"]=Value::String(completed);out["inventorySha256"]=Value::String(inventory_sha);Ok(out)
 }
 
 pub(crate) fn status(conn:&Connection)->Result<Value,String>{
@@ -508,10 +515,13 @@ pub(crate) fn promote(conn:&mut Connection,root:&Path,stage_generation:i64,rollb
     if stage.0!=stage_generation||stage.1!=rollback_path||stage.2!=rollback_sha||stage.3.is_none(){
         return Err("Staging Market Data incompleto o no coincide con el rollback que se intenta promover.".into());
     }
-    // Verify the staged inventory one last time structurally before publishing marker.
-    let meta_count:i64=conn.query_row("SELECT COUNT(*) FROM market_meta_native WHERE generation=?1",params![stage_generation],|r|r.get(0)).map_err(|e|e.to_string())?;
-    let cat_count:i64=conn.query_row("SELECT COUNT(*) FROM market_tick_catalog_native WHERE generation=?1",params![stage_generation],|r|r.get(0)).map_err(|e|e.to_string())?;
-    if meta_count!=cat_count{return Err("Staging Market Data perdió paridad meta/ticks antes de promoción.".into());}
+    let stored:Option<(String,String)>=conn.query_row(
+      "SELECT inventory_json,inventory_sha256 FROM market_stage_state WHERE id=1 AND generation=?1",
+      params![stage_generation],|r|Ok((r.get(0)?,r.get(1)?))
+    ).optional().map_err(|e|format!("Inventario staging para promoción: {e}"))?;
+    let (inventory,inventory_sha)=stored.ok_or("Staging Market Data cerrado sin inventario certificado.")?;
+    if sha_text(&inventory)!=inventory_sha{return Err("Inventario staging Market Data alterado.".into());}
+    verify_stage_inventory(conn,stage_generation,&inventory)?;
     ensure_authority_marker(root)?;
     let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);
     let tx=conn.transaction().map_err(|e|format!("Transacción promoción Market Data: {e}"))?;

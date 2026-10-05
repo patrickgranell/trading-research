@@ -18,12 +18,13 @@ for(const token of [
 ])assert(main.includes(token),'Missing native portable invariant '+token);
 
 for(const token of [
-  "streamBackupText","readNativeBackupText","resumePending","runRestoreProtocol",
+  "streamBackupText","readNativeBackupText","resumePending","recoverOrRunRestore",
   "ensureNativeImages","ensureNativeMarket","finalVerify","sameHashes",
   "desktop-portable-restore-probe","desktop-portable-restore"
 ])assert(runtime.includes(token),'Missing portable runtime invariant '+token);
 
 assert(runtime.includes("trBackupV2Preflight")&&runtime.includes("trBackupV2BuildPayload"),'Portable restore must preflight source and rebuild final Backup V2.');
+assert(runtime.includes("trBackupV2JournalGet")&&runtime.includes("trBackupV2RecoverPending"),'Portable restore must serialize/resume the underlying Backup V2 journal before advancing.');
 assert(runtime.includes("TradingResearchDesktopNativeImages")&&runtime.includes("TradingResearchDesktopNativeMarketData"),'Portable restore must converge both native authorities.');
 assert(runtime.includes("sourcePath")&&runtime.includes("rollbackPath"),'Portable journal must bind both physical backups.');
 assert(runtime.includes("finalVerify(prepared)")&&runtime.includes("sameHashes(prepared.manifest?.hashes,rebuilt.manifest?.hashes)"),'Final restore must require exact Backup V2 domain hashes.');

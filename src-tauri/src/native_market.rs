@@ -670,6 +670,16 @@ fn validate_active_relations_tx(tx:&rusqlite::Transaction<'_>)->Result<(),String
     }
     Ok(())
 }
+pub(crate) fn abort_live_op(conn:&mut Connection,op:&str)->Result<Value,String>{
+    checked_id(op)?;
+    let tx=conn.transaction().map_err(|e|format!("Abort Market Data: {e}"))?;
+    for table in ["market_pending_record","market_pending_delete","market_pending_tick_chunk","market_pending_tick_catalog","market_pending_op"]{
+        tx.execute(&format!("DELETE FROM {table} WHERE op_id=?1"),params![op]).map_err(|e|e.to_string())?;
+    }
+    tx.commit().map_err(|e|format!("Commit abort Market Data: {e}"))?;
+    Ok(json!({"ok":true,"opId":op,"aborted":true}))
+}
+
 pub(crate) fn commit_live_op(conn:&mut Connection,op:&str)->Result<Value,String>{
     let (expected,reason)=pending_op(conn,op)?;
     let now=Utc::now().to_rfc3339_opts(SecondsFormat::Millis,true);

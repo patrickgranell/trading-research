@@ -151,9 +151,23 @@ if(helperStart>=0&&helperEnd>helperStart&&protocolStart>=0&&protocolEnd>protocol
   const journal={
     schema:2,
     restoreId:'RST2_RECOVER',
+    phase:'images-staged',
     targetWorkspace:{sentinel:'target'},
     manifest:{hashes:{workspace:'target-hash'}}
   };
+
+  {
+    const calls=[];
+    lockState.reason='';
+    const preparedJournal={...journal,phase:'prepared'};
+    context.trBackupV2CleanupStage=async()=>calls.push('stage-cleanup');
+    context.trBackupV2JournalDelete=async()=>calls.push('journal-delete');
+    const out=await context.recover(preparedJournal);
+    need(out?.status==='aborted-before-market','Prepared recovery no abortó antes de Market Data.');
+    need(JSON.stringify(calls)===JSON.stringify(['stage-cleanup','journal-delete']),
+      'Prepared recovery ejecutó una secuencia inesperada: '+calls.join(' -> '));
+    need(lockState.reason==='','Prepared safe abort no liberó el lock.');
+  }
 
   {
     const calls=[];

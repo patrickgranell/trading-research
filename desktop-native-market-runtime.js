@@ -172,6 +172,7 @@ async function verifyNativeMarketData(){
   if(result.authority?.active)alert('Autoridad nativa de Market Data verificada.\n\nGeneración: '+result.authority.generation+
     '\nHistóricos: '+result.authority.datasets+'\nGrid: '+result.authority.execSets+
     '\nTicks: '+Number(result.authority.ticks||0).toLocaleString('es-ES'));
+  else alert('Market Data todavía usa IndexedDB.\n\nNo hay una autoridad nativa que verificar. Usa «Migrar Market Data a nativo» para promoverla.');
   return result;
 }
 function panel(){

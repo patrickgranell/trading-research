@@ -127,7 +127,11 @@ function panel(){
 }
 function paint(){const host=document.getElementById('desktop-native-images-host');if(host)host.innerHTML=panel();}
 function mount(){
-  if(document.getElementById('desktop-native-images-host')){paint();return;}
+  // MutationObserver watches childList. Repainting an already-mounted host from
+  // inside the observer changes childList again and creates an infinite loop.
+  // Existing host means there is nothing to mount; explicit state changes call
+  // paint() themselves.
+  if(document.getElementById('desktop-native-images-host'))return;
   const native=document.getElementById('trDesktopNativeStorage');if(!native)return;
   const host=document.createElement('div');host.id='desktop-native-images-host';native.insertAdjacentElement('afterend',host);paint();
 }

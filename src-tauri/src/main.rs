@@ -339,7 +339,7 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
     });
 
     Ok(json!({
-        "version": "0.6.0",
+        "version": "0.7.0",
         "rootPath": root.to_string_lossy(),
         "dbPath": db_path(&root).to_string_lossy(),
         "backupPath": backup_dir.to_string_lossy(),

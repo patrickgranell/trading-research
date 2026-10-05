@@ -11,6 +11,8 @@ need("function operationRecordClass(o)", 'missing canonical record class resolve
 need("function operationLayer(o)", 'missing canonical operation layer resolver');
 need("function normalizeOperationSemantics(o)", 'missing additive legacy semantics normalizer');
 need("normalizeOperationSemantics({...o,tradingPlanId:o.tradingPlanId||out.currentPlanId})", 'workspace load must normalize operation semantics');
+need("map(o=>normalizeOperationSemantics({...o,tradingPlanId:plan.id", 'legacy V2 migration must normalize operation semantics');
+need("Vista agregada del Trading Plan seleccionado", 'dashboard must disclose aggregate layer scope');
 need("if(f.layer&&operationLayer(o)!==f.layer)return false;", 'operations lab must filter by semantic layer');
 need("sel('filterLayer','Ámbito'", 'operations UI must expose the layer filter');
 need("['layer','Ámbito']", 'interactive breakdown must expose the layer dimension');

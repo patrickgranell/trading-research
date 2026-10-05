@@ -573,18 +573,29 @@ pub(crate) fn promote(conn:&mut Connection,root:&Path,stage_generation:i64,rollb
 pub(crate) fn list_records(conn:&Connection,store:&str)->Result<Value,String>{
     if authority_row(conn)?.is_none(){return Err("Autoridad Market Data nativa no activa.".into());}
     let table=match store{"marketMeta"=>"market_meta_active","execSets"=>"market_exec_active",_=>return Err("Store nativo no enumerable como registro.".into())};
-    let mut stmt=conn.prepare(&format!("SELECT payload FROM {table} ORDER BY id")).map_err(|e|e.to_string())?;
-    let rows=stmt.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?;
+    let mut stmt=conn.prepare(&format!("SELECT id,payload,sha256 FROM {table} ORDER BY id")).map_err(|e|e.to_string())?;
+    let rows=stmt.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?;
     let mut out=Vec::new();
-    for row in rows{out.push(serde_json::from_str::<Value>(&row.map_err(|e|e.to_string())?).map_err(|e|e.to_string())?);}
+    for row in rows{
+        let (id,payload,hash)=row.map_err(|e|e.to_string())?;
+        checked_id(&id)?;checked_hash(&hash)?;
+        object_payload(&payload,&id,table)?;
+        if sha_text(&payload)!=hash{return Err(format!("Registro Market Data nativo corrupto: {id}."));}
+        out.push(serde_json::from_str::<Value>(&payload).map_err(|e|format!("Registro Market Data corrupto: {e}"))?);
+    }
     Ok(Value::Array(out))
 }
 pub(crate) fn get_record(conn:&Connection,store:&str,id:&str)->Result<Option<Value>,String>{
     if authority_row(conn)?.is_none(){return Err("Autoridad Market Data nativa no activa.".into());}
     checked_id(id)?;
     let table=match store{"marketMeta"=>"market_meta_active","execSets"=>"market_exec_active",_=>return Err("Store nativo no compatible.".into())};
-    let payload:Option<String>=conn.query_row(&format!("SELECT payload FROM {table} WHERE id=?1"),params![id],|r|r.get(0)).optional().map_err(|e|e.to_string())?;
-    payload.map(|p|serde_json::from_str(&p).map_err(|e|format!("Registro Market Data corrupto: {e}"))).transpose()
+    let row:Option<(String,String)>=conn.query_row(&format!("SELECT payload,sha256 FROM {table} WHERE id=?1"),params![id],|r|Ok((r.get(0)?,r.get(1)?))).optional().map_err(|e|e.to_string())?;
+    row.map(|(payload,hash)|{
+        checked_hash(&hash)?;
+        object_payload(&payload,id,table)?;
+        if sha_text(&payload)!=hash{return Err(format!("Registro Market Data nativo corrupto: {id}."));}
+        serde_json::from_str(&payload).map_err(|e|format!("Registro Market Data corrupto: {e}"))
+    }).transpose()
 }
 pub(crate) fn list_catalogs(conn:&Connection)->Result<Value,String>{
     if authority_row(conn)?.is_none(){return Err("Autoridad Market Data nativa no activa.".into());}

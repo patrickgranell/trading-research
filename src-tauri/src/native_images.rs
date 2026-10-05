@@ -340,7 +340,7 @@ pub(crate) fn gc_objects(conn:&Connection,root:&Path)->Result<Value,String>{
     let mut stmt=conn.prepare("SELECT DISTINCT sha256 FROM image_staging").map_err(|e|e.to_string())?;
     let keep:std::collections::HashSet<String>=stmt.query_map([],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())?
       .collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?.into_iter().collect();
-    let dir=root.join("images").join("objects");let mut removed=0usize,kept=0usize;
+    let dir=root.join("images").join("objects");let mut removed=0usize;let mut kept=0usize;
     if dir.exists(){
       for entry in fs::read_dir(&dir).map_err(|e|format!("GC objetos imágenes: {e}"))?{
         let entry=entry.map_err(|e|e.to_string())?;let path=entry.path();

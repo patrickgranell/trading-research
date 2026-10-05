@@ -665,7 +665,7 @@ pub(crate) fn backup_ticks_hash(conn:&Connection,ordered_ids_json:&str)->Result<
         digest.update(b"]}");total_rows+=row_count;
     }
     digest.update(b"]");
-    let sha256=hex(&digest.finalize());
+    let sha256=digest.finalize().iter().map(|b|format!("{b:02x}")).collect::<String>();
     Ok(json!({"ok":true,"sha256":sha256,"datasets":ids.len(),"ticks":total_rows}))
 }
 fn pending_op(conn:&Connection,op:&str)->Result<(i64,String),String>{

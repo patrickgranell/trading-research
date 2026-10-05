@@ -18,6 +18,7 @@ for(const requirement of ['MAX_IMAGE_BYTES','Sha256','checked_id','checked_hash'
   assert(module.includes(requirement),'Native staging invariant missing '+requirement);
 }
 assert(main.includes('native_images::prepare_schema(&conn)'), 'native staging schema not registered');
+assert(main.includes('let payload_sha=sha256_text(&payload);')&&!main.includes('Relectura rollback de staging'),'Rollback validation/hash must bind to one filesystem read');
 assert(module.includes('gc_objects'),'Native image authority invariant missing gc_objects');
 assert(module.includes('batch_commit'),'Native image authority invariant missing batch_commit');
 assert(module.includes('require_generation'),'Native image authority invariant missing require_generation');

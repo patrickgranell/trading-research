@@ -17,7 +17,7 @@ function uiDocument(){
   };
 }
 function migrationHarness({failBackup=false,failStage=false,failPromote=false,failAfterMarker=false}={}){
-  const calls=[],alerts=[],locks=[];let active=false,generation=0,blocked=false,markerBroken=false;
+  const calls=[],alerts=[],locks=[];let active=false,generation=0,blocked=false,markerBroken=false,streamBytes=0;
   const meta={id:'MD1',instrument:'CL',rowCount:3};
   const tick={id:'MD1',ticks:[[1,0,1,1,1,1],[2,0,2,2,2,1],[3,0,3,3,3,1]]};
   const exec={id:'EX1',marketDatasetId:'MD1',rows:[]};
@@ -46,10 +46,21 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false,fa
     }),
     __TAURI__:{core:{invoke:async(cmd,args)=>{
       calls.push({cmd,args});
-      if(cmd==='desktop_write_backup'){
-        if(failBackup)throw Error('backup failed');
-        return JSON.stringify({ok:true,path:'C:/safe/market.trbackup',bytes:500});
+      if(cmd==='desktop_backup_stream_begin'){
+        streamBytes=0;
+        if(failBackup)throw Error('backup stream begin failed');
+        return JSON.stringify({ok:true,sessionId:args.sessionId,bytes:0});
       }
+      if(cmd==='desktop_backup_stream_append'){
+        if(failBackup)throw Error('backup stream append failed');
+        streamBytes+=Buffer.from(String(args.dataB64||''),'base64').length;
+        return JSON.stringify({ok:true,sessionId:args.sessionId,bytes:streamBytes});
+      }
+      if(cmd==='desktop_backup_stream_finalize'){
+        if(failBackup)throw Error('backup stream finalize failed');
+        return JSON.stringify({ok:true,path:'C:/safe/market.trbackup',bytes:streamBytes,sha256:'a'.repeat(64)});
+      }
+      if(cmd==='desktop_backup_stream_abort')return JSON.stringify({ok:true,aborted:true});
       if(cmd==='desktop_market_begin_staging')return JSON.stringify({ok:true,generation:1,resumed:false,authority:false});
       if(cmd==='desktop_market_stage_meta'||cmd==='desktop_market_stage_exec'){
         if(failStage)throw Error('stage failed');
@@ -84,7 +95,9 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false,fa
   const result=await t.ctx.TradingResearchDesktopNativeMarketData.migrateNativeMarketData();
   assert.equal(result.ok,true);
   const names=t.calls.map(x=>x.cmd);
-  assert(names.indexOf('desktop_write_backup')<names.indexOf('desktop_market_begin_staging'),'Backup must precede Market staging');
+  assert(names.indexOf('desktop_backup_stream_finalize')<names.indexOf('desktop_market_begin_staging'),'Completed physical Backup V2 stream must precede Market staging');
+  assert(names.indexOf('desktop_backup_stream_begin')<names.indexOf('desktop_backup_stream_append'));
+  assert(names.indexOf('desktop_backup_stream_append')<names.indexOf('desktop_backup_stream_finalize'));
   assert(names.indexOf('desktop_market_begin_staging')<names.indexOf('desktop_market_stage_meta'));
   assert(names.indexOf('desktop_market_stage_tick_chunk')<names.indexOf('desktop_market_finalize_dataset'));
   assert(names.indexOf('desktop_market_verify_staging')<names.indexOf('desktop_market_promote_authority'));
@@ -98,14 +111,14 @@ function migrationHarness({failBackup=false,failStage=false,failPromote=false,fa
 {
   const t=migrationHarness({failBackup:true});
   await t.ctx.TradingResearchDesktopNativeMarketData.migrateNativeMarketData();
-  assert(!t.calls.some(x=>x.cmd==='desktop_market_begin_staging'),'No staging without physical Backup V2');
+  assert(!t.calls.some(x=>x.cmd==='desktop_market_begin_staging'),'No staging without completed physical Backup V2 stream');
   assert(!t.calls.some(x=>x.cmd==='desktop_market_promote_authority'));
   assert.equal(t.ctx.TradingResearchDesktopMarketAuthority.migrationPending,false);
 }
 {
   const t=migrationHarness({failStage:true});
   await t.ctx.TradingResearchDesktopNativeMarketData.migrateNativeMarketData();
-  assert(t.calls.some(x=>x.cmd==='desktop_write_backup'));
+  assert(t.calls.some(x=>x.cmd==='desktop_backup_stream_finalize'));
   assert(!t.calls.some(x=>x.cmd==='desktop_market_promote_authority'),'Failed staging must not promote');
   assert(t.alerts.some(x=>x.includes('market.trbackup')),'Failure must surface preserved rollback');
 }

@@ -18,10 +18,159 @@ const trDesktopImageAuthorityControl={
   version:'0.5.1-b77-hotfix1',mode:()=>trDesktopImageFailed?'blocked':trDesktopImageAuthorityControl.active?'native-authority':trDesktopImageAuthorityControl.migrationPending?'migration':'indexeddb'
 };
 globalThis.TradingResearchDesktopImageAuthority=trDesktopImageAuthorityControl;
+let trDesktopMarketGeneration=0;
+let trDesktopMarketFailed=false;
+let trDesktopMarketWriteChain=Promise.resolve(true);
+let trDesktopMarketOpCounter=0;
+const trDesktopMarketAuthorityControl={
+  active:false,migrationPending:false,failed:()=>trDesktopMarketFailed,generation:()=>trDesktopMarketGeneration,
+  version:'0.6.0-b78',mode:()=>trDesktopMarketFailed?'blocked':trDesktopMarketAuthorityControl.active?'native-authority':trDesktopMarketAuthorityControl.migrationPending?'migration':'indexeddb'
+};
+globalThis.TradingResearchDesktopMarketAuthority=trDesktopMarketAuthorityControl;
 async function trDesktopInvoke(command,args={}){
   const reply=await trDesktopNativeInvoke(command,args);
   return typeof reply==='string'?JSON.parse(reply):reply;
 }
+async function trDesktopMarketBootstrapAuthority(){
+  const status=await trDesktopInvoke('desktop_market_authority_status',{deep:false});
+  trDesktopMarketAuthorityControl.active=!!status?.active;
+  trDesktopMarketGeneration=Number(status?.generation)||0;
+  if(trDesktopMarketAuthorityControl.active&&trDesktopMarketGeneration<1)throw new Error('Autoridad Market Data activa sin generación válida.');
+  return status;
+}
+function trDesktopMarketStop(error){
+  trDesktopMarketFailed=true;
+  trCoreSetWriteBlock('desktop-native-market-authority-error');
+  const e=error instanceof Error?error:new Error(String(error));
+  console.error('[Trading Research · Native Market Data authority]',e);
+  trDesktopAuthorityStop(e,'Market Data');
+}
+async function trDesktopMarketShaText(value){
+  const bytes=new TextEncoder().encode(String(value));
+  const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function trDesktopMarketOpId(){trDesktopMarketOpCounter++;return 'MDOP-'+Date.now()+'-'+trDesktopMarketOpCounter;}
+async function trDesktopMarketStageTicks(opId,id,value){
+  const ticks=Array.isArray(value?.ticks)?value.ticks:[];
+  if(!id||String(value?.id||id)!==String(id))throw new Error('marketTicks sin ID coherente.');
+  if(!ticks.length||ticks.length>2000000)throw new Error('Histórico nativo vacío o superior a 2.000.000 ticks.');
+  const info=[];
+  for(let offset=0,index=0;offset<ticks.length;offset+=25000,index++){
+    const slice=ticks.slice(offset,Math.min(offset+25000,ticks.length));
+    const payload=JSON.stringify(slice),sha256=await trDesktopMarketShaText(payload);
+    const staged=await trDesktopInvoke('desktop_market_stage_live_tick_chunk',{opId,datasetId:String(id),chunkIndex:index,payload,sha256});
+    if(!staged?.ok||Number(staged.rows)!==slice.length)throw new Error('Staging chunk Market Data no confirmó sus filas.');
+    info.push({index,count:slice.length,sha256});
+  }
+  const material=info.map(x=>x.index+':'+x.count+':'+x.sha256+'\n').join('');
+  const aggregateSha256=await trDesktopMarketShaText(material);
+  const final=await trDesktopInvoke('desktop_market_finalize_live_tick',{opId,datasetId:String(id),chunkCount:info.length,rowCount:ticks.length,aggregateSha256});
+  if(!final?.ok||Number(final.rowCount)!==ticks.length)throw new Error('Catálogo Market Data nativo no confirmó el histórico.');
+  return final;
+}
+function trDesktopMarketQueueChanges(changes=[],reason='market.commit'){
+  if(!trDesktopMarketAuthorityControl.active||trDesktopMarketFailed)return Promise.reject(new Error('Autoridad nativa Market Data no disponible.'));
+  const list=[...(changes||[])];
+  trDesktopMarketWriteChain=trDesktopMarketWriteChain.catch(()=>true).then(async()=>{
+    if(trDesktopMarketFailed)throw new Error('Autoridad nativa Market Data bloqueada.');
+    const expected=trDesktopMarketGeneration,opId=trDesktopMarketOpId();let committing=false;
+    try{
+      await trDesktopInvoke('desktop_market_begin_live_op',{opId,expectedGeneration:expected,reason:String(reason||'market.commit')});
+      for(const c of list){
+        const store=String(c?.store||''),id=String(c?.id||c?.value?.id||'');
+        if(!['marketMeta','marketTicks','execSets'].includes(store)||!id)throw new Error('Cambio Market Data inválido.');
+        if(c.type==='delete'){
+          await trDesktopInvoke('desktop_market_stage_live_delete',{opId,store,id});
+        }else if(c.type==='put'){
+          if(store==='marketTicks')await trDesktopMarketStageTicks(opId,id,c.value);
+          else{
+            const payload=JSON.stringify(c.value),sha256=await trDesktopMarketShaText(payload);
+            await trDesktopInvoke('desktop_market_stage_live_record',{opId,store,id,payload,sha256});
+          }
+        }else throw new Error('Tipo de cambio Market Data inválido.');
+      }
+      committing=true;
+      const result=await trDesktopInvoke('desktop_market_commit_live_op',{opId});
+      if(!result?.ok||Number(result.generation)!==expected+1)throw new Error('Commit Market Data no confirmó la siguiente generación.');
+      trDesktopMarketGeneration=Number(result.generation);
+      return result;
+    }catch(e){
+      try{await trDesktopInvoke('desktop_market_abort_live_op',{opId});}catch{}
+      if(committing&&(/Conflicto generación/i.test(String(e?.message||e))||/siguiente generación/i.test(String(e?.message||e))))trDesktopMarketStop(e);
+      throw e;
+    }
+  });
+  return trDesktopMarketWriteChain;
+}
+async function trDesktopMarketCatalogs(){
+  const rows=await trDesktopInvoke('desktop_market_list_catalogs');
+  return Array.isArray(rows)?rows:[];
+}
+async function trDesktopMarketReadTicks(id,catalog=null){
+  const meta=catalog||(await trDesktopMarketCatalogs()).find(x=>String(x.id)===String(id));
+  if(!meta)return null;
+  const chunkCount=Number(meta.chunkCount)||0,rowCount=Number(meta.rowCount)||0;
+  if(chunkCount<1||rowCount<1||rowCount>2000000)throw new Error('Catálogo Market Data nativo fuera de límites: '+String(id));
+  const ticks=[];
+  for(let i=0;i<chunkCount;i++){
+    const rec=await trDesktopInvoke('desktop_market_read_active_chunk',{datasetId:String(id),chunkIndex:i});
+    if(!rec?.authority||Number(rec.chunkIndex)!==i)throw new Error('Readback chunk Market Data inválido: '+String(id)+'#'+i);
+    const part=JSON.parse(String(rec.payload||'[]'));
+    if(!Array.isArray(part)||part.length!==Number(rec.rowCount))throw new Error('Payload chunk Market Data inválido.');
+    ticks.push(...part);
+    if(ticks.length>2000000)throw new Error('Readback Market Data supera 2.000.000 ticks.');
+  }
+  if(ticks.length!==rowCount)throw new Error('Readback Market Data no coincide con rowCount: '+String(id));
+  return {id:String(id),ticks};
+}
+async function trDesktopMarketStoreGet(store,id){
+  if(!trDesktopMarketAuthorityControl.active)throw new Error('Lectura Market Data nativa sin autoridad activa.');
+  if(store==='marketTicks')return trDesktopMarketReadTicks(id);
+  const rec=await trDesktopInvoke('desktop_market_get_record',{store:String(store),id:String(id)});
+  return rec||null;
+}
+async function trDesktopMarketStoreAll(store){
+  if(!trDesktopMarketAuthorityControl.active)throw new Error('Lista Market Data nativa sin autoridad activa.');
+  if(store==='marketTicks'){
+    const cats=await trDesktopMarketCatalogs(),out=[];
+    for(const cat of cats)out.push(await trDesktopMarketReadTicks(cat.id,cat));
+    return out;
+  }
+  const rows=await trDesktopInvoke('desktop_market_list_records',{store:String(store)});
+  return Array.isArray(rows)?rows:[];
+}
+async function trDesktopMarketStorePut(store,value){
+  if(!value?.id)throw new Error('Put Market Data sin id.');
+  await trDesktopMarketQueueChanges([{type:'put',store:String(store),id:String(value.id),value}], 'market.'+String(store)+'.put');
+  return value;
+}
+async function trDesktopMarketStoreDelete(store,id){
+  await trDesktopMarketQueueChanges([{type:'delete',store:String(store),id:String(id)}], 'market.'+String(store)+'.delete');
+}
+async function trDesktopMarketDeleteDataset(id){
+  await trDesktopMarketQueueChanges([{type:'delete',store:'marketMeta',id:String(id)},{type:'delete',store:'marketTicks',id:String(id)}],'market.dataset.delete');
+}
+async function trDesktopMarketReplaceAll(marketData){
+  const [metas,execs,cats]=await Promise.all([trDesktopMarketStoreAll('marketMeta'),trDesktopMarketStoreAll('execSets'),trDesktopMarketCatalogs()]);
+  const changes=[];
+  for(const x of metas)changes.push({type:'delete',store:'marketMeta',id:String(x.id)});
+  for(const x of cats)changes.push({type:'delete',store:'marketTicks',id:String(x.id)});
+  for(const x of execs)changes.push({type:'delete',store:'execSets',id:String(x.id)});
+  for(const x of marketData?.marketMeta||[])changes.push({type:'put',store:'marketMeta',id:String(x.id),value:x});
+  for(const x of marketData?.marketTicks||[])changes.push({type:'put',store:'marketTicks',id:String(x.id),value:x});
+  for(const x of marketData?.execSets||[])changes.push({type:'put',store:'execSets',id:String(x.id),value:x});
+  await trDesktopMarketQueueChanges(changes,'backup-v2.market.replace-all');
+  return true;
+}
+globalThis.TradingResearchDesktopMarketBridge=Object.freeze({
+  get:trDesktopMarketStoreGet,all:trDesktopMarketStoreAll,put:trDesktopMarketStorePut,del:trDesktopMarketStoreDelete,
+  applyChanges:trDesktopMarketQueueChanges,deleteDataset:trDesktopMarketDeleteDataset,replaceAll:trDesktopMarketReplaceAll,
+  catalogs:trDesktopMarketCatalogs,readTicks:trDesktopMarketReadTicks,
+  setPromoted:(generation)=>{trDesktopMarketGeneration=Number(generation)||0;trDesktopMarketAuthorityControl.active=trDesktopMarketGeneration>0;},
+  setMigrationPending:(value)=>{trDesktopMarketAuthorityControl.migrationPending=!!value;},
+  block:trDesktopMarketStop,refresh:trDesktopMarketBootstrapAuthority
+});
 
 async function trDesktopImageBootstrapAuthority(){
   const status=await trDesktopInvoke('desktop_native_image_authority_status',{deep:false});
@@ -137,13 +286,14 @@ globalThis.TradingResearchDesktopImageBridge=Object.freeze({
 function trDesktopAuthorityStop(error,area='SQLite'){
   trDesktopAuthorityFailed=true;
   trCoreFatal=true;trCoreHydrated=false;trCoreMode='fatal';
-  trCoreSetWriteBlock(area==='SQLite'?'desktop-sqlite-authority-error':'desktop-native-image-authority-error');
+  const block=area==='SQLite'?'desktop-sqlite-authority-error':area==='Imágenes nativas'?'desktop-native-image-authority-error':'desktop-native-market-authority-error';
+  trCoreSetWriteBlock(block);
   trCoreLastError='Desktop '+area+': '+(error?.message||String(error));
   console.error('[Trading Research · '+area+' authority]',error);
   document.documentElement.classList.remove('tr-core-loading');
   const root=document.getElementById('app');
-  const title=area==='SQLite'?'SQLite requiere recuperación':'Almacenamiento nativo de imágenes requiere recuperación';
-  const detail=area==='SQLite'?'No se ha sustituido SQLite por IndexedDB.':'No se ha sustituido el almacenamiento nativo por el IndexedDB antiguo.';
+  const title=area==='SQLite'?'SQLite requiere recuperación':area==='Imágenes nativas'?'Almacenamiento nativo de imágenes requiere recuperación':'Market Data nativo requiere recuperación';
+  const detail=area==='SQLite'?'No se ha sustituido SQLite por IndexedDB.':area==='Imágenes nativas'?'No se ha sustituido el almacenamiento nativo por el IndexedDB antiguo.':'No se ha sustituido Market Data nativo por el IndexedDB antiguo.';
   if(root)root.innerHTML='<main class="tr-core-fatal"><h1>Trading Research</h1><h2>'+title+'</h2><p>'+String(trCoreLastError).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))+'</p><p>'+detail+' Conserva tus archivos .trbackup; no introduzcas datos nuevos en este estado.</p></main>';
 }
 function trDesktopAuthorityQueueStateWrite(reason='persist'){
@@ -268,6 +418,7 @@ async function trDesktopAuthorityBootstrap(){
       trCoreClearWriteBlock('desktop-authority-promotion');
     }
     await trDesktopImageBootstrapAuthority();
+    await trDesktopMarketBootstrapAuthority();
     trDesktopAuthorityControl.migrationPending=false;
     await globalThis.TradingResearchDesktopNativeStorage?.refresh?.();
     document.documentElement.classList.remove('tr-core-loading');

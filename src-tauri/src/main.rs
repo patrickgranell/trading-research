@@ -2,13 +2,14 @@
 
 mod authority;
 mod native_images;
+mod native_market;
 
 use chrono::{SecondsFormat, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -97,6 +98,7 @@ fn open_db(root: &Path) -> Result<Connection, String> {
     .map_err(|e| format!("No se pudo preparar SQLite: {e}"))?;
     authority::prepare_schema(&conn)?;
     native_images::prepare_schema(&conn)?;
+    native_market::prepare_schema(&conn)?;
     Ok(conn)
 }
 
@@ -304,7 +306,7 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
     });
 
     Ok(json!({
-        "version": "0.5.1",
+        "version": "0.6.0",
         "rootPath": root.to_string_lossy(),
         "dbPath": db_path(&root).to_string_lossy(),
         "backupPath": backup_dir.to_string_lossy(),
@@ -314,6 +316,64 @@ fn desktop_storage_status(app: AppHandle) -> Result<String, String> {
         "recovery": recovery
     })
     .to_string())
+}
+
+
+const DESKTOP_BACKUP_STREAM_CHUNK_MAX: usize = 512 * 1024;
+const DESKTOP_BACKUP_STREAM_TOTAL_MAX: u64 = 1024 * 1024 * 1024;
+fn backup_stream_session(value:&str)->Result<&str,String>{
+    if value.is_empty()||value.len()>80||!value.bytes().all(|b|b.is_ascii_alphanumeric()||b==b'-'||b==b'_'){
+        return Err("ID de stream backup inválido.".into());
+    }
+    Ok(value)
+}
+fn backup_stream_path(root:&Path,session:&str)->Result<PathBuf,String>{
+    backup_stream_session(session)?;
+    Ok(root.join("backups").join(format!(".backup-stream-{session}.tmp")))
+}
+#[tauri::command]
+fn desktop_backup_stream_begin(app:AppHandle,session_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let path=backup_stream_path(&root,&session_id)?;
+    let file=fs::OpenOptions::new().write(true).create_new(true).open(&path)
+      .map_err(|e|format!("No se pudo iniciar stream backup: {e}"))?;
+    file.sync_all().map_err(|e|format!("fsync inicio stream backup: {e}"))?;
+    Ok(json!({"ok":true,"sessionId":session_id,"bytes":0}).to_string())
+}
+#[tauri::command]
+fn desktop_backup_stream_append(app:AppHandle,session_id:String,data_b64:String)->Result<String,String>{
+    use base64::{engine::general_purpose::STANDARD,Engine as _};
+    let root=native_root(&app)?;let path=backup_stream_path(&root,&session_id)?;
+    if data_b64.len()>(DESKTOP_BACKUP_STREAM_CHUNK_MAX*4/3+16){return Err("Chunk de backup supera el límite IPC.".into());}
+    let bytes=STANDARD.decode(data_b64).map_err(|e|format!("Chunk backup base64 inválido: {e}"))?;
+    if bytes.is_empty()||bytes.len()>DESKTOP_BACKUP_STREAM_CHUNK_MAX{return Err("Chunk backup vacío o demasiado grande.".into());}
+    let prior=fs::metadata(&path).map_err(|e|format!("Stream backup inexistente: {e}"))?.len();
+    if prior+bytes.len() as u64>DESKTOP_BACKUP_STREAM_TOTAL_MAX{return Err("Backup supera 1 GiB; operación bloqueada.".into());}
+    let mut file=fs::OpenOptions::new().append(true).open(&path).map_err(|e|format!("Apertura stream backup: {e}"))?;
+    file.write_all(&bytes).map_err(|e|format!("Escritura stream backup: {e}"))?;
+    Ok(json!({"ok":true,"sessionId":session_id,"bytes":prior+bytes.len() as u64}).to_string())
+}
+#[tauri::command]
+fn desktop_backup_stream_finalize(app:AppHandle,session_id:String,label:Option<String>)->Result<String,String>{
+    let root=native_root(&app)?;let temp=backup_stream_path(&root,&session_id)?;
+    {
+        let file=fs::OpenOptions::new().read(true).write(true).open(&temp).map_err(|e|format!("Stream backup no disponible: {e}"))?;
+        file.sync_all().map_err(|e|format!("fsync final stream backup: {e}"))?;
+    }
+    let mut payload=String::new();
+    File::open(&temp).and_then(|mut f|f.read_to_string(&mut payload))
+      .map_err(|e|format!("Lectura final stream backup: {e}"))?;
+    validate_backup_v2(&payload)?;
+    let safe_label=safe_backup_label(label);
+    let stamp=Utc::now().timestamp_millis();
+    let final_path=root.join("backups").join(format!("Trading-Research-{safe_label}-{stamp}.trbackup"));
+    fs::rename(&temp,&final_path).map_err(|e|format!("Publicación stream backup: {e}"))?;
+    Ok(json!({"ok":true,"path":final_path.to_string_lossy(),"bytes":payload.len(),"sha256":sha256_text(&payload),"label":safe_label}).to_string())
+}
+#[tauri::command]
+fn desktop_backup_stream_abort(app:AppHandle,session_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let path=backup_stream_path(&root,&session_id)?;
+    if path.exists(){fs::remove_file(&path).map_err(|e|format!("Abort stream backup: {e}"))?;}
+    Ok(json!({"ok":true,"sessionId":session_id,"aborted":true}).to_string())
 }
 
 #[tauri::command]
@@ -522,9 +582,144 @@ fn desktop_gc_native_image_objects(app:AppHandle)->Result<String,String>{
     native_images::gc_objects(&conn,&root).map(|v|v.to_string())
 }
 
+
+/* Batch 78 · Market Data native staging only. These commands never switch
+ * authority; IndexedDB remains live until the bounded migration is certified. */
+#[tauri::command]
+fn desktop_market_begin_staging(app:AppHandle,rollback_path:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let (_payload,backup_sha)=validated_native_backup(&root,&rollback_path)?;
+    let mut conn=open_db(&root)?;
+    native_market::begin_stage(&mut conn,&rollback_path,&backup_sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_meta(app:AppHandle,generation:i64,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_meta(&mut conn,generation,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_exec(app:AppHandle,generation:i64,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_exec(&mut conn,generation,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_tick_chunk(app:AppHandle,generation:i64,dataset_id:String,chunk_index:i64,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_tick_chunk(&mut conn,generation,&dataset_id,chunk_index,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_finalize_dataset(app:AppHandle,generation:i64,dataset_id:String,chunk_count:i64,row_count:i64,aggregate_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::finalize_dataset(&mut conn,generation,&dataset_id,chunk_count,row_count,&aggregate_sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_verify_staging(app:AppHandle,generation:i64,inventory:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::verify_stage(&mut conn,generation,&inventory).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_read_staged_chunk(app:AppHandle,generation:i64,dataset_id:String,chunk_index:i64)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::read_chunk(&conn,generation,&dataset_id,chunk_index).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_staging_status(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::status(&conn).map(|v|v.to_string())
+}
+
+#[tauri::command]
+fn desktop_market_authority_status(app:AppHandle,deep:Option<bool>)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::authority_status(&conn,&root,deep.unwrap_or(false)).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_promote_authority(app:AppHandle,generation:i64,rollback_path:String)->Result<String,String>{
+    let root=native_root(&app)?;
+    let (_payload,sha)=validated_native_backup(&root,&rollback_path)?;
+    let mut conn=open_db(&root)?;
+    native_market::promote(&mut conn,&root,generation,&rollback_path,&sha).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_list_records(app:AppHandle,store:String)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::list_records(&conn,&store).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_get_record(app:AppHandle,store:String,id:String)->Result<Option<String>,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::get_record(&conn,&store,&id).map(|v|v.map(|x|x.to_string()))
+}
+#[tauri::command]
+fn desktop_market_list_catalogs(app:AppHandle)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::list_catalogs(&conn).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_read_active_chunk(app:AppHandle,dataset_id:String,chunk_index:i64)->Result<String,String>{
+    let root=native_root(&app)?;let conn=open_db(&root)?;
+    native_market::read_active_chunk(&conn,&dataset_id,chunk_index).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_begin_live_op(app:AppHandle,op_id:String,expected_generation:i64,reason:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::begin_live_op(&mut conn,&op_id,expected_generation,&reason).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_record(app:AppHandle,op_id:String,store:String,id:String,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_record(&mut conn,&op_id,&store,&id,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_delete(app:AppHandle,op_id:String,store:String,id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_delete(&mut conn,&op_id,&store,&id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_stage_live_tick_chunk(app:AppHandle,op_id:String,dataset_id:String,chunk_index:i64,payload:String,sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::stage_live_tick_chunk(&mut conn,&op_id,&dataset_id,chunk_index,&payload,&sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_finalize_live_tick(app:AppHandle,op_id:String,dataset_id:String,chunk_count:i64,row_count:i64,aggregate_sha256:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::finalize_live_tick(&mut conn,&op_id,&dataset_id,chunk_count,row_count,&aggregate_sha256).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_commit_live_op(app:AppHandle,op_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::commit_live_op(&mut conn,&op_id).map(|v|v.to_string())
+}
+#[tauri::command]
+fn desktop_market_abort_live_op(app:AppHandle,op_id:String)->Result<String,String>{
+    let root=native_root(&app)?;let mut conn=open_db(&root)?;
+    native_market::abort_live_op(&mut conn,&op_id).map(|v|v.to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            desktop_market_begin_staging,
+            desktop_market_stage_meta,
+            desktop_market_stage_exec,
+            desktop_market_stage_tick_chunk,
+            desktop_market_finalize_dataset,
+            desktop_market_verify_staging,
+            desktop_market_read_staged_chunk,
+            desktop_market_staging_status,
+            desktop_market_authority_status,
+            desktop_market_promote_authority,
+            desktop_market_list_records,
+            desktop_market_get_record,
+            desktop_market_list_catalogs,
+            desktop_market_read_active_chunk,
+            desktop_market_begin_live_op,
+            desktop_market_stage_live_record,
+            desktop_market_stage_live_delete,
+            desktop_market_stage_live_tick_chunk,
+            desktop_market_finalize_live_tick,
+            desktop_market_commit_live_op,
+            desktop_market_abort_live_op,
             desktop_stage_native_image,
             desktop_read_staged_image,
             desktop_verify_staged_images,
@@ -545,6 +740,10 @@ fn main() {
             desktop_store_recovery_snapshot,
             desktop_read_recovery_snapshot,
             desktop_storage_status,
+            desktop_backup_stream_begin,
+            desktop_backup_stream_append,
+            desktop_backup_stream_finalize,
+            desktop_backup_stream_abort,
             desktop_write_backup
         ])
         .run(tauri::generate_context!())

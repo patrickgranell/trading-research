@@ -27,6 +27,7 @@ on:
       - 'desktop-native-images-transform.mjs'
       - 'desktop-native-market-runtime.js'
       - 'desktop-native-market-transform.mjs'
+      - 'DESKTOP-PORTABLE-RECOVERY.md'
       - 'DESKTOP.md'
       - '.github/workflows/desktop-build.yml'
 

@@ -37,4 +37,5 @@ await assert.rejects(restore({bad:true}),/inválido/);
 assert.equal(persistCalls,1,'Invalid restore must not write SQLite');
 const native=fs.readFileSync('desktop-native-runtime.js','utf8');
 assert(native.includes("desktop_read_authoritative_workspace")&&native.includes("trBackupV2Canonical(prepared.workspace)")&&native.includes("Readback SQLite no coincide exactamente"),'Native restore must verify exact revision/payload after commit');
-console.log('Desktop restore behavior OK: certified exact payload, native commit and post-restore readback; Web unchanged.');
+assert(native.includes("TradingResearchDesktopImageAuthority?.active")&&native.includes("TradingResearchDesktopNativeImages?.status?.(true)")&&native.includes("verificación profunda"),'Promoted native images must pass deep verification after complete Backup V2 restore');
+console.log('Desktop restore behavior OK: exact workspace + promoted native-image deep readback; Web unchanged.');

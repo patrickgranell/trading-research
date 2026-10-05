@@ -19,7 +19,7 @@ function stable(v){
   if(v&&typeof v==='object'){const o={};for(const k of Object.keys(v).sort())o[k]=stable(v[k]);return o;}
   return v;
 }
-function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false}={}){
+function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false}={}){
   const calls=[],alerts=[],blocks=new Set(),timers=[];
   let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
   let imageNow=imageActive,marketNow=marketActive,phase=journalPhase;
@@ -43,6 +43,8 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     trBackupV2Preflight:async raw=>JSON.parse(JSON.stringify(raw)),
     trBackupV2BuildPayload:async()=>JSON.parse(JSON.stringify(restored?source:current)),
     trBackupV2RefreshUiAfterRestore:async()=>true,
+    trBackupV2JournalGet:async()=>backupJournalPending?{id:'backup-v2-pending'}:null,
+    trBackupV2RecoverPending:async()=>{assert.equal(backupJournalPending,true);backupJournalPending=false;restored=true;calls.push({cmd:'recoverBackupJournal'});return {status:'recovered'};},
     trBackupV2RestoreProtocol:async()=>{restored=true;calls.push({cmd:'restoreProtocol'});return {ok:true};},
     TRDomainStore:{exclusive:async(_r,fn)=>fn()},
     TradingResearchDesktopAuthority:{active:true},
@@ -115,6 +117,15 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   assert(!t.calls.some(x=>x.cmd==='restoreProtocol'),'phase restored must not replay completed workspace restore');
   assert(t.calls.some(x=>x.cmd==='migrateImages'),'resume must promote missing native images');
   assert(t.calls.some(x=>x.cmd==='migrateMarket'),'resume must promote missing native Market Data');
+  assert.equal(t.cleared,true);
+}
+
+{
+  const t=harness({journalPhase:'prepared',imageActive:true,marketActive:true,backupJournalPending:true});
+  const out=await t.api.resumePending({announce:false});
+  assert.equal(out.status,'completed');
+  assert(t.calls.some(x=>x.cmd==='recoverBackupJournal'),'pending Backup V2 journal must recover before portable phase advance');
+  assert(!t.calls.some(x=>x.cmd==='restoreProtocol'),'portable resume must not start a second Backup V2 restore while one is recoverable');
   assert.equal(t.cleared,true);
 }
 

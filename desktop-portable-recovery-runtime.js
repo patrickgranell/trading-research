@@ -63,18 +63,26 @@ function sourceSummary(prepared){
     '\nTicks: '+Number(ticks||0).toLocaleString('es-ES');
 }
 async function streamBackupText(text,label){
-  const bytes=new TextEncoder().encode(String(text));
+  const source=String(text),encoder=new TextEncoder();
   const sessionId='B79-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
   await call('desktop_backup_stream_begin',{sessionId});
   try{
-    let sent=0;
-    for(let offset=0;offset<bytes.length;offset+=STREAM_CHUNK){
-      const chunk=bytes.subarray(offset,Math.min(offset+STREAM_CHUNK,bytes.length));
+    let sent=0,offset=0;
+    while(offset<source.length){
+      let end=Math.min(offset+STREAM_CHUNK,source.length);
+      // Never split a UTF-16 surrogate pair while bounding peak memory.
+      if(end<source.length){
+        const tail=source.charCodeAt(end-1);
+        if(tail>=0xD800&&tail<=0xDBFF)end--;
+      }
+      const chunk=encoder.encode(source.slice(offset,end));
       const out=await call('desktop_backup_stream_append',{sessionId,dataB64:b64(chunk)});
-      sent=Number(out?.bytes||0);
+      sent+=chunk.length;
+      if(Number(out?.bytes||0)!==sent)throw new Error('Backup físico portable perdió continuidad durante el stream.');
+      offset=end;
     }
     const final=await call('desktop_backup_stream_finalize',{sessionId,label});
-    if(!final?.ok||!final.path||Number(final.bytes)!==bytes.length||sent!==bytes.length)throw new Error('Backup físico portable no coincide con los bytes enviados.');
+    if(!final?.ok||!final.path||Number(final.bytes)!==sent)throw new Error('Backup físico portable no coincide con los bytes enviados.');
     return final;
   }catch(e){
     try{await call('desktop_backup_stream_abort',{sessionId});}catch{}
@@ -158,13 +166,35 @@ async function ensureNativeMarket(){
 }
 async function finalVerify(prepared){
   if(!globalThis.TradingResearchDesktopAuthority?.active)throw new Error('SQLite workspace authority no está activa tras restore portable.');
+  if(typeof trBackupV2HashCanonical!=='function'||typeof trBackupV2SortRecords!=='function')throw new Error('Hash Backup V2 no disponible para verificación final.');
   const nativeWorkspace=await call('desktop_read_authoritative_workspace');
   const nativePayload=nativeWorkspace?.payload?JSON.parse(String(nativeWorkspace.payload)):null;
   if(canonical(nativePayload)!==canonical(prepared.workspace))throw new Error('Workspace SQLite final no coincide exactamente con el Backup V2 source.');
+  if(await trBackupV2HashCanonical(nativePayload)!==prepared.manifest?.hashes?.workspace)throw new Error('Hash workspace SQLite final no coincide con Backup V2 source.');
+
   const images=await ensureNativeImages();
+  const nativeImages=await call('desktop_list_native_images');
+  const imageHashes=new Map((Array.isArray(nativeImages)?nativeImages:[]).map(x=>[String(x?.id||''),String(x?.sha256||'')]));
+  for(const [id,expected] of Object.entries(prepared.manifest?.hashes?.images||{})){
+    if(imageHashes.get(String(id))!==String(expected))throw new Error('Hash de imagen nativa final no coincide: '+String(id));
+  }
+
   const market=await ensureNativeMarket();
-  const rebuilt=await trBackupV2Preflight(await trBackupV2BuildPayload());
-  if(!sameHashes(prepared.manifest?.hashes,rebuilt.manifest?.hashes))throw new Error('Backup V2 final reconstruido desde autoridades nativas no conserva todos los hashes source.');
+  const [meta,execs]=await Promise.all([
+    call('desktop_market_list_records',{store:'marketMeta'}),
+    call('desktop_market_list_records',{store:'execSets'})
+  ]);
+  const metaRows=trBackupV2SortRecords(Array.isArray(meta)?meta:[]);
+  const execRows=trBackupV2SortRecords(Array.isArray(execs)?execs:[]);
+  if(await trBackupV2HashCanonical(metaRows)!==prepared.manifest?.hashes?.marketMeta)throw new Error('Hash marketMeta nativo final no coincide con Backup V2 source.');
+  if(await trBackupV2HashCanonical(execRows)!==prepared.manifest?.hashes?.execSets)throw new Error('Hash execSets nativo final no coincide con Backup V2 source.');
+
+  const tickIds=(prepared.marketData?.marketTicks||[]).map(x=>String(x?.id||''));
+  const tickHash=await call('desktop_market_backup_ticks_hash',{orderedIdsJson:JSON.stringify(tickIds)});
+  const sourceTicks=(prepared.marketData?.marketTicks||[]).reduce((n,r)=>n+(Array.isArray(r?.ticks)?r.ticks.length:0),0);
+  if(!tickHash?.ok||String(tickHash.sha256)!==String(prepared.manifest?.hashes?.marketTicks))throw new Error('Hash marketTicks nativo final no coincide con Backup V2 source.');
+  if(Number(tickHash.datasets)!==tickIds.length||Number(tickHash.ticks)!==sourceTicks)throw new Error('Inventario marketTicks nativo final no coincide con Backup V2 source.');
+
   return {workspaceRevision:Number(nativeWorkspace?.revision||0),images:Number(images.catalogRecords||0),market};
 }
 async function execute(prepared,journal,{announce=true}={}){
@@ -243,10 +273,11 @@ async function startFromFile(file){
     '\n\nAntes de modificar datos se guardará un rollback completo del estado actual.\n\n¿Continuar?'))return null;
   ui.busy=true;paint();
   try{
-    const currentRaw=await trBackupV2BuildPayload();
+    let currentRaw=await trBackupV2BuildPayload();
     await trBackupV2Preflight(currentRaw);
-    const rollback=await streamBackupText(JSON.stringify(currentRaw),'portable-restore-target-rollback');
-    const source=await streamBackupText(sourceText,'portable-restore-source');
+    let currentText=JSON.stringify(currentRaw);currentRaw=null;
+    const rollback=await streamBackupText(currentText,'portable-restore-target-rollback');currentText='';
+    const source=await streamBackupText(sourceText,'portable-restore-source');sourceText='';
     const journal=await call('desktop_portable_restore_begin',{
       sourcePath:String(source.path),sourceSha256:String(source.sha256),
       rollbackPath:String(rollback.path),rollbackSha256:String(rollback.sha256)

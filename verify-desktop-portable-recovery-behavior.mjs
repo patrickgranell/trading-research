@@ -21,7 +21,7 @@ function stable(v){
 }
 function harness({journalPhase=null,imageActive=true,marketActive=true,statusFailure=false,backupJournalPending=false,workspaceActive=true}={}){
   const calls=[],alerts=[],timers=[];
-  let blockReason='',loading=false;
+  let blockReason='',loading=false,veilCalls=0;
   let restored=journalPhase!==null&&journalPhase!=='prepared',cleared=false;
   let imageNow=imageActive,marketNow=marketActive,workspaceNow=workspaceActive,phase=journalPhase;
   const document={
@@ -42,7 +42,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
     trCoreClearWriteBlock:r=>{if(!r||blockReason===String(r))blockReason='';return !blockReason;},
     trCoreWriteBlocked:()=>!!blockReason,
     trCorePersistenceInfo:()=>({writeBlocked:!!blockReason,writeBlockReason:blockReason}),
-    trBackupV2SetRecoveryUiBlocked(blocked){const effective=!!blocked||!!blockReason;loading=effective;return effective;},
+    trBackupV2SetRecoveryUiBlocked(blocked){veilCalls++;const effective=!!blocked||!!blockReason;loading=effective;return effective;},
     trBackupV2Canonical:v=>JSON.stringify(stable(v)),
     trBackupV2SortRecords:rows=>JSON.parse(JSON.stringify(rows||[])).sort((a,b)=>String(a?.id||'').localeCompare(String(b?.id||''))),
     trBackupV2HashCanonical:async v=>{
@@ -121,7 +121,7 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   };
   context.globalThis=context;
   vm.runInContext(runtime,vm.createContext(context),{timeout:1500});
-  return {ctx:context,api:context.TradingResearchDesktopPortableRecovery,calls,alerts,timers,get blockReason(){return blockReason;},get loading(){return loading;},get cleared(){return cleared;},get phase(){return phase;},get restored(){return restored;}};
+  return {ctx:context,api:context.TradingResearchDesktopPortableRecovery,calls,alerts,timers,get blockReason(){return blockReason;},get loading(){return loading;},get veilCalls(){return veilCalls;},get cleared(){return cleared;},get phase(){return phase;},get restored(){return restored;}};
 }
 
 {
@@ -148,8 +148,10 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   const advances=t.calls.filter(x=>x.cmd==='desktop_portable_restore_advance').map(x=>x.args.nextPhase);
   assert.deepEqual(advances,['restored','images-native','market-native','verified']);
   assert.equal(t.blockReason,'','write block must be released after verified clear');
-  assert.equal(t.loading,false,'workspace loading veil must be removed after successful portable restore');
-  assert(t.calls.some(x=>x.cmd==='refreshUi'),'successful portable restore must refresh UI after release');
+  assert.equal(t.loading,false,'portable restore must never enter the boot workspace loading veil');
+  assert.equal(t.veilCalls,0,'portable restore must not call the boot-only recovery veil at all');
+  await Promise.resolve();await Promise.resolve();
+  assert(t.calls.some(x=>x.cmd==='refreshUi'),'successful portable restore may refresh diagnostics only after release');
 }
 
 {
@@ -176,6 +178,8 @@ function harness({journalPhase=null,imageActive=true,marketActive=true,statusFai
   const out=await t.api.resumePending({announce:false});
   assert.equal(out.status,'blocked');
   assert.equal(t.blockReason,'desktop-portable-restore','unreadable pending journal/source must remain write-blocked');
+  assert.equal(t.loading,false,'even a failed resume must keep the application visible');
+  assert.equal(t.veilCalls,0,'failed portable recovery must not reuse the boot veil');
   assert.equal(t.cleared,false);
 }
 

@@ -36,7 +36,7 @@ const financialBaseline=readJson('financial-regression-baseline.json');
 const financialRegionCount=Object.keys(financialBaseline.hashes||{}).length;
 const financialMarker=`Financial regions unchanged vs ${financialBaseline.sourceVersion}: ${financialRegionCount}/${financialRegionCount}`;
 
-need(pkg.version==='31.28.0',`package.json no está en la versión final 31.28.0: ${pkg.version}`);
+need(pkg.version==='31.29.0',`package.json no está en la versión final 31.29.0: ${pkg.version}`);
 
 need(Number(render.source?.assignments)===12&&Number(render.bundled?.assignments)===0,'Render legacy closure cambió');
 need(Number(render.source?.baseAliases)===5&&Number(render.bundled?.baseAliases)===0,'renderV*Base closure cambió');
@@ -66,8 +66,8 @@ need(Number(structuredEvents.converted)>=600&&Number(structuredEvents.uniquePlan
 need(Number(structuredEvents.dynamicActionRejected)===0&&Number(structuredEvents.legacyProgramHandlers)===0,'Structured Event Boundary conserva programas/acciones dinámicas rechazadas');
 const finalStaticHtml=html.replace(/<script\s+[^>]*>[\s\S]*?<\/script>/gi,'');
 need(!/\sdata-tr-on(?:click|change|input|submit)\s*=/.test(finalStaticHtml),'El HTML estático final conserva programas click/change/input/submit');
-const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|taxonomy-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|exit-lab-runtime|canonical-metrics-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
-need(finalScriptBlocks.length===18,`Structured Event second-pass cubre ${finalScriptBlocks.length}/18 scripts propios.`);
+const finalScriptBlocks=[...html.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|taxonomy-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|emotional-runtime|exit-lab-runtime|canonical-metrics-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));
+need(finalScriptBlocks.length===19,`Structured Event second-pass cubre ${finalScriptBlocks.length}/19 scripts propios.`);
 let finalSecondPass=null;try{finalSecondPass=transformStructuredEventSources(finalScriptBlocks.map((m,i)=>({name:`final-bundle-${i}.js`,source:m[2]})));}catch(e){need(false,`Second-pass Structured Event audit falló: ${e.message}`);}
 if(finalSecondPass)need(Number(finalSecondPass.inventory.converted)===0,`El bundle final conserva ${finalSecondPass.inventory.converted} handler(s) legacy compilables`);
 
@@ -113,7 +113,7 @@ need(structural.status===0,'verify-structure.mjs no está verde en Final Audit')
 need(String(structural.stdout||'').includes(financialMarker),`Final Audit no pudo confirmar ${financialRegionCount}/${financialRegionCount} regiones financieras`);
 
 const invariants={
-  packageVersion:'31.28.0',
+  packageVersion:'31.29.0',
   explicitWindow:{blocks:0,entries:0,exports:0},
   registries:{state:56,ui:221,operationCleanup:2},
   finalBindings:{state:56,ui:221,residualMirrors:5,dashboardUnit:1,dynamicActions:3},
@@ -124,7 +124,7 @@ const invariants={
   style:{effectiveInlineAttrs:0},
   csp:{scriptSrcAttr:'none',styleSrcAttr:'none',unsafeEval:false},
   financialRegions:`${financialRegionCount}/${financialRegionCount}`,
-  structuredEventSecondPass:{ownScripts:18,legacyHandlersConverted:0}
+  structuredEventSecondPass:{ownScripts:19,legacyHandlersConverted:0}
 };
 
 if(fail.length){
@@ -136,12 +136,12 @@ if(fail.length){
 const manifest={phase:PHASE,status:'PASS',generatedAt:new Date().toISOString(),invariants};
 fs.writeFileSync('dist/source-consolidation-final-audit.json',JSON.stringify(manifest,null,2)+'\n');
 console.log('Source Consolidation Final Audit V31.23.52 PASS');
-console.log(' - Package release version: 31.28.0');
+console.log(' - Package release version: 31.29.0');
 console.log(' - Explicit app window action surface: 0 blocks / 0 entries / 0 exports');
 console.log(' - Registry final bindings: State 56 / UI 221 / residual 5 / dashboard 1 / dynamic 3');
 console.log(' - Operation Cleanup Controls: delete operation + delete image registered, image blobs cleaned');
 console.log(' - Frontiers: State 0 / UI 0 / cross-runtime 0');
 console.log(' - Dashboard drag: 0 DOM0 / 4 delegated listeners');
 console.log(" - CSP: script-src-attr 'none' / style-src-attr 'none' / unsafe-eval absent");
-console.log(' - Structured Event second-pass coverage: 18/18 own scripts; 0 legacy handlers converted');
+console.log(' - Structured Event second-pass coverage: 19/19 own scripts; 0 legacy handlers converted');
 console.log(` - Financial regions unchanged: ${financialRegionCount}/${financialRegionCount}`);

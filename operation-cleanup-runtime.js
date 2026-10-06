@@ -27,12 +27,19 @@ function trPlanDeletionProjection(workspace,ids){
   const remaining=plans.filter(p=>!selected.has(String(p.id)));
   const current=selected.has(String(workspace.currentPlanId))?
     (remaining.find(p=>p.status!=='archived')||remaining[0]).id:workspace.currentPlanId;
+  const emotionalJournal=workspace.emotionalJournal&&typeof workspace.emotionalJournal==='object'
+    ? JSON.parse(JSON.stringify(workspace.emotionalJournal))
+    : {schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]};
+  emotionalJournal.sessions=(emotionalJournal.sessions||[]).map(session=>
+    selected.has(String(session.tradingPlanId||''))?{...session,tradingPlanId:''}:session
+  );
   return {
     next:{
       tradingPlans:remaining,
       operations:(workspace.operations||[]).filter(o=>!selected.has(String(o.tradingPlanId))),
       importBatches:(workspace.importBatches||[]).filter(b=>!selected.has(String(b.tradingPlanId))),
       opportunities:(workspace.opportunities||[]).filter(o=>!selected.has(String(o.tradingPlanId))),
+      emotionalJournal,
       currentPlanId:current
     },
     removedPlans,removedOperations,removedBatches,
@@ -289,6 +296,7 @@ async function trPlanDeleteExecute(ids){
           state.operations=projected.next.operations;
           state.importBatches=projected.next.importBatches;
           state.opportunities=projected.next.opportunities;
+          state.emotionalJournal=projected.next.emotionalJournal;
           state.currentPlanId=projected.next.currentPlanId;
         },{persist:true,render:false});
         if(!(await trCoreFlush()))throw new Error('No se confirmó el guardado durable de la eliminación.');

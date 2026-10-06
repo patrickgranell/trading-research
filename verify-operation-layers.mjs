@@ -7,6 +7,14 @@ const need=(needle,msg)=>{if(!app.includes(needle))fail.push(msg);};
 need("familyId:meta.familyId||", 'new Trading Plans must receive a stable familyId');
 need("p.familyId=source.familyId||", 'cloned versions must preserve familyId');
 need("p.parentPlanId=source.id;", 'cloned versions must point to their parent plan version');
+need("planEnvironment:PLAN_ENVIRONMENTS.includes(meta.planEnvironment)", 'new Trading Plans must store an explicit environment');
+need("validationGroupId:meta.validationGroupId||''", 'Trading Plans must store optional validation grouping');
+need("p.validationGroupId='';p.validationGroupName='';", 'a cloned TP version must not silently inherit the prior validation group');
+need("selectObjField('Ámbito del Trading Plan','plan-environment'", 'plan editor must expose Backtesting / Replay / Sim / Live');
+need("trLegacyStateCommand('plan-group-open'", 'Trading Plans must expose validation grouping');
+need("const savePlanValidationGroup=()=>", 'missing validation group persistence workflow');
+need("Cada TP/versión puede declararse Backtesting, Replay, Sim o Live", 'Trading Plan UI must explain independent plan environments');
+need("<th>Ámbito</th><th>Grupo</th>", 'quick plan comparison must expose environment and validation group');
 need("Object.defineProperty(globalThis,'TradingResearchOperationSemanticsContract'", 'missing canonical operation semantics contract');
 need("function recordClass(o)", 'missing canonical record class resolver inside the semantics contract');
 need("function layer(o)", 'missing canonical operation layer resolver inside the semantics contract');
@@ -20,7 +28,8 @@ need("['layer','Ámbito']", 'interactive breakdown must expose the layer dimensi
 need("recordClass:'backtest'", 'Ankora imports must be explicitly marked backtest');
 need("op.recordClass='execution';op.executionEnvironment=v316EnvForSet(set);", 'NinjaTrader links must persist execution semantics');
 need("op.recordClass='unclassified';op.executionEnvironment='';", 'legacy/manual operations must not be inferred as Live');
-need("puede contener de forma independiente Backtest, Replay, Sim y Live", 'Trading Plan UI must state that layers are independent');
+need("env=!o&&['backtest','replay','sim','live'].includes(planEnv)?planEnv:storedEnv", 'new operations must inherit the TP environment by default');
+need("if(intent==='backtest'&&!op.executionEvidence?.linkedAt)", 'Backtesting TPs must support manual backtest operations without NinjaTrader');
 
 if(app.includes("researchReference:{required:true")||app.includes("plan.mode='backtest_and_live'"))fail.push('a rigid Backtest -> Live requirement was introduced');
 
@@ -33,3 +42,4 @@ console.log('Operation layer verification OK');
 console.log(' - Backtest / Replay / Sim / Live are independent semantic layers');
 console.log(' - manual legacy operations remain unclassified unless explicitly marked');
 console.log(' - Trading Plan version lineage is stable and additive');
+console.log(' - Trading Plans have an explicit optional environment and validation-group link');

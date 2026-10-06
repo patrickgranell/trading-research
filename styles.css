@@ -53,6 +53,10 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 /* V6 · Diario emocional + simulador de reglas de riesgo */
 .journal-kpis{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;margin-bottom:16px}
 .emotional-notes-scope{margin:2px 0 10px;color:var(--muted);font-size:11px;line-height:1.45}
+.emotional-notes-filter{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin:0 0 8px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--panel2)}
+.emotional-notes-filter .filter-field{min-width:140px}
+.emotional-notes-filter .emotional-notes-search{flex:1;min-width:240px}
+.emotional-notes-filter>.btn{margin-left:auto}
 .emotional-notes-summary{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px;padding:8px 2px;color:var(--muted);font-size:11px}
 .emotional-notes-summary span{display:inline-flex;align-items:baseline;gap:5px}
 .emotional-notes-summary strong{color:var(--text);font-size:13px}

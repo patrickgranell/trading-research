@@ -16,7 +16,11 @@ need("selectObjField('Ámbito del Trading Plan','plan-environment'", 'plan edito
 need("case 'plan-group-open': {", 'Trading Plans must expose validation grouping through the existing command boundary');
 need("case 'plan-group-save': {", 'missing validation group persistence workflow');
 need("Cada TP/versión puede declararse Backtesting, Replay, Sim o Live", 'Trading Plan UI must explain independent plan environments');
-need("<th>Ámbito</th><th>Grupo</th>", 'quick plan comparison must expose environment and validation group');
+need("plan-validation-group", 'Trading Plans view must render validation groups as first-class visual blocks');
+need("Planes sin agrupar", 'Trading Plans view must keep ungrouped plans in a separate section');
+need("Comparación rápida por grupos", 'quick comparison must be organized by validation group');
+need("const envOrder={backtest:0,replay:1,sim:2,live:3,unclassified:4}", 'group members must be ordered Backtesting -> Replay -> Sim -> Live');
+need("Cada bloque compara únicamente los Trading Plans vinculados dentro del mismo grupo", 'group comparison must not silently mix unrelated plans');
 need("Object.defineProperty(globalThis,'TradingResearchOperationSemanticsContract'", 'missing canonical operation semantics contract');
 need("function recordClass(o)", 'missing canonical record class resolver inside the semantics contract');
 need("function layer(o)", 'missing canonical operation layer resolver inside the semantics contract');

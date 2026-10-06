@@ -89,8 +89,10 @@ need(bundledAppStage.includes('render:()=>journal()'),
   'Journal View Presentation Contract no usa resolución tardía exacta render:()=>journal().');
 need(!bundledAppStage.includes('window.journal'),
   'Journal View Presentation Contract reintroduce un mirror window.journal redundante.');
-need(structural.includes("case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract.render();"),
-  'El router del Diario no exige Emotional Journal V31.29.');
+need(structural.includes("case 'journal':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.render();"),
+  'El router de Sesiones no exige Emotional Journal V31.29.');
+need(structural.includes("case 'journalops':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderOperations();"),
+  'El router del Registro por operación no usa Emotional Journal V31.29.');
 need(!structural.includes("case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();"),
   'El router del Diario conserva una ruta legacy silenciosa.');
 const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));

@@ -23,7 +23,7 @@ const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','emotional-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
@@ -40,7 +40,7 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
 
 /* V31.24 D04/D11: compile historical handler programs at BUILD TIME only.
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','emotional-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
 preEventSources['app.js']=residualMirrorClosure.source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));

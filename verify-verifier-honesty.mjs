@@ -14,7 +14,7 @@ const renderClosure=fs.readFileSync('render-closure-runtime.js','utf8');
 const buildSource=fs.readFileSync('build.mjs','utf8');
 const appPruneVerify=fs.readFileSync('verify-app-global-prune.mjs','utf8');
 const remainingVerify=fs.readFileSync('verify-remaining-global-contract-map.mjs','utf8');
-const ownRuntimes=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const ownRuntimes=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 for(const file of ownRuntimes){
   need(globalVerifySource.includes(file),`verify-global-surface omite ${file}.`);
   need(contractSource.includes(file),`remaining-global-contract-map CLI omite ${file}.`);

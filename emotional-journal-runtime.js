@@ -13,6 +13,7 @@ const TR_CONFIDENCE_LEVELS=Object.freeze(['very_low','low','normal','high','very
 const TR_TRI_LEVELS=Object.freeze(['low','medium','high']);
 const TR_CONFIDENCE_LABELS=Object.freeze({very_low:'Muy baja',low:'Baja',normal:'Normal',high:'Alta',very_high:'Muy alta'});
 const TR_TRI_LABELS=Object.freeze({low:'Bajo',medium:'Medio',high:'Alto'});
+const TR_DEFAULT_SESSION_SCALES=Object.freeze({confidence:TR_CONFIDENCE_LABELS,tri:TR_TRI_LABELS});
 
 const trCopy=value=>JSON.parse(JSON.stringify(value??null));
 const trText=value=>String(value??'').trim();
@@ -63,8 +64,15 @@ function trNormalizeSession(value={},plan=null){
     updatedAt:trText(value?.updatedAt)||startedAt
   };
 }
+function trSessionScales(plan){
+  const cfg=plan?.emotionConfig?.sessionScales||{};
+  return {confidence:{...TR_CONFIDENCE_LABELS,...(cfg.confidence||{})},tri:{...TR_TRI_LABELS,...(cfg.tri||{})}};
+}
 function trEnsurePlan(plan){
   if(!plan||typeof plan!=='object')return plan;
+  plan.emotionConfig=plan.emotionConfig&&typeof plan.emotionConfig==='object'?plan.emotionConfig:{};
+  const scales=trSessionScales(plan);
+  plan.emotionConfig.sessionScales={confidence:{...scales.confidence},tri:{...scales.tri}};
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   return plan;
@@ -181,8 +189,9 @@ function trSelect(id,label,options,current=''){
   return `<label class="field"><span>${esc(label)}</span><select id="${esc(id)}" class="select"><option value="">Sin informar</option>${options.map(x=>`<option value="${esc(x.value)}" ${x.value===current?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label>`;
 }
 function trPointFields(prefix,point,plan){
-  const conf=TR_CONFIDENCE_LEVELS.map(value=>({value,label:TR_CONFIDENCE_LABELS[value]}));
-  const tri=TR_TRI_LEVELS.map(value=>({value,label:TR_TRI_LABELS[value]}));
+  const scales=trSessionScales(plan);
+  const conf=TR_CONFIDENCE_LEVELS.map(value=>({value,label:scales.confidence[value]||TR_CONFIDENCE_LABELS[value]}));
+  const tri=TR_TRI_LEVELS.map(value=>({value,label:scales.tri[value]||TR_TRI_LABELS[value]}));
   const emotions=(plan?.emotionConfig?.emotions||[]).map(value=>({value,label:value}));
   return `${trSelect(prefix+'-confidence-personal','Confianza personal',conf,point.confidencePersonal)}
     ${trSelect(prefix+'-confidence-system','Confianza en el sistema',conf,point.confidenceSystem)}
@@ -259,12 +268,12 @@ function trDeleteSession(id){
   for(const operation of state.operations||[])if(operation.journalSessionId===id)operation.journalSessionId='';
   plan.emotionalSessions=trSessions(plan).filter(s=>s.id!==id);plan.updatedAt=trNow();trPersistRender();return true;
 }
-function trSessionPointSummary(point){
-  const bits=[];
-  if(point?.confidencePersonal)bits.push('Personal '+TR_CONFIDENCE_LABELS[point.confidencePersonal]);
-  if(point?.confidenceSystem)bits.push('Sistema '+TR_CONFIDENCE_LABELS[point.confidenceSystem]);
-  if(point?.stress)bits.push('Estrés '+TR_TRI_LABELS[point.stress]);
-  if(point?.emotionalWear)bits.push('Desgaste '+TR_TRI_LABELS[point.emotionalWear]);
+function trSessionPointSummary(point,plan){
+  const scales=trSessionScales(plan),bits=[];
+  if(point?.confidencePersonal)bits.push('Personal '+(scales.confidence[point.confidencePersonal]||TR_CONFIDENCE_LABELS[point.confidencePersonal]));
+  if(point?.confidenceSystem)bits.push('Sistema '+(scales.confidence[point.confidenceSystem]||TR_CONFIDENCE_LABELS[point.confidenceSystem]));
+  if(point?.stress)bits.push('Estrés '+(scales.tri[point.stress]||TR_TRI_LABELS[point.stress]));
+  if(point?.emotionalWear)bits.push('Desgaste '+(scales.tri[point.emotionalWear]||TR_TRI_LABELS[point.emotionalWear]));
   return bits.join(' · ')||'Sin valoración';
 }
 function trSessionsPanel(plan){
@@ -272,7 +281,7 @@ function trSessionsPanel(plan){
   const open=sessions.filter(s=>!s.endedAt);
   const rows=sessions.slice(0,12);
   return `<section class="card panel"><div class="panel-title"><div><h3>Sesiones emocionales</h3><small>Una sesión puede existir aunque no haya ninguna operación.</small></div><span>${open.length} abierta(s) · ${sessions.length} total</span></div>
-    ${rows.length?rows.map(s=>`<article class="compliance-rule-card"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${esc(TR_SESSION_MODE_LABELS[s.mode]||s.mode)}</span><span class="badge ${s.endedAt?'':'win'}">${s.endedAt?'Cerrada':'Abierta'}</span><span class="badge">${trSessionOperationCount(s.id)} trade(s)</span></div><strong>${esc(fmtDate(s.startedAt))}${s.endedAt?' → '+esc(fmtDate(s.endedAt)):''}</strong><p><b>Inicio:</b> ${esc(trSessionPointSummary(s.start))}${s.endedAt?'<br><b>Cierre:</b> '+esc(trSessionPointSummary(s.end)):''}</p></div><div class="compliance-rule-actions"><button class="btn small" data-session-id="${esc(s.id)}" data-tr-action-click="emotionalSessionEditStart">Editar inicio</button>${s.endedAt?'<button class="btn small" data-session-id="'+esc(s.id)+'" data-tr-action-click="emotionalSessionEditEnd">Editar cierre</button>':'<button class="btn small primary" data-session-id="'+esc(s.id)+'" data-tr-action-click="emotionalSessionClose">Cerrar sesión</button>'}<button class="btn small danger" data-session-id="${esc(s.id)}" data-tr-action-click="emotionalSessionDelete">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay sesiones emocionales.</div>'}
+    ${rows.length?rows.map(s=>`<article class="compliance-rule-card"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${esc(TR_SESSION_MODE_LABELS[s.mode]||s.mode)}</span><span class="badge ${s.endedAt?'':'win'}">${s.endedAt?'Cerrada':'Abierta'}</span><span class="badge">${trSessionOperationCount(s.id)} trade(s)</span></div><strong>${esc(fmtDate(s.startedAt))}${s.endedAt?' → '+esc(fmtDate(s.endedAt)):''}</strong><p><b>Inicio:</b> ${esc(trSessionPointSummary(s.start,plan))}${s.endedAt?'<br><b>Cierre:</b> '+esc(trSessionPointSummary(s.end,plan)):''}</p></div><div class="compliance-rule-actions"><button class="btn small" data-session-id="${esc(s.id)}" data-tr-action-click="emotionalSessionEditStart">Editar inicio</button>${s.endedAt?'<button class="btn small" data-session-id="'+esc(s.id)+'" data-tr-action-click="emotionalSessionEditEnd">Editar cierre</button>':'<button class="btn small primary" data-session-id="'+esc(s.id)+'" data-tr-action-click="emotionalSessionClose">Cerrar sesión</button>'}<button class="btn small danger" data-session-id="${esc(s.id)}" data-tr-action-click="emotionalSessionDelete">Eliminar</button></div></article>`).join(''):'<div class="empty">Todavía no hay sesiones emocionales.</div>'}
   </section>`;
 }
 

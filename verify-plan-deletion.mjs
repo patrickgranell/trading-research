@@ -31,6 +31,9 @@ assert(runtime.includes('trBackupV2BuildPayload')&&runtime.includes('trBackupV2P
 assert(runtime.includes('plan-delete-rollback'),'Desktop rollback backup label missing');
 assert(runtime.includes('trCoreFlush')&&runtime.includes('TRDomainStore.exclusive'),'Durable commit boundary missing');
 assert(runtime.includes('data-tr-plan-delete-id')&&runtime.includes('data-tr-plan-delete-selected')&&runtime.includes('data-tr-plan-select'),'Single and bulk deletion UI missing');
+assert(app.includes('data-tr-plan-card-id'), 'Trading Plan cards must expose a stable plan ID for grouped deletion UI');
+assert(runtime.includes("querySelectorAll('[data-tr-plan-card-id]')"), 'Deletion decorator must scan every grouped and ungrouped plan card');
+assert(!runtime.includes("document.querySelector('#view .plan-grid')"), 'Deletion decorator must not depend on the first plan-grid only');
 assert(!runtime.includes('plansView'),'Runtime must use the explicit view contract, not a classic plansView binding.');
 assert(runtime.includes('trPlanDeleteMarketReferences'),'External Market Data reference guard missing');
 console.log('Plan-deletion gate OK: projection, last-plan guard, foreign references, Backup V2, single/bulk actions.');

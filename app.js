@@ -215,6 +215,7 @@ const defaultState = {
   operations: [],
   opportunities: [],
   importBatches: [],
+  emotionalJournal: {schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]},
   settings: {
     instruments: [
       {id:'I_MCL', symbol:'MCL', name:'Micro Crude Oil', tickSize:0.01, tickValue:1, commission:1.60, currency:'USD', active:true},
@@ -363,7 +364,7 @@ function migrateLegacy(raw){
   const s=raw?.settings||{};
   const plan={id:'TP_MIGRATED_V1',familyId:'TPF_TP_MIGRATED',parentPlanId:null,planEnvironment:'unclassified',validationGroupId:'',validationGroupName:'',familyName:'Plan migrado',name:'Plan migrado',version:'v1',description:'Configuración migrada automáticamente desde Trading Research V2.',status:'active',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),setups:Array.isArray(s.setups)?s.setups:clone(basePlanConfig.setups),vd:Array.isArray(s.vd)?s.vd:clone(basePlanConfig.vd),nr:Array.isArray(s.nr)?s.nr:clone(basePlanConfig.nr),hypotheses:Array.isArray(s.hypotheses)?s.hypotheses:clone(basePlanConfig.hypotheses),discretionaryTargets:Array.isArray(s.discretionaryTargets)?s.discretionaryTargets:clone(basePlanConfig.discretionaryTargets),emotionConfig:clone(basePlanConfig.emotionConfig),riskManagement:clone(basePlanConfig.riskManagement),riskStrategies:(Array.isArray(s.riskStrategies)?s.riskStrategies:clone(basePlanConfig.riskStrategies)).map(r=>normalizeRiskStrategy(r,instruments))};
   const planSnap=planSnapshot(plan);
-  return {operations:(Array.isArray(raw?.operations)?raw.operations:[]).map(o=>globalThis.TradingResearchOperationSemanticsContract.normalize({...o,tradingPlanId:plan.id,tradingPlanName:plan.name,tradingPlanVersion:plan.version,tradingPlanSnapshot:o.tradingPlanSnapshot||planSnap})),opportunities:Array.isArray(raw?.opportunities)?raw.opportunities:[],importBatches:[],settings:{instruments},tradingPlans:[plan],currentPlanId:plan.id};
+  return {operations:(Array.isArray(raw?.operations)?raw.operations:[]).map(o=>globalThis.TradingResearchOperationSemanticsContract.normalize({...o,tradingPlanId:plan.id,tradingPlanName:plan.name,tradingPlanVersion:plan.version,tradingPlanSnapshot:o.tradingPlanSnapshot||planSnap})),opportunities:Array.isArray(raw?.opportunities)?raw.opportunities:[],importBatches:[],emotionalJournal:{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]},settings:{instruments},tradingPlans:[plan],currentPlanId:plan.id};
 }
 function normalizeState(raw){
   if(!raw||typeof raw!=='object') return clone(defaultState);
@@ -378,6 +379,14 @@ function normalizeState(raw){
   out.operations=Array.isArray(raw.operations)?raw.operations.map(o=>globalThis.TradingResearchOperationSemanticsContract.normalize({...o,tradingPlanId:o.tradingPlanId||out.currentPlanId})):[];
   out.opportunities=Array.isArray(raw.opportunities)?raw.opportunities:[];
   out.importBatches=Array.isArray(raw.importBatches)?raw.importBatches:[];
+  const ej=raw.emotionalJournal&&typeof raw.emotionalJournal==='object'?raw.emotionalJournal:{};
+  out.emotionalJournal={
+    schemaVersion:1,
+    sessions:Array.isArray(ej.sessions)?ej.sessions:[],
+    entries:Array.isArray(ej.entries)?ej.entries:[],
+    streakEpisodes:Array.isArray(ej.streakEpisodes)?ej.streakEpisodes:[],
+    weeklyReviews:Array.isArray(ej.weeklyReviews)?ej.weeklyReviews:[]
+  };
   return out;
 }
 function loadState(){

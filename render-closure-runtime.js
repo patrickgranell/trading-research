@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.27.0';
-const TR_RELEASE_LABEL='V31.27 · Operation Layers + TP Lineage';
+const TR_RELEASE_VERSION='31.28.0';
+const TR_RELEASE_LABEL='V31.28 · Plan Builder + Frozen Derivations';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';

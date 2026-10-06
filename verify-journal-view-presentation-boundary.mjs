@@ -89,11 +89,13 @@ need(bundledAppStage.includes('render:()=>journal()'),
   'Journal View Presentation Contract no usa resolución tardía exacta render:()=>journal().');
 need(!bundledAppStage.includes('window.journal'),
   'Journal View Presentation Contract reintroduce un mirror window.journal redundante.');
-need(structural.includes(`case 'journal': return globalThis.${CONTRACT}.render();`),
-  'El router del Diario no consume Journal View Presentation Contract.');
+need(structural.includes("case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract?.render?.()||globalThis.TradingResearchJournalViewPresentationContract.render();"),
+  'El router del Diario no prioriza Emotional Journal V31.29 con fallback al contrato histórico.');
 const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));
 need(consumers.length===1&&consumers[0]==='structural-runtime.js',
   `Consumidores de ${CONTRACT} inesperados: ${consumers.join(', ')||'ninguno'}.`);
+need(structural.includes('TradingResearchEmotionalJournalPresentationContract'),
+  'Structural Runtime no consume el contrato V31.29 del Diario Emocional.');
 
 if(fail.length){
   console.error('Journal View Presentation Boundary verification FAILED');

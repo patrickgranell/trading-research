@@ -5,9 +5,9 @@ const fail=[];
 const need=(needle,msg)=>{if(!app.includes(needle))fail.push(msg);};
 
 need("TradingResearchPlanBuilderContract", 'missing Plan Builder contract');
-need("function labFilteredOpsForState(f={},sourceOps=currentOps(),sourcePlan=getCurrentPlan())", 'shared filter pipeline must accept an arbitrary TP dataset');
-need("baseFilteredOps(f,sourceOps,blockMap)", 'Plan Builder must reuse the canonical Operations filter engine');
-need("applyRiskManagementRules(shared,sourcePlan)", 'sequential risk rules must be evaluated against the source TP');
+need("function labFilteredOpsForState(f={},sourceOps=null,sourcePlan=null)", 'shared filter pipeline must accept an arbitrary TP dataset');
+need("baseFilteredOps(f,ops,blockMap)", 'Plan Builder must reuse the canonical Operations filter engine');
+need("sourcePlan?applyRiskManagementRules(shared,sourcePlan).included:applyRiskManagementRules(shared).included", 'sequential risk rules must preserve the legacy current-TP path and accept an injected source TP');
 need("Constructor de TP", 'Trading Plans must expose the Plan Builder extension');
 need("El TP origen no se modifica y la muestra resultante queda congelada", 'builder must disclose frozen-sample semantics');
 need("newPlan.derivation={schemaVersion:1", 'derived TP must persist provenance');

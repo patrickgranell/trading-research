@@ -11,6 +11,11 @@ need(structural,"case 'tpbuilder': return globalThis.TradingResearchViewPresenta
 need(app,"tpbuilder:window.TradingResearchActions.tpBuilderRender", 'view contract must bind TP Builder through the action registry');
 need(app,"const blankFilters=()=>({dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',days:[]", 'TP Builder must own an isolated filter recipe');
 need(app,"baseFilteredOps({...f,q:'',month:'',year:'',source:'',block:'',emotion:'',behavior:'',emotionStatus:''},sourceOps(),new Map())", 'TP Builder must reuse the canonical operations filter engine');
+need(app,"taxonomyFilters:{}", 'TP Builder filter state must include a dynamic taxonomy filter map');
+need(app,"TradingResearchTaxonomyDomain.activeTaxonomies(p)", 'TP Builder must render every active taxonomy from the source Trading Plan');
+need(app,"TradingResearchTaxonomyDomain.selectionOptions(p,t)", 'TP Builder taxonomy selectors must use configured active taxonomy values');
+need(app,"data-tpb-taxonomy-filter=\"1\"", 'TP Builder taxonomy selectors must be discoverable dynamically');
+need(app,"TradingResearchTaxonomyDomain.matchesFilters(o,p,f.taxonomyFilters||{})", 'TP Builder result sample must apply the dynamic taxonomy filter map');
 need(app,"applyRiskManagementRules(rows,p).included", 'TP Builder must support chronological TP risk rules');
 need(app,"Muestra original", 'TP Builder must show the original sample');
 need(app,"Muestra resultante", 'TP Builder must show the filtered sample');

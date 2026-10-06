@@ -30,7 +30,12 @@ need(app,"p?.derivation?.type==='filtered_sample'?'<span class=\"badge\">Derivad
 need(app,"TPs derivados creados", 'TP Builder must expose a derivation history');
 need(app,"copia congelada de las operaciones incluidas", 'UI must state that source plan is not mutated and result is materialized');
 
-if(app.includes("state.operations=state.operations.filter(o=>")&&app.includes("plan.derived.create"))fail.push('derived creation appears to destructively replace operations');
+const builderStart=app.indexOf("/* ===== V31.28 · Constructor de Trading Plans derivados ===== */");
+const builderEnd=app.indexOf("/* ===== END V31.28 · Constructor de Trading Plans derivados ===== */",builderStart);
+const builder=builderStart>=0&&builderEnd>builderStart?app.slice(builderStart,builderEnd):'';
+need(builder,"/* ===== V31.28 · Constructor de Trading Plans derivados ===== */",'TP Builder source block is missing');
+need(builder,"state.operations.push(...copied)",'derived creation must append copied operations');
+if(builder.includes("state.operations=state.operations.filter")||builder.includes("state.operations.splice("))fail.push('TP Builder must not destructively remove source operations');
 
 if(fail.length){
   console.error('\nTP Builder verification FAILED');

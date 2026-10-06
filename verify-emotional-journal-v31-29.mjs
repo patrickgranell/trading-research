@@ -21,6 +21,7 @@ need(runtime.includes("emotionalBreakdown(ops,'emotion')")&&runtime.includes("em
 need(runtime.includes('trMatchingOpenSession'),'Diario: falta enlace automático a la sesión abierta del mismo entorno.');
 need(runtime.includes('Backtesting queda fuera del Diario Emocional'),'Diario: la exclusión de Backtesting no se comunica en UI.');
 need(structural.includes("case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract?.render?.()||globalThis.TradingResearchJournalViewPresentationContract.render();"),'Diario: Structural Runtime no prioriza la nueva vista V31.29.');
+need(runtime.includes("TradingResearchCurrentViewReadContract?.current?.()==='journal'")&&runtime.includes("setTimeout(()=>{try{window.render?.();}"),'Diario: falta repintado diferido cuando Journal fue restaurado antes de cargar V31.29.');
 need(!runtime.includes('journal=trJournalRender'),'Diario: persiste la reasignación frágil del renderer legacy.');
 need(index.includes('<script src="emotional-journal-runtime.js"></script>'),'Diario: index no carga el runtime.');
 need(build.includes("'emotional-journal-runtime.js'"),'Diario: build no empaqueta el runtime.');

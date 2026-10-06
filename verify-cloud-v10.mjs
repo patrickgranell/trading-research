@@ -6,9 +6,11 @@ const fail=[];
 const need=(c,m)=>{if(!c)fail.push(m);};
 const runtimePath='cloud-v10-runtime.js';
 const sqlPath='supabase/migrations/202609010001_v31_24_cloud_v10.sql';
+const emotionalSqlPath='supabase/migrations/202610060001_v31_29_emotional_journal.sql';
 
 need(fs.existsSync(runtimePath),'G2: falta cloud-v10-runtime.js; la escritura efectiva sigue siendo V9.2 multi-tabla.');
 need(fs.existsSync(sqlPath),'G2: falta migración SQL versionada para apply_trading_workspace().');
+need(fs.existsSync(emotionalSqlPath),'V31.29: falta migración SQL de emotional_journal.');
 
 if(fs.existsSync(runtimePath)){
   const r=fs.readFileSync(runtimePath,'utf8');
@@ -27,6 +29,10 @@ if(fs.existsSync(runtimePath)){
     'G4: Master Library no está representada una sola vez en el bundle cloud V10.');
   need(r.includes('delete clean.__masterLibrary')||r.includes("delete payload.__masterLibrary"),
     'G4: V10 no elimina la copia legacy __masterLibrary de cada plan.');
+  need(r.includes('emotionalJournal:')&&r.includes('emotional_journal'),
+    'V31.29: Cloud V10 no transporta Diario Emocional local/remoto.');
+  need(r.includes("emotionalJournal:ws.emotional_journal"),
+    'V31.29: cloud pull no restaura emotionalJournal.');
 }
 if(fs.existsSync(sqlPath)){
   const sql=fs.readFileSync(sqlPath,'utf8');
@@ -50,6 +56,7 @@ if(fs.existsSync(runtimePath)){
     const state={
       currentPlanId:'P1',
       masterLibrary:{schemaVersion:1,items:[{id:'LIB1',name:'Reusable'}]},
+      emotionalJournal:{schemaVersion:1,sessions:[{id:'S1',environment:'live'}],entries:[],streakEpisodes:[],weeklyReviews:[]},
       tradingPlans:[{id:'P1',name:'Plan',__masterLibrary:{legacy:true}}],
       settings:{instruments:[{id:'I1'}]},
       operations:[{id:'O1'}],
@@ -59,7 +66,7 @@ if(fs.existsSync(runtimePath)){
     const cloudConfig={baseRemoteRevision:'R1',lastPush:'OLD',localDirty:true,localDirtyAt:'now',autoSync:false,syncedImageIds:[]};
     const chain={
       select(){return this;},eq(){return this;},
-      async maybeSingle(){return {data:{user_id:'U1',updated_at:'R1',master_library:state.masterLibrary},error:null};},
+      async maybeSingle(){return {data:{user_id:'U1',updated_at:'R1',master_library:state.masterLibrary,emotional_journal:state.emotionalJournal},error:null};},
       async upsert(){writeFallbacks.push('upsert');throw new Error('V9.2 write fallback used');},
       async insert(){writeFallbacks.push('insert');throw new Error('V9.2 write fallback used');},
       async update(){writeFallbacks.push('update');throw new Error('V9.2 write fallback used');},
@@ -111,6 +118,7 @@ if(fs.existsSync(runtimePath)){
     const {ctx}=makeContext('success');
     const bundle=ctx.__trCloudV10Test.build({id:'U1'});
     need(bundle.masterLibrary?.items?.[0]?.id==='LIB1','G4: bundle V10 perdió la Master Library única.');
+    need(bundle.emotionalJournal?.sessions?.[0]?.id==='S1','V31.29: bundle V10 perdió las sesiones emocionales.');
     need(!JSON.stringify(bundle.plans).includes('__masterLibrary'),'G4: un plan V10 todavía transporta __masterLibrary.');
   }catch(e){fail.push('Cloud V10 bundle fixture: '+e.message);}
 
@@ -131,6 +139,13 @@ if(fs.existsSync(runtimePath)){
   }
 }
 
+if(fs.existsSync(emotionalSqlPath)){
+  const es=fs.readFileSync(emotionalSqlPath,'utf8');
+  need(/add column if not exists emotional_journal jsonb/i.test(es),'V31.29: SQL no añade emotional_journal.');
+  need(es.includes("p_bundle->'emotionalJournal'"),'V31.29: RPC no consume emotionalJournal.');
+  need(/emotional_journal=excluded\.emotional_journal/i.test(es),'V31.29: RPC no actualiza emotional_journal.');
+}
+
 const effectiveV92=app.slice(app.lastIndexOf('cloudPushState=async function'),app.indexOf('\n\ncloudPullState=async function',app.lastIndexOf('cloudPushState=async function')));
 need(effectiveV92.includes('cloudAcquireRevisionLock(')&&effectiveV92.includes("cloudUpsertChunks('trading_operations'"),
   'Fixture histórico G2 cambió: revisar red gate antes de continuar.');
@@ -146,5 +161,5 @@ console.log('Supabase V10 atomic workspace verification OK');
 console.log(' - one RPC owns CAS + all relational writes');
 console.log(' - revision advances only after transaction success');
 console.log(' - required image uploads precede DB commit; Storage GC follows commit');
-console.log(' - Master Library has one cloud representation');
+console.log(' - Master Library + Emotional Journal have one workspace representation');
 console.log(' - RPC unavailable => fail closed, no V9.2 write fallback');

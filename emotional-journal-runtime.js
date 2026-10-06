@@ -2,6 +2,8 @@
 (()=>{
 'use strict';
 
+if(globalThis.__trEmotionalJournalRuntimeInstalled)return;
+globalThis.__trEmotionalJournalRuntimeInstalled=true;
 globalThis.__trEmotionalJournalStage='runtime-entered';
 
 const TR_EMOTIONAL_JOURNAL_VERSION='31.29.0';

@@ -3,7 +3,7 @@ const V3112_APP_LABEL='V31.13 · Structural Foundation II-B · Partial Operation
 const TR_RENDER_RUNTIME_VERSION='31.13';
 const TR_UI_SESSION_KEY='tradingResearchUiSessionV31121';
 const TR_OPERATION_DRAFT_KEY='tradingResearchOperationDraftV31121';
-const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','blocks','reports','market','plans','tpbuilder','config']);
+const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','journalops','blocks','reports','market','plans','tpbuilder','config']);
 let trDraftRestoreAttempted=false;
 let trDraftSaveInProgress=false;
 let trOperationDraftContext=null;
@@ -49,7 +49,12 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'lab': return globalThis.TradingResearchViewPresentationContract.lab();
     case 'review': return globalThis.TradingResearchViewPresentationContract.review();
     case 'gallery': return globalThis.TradingResearchGalleryViewPresentationContract.render();
-    case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract.render();
+    case 'journal':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest'){globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();return globalThis.TradingResearchDashboardViewPresentationContract.render();}
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.render();
+    case 'journalops':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest'){globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();return globalThis.TradingResearchDashboardViewPresentationContract.render();}
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderOperations();
     case 'blocks': return globalThis.TradingResearchBlocksViewPresentationContract.render();
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
     case 'market': return globalThis.TradingResearchViewPresentationContract.market();
@@ -164,6 +169,8 @@ function trRenderSetBadge(host,count,extraClass=''){
   }else if(badge)badge.remove();
 }
 function trRenderSyncSidebar(){
+  const emotionalGroup=document.querySelector('.nav-group[data-nav-group="emotional"]');
+  if(emotionalGroup)emotionalGroup.hidden=globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest';
   if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'){
     const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(globalThis.TradingResearchCurrentViewReadContract.current());
     if(activeGroup&&globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup))globalThis.TradingResearchNavigationStateContract.saveOpenGroups();

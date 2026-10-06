@@ -61,7 +61,7 @@ const replacements=[
   ['app.js','data-tr-build',bundledApp],
   ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledSource('style-attr-runtime.js')],
   ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledSource('reports-purity-runtime.js')],
-  ['structural-runtime.js','data-tr-structural-runtime',bundledSource('structural-runtime.js')],
+  ['structural-runtime.js','data-tr-structural-runtime',bundledSource('emotional-journal-runtime.js')+'\n'+bundledSource('structural-runtime.js')],
   ['state-runtime.js','data-tr-state-runtime',bundledState],
   ['taxonomy-runtime.js','data-tr-taxonomy-runtime',bundledSource('taxonomy-runtime.js')],
   ['emotional-journal-runtime.js','data-tr-emotional-journal-runtime',bundledSource('emotional-journal-runtime.js')],

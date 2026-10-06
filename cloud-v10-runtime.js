@@ -37,6 +37,7 @@ function trCloudV10BuildBundle(user){
     appVersion:TR_CLOUD_V10_APP_VERSION,
     schemaVersion:CLOUD_SCHEMA_VERSION,
     masterLibrary:typeof clone==='function'?clone(masterLibrary):JSON.parse(JSON.stringify(masterLibrary)),
+    emotionalJournal:typeof clone==='function'?clone(state.emotionalJournal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]}):JSON.parse(JSON.stringify(state.emotionalJournal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]})),
     plans:(state.tradingPlans||[]).map(p=>planCloudRow(p,user.id)),
     instruments:(state.settings?.instruments||[]).map(i=>instrumentCloudRow(i,user.id)),
     operations:(state.operations||[]).map(o=>operationCloudRow(o,user.id)),
@@ -93,6 +94,7 @@ cloudLocalFingerprintPayload=function(){
   return {
     currentPlanId:state.currentPlanId||'',
     masterLibrary:typeof clone==='function'?clone(masterLibrary):JSON.parse(JSON.stringify(masterLibrary)),
+    emotionalJournal:typeof clone==='function'?clone(state.emotionalJournal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]}):JSON.parse(JSON.stringify(state.emotionalJournal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]})),
     plans,
     instruments:byId(state.settings?.instruments),
     operations:byId(state.operations),
@@ -103,11 +105,12 @@ cloudLocalFingerprintPayload=function(){
 
 cloudWorkspaceMeta=async function(userId){
   const {data,error}=await cloudClient.from('trading_workspace')
-    .select('user_id,current_plan_id,app_version,schema_version,updated_at,master_library')
+    .select('user_id,current_plan_id,app_version,schema_version,updated_at,master_library,emotional_journal')
     .eq('user_id',userId).maybeSingle();
   if(error){
-    if(String(error.message||'').toLowerCase().includes('master_library')){
-      const e=new Error(CLOUD_V10_RPC_REQUIRED+': falta la migración de master_library en trading_workspace.');
+    const msg=String(error.message||'').toLowerCase();
+    if(msg.includes('master_library')||msg.includes('emotional_journal')){
+      const e=new Error(CLOUD_V10_RPC_REQUIRED+': falta la migración V31.29 de emotional_journal/master_library en trading_workspace.');
       e.code=CLOUD_V10_RPC_REQUIRED;throw e;
     }
     throw new Error('trading_workspace: '+error.message);
@@ -134,6 +137,7 @@ cloudRemoteFingerprintPayload=function(bundle){
   return {
     currentPlanId:bundle.ws?.current_plan_id||'',
     masterLibrary:trCloudV10MasterLibraryFromBundle(bundle)||{schemaVersion:1,items:[]},
+    emotionalJournal:bundle.ws?.emotional_journal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]},
     plans:byPayload(bundle.plans),
     instruments:byPlain(bundle.inst),
     operations:byPlain(bundle.ops),
@@ -303,6 +307,7 @@ cloudPullState=async function(){
       settings:{instruments:inst.map(x=>x.payload)},
       tradingPlans:plans.map(x=>trCloudV10CleanPlanPayload(x.payload)),
       masterLibrary:trCloudV10MasterLibraryFromBundle(bundle)||{schemaVersion:1,items:[]},
+      emotionalJournal:ws.emotional_journal||{schemaVersion:1,sessions:[],entries:[],streakEpisodes:[],weeklyReviews:[]},
       currentPlanId:ws.current_plan_id||plans[0]?.id||''
     };
     state=normalizeState(incoming);
@@ -332,7 +337,7 @@ cloudPullState=async function(){
     cloudSetStatus('Error V10 al cargar: '+trCloudV10LastError,'error');
     alert(
       e?.code===CLOUD_V10_RPC_REQUIRED
-        ? 'La estructura cloud V10 no está instalada todavía. Aplica la migración SQL V31.24.'
+        ? 'La estructura cloud del Diario Emocional no está instalada todavía. Aplica la migración SQL V31.29.'
         : 'No se pudo cargar desde Supabase V10:\n'+trCloudV10LastError
     );
   }finally{
@@ -345,7 +350,7 @@ cloudConfigPanel=function(){
   let html=trCloudV10PanelBase();
   html=html.replace('V9.2 Conflict Guard','V10 Atomic RPC');
   html=html.replace('V9.2 comprobará una revisión remota antes de cada subida.','V10 comprobará una revisión remota y publicará el workspace mediante una única transacción Postgres.');
-  const note='<div class="notice"><strong>Cloud V10:</strong> CAS + planes + contratos + operaciones + lotes + oportunidades + Biblioteca Maestra se publican en una única transacción Postgres. La migración SQL V31.24 debe estar instalada; si falta, la subida se bloquea sin volver a V9.2.</div>';
+  const note='<div class="notice"><strong>Cloud V10:</strong> CAS + planes + contratos + operaciones + lotes + oportunidades + Biblioteca Maestra + Diario Emocional se publican en una única transacción Postgres. La migración SQL V31.29 debe estar instalada; si falta, la subida se bloquea sin fallback.</div>';
   if(!html.includes('Cloud V10:</strong>'))html=html.replace('<section class="card panel config-wide"><div class="panel-title"><div><h3>Qué se guarda</h3>',note+'<section class="card panel config-wide"><div class="panel-title"><div><h3>Qué se guarda</h3>');
   return html;
 };
@@ -368,6 +373,7 @@ window.TradingResearchCloudV10=Object.freeze({
     lastError:trCloudV10LastError,
     writeFallbackV92:false,
     masterLibraryRepresentation:'trading_workspace.master_library',
+    emotionalJournalRepresentation:'trading_workspace.emotional_journal',
     policy:'upload blobs -> atomic RPC -> publish revision -> blob GC'
   })
 });

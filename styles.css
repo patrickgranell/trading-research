@@ -761,6 +761,7 @@ html[data-theme="dark"] .rp-inspector strong{color:var(--text)}
 .nav-organized>button{padding:9px 10px;border-radius:10px;min-height:36px}
 .nav-divider{height:1px;background:var(--border);margin:2px 8px 4px;opacity:.72}
 .nav-group{display:grid;gap:1px;align-self:start}
+.nav-group[hidden]{display:none!important}
 .nav-group-toggle{width:100%;border:0;background:transparent;color:#aab5ca;text-align:left;padding:8px 10px;border-radius:9px;display:flex;align-items:center;gap:8px;font-weight:700;min-height:34px}
 .nav-group-toggle:hover,.nav-group.has-active>.nav-group-toggle{background:rgba(110,168,254,.055);color:var(--text)}
 .nav-group-toggle .icon{width:20px;text-align:center;opacity:.85}

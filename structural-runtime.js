@@ -50,10 +50,10 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'review': return globalThis.TradingResearchViewPresentationContract.review();
     case 'gallery': return globalThis.TradingResearchGalleryViewPresentationContract.render();
     case 'journal':
-      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest'){globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();return globalThis.TradingResearchDashboardViewPresentationContract.render();}
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
       return globalThis.TradingResearchEmotionalJournalPresentationContract.render();
     case 'journalops':
-      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest'){globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();return globalThis.TradingResearchDashboardViewPresentationContract.render();}
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
       return globalThis.TradingResearchEmotionalJournalPresentationContract.renderOperations();
     case 'blocks': return globalThis.TradingResearchBlocksViewPresentationContract.render();
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
@@ -62,7 +62,7 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'tpbuilder': return globalThis.TradingResearchViewPresentationContract.tpbuilder();
     case 'config': return globalThis.TradingResearchConfigViewPresentationContract.render();
     default:
-      console.warn('[Trading Research · router] Vista desconocida:',view);
+      if(view!=='__blocked-emotional__')console.warn('[Trading Research · router] Vista desconocida:',view);
       globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();
       return globalThis.TradingResearchDashboardViewPresentationContract.render();
   }

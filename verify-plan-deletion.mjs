@@ -11,7 +11,8 @@ const seed={
  tradingPlans:[{id:'a',status:'active'},{id:'b',status:'archived'},{id:'c',status:'active'}],currentPlanId:'a',
  operations:[{id:'o1',tradingPlanId:'a',importBatchId:'i1'},{id:'o2',tradingPlanId:'b'},{id:'o3',tradingPlanId:'c'}],
  importBatches:[{id:'i1',tradingPlanId:'a'},{id:'i2',tradingPlanId:'c'}],
- opportunities:[{id:'p1',tradingPlanId:'a'},{id:'p2',tradingPlanId:'c'}]
+ opportunities:[{id:'p1',tradingPlanId:'a'},{id:'p2',tradingPlanId:'c'}],
+ emotionalJournal:{schemaVersion:1,sessions:[{id:'s1',tradingPlanId:'a',tradingPlanSnapshot:{id:'a'}},{id:'s2',tradingPlanId:'c'}],entries:[],streakEpisodes:[],weeklyReviews:[]}
 };
 const clean=x=>JSON.parse(JSON.stringify(x));
 const p=clean(projection(seed,['a']));
@@ -19,6 +20,9 @@ assert.deepEqual(p.next.tradingPlans.map(x=>x.id),['b','c']);
 assert.deepEqual(p.next.operations.map(x=>x.id),['o2','o3']);
 assert.deepEqual(p.next.importBatches.map(x=>x.id),['i2']);
 assert.deepEqual(p.next.opportunities.map(x=>x.id),['p2']);
+assert.equal(p.next.emotionalJournal.sessions.find(x=>x.id==='s1').tradingPlanId,'');
+assert.equal(p.next.emotionalJournal.sessions.find(x=>x.id==='s1').tradingPlanSnapshot.id,'a');
+assert.equal(p.next.emotionalJournal.sessions.find(x=>x.id==='s2').tradingPlanId,'c');
 assert.equal(p.next.currentPlanId,'c');
 assert.deepEqual(p.removedOperations.map(x=>x.id),['o1']);
 assert.throws(()=>projection(seed,['a','b','c']),/al menos un Trading Plan/);

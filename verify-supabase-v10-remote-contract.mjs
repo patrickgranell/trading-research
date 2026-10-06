@@ -2,6 +2,7 @@ import fs from 'node:fs';
 
 const source=fs.readFileSync('verify-supabase-v10-remote.mjs','utf8');
 const migration=fs.readFileSync('supabase/migrations/202609010001_v31_24_cloud_v10.sql','utf8');
+const emotionalMigration=fs.readFileSync('supabase/migrations/202610060001_v31_29_emotional_journal.sql','utf8');
 const migrationDir='supabase/migrations';
 const laterMigrations=fs.readdirSync(migrationDir)
   .filter(name=>name.endsWith('.sql')&&name!=='202609010001_v31_24_cloud_v10.sql')
@@ -36,6 +37,10 @@ need(firstDml>bundleAt,'Migration moved DML before invalid-bundle rejection.');
 need(migration.includes("raise exception 'INVALID_WORKSPACE_BUNDLE';"),'Migration lost INVALID_WORKSPACE_BUNDLE rejection.');
 need(migration.includes('grant execute on function public.apply_trading_workspace(text,jsonb) to authenticated;'),'Migration no longer grants authenticated execution.');
 need(!!aclHardening,'Missing follow-up ACL hardening migration: apply_trading_workspace must revoke EXECUTE from anon + service_role + PUBLIC and re-grant only authenticated.');
+need(/add column if not exists emotional_journal jsonb/i.test(emotionalMigration),'V31.29 migration must add emotional_journal.');
+need(emotionalMigration.includes("p_bundle->'emotionalJournal'"),'V31.29 RPC must consume emotionalJournal.');
+need(/emotional_journal=excluded\.emotional_journal/i.test(emotionalMigration),'V31.29 RPC must update emotional_journal atomically.');
+need(emotionalMigration.includes("raise exception 'INVALID_WORKSPACE_BUNDLE';"),'V31.29 replacement RPC must preserve invalid-bundle rejection.');
 
 if(fail.length){
   console.error('Supabase V10 remote gate contract FAILED');
@@ -48,3 +53,4 @@ console.log(' - HTTP surface: one zero-row GET + one aborting RPC POST');
 console.log(' - migration rejects invalid bundle before lock/DML');
 console.log(' - authenticated execution grant preserved');
 console.log(' - follow-up ACL hardening revokes anon + service_role + PUBLIC');
+console.log(' - V31.29 emotional_journal remains inside the atomic workspace RPC');

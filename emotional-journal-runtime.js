@@ -21,6 +21,7 @@ const trNow=()=>new Date().toISOString();
 const trId=prefix=>`${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,7)}`;
 
 function trNormalizePoint(value={}){
+  const answers=value?.answers&&typeof value.answers==='object'?Object.fromEntries(Object.entries(value.answers).map(([k,v])=>[trText(k),trText(v)]).filter(([k])=>k)):{};
   const out={
     confidencePersonal:TR_CONFIDENCE_LEVELS.includes(value?.confidencePersonal)?value.confidencePersonal:'',
     confidenceSystem:TR_CONFIDENCE_LEVELS.includes(value?.confidenceSystem)?value.confidenceSystem:'',
@@ -29,8 +30,10 @@ function trNormalizePoint(value={}){
     fatigue:TR_TRI_LEVELS.includes(value?.fatigue)?value.fatigue:'',
     emotionalWear:TR_TRI_LEVELS.includes(value?.emotionalWear)?value.emotionalWear:'',
     emotion:trText(value?.emotion),
-    note:trText(value?.note)
+    note:trText(value?.note),
+    answers
   };
+  for(const key of ['confidencePersonal','confidenceSystem','stress','focus','fatigue','emotionalWear','emotion','note'])if(out[key]&&!out.answers[key])out.answers[key]=out[key];
   return out;
 }
 function trOperationLayer(operation){
@@ -68,11 +71,20 @@ function trSessionScales(plan){
   const cfg=plan?.emotionConfig?.sessionScales||{};
   return {confidence:{...TR_CONFIDENCE_LABELS,...(cfg.confidence||{})},tri:{...TR_TRI_LABELS,...(cfg.tri||{})}};
 }
+function trSessionQuestions(plan){
+  const rows=plan?.emotionConfig?.sessionQuestions;
+  return Array.isArray(rows)?rows.filter(q=>q&&trText(q.id)&&trText(q.label)).map(q=>({id:trText(q.id),label:trText(q.label),type:['scale5','scale3','emotion','boolean','text'].includes(q.type)?q.type:'scale3'})):[];
+}
 function trEnsurePlan(plan){
   if(!plan||typeof plan!=='object')return plan;
   plan.emotionConfig=plan.emotionConfig&&typeof plan.emotionConfig==='object'?plan.emotionConfig:{};
   const scales=trSessionScales(plan);
   plan.emotionConfig.sessionScales={confidence:{...scales.confidence},tri:{...scales.tri}};
+  plan.emotionConfig.sessionQuestions=Array.isArray(plan.emotionConfig.sessionQuestions)?plan.emotionConfig.sessionQuestions:[
+    {id:'confidencePersonal',label:'Confianza personal',type:'scale5'},{id:'confidenceSystem',label:'Confianza en el sistema',type:'scale5'},
+    {id:'stress',label:'Estrés',type:'scale3'},{id:'focus',label:'Foco',type:'scale3'},{id:'fatigue',label:'Fatiga',type:'scale3'},
+    {id:'emotionalWear',label:'Desgaste emocional',type:'scale3'},{id:'emotion',label:'Emoción predominante',type:'emotion'},{id:'note',label:'Nota',type:'text'}
+  ];
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   return plan;
@@ -189,31 +201,27 @@ function trSelect(id,label,options,current=''){
   return `<label class="field"><span>${esc(label)}</span><select id="${esc(id)}" class="select"><option value="">Sin informar</option>${options.map(x=>`<option value="${esc(x.value)}" ${x.value===current?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label>`;
 }
 function trPointFields(prefix,point,plan){
-  const scales=trSessionScales(plan);
-  const conf=TR_CONFIDENCE_LEVELS.map(value=>({value,label:scales.confidence[value]||TR_CONFIDENCE_LABELS[value]}));
-  const tri=TR_TRI_LEVELS.map(value=>({value,label:scales.tri[value]||TR_TRI_LABELS[value]}));
-  const emotions=(plan?.emotionConfig?.emotions||[]).map(value=>({value,label:value}));
-  return `${trSelect(prefix+'-confidence-personal','Confianza personal',conf,point.confidencePersonal)}
-    ${trSelect(prefix+'-confidence-system','Confianza en el sistema',conf,point.confidenceSystem)}
-    ${trSelect(prefix+'-stress','Estrés',tri,point.stress)}
-    ${trSelect(prefix+'-focus','Foco',tri,point.focus)}
-    ${trSelect(prefix+'-fatigue','Fatiga',tri,point.fatigue)}
-    ${trSelect(prefix+'-wear','Desgaste emocional',tri,point.emotionalWear)}
-    ${trSelect(prefix+'-emotion','Emoción predominante',emotions,point.emotion)}
-    <label class="field span2"><span>Nota</span><textarea id="${esc(prefix+'-note')}" class="input">${esc(point.note||'')}</textarea></label>`;
+  const scales=trSessionScales(plan),questions=trSessionQuestions(plan);
+  const answer=id=>trText(point?.answers?.[id]??point?.[id]??'');
+  const control=q=>{
+    const id=prefix+'-q-'+q.id,current=answer(q.id);
+    if(q.type==='scale5')return trSelect(id,q.label,TR_CONFIDENCE_LEVELS.map(value=>({value,label:scales.confidence[value]||TR_CONFIDENCE_LABELS[value]})),current);
+    if(q.type==='scale3')return trSelect(id,q.label,TR_TRI_LEVELS.map(value=>({value,label:scales.tri[value]||TR_TRI_LABELS[value]})),current);
+    if(q.type==='emotion')return trSelect(id,q.label,(plan?.emotionConfig?.emotions||[]).map(value=>({value,label:value})),current);
+    if(q.type==='boolean')return trSelect(id,q.label,[{value:'yes',label:'Sí'},{value:'no',label:'No'}],current);
+    return `<label class="field span2"><span>${esc(q.label)}</span><textarea id="${esc(id)}" class="input">${esc(current)}</textarea></label>`;
+  };
+  return questions.length?questions.map(control).join(''):'<div class="empty">No hay variables configuradas para esta sesión.</div>';
 }
-function trReadPoint(prefix){
-  const val=id=>document.getElementById(prefix+'-'+id)?.value||'';
-  return trNormalizePoint({
-    confidencePersonal:val('confidence-personal'),
-    confidenceSystem:val('confidence-system'),
-    stress:val('stress'),
-    focus:val('focus'),
-    fatigue:val('fatigue'),
-    emotionalWear:val('wear'),
-    emotion:val('emotion'),
-    note:document.getElementById(prefix+'-note')?.value||''
-  });
+function trReadPoint(prefix,plan){
+  const answers={};
+  for(const q of trSessionQuestions(plan)){
+    const value=document.getElementById(prefix+'-q-'+q.id)?.value||'';
+    if(value!=='')answers[q.id]=value;
+  }
+  const legacy={answers};
+  for(const key of ['confidencePersonal','confidenceSystem','stress','focus','fatigue','emotionalWear','emotion','note'])if(answers[key])legacy[key]=answers[key];
+  return trNormalizePoint(legacy);
 }
 function trSessionEditor(session=null,phase='start'){
   const plan=getCurrentPlan();if(!plan)return;
@@ -246,11 +254,11 @@ function trSaveSessionStart(id=''){
   const startedAt=trInputIso(document.getElementById('em-session-time')?.value,trNow());
   const now=trNow();
   if(existing){
-    existing.mode=mode;existing.startedAt=startedAt;existing.start=trReadPoint('em-session-point');existing.updatedAt=now;
+    existing.mode=mode;existing.startedAt=startedAt;existing.start=trReadPoint('em-session-point',plan);existing.updatedAt=now;
   }else{
     plan.emotionalSessions.unshift(trNormalizeSession({
       id:trId('ES'),tradingPlanId:plan.id,tradingPlanSnapshot:trPlanSnapshot(plan),mode,startedAt,
-      start:trReadPoint('em-session-point'),end:{},createdAt:now,updatedAt:now
+      start:trReadPoint('em-session-point',plan),end:{},createdAt:now,updatedAt:now
     },plan));
   }
   plan.updatedAt=now;persist();closeModal();render();return true;
@@ -258,7 +266,7 @@ function trSaveSessionStart(id=''){
 function trSaveSessionEnd(id){
   const plan=getCurrentPlan(),session=trSessionById(id,plan);if(!session)return false;
   session.endedAt=trInputIso(document.getElementById('em-session-time')?.value,trNow());
-  session.end=trReadPoint('em-session-point');session.updatedAt=trNow();plan.updatedAt=session.updatedAt;
+  session.end=trReadPoint('em-session-point',plan);session.updatedAt=trNow();plan.updatedAt=session.updatedAt;
   persist();closeModal();render();return true;
 }
 function trDeleteSession(id){
@@ -269,11 +277,19 @@ function trDeleteSession(id){
   plan.emotionalSessions=trSessions(plan).filter(s=>s.id!==id);plan.updatedAt=trNow();trPersistRender();return true;
 }
 function trSessionPointSummary(point,plan){
-  const scales=trSessionScales(plan),bits=[];
-  if(point?.confidencePersonal)bits.push('Personal '+(scales.confidence[point.confidencePersonal]||TR_CONFIDENCE_LABELS[point.confidencePersonal]));
-  if(point?.confidenceSystem)bits.push('Sistema '+(scales.confidence[point.confidenceSystem]||TR_CONFIDENCE_LABELS[point.confidenceSystem]));
-  if(point?.stress)bits.push('Estrés '+(scales.tri[point.stress]||TR_TRI_LABELS[point.stress]));
-  if(point?.emotionalWear)bits.push('Desgaste '+(scales.tri[point.emotionalWear]||TR_TRI_LABELS[point.emotionalWear]));
+  const scales=trSessionScales(plan),answers=point?.answers||{},bits=[];
+  const display=(q,value)=>{
+    if(q.type==='scale5')return scales.confidence[value]||TR_CONFIDENCE_LABELS[value]||value;
+    if(q.type==='scale3')return scales.tri[value]||TR_TRI_LABELS[value]||value;
+    if(q.type==='boolean')return value==='yes'?'Sí':value==='no'?'No':value;
+    return value;
+  };
+  for(const q of trSessionQuestions(plan)){
+    const value=trText(answers[q.id]??point?.[q.id]??'');
+    if(!value||q.type==='text')continue;
+    bits.push(q.label+' '+display(q,value));
+    if(bits.length>=4)break;
+  }
   return bits.join(' · ')||'Sin valoración';
 }
 function trSessionsPanel(plan){

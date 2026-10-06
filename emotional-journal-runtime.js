@@ -394,12 +394,19 @@ function trJournalNotesRender(){
   }
   rows.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
   const operationCount=rows.filter(x=>x.kind==='operation').length,sessionCount=rows.filter(x=>x.kind==='session').length;
-  const feed=rows.length?rows.map(row=>`<article class="compliance-rule-card"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${row.kind==='operation'?'Operación':'Sesión'}</span><span class="badge">${esc(row.title)}</span></div><strong>${esc(fmtDate(row.at))} · ${esc(row.context)}</strong><p><b>${esc(row.label)}:</b><br>${esc(row.text)}</p></div><div class="compliance-rule-actions">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</div></article>`).join(''):'<div class="empty">Todavía no hay notas emocionales escritas.</div>';
+  const feed=rows.length?rows.map(row=>`<article class="emotional-note-card">
+    <header class="emotional-note-head">
+      <div class="emotional-note-meta"><span class="emotional-note-kind">${row.kind==='operation'?'Operación':'Sesión'}</span><span>${esc(row.title)}</span><span>·</span><time>${esc(fmtDate(row.at))}</time></div>
+      <div class="emotional-note-context">${esc(row.context)}</div>
+    </header>
+    <div class="emotional-note-body"><div class="emotional-note-label">${esc(row.label)}</div><div class="emotional-note-text">${esc(row.text)}</div></div>
+    <footer class="emotional-note-foot">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</footer>
+  </article>`).join(''):'<div class="empty">Todavía no hay notas emocionales escritas.</div>';
   return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional de sesiones y operaciones, separado de los apuntes técnicos.', '')}
     ${activePlanBanner()}
-    <div class="notice">Aquí solo aparecen textos escritos dentro del Diario emocional. <strong>Las notas técnicas de Operaciones, setups o mercado no se mezclan en esta vista.</strong></div>
-    <div class="journal-kpis">${kpi('Notas emocionales',rows.length,'total')}${kpi('De sesiones',sessionCount,'inicio y cierre')}${kpi('De operaciones',operationCount,'diario por trade')}</div>
-    <section class="card panel"><div class="panel-title"><div><h3>Historial de notas emocionales</h3><small>Orden cronológico, de más reciente a más antigua.</small></div><span>${rows.length} nota(s)</span></div>${feed}</section>`;
+    <div class="emotional-notes-scope">Solo texto del Diario emocional. Las notas técnicas de Operaciones, setups o mercado quedan fuera.</div>
+    <div class="emotional-notes-summary"><span><strong>${rows.length}</strong> notas</span><span><strong>${sessionCount}</strong> de sesiones</span><span><strong>${operationCount}</strong> de operaciones</span></div>
+    <section class="card panel emotional-notes-panel"><div class="panel-title emotional-notes-title"><div><h3>Historial de notas emocionales</h3><small>De más reciente a más antigua.</small></div></div><div class="emotional-notes-feed">${feed}</div></section>`;
 }
 
 if(typeof dqCoverageDefs==='function'){

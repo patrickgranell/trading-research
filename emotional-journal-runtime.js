@@ -126,6 +126,7 @@ globalThis.__trEmotionalJournalStage='presentation-published';
 if(typeof state==='undefined'||typeof document==='undefined')return;
 
 /* Register actions only after the presentation contract is guaranteed to exist. */
+const trNotesFilter={planId:'',period:'all',value:'',kind:'all',query:''};
 const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
 trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
 trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};
@@ -135,6 +136,17 @@ trEarlyActions.emotionalSessionSaveStart=function(){return trSaveSessionStart(St
 trEarlyActions.emotionalSessionSaveEnd=function(){return trSaveSessionEnd(String(this.dataset.sessionId||''));};
 trEarlyActions.emotionalSessionDelete=function(){return trDeleteSession(String(this.dataset.sessionId||''));};
 trEarlyActions.emotionalOpenOperation=function(){return openEmotionalEditor(String(this.dataset.operationId||''));};
+trEarlyActions.emotionalNotesFilterChange=function(){
+  const key=String(this.dataset.notesKey||''),value=String(this.value||'');
+  if(key==='period'){trNotesFilter.period=value||'all';trNotesFilter.value='';}
+  else if(key==='value')trNotesFilter.value=value;
+  else if(key==='kind')trNotesFilter.kind=value||'all';
+  else if(key==='query')trNotesFilter.query=value;
+  render();
+};
+trEarlyActions.emotionalNotesFilterReset=function(){
+  trNotesFilter.period='all';trNotesFilter.value='';trNotesFilter.kind='all';trNotesFilter.query='';render();
+};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -366,11 +378,12 @@ function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
   trEnsurePlan(plan);
-  const rows=[];
+  if(trNotesFilter.planId!==plan.id){trNotesFilter.planId=plan.id;trNotesFilter.period='all';trNotesFilter.value='';trNotesFilter.kind='all';trNotesFilter.query='';}
+  const allRows=[];
   for(const o of trEligibleOperations(currentOps())){
     const note=trText(o?.emotional?.notes);
     if(!note)continue;
-    rows.push({
+    allRows.push({
       kind:'operation',at:o.entryDate||o.emotional?.updatedAt||'',title:'Operación',
       context:[o.contract,o.direction,o.setup].filter(Boolean).join(' · ')||'Operación sin contexto',
       label:'Nota emocional de la operación',text:note,operationId:o.id
@@ -384,7 +397,7 @@ function trJournalNotesRender(){
       for(const [id,label] of textQuestions){
         const note=trText(answers[id]??point?.[id]??'');
         if(!note)continue;
-        rows.push({
+        allRows.push({
           kind:'session',at,title:'Sesión · '+phase,
           context:(TR_SESSION_MODE_LABELS[session.mode]||session.mode)+' · '+label,
           label,text:note,sessionId:session.id,phase:phase.toLowerCase()
@@ -392,8 +405,30 @@ function trJournalNotesRender(){
       }
     }
   }
-  rows.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+  const localDay=at=>{const d=new Date(at);if(Number.isNaN(d.getTime()))return String(at||'').slice(0,10);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+  const localWeek=at=>{const d=new Date(at);if(Number.isNaN(d.getTime()))return '';const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day+3);const first=new Date(x.getFullYear(),0,4);const firstDay=(first.getDay()+6)%7;first.setDate(first.getDate()-firstDay+3);const week=1+Math.round((x-first)/604800000);return x.getFullYear()+'-W'+String(week).padStart(2,'0');};
+  const q=trNotesFilter.query.trim().toLowerCase();
+  const rows=allRows.filter(row=>{
+    if(trNotesFilter.kind!=='all'&&row.kind!==trNotesFilter.kind)return false;
+    if(trNotesFilter.period==='day'&&trNotesFilter.value&&localDay(row.at)!==trNotesFilter.value)return false;
+    if(trNotesFilter.period==='week'&&trNotesFilter.value&&localWeek(row.at)!==trNotesFilter.value)return false;
+    if(q&&!([row.text,row.context,row.label,row.title].join(' ').toLowerCase().includes(q)))return false;
+    return true;
+  }).sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
   const operationCount=rows.filter(x=>x.kind==='operation').length,sessionCount=rows.filter(x=>x.kind==='session').length;
+  const periodControl=trNotesFilter.period==='day'
+    ?`<label class="filter-field"><span>Día</span><input class="input" type="date" value="${esc(trNotesFilter.value)}" data-notes-key="value" data-tr-action-change="emotionalNotesFilterChange"></label>`
+    :trNotesFilter.period==='week'
+      ?`<label class="filter-field"><span>Semana</span><input class="input" type="week" value="${esc(trNotesFilter.value)}" data-notes-key="value" data-tr-action-change="emotionalNotesFilterChange"></label>`
+      :'';
+  const filterActive=trNotesFilter.period!=='all'||trNotesFilter.kind!=='all'||!!trNotesFilter.query.trim();
+  const filterBar=`<div class="emotional-notes-filter">
+    <label class="filter-field"><span>Periodo</span><select class="select" data-notes-key="period" data-tr-action-change="emotionalNotesFilterChange"><option value="all" ${trNotesFilter.period==='all'?'selected':''}>Todo</option><option value="day" ${trNotesFilter.period==='day'?'selected':''}>Día concreto</option><option value="week" ${trNotesFilter.period==='week'?'selected':''}>Semana concreta</option></select></label>
+    ${periodControl}
+    <label class="filter-field"><span>Origen</span><select class="select" data-notes-key="kind" data-tr-action-change="emotionalNotesFilterChange"><option value="all" ${trNotesFilter.kind==='all'?'selected':''}>Todos</option><option value="session" ${trNotesFilter.kind==='session'?'selected':''}>Sesiones</option><option value="operation" ${trNotesFilter.kind==='operation'?'selected':''}>Operaciones</option></select></label>
+    <label class="filter-field emotional-notes-search"><span>Buscar en notas</span><input class="input" value="${esc(trNotesFilter.query)}" placeholder="Texto, contexto, contrato…" data-notes-key="query" data-tr-action-change="emotionalNotesFilterChange"></label>
+    <button class="btn small" data-tr-action-click="emotionalNotesFilterReset" ${filterActive?'':'disabled'}>Limpiar</button>
+  </div>`;
   const feed=rows.length?rows.map(row=>`<article class="emotional-note-card">
     <header class="emotional-note-head">
       <div class="emotional-note-meta"><span class="emotional-note-kind">${row.kind==='operation'?'Operación':'Sesión'}</span><span>${esc(row.title)}</span><span>·</span><time>${esc(fmtDate(row.at))}</time></div>
@@ -401,11 +436,12 @@ function trJournalNotesRender(){
     </header>
     <div class="emotional-note-body"><div class="emotional-note-label">${esc(row.label)}</div><div class="emotional-note-text">${esc(row.text)}</div></div>
     <footer class="emotional-note-foot">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</footer>
-  </article>`).join(''):'<div class="empty">Todavía no hay notas emocionales escritas.</div>';
+  </article>`).join(''):'<div class="empty">No hay notas emocionales que coincidan con estos filtros.</div>';
   return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional de sesiones y operaciones, separado de los apuntes técnicos.', '')}
     ${activePlanBanner()}
     <div class="emotional-notes-scope">Solo texto del Diario emocional. Las notas técnicas de Operaciones, setups o mercado quedan fuera.</div>
-    <div class="emotional-notes-summary"><span><strong>${rows.length}</strong> notas</span><span><strong>${sessionCount}</strong> de sesiones</span><span><strong>${operationCount}</strong> de operaciones</span></div>
+    ${filterBar}
+    <div class="emotional-notes-summary"><span><strong>${rows.length}</strong> ${filterActive?'de '+allRows.length+' ':''}notas</span><span><strong>${sessionCount}</strong> de sesiones</span><span><strong>${operationCount}</strong> de operaciones</span></div>
     <section class="card panel emotional-notes-panel"><div class="panel-title emotional-notes-title"><div><h3>Historial de notas emocionales</h3><small>De más reciente a más antigua.</small></div></div><div class="emotional-notes-feed">${feed}</div></section>`;
 }
 

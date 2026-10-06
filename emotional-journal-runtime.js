@@ -105,6 +105,15 @@ function trEnsurePlan(plan){
     {id:'stress',label:'Estrés',type:'scale3'},{id:'focus',label:'Foco',type:'scale3'},{id:'fatigue',label:'Fatiga',type:'scale3'},
     {id:'emotionalWear',label:'Desgaste emocional',type:'scale3'},{id:'emotion',label:'Emoción predominante',type:'emotion'},{id:'note',label:'Nota',type:'text'}
   ];
+  const confidenceCore=[
+    {id:'confidencePersonal',label:'Confianza personal',type:'scale5'},
+    {id:'confidenceSystem',label:'Confianza en el sistema',type:'scale5'}
+  ];
+  for(let i=confidenceCore.length-1;i>=0;i--){
+    const core=confidenceCore[i],existing=plan.emotionConfig.sessionQuestions.find(q=>q?.id===core.id);
+    if(existing){existing.label=core.label;existing.type=core.type;}
+    else plan.emotionConfig.sessionQuestions.unshift({...core});
+  }
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
@@ -206,6 +215,57 @@ function trEnsureAll(){
 }
 trEnsureAll();
 try{addEventListener('tradingresearch:core-hydrated',()=>trEnsureAll());}catch{}
+
+/* Confidence personal/system are schema-level dimensions because the Confidence view
+ * consumes their stable IDs. Only these two variables are locked; every other
+ * emotional/session variable remains user-configurable. */
+const TR_LOCKED_CONFIDENCE_QUESTIONS=Object.freeze({
+  confidencePersonal:Object.freeze({label:'Confianza personal',type:'scale5'}),
+  confidenceSystem:Object.freeze({label:'Confianza en el sistema',type:'scale5'})
+});
+function trConfidenceQuestionLocked(question){return !!TR_LOCKED_CONFIDENCE_QUESTIONS[trText(question?.id)];}
+if(typeof emotionConfigPanel==='function'){
+  const baseEmotionConfigPanel=emotionConfigPanel;
+  emotionConfigPanel=function(plan){
+    let html=baseEmotionConfigPanel(plan);
+    const questions=Array.isArray(plan?.emotionConfig?.sessionQuestions)?plan.emotionConfig.sessionQuestions:[];
+    questions.forEach((question,index)=>{
+      if(!trConfidenceQuestionLocked(question))return;
+      const inputNeedle=`id="emotion-session-question-label-${index}" class="input"`;
+      const selectNeedle=`id="emotion-session-question-type-${index}" class="select"`;
+      const removeNeedle=`<button class="btn small danger" data-tr-onclick="removeEmotionConfig('sessionQuestions',${index})">Eliminar</button>`;
+      html=html.replace(inputNeedle,`id="emotion-session-question-label-${index}" class="input confidence-taxonomy-locked" readonly aria-readonly="true"`);
+      html=html.replace(selectNeedle,`id="emotion-session-question-type-${index}" class="select confidence-taxonomy-locked" disabled aria-disabled="true"`);
+      html=html.replace(removeNeedle,`<div class="confidence-taxonomy-lock" title="Variable base usada por el apartado Confianza">Bloqueada</div>`);
+    });
+    return html;
+  };
+}
+if(typeof removeEmotionConfig==='function'){
+  const baseRemoveEmotionConfig=removeEmotionConfig;
+  removeEmotionConfig=function(type,index){
+    const plan=getCurrentPlan?.();
+    if(type==='sessionQuestions'&&trConfidenceQuestionLocked(plan?.emotionConfig?.sessionQuestions?.[index]))return false;
+    return baseRemoveEmotionConfig(type,index);
+  };
+}
+if(typeof addEmotionConfig==='function'){
+  const baseAddEmotionConfig=addEmotionConfig;
+  addEmotionConfig=function(type){
+    const plan=getCurrentPlan?.();
+    if(type==='sessionQuestionsSave'&&plan){
+      for(const question of plan.emotionConfig?.sessionQuestions||[]){
+        const core=TR_LOCKED_CONFIDENCE_QUESTIONS[question?.id];
+        if(!core)continue;
+        const label=document.getElementById(`emotion-session-question-label-${plan.emotionConfig.sessionQuestions.indexOf(question)}`);
+        const response=document.getElementById(`emotion-session-question-type-${plan.emotionConfig.sessionQuestions.indexOf(question)}`);
+        if(label)label.value=core.label;
+        if(response)response.value=core.type;
+      }
+    }
+    return baseAddEmotionConfig(type);
+  };
+}
 
 if(typeof makeBlankPlan==='function'){
   const baseMakeBlankPlan=makeBlankPlan;

@@ -343,7 +343,6 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
   return baseSaveEmotionalEditor(id);
 };
 
-journal=trJournalRender;
 Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:trJournalRender}),writable:false,enumerable:false,configurable:false});
 
 const actions=window.TradingResearchActions||(window.TradingResearchActions={});

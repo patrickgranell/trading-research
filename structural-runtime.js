@@ -49,7 +49,7 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'lab': return globalThis.TradingResearchViewPresentationContract.lab();
     case 'review': return globalThis.TradingResearchViewPresentationContract.review();
     case 'gallery': return globalThis.TradingResearchGalleryViewPresentationContract.render();
-    case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract?.render?.()||globalThis.TradingResearchJournalViewPresentationContract.render();
+    case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();
     case 'blocks': return globalThis.TradingResearchBlocksViewPresentationContract.render();
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
     case 'market': return globalThis.TradingResearchViewPresentationContract.market();

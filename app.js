@@ -7038,7 +7038,8 @@ const V318_NAV_GROUPS=[
   ]},
   {id:'emotional',label:'Diario emocional',icon:'♡',items:[
     ['journal','◌','Sesiones'],
-    ['journalops','▤','Registro por operación']
+    ['journalops','▤','Registro por operación'],
+    ['journalnotes','✎','Notas emocionales']
   ]},
   {id:'research',label:'Investigación',icon:'⌾',items:[
     ['decision','⌾','Centro Research'],

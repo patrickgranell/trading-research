@@ -52,7 +52,7 @@ need(finalAudit.includes("taxonomy-runtime"),
   'Final Audit second-pass no incluye taxonomy-runtime.js.');
 need(finalAudit.includes("persistence-coalescing-runtime"),
   'Final Audit second-pass no incluye persistence-coalescing-runtime.js.');
-need(/finalScriptBlocks\.length\)===18|finalScriptBlocks\.length===18/.test(finalAudit),
+need(/finalScriptBlocks\.length\)===19|finalScriptBlocks\.length===19/.test(finalAudit),
   'Final Audit debe afirmar explícitamente cobertura 19/19 de scripts propios antes del second-pass.');
 
 need(!renderClosure.includes('dynamicSlots===4'),

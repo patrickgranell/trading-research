@@ -8,7 +8,7 @@ const index=fs.readFileSync('index.html','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const runtime=fs.existsSync('backup-v2-runtime.js')?fs.readFileSync('backup-v2-runtime.js','utf8'):'';
 
-need(pkg.version==='31.28.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.29.0',`Versión inesperada ${pkg.version}`);
 need(runtime.length>0,'Falta backup-v2-runtime.js.');
 need(index.includes('<script src="backup-v2-runtime.js"></script>'),'index.html no carga Backup V2 Runtime.');
 need(index.indexOf('backup-v2-runtime.js')>index.indexOf('persistence-coalescing-runtime.js'),'Backup V2 debe cargar después de persistencia/DomainStore.');
@@ -26,6 +26,8 @@ need(!/if\s*\(!blob\)\s*continue/.test(runtime),'Backup V2 vuelve a omitir blobs
 
 need(runtime.includes('manifest')&&runtime.includes('hashes')&&runtime.includes('counts')&&runtime.includes('expectedImageIds'),
   'Manifest V2 incompleto: faltan conteos/hashes/referencias esperadas.');
+need(runtime.includes('emotionalSessions:workspace?.emotionalJournal?.sessions?.length||0'),'Backup V2 no certifica el número de sesiones emocionales.');
+need(runtime.includes('Manifest count emotionalSessions no coincide'),'Restore V2 no verifica las sesiones emocionales del manifest.');
 need(runtime.includes('async function trBackupV2Preflight('),'Falta preflight de restore.');
 need(runtime.includes('trBackupV2ValidateRelationships'),'Falta validación de relaciones antes de mutar stores.');
 need(runtime.includes('TR_BACKUP_V2_JOURNAL_ID'),'Falta restore journal durable.');

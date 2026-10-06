@@ -119,7 +119,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderNotes:()=>trJournalNotesRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -362,6 +362,46 @@ function trJournalOperationsRender(){
     <div class="grid two journal-charts"><section class="card panel"><div class="panel-title"><h3>Resultados por emoción</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'emotion')}</section><section class="card panel"><div class="panel-title"><h3>Resultados por comportamiento</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'behavior')}</section></div>
     <section class="card panel"><div class="panel-title"><div><h3>Operaciones + diario</h3><small>Antes · Durante · Final. Backtesting no participa en este diario.</small></div><span>${ops.length} visibles</span></div>${trOperationTable(ops)}</section>`;
 }
+function trJournalNotesRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const rows=[];
+  for(const o of trEligibleOperations(currentOps())){
+    const note=trText(o?.emotional?.notes);
+    if(!note)continue;
+    rows.push({
+      kind:'operation',at:o.entryDate||o.emotional?.updatedAt||'',title:'Operación',
+      context:[o.contract,o.direction,o.setup].filter(Boolean).join(' · ')||'Operación sin contexto',
+      label:'Nota emocional de la operación',text:note,operationId:o.id
+    });
+  }
+  const textQuestions=new Map(trSessionQuestions(plan).filter(q=>q.type==='text').map(q=>[q.id,q.label]));
+  for(const session of trSessions(plan)){
+    for(const [phase,point,at] of [['Inicio',session.start,session.startedAt],['Cierre',session.end,session.endedAt]]){
+      if(!point||!at)continue;
+      const answers=point.answers||{};
+      for(const [id,label] of textQuestions){
+        const note=trText(answers[id]??point?.[id]??'');
+        if(!note)continue;
+        rows.push({
+          kind:'session',at,title:'Sesión · '+phase,
+          context:(TR_SESSION_MODE_LABELS[session.mode]||session.mode)+' · '+label,
+          label,text:note,sessionId:session.id,phase:phase.toLowerCase()
+        });
+      }
+    }
+  }
+  rows.sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+  const operationCount=rows.filter(x=>x.kind==='operation').length,sessionCount=rows.filter(x=>x.kind==='session').length;
+  const feed=rows.length?rows.map(row=>`<article class="compliance-rule-card"><div class="compliance-rule-main"><div class="compliance-rule-tags"><span class="badge">${row.kind==='operation'?'Operación':'Sesión'}</span><span class="badge">${esc(row.title)}</span></div><strong>${esc(fmtDate(row.at))} · ${esc(row.context)}</strong><p><b>${esc(row.label)}:</b><br>${esc(row.text)}</p></div><div class="compliance-rule-actions">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</div></article>`).join(''):'<div class="empty">Todavía no hay notas emocionales escritas.</div>';
+  return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional de sesiones y operaciones, separado de los apuntes técnicos.', '')}
+    ${activePlanBanner()}
+    <div class="notice">Aquí solo aparecen textos escritos dentro del Diario emocional. <strong>Las notas técnicas de Operaciones, setups o mercado no se mezclan en esta vista.</strong></div>
+    <div class="journal-kpis">${kpi('Notas emocionales',rows.length,'total')}${kpi('De sesiones',sessionCount,'inicio y cierre')}${kpi('De operaciones',operationCount,'diario por trade')}</div>
+    <section class="card panel"><div class="panel-title"><div><h3>Historial de notas emocionales</h3><small>Orden cronológico, de más reciente a más antigua.</small></div><span>${rows.length} nota(s)</span></div>${feed}</section>`;
+}
+
 if(typeof dqCoverageDefs==='function'){
   const baseDqCoverageDefs=dqCoverageDefs;
   dqCoverageDefs=function(ops){
@@ -418,7 +458,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journal','journalops','journalnotes'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

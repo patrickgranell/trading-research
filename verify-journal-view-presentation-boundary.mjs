@@ -94,8 +94,8 @@ need(structural.includes("case 'journal': return globalThis.TradingResearchEmoti
 need(!structural.includes("case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();"),
   'El router del Diario conserva una ruta legacy silenciosa.');
 const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));
-need(consumers.length===1&&consumers[0]==='structural-runtime.js',
-  `Consumidores de ${CONTRACT} inesperados: ${consumers.join(', ')||'ninguno'}.`);
+need(consumers.length===0,
+  `El contrato legacy ${CONTRACT} todavía tiene consumidores runtime: ${consumers.join(', ')||'ninguno'}.`);
 need(structural.includes('TradingResearchEmotionalJournalPresentationContract'),
   'Structural Runtime no consume el contrato V31.29 del Diario Emocional.');
 

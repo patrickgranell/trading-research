@@ -98,7 +98,8 @@ async function trBackupV2CreateManifest(workspace,images,marketData,extra={}){
       images:(images||[]).length,
       marketMeta:marketData?.marketMeta?.length||0,
       marketTicks:marketData?.marketTicks?.length||0,
-      execSets:marketData?.execSets?.length||0
+      execSets:marketData?.execSets?.length||0,
+      emotionalSessions:workspace?.emotionalJournal?.sessions?.length||0
     },
     expectedImageIds:rel.expectedImageIds,
     marketDatasetIds:rel.marketDatasetIds,
@@ -143,7 +144,7 @@ async function trBackupV2ExportFullBackup(){
   try{
     const payload=await trBackupV2BuildPayload();trBackupV2DownloadPayload(payload);
     const c=payload.manifest.counts;
-    alert(`Copia completa V2 creada.\nPlanes: ${c.plans}\nOperaciones: ${c.operations}\nImágenes: ${c.images}/${c.imageReferences}\nMarket Data: ${c.marketMeta} histórico(s), ${c.execSets} Grid(s)`);
+    alert(`Copia completa V2 creada.\nPlanes: ${c.plans}\nOperaciones: ${c.operations}\nSesiones emocionales: ${c.emotionalSessions||0}\nImágenes: ${c.images}/${c.imageReferences}\nMarket Data: ${c.marketMeta} histórico(s), ${c.execSets} Grid(s)`);
   }catch(e){alert('No se pudo crear la copia completa V2: '+(e?.message||String(e)));}
 }
 
@@ -186,6 +187,8 @@ async function trBackupV2Preflight(rawInput){
     marketMeta:marketData.marketMeta.length,marketTicks:marketData.marketTicks.length,execSets:marketData.execSets.length
   };
   for(const [k,v] of Object.entries(actual))if(Number(counts[k])!==Number(v))throw new Error(`Manifest count ${k} no coincide (${counts[k]} != ${v}).`);
+  const emotionalSessions=raw.workspace?.emotionalJournal?.sessions?.length||0;
+  if(counts.emotionalSessions!==undefined&&Number(counts.emotionalSessions)!==Number(emotionalSessions))throw new Error(`Manifest count emotionalSessions no coincide (${counts.emotionalSessions} != ${emotionalSessions}).`);
   if(JSON.stringify(trBackupV2SortedUnique(raw.manifest.expectedImageIds))!==JSON.stringify(rel.expectedImageIds))throw new Error('Manifest expectedImageIds no coincide con el workspace.');
 
   const hashes=raw.manifest.hashes||{};

@@ -142,7 +142,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -151,7 +151,13 @@ globalThis.__trEmotionalJournalStage='presentation-published';
 try{
   if(typeof V318_NAV_GROUPS!=='undefined'){
     const group=V318_NAV_GROUPS.find(x=>x?.id==='emotional');
-    if(group&&!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
+    if(group){
+      if(!group.items.some(x=>x?.[0]==='journalconfidence')){
+        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
+        group.items.splice(notesIndex>=0?notesIndex:group.items.length,0,['journalconfidence','◇','Confianza']);
+      }
+      if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
+    }
   }
 }catch{}
 
@@ -450,6 +456,67 @@ function trJournalOperationsRender(){
     <div class="grid two journal-charts"><section class="card panel"><div class="panel-title"><h3>Resultados por emoción</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'emotion')}</section><section class="card panel"><div class="panel-title"><h3>Resultados por comportamiento</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'behavior')}</section></div>
     <section class="card panel"><div class="panel-title"><div><h3>Operaciones + diario</h3><small>Antes · Durante · Final. Backtesting no participa en este diario.</small></div><span>${ops.length} visibles</span></div>${trOperationTable(ops)}</section>`;
 }
+function trConfidenceValue(value){const i=TR_CONFIDENCE_LEVELS.indexOf(value);return i>=0?i+1:null;}
+function trConfidenceLabel(value,plan){if(!value)return 'Sin informar';return trSessionScales(plan).confidence[value]||TR_CONFIDENCE_LABELS[value]||value;}
+function trConfidenceDisplay(start,end,plan){
+  const a=trConfidenceLabel(start,plan),b=trConfidenceLabel(end,plan);
+  if(start&&end)return a===b?a:`${a} → ${b}`;
+  return end?b:start?a:'Sin informar';
+}
+function trConfidenceLatestPoint(session){
+  const end=session?.end||{},start=session?.start||{};
+  const endHas=!!(end.confidencePersonal||end.confidenceSystem);
+  return endHas?{point:end,phase:'cierre',at:session.endedAt||session.startedAt}:{point:start,phase:'inicio',at:session.startedAt};
+}
+function trConfidenceReading(personal,system){
+  const p=trConfidenceValue(personal),s=trConfidenceValue(system);
+  if(p===null&&s===null)return {title:'Sin lectura todavía',text:'Registra confianza personal y confianza en el sistema en una sesión para empezar a construir el historial.'};
+  if(p===null||s===null)return {title:'Datos parciales',text:'Hay una de las dos confianzas sin informar; se conserva como dato desconocido.'};
+  if(p<=2&&s>=3)return {title:'Confianza personal por debajo del sistema',text:'La confianza en el sistema se mantiene por encima de tu confianza personal. La separación queda registrada sin asumir que exista un problema de ejecución.'};
+  if(s<=2&&p>=3)return {title:'Confianza en el sistema por debajo de la personal',text:'Tu confianza personal se mantiene por encima de la confianza que declaras en el sistema.'};
+  if(p<=2&&s<=2)return {title:'Confianza baja en ambas',text:'La última lectura sitúa bajas tanto la confianza personal como la confianza en el sistema.'};
+  if(p>=4&&s>=4)return {title:'Confianza alta en ambas',text:'La última lectura sitúa altas tanto la confianza personal como la confianza en el sistema.'};
+  const gap=p-s;
+  if(Math.abs(gap)>=2)return {title:'Brecha relevante entre ambas',text:gap>0?'La confianza personal está claramente por encima de la confianza en el sistema.':'La confianza en el sistema está claramente por encima de tu confianza personal.'};
+  return {title:'Confianza relativamente equilibrada',text:'La última lectura mantiene ambas dimensiones próximas entre sí.'};
+}
+function trJournalConfidenceRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const sessions=trSessions(plan).slice().sort((a,b)=>String(b.startedAt||'').localeCompare(String(a.startedAt||'')));
+  const rows=sessions.filter(s=>s?.start?.confidencePersonal||s?.start?.confidenceSystem||s?.end?.confidencePersonal||s?.end?.confidenceSystem);
+  const latest=rows.length?trConfidenceLatestPoint(rows[0]):{point:{},phase:'',at:''};
+  const personal=latest.point?.confidencePersonal||'',system=latest.point?.confidenceSystem||'';
+  const reading=trConfidenceReading(personal,system);
+  const pValue=trConfidenceValue(personal),sValue=trConfidenceValue(system);
+  const gap=(pValue!==null&&sValue!==null)?pValue-sValue:null;
+  const gapText=gap===null?'—':gap===0?'Sin brecha':gap>0?`Personal +${gap}`:`Sistema +${Math.abs(gap)}`;
+  const feed=rows.length?rows.map(session=>{
+    const last=trConfidenceLatestPoint(session),lastPersonal=last.point?.confidencePersonal||'',lastSystem=last.point?.confidenceSystem||'';
+    const state=trConfidenceReading(lastPersonal,lastSystem);
+    const operations=trSessionOperationCount(session.id);
+    return `<article class="confidence-session-card">
+      <header class="confidence-session-head"><div><strong>${esc(fmtDate(session.startedAt))}</strong><span>${esc(TR_SESSION_MODE_LABELS[session.mode]||session.mode)}</span></div><span>${operations} ${operations===1?'operación':'operaciones'}</span></header>
+      <div class="confidence-session-grid">
+        <div><span>Confianza personal</span><strong>${esc(trConfidenceDisplay(session.start?.confidencePersonal,session.end?.confidencePersonal,plan))}</strong></div>
+        <div><span>Confianza en el sistema</span><strong>${esc(trConfidenceDisplay(session.start?.confidenceSystem,session.end?.confidenceSystem,plan))}</strong></div>
+      </div>
+      <footer><span>${esc(state.title)}</span><button class="btn small" data-session-id="${esc(session.id)}" data-tr-action-click="${session.endedAt?'emotionalSessionEditEnd':'emotionalSessionEditStart'}">Abrir sesión</button></footer>
+    </article>`;
+  }).join(''):'<div class="empty">Todavía no hay sesiones con datos de confianza.</div>';
+  return `${pageHead('Diario emocional · Confianza','Seguimiento de la confianza personal y de la confianza en el sistema a partir de las sesiones ya registradas.','')}
+    ${activePlanBanner()}
+    <div class="confidence-kpis">
+      ${kpi('Confianza personal',trConfidenceLabel(personal,plan),latest.at?`${latest.phase} · ${fmtDate(latest.at)}`:'sin datos')}
+      ${kpi('Confianza en el sistema',trConfidenceLabel(system,plan),latest.at?`${latest.phase} · ${fmtDate(latest.at)}`:'sin datos')}
+      ${kpi('Brecha actual',gapText,'personal vs sistema')}
+      ${kpi('Sesiones con confianza',rows.length,`${sessions.length} sesiones totales`)}
+    </div>
+    <section class="card panel confidence-reading"><div class="panel-title"><div><h3>Lectura actual</h3><small>No diagnostica ni prescribe; organiza lo que ya has registrado.</small></div></div><strong>${esc(reading.title)}</strong><p>${esc(reading.text)}</p></section>
+    <section class="card panel confidence-history"><div class="panel-title"><div><h3>Evolución por sesión</h3><small>Inicio → cierre cuando ambos puntos están informados.</small></div><span>${rows.length} sesiones</span></div><div class="confidence-session-feed">${feed}</div></section>`;
+}
+
 function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -596,7 +663,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journal','journalops','journalconfidence','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

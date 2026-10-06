@@ -19,7 +19,8 @@ need(runtime.includes('Sin informar'),'Diario: falta estado explícito de dato a
 need(runtime.includes('journalSessionId'),'Diario: las operaciones no pueden vincularse a una sesión.');
 need(runtime.includes('trMatchingOpenSession'),'Diario: falta enlace automático a la sesión abierta del mismo entorno.');
 need(runtime.includes('Backtesting queda fuera del Diario Emocional'),'Diario: la exclusión de Backtesting no se comunica en UI.');
-need(runtime.includes('journal=trJournalRender'),'Diario: el runtime no sustituye el renderer mediante la resolución tardía existente.');\nneed(structural.includes("case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();"),'Diario: se rompió el contrato de presentación tardía existente.');
+need(runtime.includes('journal=trJournalRender'),'Diario: el runtime no sustituye el renderer mediante la resolución tardía existente.');
+need(structural.includes("case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();"),'Diario: se rompió el contrato de presentación tardía existente.');
 need(index.includes('<script src="emotional-journal-runtime.js"></script>'),'Diario: index no carga el runtime.');
 need(build.includes("'emotional-journal-runtime.js'"),'Diario: build no empaqueta el runtime.');
 need(app.includes('next.emotionalSessions=[]'),'TP Builder: el TP derivado hereda sesiones emocionales del origen.');

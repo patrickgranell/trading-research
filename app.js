@@ -3529,10 +3529,11 @@ function deleteSelectedStudy(){
 }
 function toggleCompareSelectedStudy(){const s=selectedStudy();if(!s)return;labStudiesUi.compareId=labStudiesUi.compareId===s.id?'':s.id;render();}
 
-function labFilteredOpsForState(f={},sourceOps=currentOps(),sourcePlan=getCurrentPlan()){
-  const blockMap=new Map();[...sourceOps].sort(v3194CompareOps).forEach((o,i)=>blockMap.set(o.id,Math.floor(i/20)+1));
-  const shared=baseFilteredOps(f,sourceOps,blockMap);
-  const permitted=f.riskPolicy==='plan'?applyRiskManagementRules(shared,sourcePlan).included:shared;
+function labFilteredOpsForState(f={},sourceOps=null,sourcePlan=null){
+  const useCurrent=!Array.isArray(sourceOps),ops=useCurrent?currentOps():sourceOps,blockMap=useCurrent?opBlockMap():new Map();
+  if(!useCurrent)[...ops].sort(v3194CompareOps).forEach((o,i)=>blockMap.set(o.id,Math.floor(i/20)+1));
+  const shared=baseFilteredOps(f,ops,blockMap);
+  const permitted=f.riskPolicy==='plan'?(sourcePlan?applyRiskManagementRules(shared,sourcePlan).included:applyRiskManagementRules(shared).included):shared;
   return permitted.filter(o=>{
     const d=new Date(o.entryDate),hour=`${String(d.getHours()).padStart(2,'0')}:00`;
     if(f.hour&&hour!==String(f.hour))return false;

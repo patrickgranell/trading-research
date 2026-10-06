@@ -39,10 +39,10 @@ const labPanelSource=extractFunction(app,'labFilterPanel');
 
 need(/function baseFilteredOps\(f=opsViewState,ops=currentOps\(\),blockMap=opBlockMap\(\)\)/.test(baseSource),
   'El pipeline de Operaciones no acepta estado/dataset/mapa explícitos para poder reutilizarse.');
-need(/baseFilteredOps\(f,currentOps\(\),opBlockMap\(\)\)/.test(labFilterSource),
-  'Laboratorio no reutiliza el pipeline compartido de Operaciones.');
-need(/riskPolicy[^\n]+plan/.test(labFilterSource)&&/applyRiskManagementRules\(shared\)/.test(labFilterSource),
-  'Laboratorio no aplica riskPolicy=plan sobre el mismo universo compartido.');
+need(/useCurrent=!Array\.isArray\(sourceOps\)/.test(labFilterSource)&&/baseFilteredOps\(f,ops,blockMap\)/.test(labFilterSource),
+  'Laboratorio no preserva el pipeline compartido actual ni admite dataset explícito.');
+need(/riskPolicy[^\n]+plan/.test(labFilterSource)&&/sourcePlan\?applyRiskManagementRules\(shared,sourcePlan\).*applyRiskManagementRules\(shared\)/.test(labFilterSource),
+  'Laboratorio no preserva riskPolicy=plan o no acepta reglas del TP origen inyectado.');
 
 for(const field of sharedFields){
   need(new RegExp(`\\b${field}\\s*:`).test(labStateSource),

@@ -26,6 +26,12 @@ if(fs.existsSync(file)){
   need(!src.includes("field('ATR observado (opcional)'"),'Operation cleanup: ATR legacy sigue duplicado como campo fijo fuera de taxonomías.');
   need(!src.includes("get('atr')"),'Operation cleanup: el writer activo todavía depende del antiguo input ATR fijo.');
   need(src.includes('atr:previous?.atr??null'),'Operation cleanup: al retirar el input ATR deben preservarse valores legacy ya almacenados.');
+  need(!src.includes("selectField('Muestra','sample'"),'Operation cleanup: Muestra A/B sigue visible como campo fijo sin consumo analítico.');
+  need(!src.includes("get('sample')"),'Operation cleanup: el writer activo todavía depende del antiguo input Muestra.');
+  need(src.includes("sample:previous?.sample??''"),'Operation cleanup: los valores históricos de Muestra deben preservarse al editar.');
+  need(!src.includes("field('Precio dinámico / objetivo','dtPrice'"),'Operation cleanup: Precio dinámico / objetivo sigue visible aunque no tiene consumidor analítico.');
+  need(!src.includes("get('dtPrice')"),'Operation cleanup: el writer activo todavía depende del antiguo input Precio dinámico.');
+  need(src.includes('dtPrice:previous?.dtPrice??null'),'Operation cleanup: los valores históricos de Precio dinámico deben preservarse al editar.');
   need(src.includes('operationsFilterPanel'),'Batch 65: Operaciones no expone filtros dinámicos.');
   need(src.includes('labFilterPanel'),'Batch 65: Laboratorio no expone filtros dinámicos.');
   need(src.includes('baseFilteredOps'),'Batch 65: el pipeline compartido de filtros no consume taxonomías.');

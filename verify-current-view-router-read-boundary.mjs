@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='f82616b7a9353dbd8e15c862ff65d5a1621f5c8c87320836ea790dd41f41a0d0';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='649292364db4fa86a735d436fa68f33811b7e97b5bf06b9fe6b7a7f8483f74cf';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);
@@ -47,6 +47,8 @@ need(structural.includes('TradingResearchCurrentViewReadContract.current()'),
   'El consumidor de router de Current View Read Contract desapareció.');
 need(structural.includes("case 'journalstatements':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderStatements();"),
   'El router no conserva la nueva vista Dejar constancia del Diario emocional.');
+need(structural.includes("case 'journalconfidence':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderConfidence();"),
+  'El router no conserva la vista Confianza del Diario emocional.');
 
 if(fail.length){
   console.error('Current View Router Read Boundary verification FAILED');

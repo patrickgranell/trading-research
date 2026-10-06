@@ -89,8 +89,8 @@ need(bundledAppStage.includes('render:()=>journal()'),
   'Journal View Presentation Contract no usa resolución tardía exacta render:()=>journal().');
 need(!bundledAppStage.includes('window.journal'),
   'Journal View Presentation Contract reintroduce un mirror window.journal redundante.');
-need(structural.includes(`case 'journal': return globalThis.${CONTRACT}.render();`),
-  'El router del Diario no consume Journal View Presentation Contract.');
+need(structural.includes(`case 'journal': return globalThis.TradingResearchEmotionalJournalPresentationContract?.render?.()||globalThis.${CONTRACT}.render();`),
+  'El router del Diario no conserva fallback legacy tras la presentación V31.29.');
 const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').includes(`globalThis.${CONTRACT}`));
 need(consumers.length===1&&consumers[0]==='structural-runtime.js',
   `Consumidores de ${CONTRACT} inesperados: ${consumers.join(', ')||'ninguno'}.`);

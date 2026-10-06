@@ -3,7 +3,7 @@ const V3112_APP_LABEL='V31.13 · Structural Foundation II-B · Partial Operation
 const TR_RENDER_RUNTIME_VERSION='31.13';
 const TR_UI_SESSION_KEY='tradingResearchUiSessionV31121';
 const TR_OPERATION_DRAFT_KEY='tradingResearchOperationDraftV31121';
-const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','blocks','reports','market','plans','config']);
+const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','blocks','reports','market','plans','tpbuilder','config']);
 let trDraftRestoreAttempted=false;
 let trDraftSaveInProgress=false;
 let trOperationDraftContext=null;
@@ -54,6 +54,7 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
     case 'market': return globalThis.TradingResearchViewPresentationContract.market();
     case 'plans': return globalThis.TradingResearchViewPresentationContract.plans();
+    case 'tpbuilder': return globalThis.TradingResearchViewPresentationContract.tpbuilder();
     case 'config': return globalThis.TradingResearchConfigViewPresentationContract.render();
     default:
       console.warn('[Trading Research · router] Vista desconocida:',view);

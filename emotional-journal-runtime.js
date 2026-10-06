@@ -41,6 +41,9 @@ function trOperationLayer(operation){
 function trOperationEligible(operation){return trOperationLayer(operation)!=='backtest';}
 function trEligibleOperations(operations){return (Array.isArray(operations)?operations:[]).filter(trOperationEligible);}
 function trSessionModeForOperation(operation){
+  const plan=typeof getPlan==='function'?getPlan(operation?.tradingPlanId):null;
+  const planMode=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'';
+  if(TR_SESSION_MODES.includes(planMode))return planMode;
   const layer=trOperationLayer(operation);
   return TR_SESSION_MODES.includes(layer)?layer:'';
 }
@@ -96,7 +99,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -206,17 +209,18 @@ function trReadPoint(prefix){
 function trSessionEditor(session=null,phase='start'){
   const plan=getCurrentPlan();if(!plan)return;
   trEnsurePlan(plan);
+  const mode=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
+  if(mode==='backtest')return alert('Backtesting queda fuera del Diario Emocional.');
+  if(!TR_SESSION_MODES.includes(mode))return alert('Define primero este Trading Plan como Market Replay, SIM o Live.');
   const editing=!!session;
-  const mode=session?.mode||(TR_SESSION_MODES.includes(globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan))?globalThis.TradingResearchOperationSemanticsContract.planEnvironment(plan):'live');
   const point=phase==='end'?trNormalizePoint(session?.end):trNormalizePoint(session?.start);
   const timeValue=phase==='end'?trSessionDateInput(session?.endedAt||trNow()):trSessionDateInput(session?.startedAt||trNow());
-  const modeOptions=TR_SESSION_MODES.map(value=>({value,label:TR_SESSION_MODE_LABELS[value]}));
-  const modeField=phase==='start'?trSelect('em-session-mode','Entorno',modeOptions,mode):`<div class="field"><span>Entorno</span><div class="readonly-box">${esc(TR_SESSION_MODE_LABELS[mode]||mode)}</div></div>`;
+  const modeField=`<div class="field"><span>Entorno</span><div class="readonly-box">${esc(TR_SESSION_MODE_LABELS[mode]||mode)}</div></div>`;
   const body=`<form id="emotional-session-form" data-tr-onsubmit="return false"><div class="form-section"><h4>${phase==='end'?'Cierre de sesión':'Inicio de sesión'}</h4><div class="form-grid">
     ${modeField}
     <label class="field"><span>Fecha / hora</span><input id="em-session-time" class="input" type="datetime-local" value="${esc(timeValue)}"></label>
     ${trPointFields('em-session-point',point,plan)}
-  </div><div class="notice">Los campos son opcionales. No seleccionar una opción significa <strong>sin dato</strong>; nunca se interpreta como Bajo, Normal ni como una respuesta negativa.</div></div></form>`;
+  </div><div class="notice">El entorno viene fijado por el Trading Plan. Los campos emocionales son opcionales; <strong>Sin informar</strong> nunca se interpreta como una respuesta negativa.</div></div></form>`;
   const title=phase==='end'?'Cerrar sesión emocional':editing?'Editar inicio de sesión':'Iniciar sesión emocional';
   const action=phase==='end'?'emotionalSessionSaveEnd':'emotionalSessionSaveStart';
   const id=session?.id||'';
@@ -224,13 +228,12 @@ function trSessionEditor(session=null,phase='start'){
 }
 function trSaveSessionStart(id=''){
   const plan=getCurrentPlan();if(!plan)return false;
-  const env=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
-  if(env==='backtest')return alert('Backtesting queda fuera del Diario Emocional.');
+  const mode=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
+  if(mode==='backtest')return alert('Backtesting queda fuera del Diario Emocional.');
+  if(!TR_SESSION_MODES.includes(mode))return alert('Define primero este Trading Plan como Market Replay, SIM o Live.');
   trEnsurePlan(plan);
   const existing=id?trSessionById(id,plan):null;
-  const mode=document.getElementById('em-session-mode')?.value||existing?.mode||'live';
-  if(!TR_SESSION_MODES.includes(mode))return alert('Selecciona Live, SIM o Market Replay.');
-  if(!existing&&trSessions(plan).some(s=>!s.endedAt&&s.mode===mode))return alert('Ya hay una sesión abierta para este entorno. Ciérrala antes de iniciar otra.');
+  if(!existing&&trSessions(plan).some(s=>!s.endedAt&&s.mode===mode))return alert('Ya hay una sesión abierta para este Trading Plan. Ciérrala antes de iniciar otra.');
   const startedAt=trInputIso(document.getElementById('em-session-time')?.value,trNow());
   const now=trNow();
   if(existing){
@@ -303,26 +306,37 @@ function trSessionLabelForOperation(operation){
 }
 function trOperationTable(ops){
   if(!ops.length)return '<div class="empty">No hay operaciones con estos filtros.</div>';
-  return `<div class="table-wrap"><table class="table journal-table"><thead><tr><th>Fecha</th><th>Ámbito</th><th>Contrato</th><th>Setup</th><th>Resultado</th><th>Sesión</th><th>Antes</th><th>Durante</th><th>Después</th><th>Comportamientos</th><th>Diario</th></tr></thead><tbody>${ops.map(o=>{const e=o.emotional||{},layer=trOperationLayer(o);return `<tr><td>${fmtDate(o.entryDate)}</td><td><span class="badge">${esc(globalThis.TradingResearchOperationSemanticsContract?.labels?.[layer]||layer)}</span></td><td>${esc(o.contract||'—')}</td><td>${esc(o.setup||'—')}</td><td class="${Number(o.pnlNet)>=0?'positive':'negative'}">${o.riskUsd?((Number(o.pnlNet)||0)/Number(o.riskUsd)).toFixed(2)+'R':'—'}</td><td>${esc(trSessionLabelForOperation(o))}</td><td>${esc(e.before||'—')}</td><td>${esc(e.during||'—')}</td><td>${esc(e.after||'—')}</td><td>${(e.behaviors||[]).map(x=>`<span class="tag">${esc(x)}</span>`).join(' ')||'—'}</td><td><button class="btn small ${hasEmotionalEntry(o)?'':'primary'}" data-operation-id="${esc(o.id)}" data-tr-action-click="emotionalOpenOperation">${hasEmotionalEntry(o)?'Editar':'Completar'}</button></td></tr>`}).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="table journal-table"><thead><tr><th>Fecha</th><th>Contrato</th><th>Dir.</th><th>Setup</th><th>Resultado</th><th>Disciplina</th><th>Antes</th><th>Durante</th><th>Final</th><th>Comportamientos</th><th>Diario</th></tr></thead><tbody>${ops.map(o=>{const e=o.emotional||{};return `<tr><td>${fmtDate(o.entryDate)}</td><td>${esc(o.contract||'—')}</td><td>${esc(o.direction||'—')}</td><td>${esc(o.setup||'—')}</td><td class="${Number(o.pnlNet)>=0?'positive':'negative'}">${o.riskUsd?((Number(o.pnlNet)||0)/Number(o.riskUsd)).toFixed(2)+'R':'—'}</td><td><span class="badge ${o.discipline?'win':'loss'}">${typeof o.discipline==='boolean'?(o.discipline?'Sí':'No'):'—'}</span></td><td>${esc(e.before||'—')}</td><td>${esc(e.during||'—')}</td><td>${esc(e.after||'—')}</td><td>${(e.behaviors||[]).map(x=>`<span class="tag">${esc(x)}</span>`).join(' ')||'—'}</td><td><button class="btn small ${hasEmotionalEntry(o)?'':'primary'}" data-operation-id="${esc(o.id)}" data-tr-action-click="emotionalOpenOperation">${hasEmotionalEntry(o)?'Editar':'Completar'}</button></td></tr>`}).join('')}</tbody></table></div>`;
 }
-function trJournalRender(){
+function trJournalPlanEnvironment(plan){
+  return globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
+}
+function trJournalSessionsRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   trEnsurePlan(plan);
-  const allEligible=trEligibleOperations(currentOps()),ops=trEligibleOperations(journalFilteredOps()),st=journalStats(ops),em=plan?.emotionConfig?.emotions||[],bh=plan?.emotionConfig?.behaviors||[];
-  const env=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
-  const sel=(id,label,arr,val)=>`<label class="filter-field"><span>${label}</span><select id="${id}" class="select" data-tr-onchange="readJournalFilters()"><option value="">Todos</option>${arr.map(x=>`<option value="${esc(typeof x==='object'?x.value:x)}" ${String(val)===String(typeof x==='object'?x.value:x)?'selected':''}>${esc(typeof x==='object'?x.label:x)}</option>`).join('')}</select></label>`;
-  const counts={replay:0,sim:0,live:0,pending:0,unclassified:0};for(const o of allEligible){const layer=trOperationLayer(o);counts[layer]=(counts[layer]||0)+1;}
-  const action=env==='backtest'?'<button class="btn primary" disabled title="Backtesting queda fuera del Diario Emocional">+ Iniciar sesión</button>':'<button class="btn primary" data-tr-action-click="emotionalSessionOpenStart">+ Iniciar sesión</button>';
-  return `${pageHead('Diario emocional','Registro de la experiencia de ejecución. Backtesting queda fuera; Market Replay, SIM y Live conservan su contexto por separado.',action)}
+  const env=trJournalPlanEnvironment(plan);
+  if(env==='backtest')return '';
+  const sessions=trSessions(plan),open=sessions.filter(x=>!x.endedAt),linked=sessions.reduce((n,x)=>n+trSessionOperationCount(x.id),0);
+  const action=TR_SESSION_MODES.includes(env)?'<button class="btn primary" data-tr-action-click="emotionalSessionOpenStart">+ Iniciar sesión</button>':'<button class="btn primary" disabled title="Define el entorno del Trading Plan">+ Iniciar sesión</button>';
+  return `${pageHead('Diario emocional · Sesiones','Estado emocional de la jornada o sesión. El entorno se hereda del Trading Plan.',action)}
     ${activePlanBanner()}
-    <div class="notice"><strong>Ámbito emocional:</strong> Backtesting no genera pendientes ni reduce coberturas. Replay, SIM y Live sí pueden registrar sesiones y diario por operación. Datos antiguos no clasificados se conservan sin inventar su entorno.</div>
-    <div class="journal-kpis">${kpi('Operaciones elegibles',allEligible.length,`Replay ${counts.replay||0} · SIM ${counts.sim||0} · Live ${counts.live||0}`)}${kpi('Diario completado',pct(allEligible.length?allEligible.filter(hasEmotionalEntry).length/allEligible.length*100:0),`${allEligible.filter(hasEmotionalEntry).length}/${allEligible.length}`)}${kpi('Sesiones',trSessions(plan).length,`${trSessions(plan).filter(s=>!s.endedAt).length} abierta(s)`)}${kpi('Disciplina',pct(st.discipline),'sobre operaciones informadas')}${kpi('Estrés legacy',trLegacyMetric(st.stress),'operaciones registradas')}${kpi('Foco legacy',trLegacyMetric(st.focus),'operaciones registradas')}</div>
-    ${trSessionsPanel(plan)}
-    <section class="card filter-hub"><div class="filter-hub-top"><div><h3>Diario por operación</h3><p>El registro por trade se mantiene y puede vincularse automáticamente a una sesión abierta del mismo entorno.</p></div><button class="btn small" data-tr-onclick="trLegacyStateCommand('journal-reset')">Limpiar</button></div><div class="filter-grid"><label class="filter-field wide"><span>Buscar</span><input id="journalQ" class="input" value="${esc(journalViewState.q)}" placeholder="Setup, contrato, notas…" data-tr-onchange="readJournalFilters()"></label>${sel('journalEmotion','Emoción',em,journalViewState.emotion)}${sel('journalBehavior','Comportamiento',bh,journalViewState.behavior)}${sel('journalDiscipline','Disciplina',[{value:'yes',label:'Disciplinada'},{value:'no',label:'No disciplinada'}],journalViewState.discipline)}${sel('journalStatus','Estado del diario',[{value:'complete',label:'Completado'},{value:'pending',label:'Pendiente'}],journalViewState.status)}</div></section>
-    <div class="grid two journal-charts"><section class="card panel"><div class="panel-title"><h3>Resultados por emoción</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'emotion')}</section><section class="card panel"><div class="panel-title"><h3>Resultados por comportamiento</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'behavior')}</section></div>
-    <section class="card panel"><div class="panel-title"><div><h3>Operaciones + diario</h3><small>Backtesting está excluido del listado y de la cobertura emocional.</small></div><span>${ops.length} visibles</span></div>${trOperationTable(ops)}</section>`;
+    <div class="notice"><strong>Entorno del TP:</strong> ${esc(globalThis.TradingResearchOperationSemanticsContract?.planEnvironmentLabel?.(plan)||env)}. No se selecciona de nuevo al iniciar una sesión.</div>
+    <div class="journal-kpis">${kpi('Sesiones',sessions.length,'total')}${kpi('Abiertas',open.length,'pendientes de cierre')}${kpi('Operaciones vinculadas',linked,'a sesiones emocionales')}</div>
+    ${trSessionsPanel(plan)}`;
 }
-
+function trJournalOperationsRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);
+  if(env==='backtest')return '';
+  const ops=trEligibleOperations(journalFilteredOps()),st=journalStats(ops),em=plan?.emotionConfig?.emotions||[],bh=plan?.emotionConfig?.behaviors||[];
+  const sel=(id,label,arr,val)=>`<label class="filter-field"><span>${label}</span><select id="${id}" class="select" data-tr-onchange="readJournalFilters()"><option value="">Todos</option>${arr.map(x=>`<option value="${esc(typeof x==='object'?x.value:x)}" ${String(val)===String(typeof x==='object'?x.value:x)?'selected':''}>${esc(typeof x==='object'?x.label:x)}</option>`).join('')}</select></label>`;
+  return `${pageHead('Diario emocional · Registro por operación','Registro emocional de cada trade, separado de las sesiones.', '')}
+    ${activePlanBanner()}
+    <section class="card filter-hub"><div class="filter-hub-top"><div><h3>Filtro emocional</h3><p>El registro conserva el contexto técnico de cada operación.</p></div><button class="btn small" data-tr-onclick="trLegacyStateCommand('journal-reset')">Limpiar</button></div><div class="filter-grid"><label class="filter-field wide"><span>Buscar</span><input id="journalQ" class="input" value="${esc(journalViewState.q)}" placeholder="Setup, contrato, notas…" data-tr-onchange="readJournalFilters()"></label>${sel('journalEmotion','Emoción',em,journalViewState.emotion)}${sel('journalBehavior','Comportamiento',bh,journalViewState.behavior)}${sel('journalDiscipline','Disciplina',[{value:'yes',label:'Disciplinada'},{value:'no',label:'No disciplinada'}],journalViewState.discipline)}${sel('journalStatus','Estado del diario',[{value:'complete',label:'Completado'},{value:'pending',label:'Pendiente'}],journalViewState.status)}</div></section>
+    <div class="journal-kpis">${kpi('Trades visibles',ops.length,'con contexto técnico')}${kpi('Diario completado',pct(st.completion),`${st.complete}/${ops.length}`)}${kpi('Disciplina',pct(st.discipline),'sobre selección')}${kpi('Estrés medio',trLegacyMetric(st.stress),'trades registrados')}${kpi('Foco medio',trLegacyMetric(st.focus),'trades registrados')}${kpi('Intensidad',trLegacyMetric(st.intensity),'carga emocional')}</div>
+    <div class="grid two journal-charts"><section class="card panel"><div class="panel-title"><h3>Resultados por emoción</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'emotion')}</section><section class="card panel"><div class="panel-title"><h3>Resultados por comportamiento</h3><span>Expectancy R neta</span></div>${emotionalBreakdown(ops,'behavior')}</section></div>
+    <section class="card panel"><div class="panel-title"><div><h3>Operaciones + diario</h3><small>Antes · Durante · Final. Backtesting no participa en este diario.</small></div><span>${ops.length} visibles</span></div>${trOperationTable(ops)}</section>`;
+}
 if(typeof dqCoverageDefs==='function'){
   const baseDqCoverageDefs=dqCoverageDefs;
   dqCoverageDefs=function(ops){

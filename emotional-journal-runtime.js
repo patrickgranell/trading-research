@@ -151,7 +151,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -164,6 +164,11 @@ try{
       if(!group.items.some(x=>x?.[0]==='journalconfidence')){
         const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
         group.items.splice(notesIndex>=0?notesIndex:group.items.length,0,['journalconfidence','◇','Confianza']);
+      }
+      if(!group.items.some(x=>x?.[0]==='journalstreaks')){
+        const confidenceIndex=group.items.findIndex(x=>x?.[0]==='journalconfidence');
+        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
+        group.items.splice(confidenceIndex>=0?confidenceIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalstreaks','≈','Rachas y adaptación']);
       }
       if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
     }
@@ -577,6 +582,117 @@ function trJournalConfidenceRender(){
     <section class="card panel confidence-history"><div class="panel-title"><div><h3>Evolución por sesión</h3><small>Inicio → cierre cuando ambos puntos están informados.</small></div><span>${rows.length} sesiones</span></div><div class="confidence-session-feed">${feed}</div></section>`;
 }
 
+
+function trStreakOutcome(operation){
+  const value=Number(operation?.pnlNet);
+  if(!Number.isFinite(value)||value===0)return 'flat';
+  return value>0?'win':'loss';
+}
+function trStreaks(plan){
+  const ordered=trEligibleOperations(currentOps()).filter(o=>o?.tradingPlanId===plan?.id).slice().sort((a,b)=>typeof v3194CompareOps==='function'?v3194CompareOps(a,b):String(a.entryDate||'').localeCompare(String(b.entryDate||'')));
+  const streaks=[];let current=null;
+  const close=()=>{if(current){streaks.push(current);current=null;}};
+  for(const operation of ordered){
+    const outcome=trStreakOutcome(operation);
+    if(outcome==='flat'){close();continue;}
+    if(!current||current.type!==outcome){close();current={type:outcome,operations:[]};}
+    current.operations.push(operation);
+  }
+  close();
+  return streaks.map((streak,index)=>{
+    const operations=streak.operations,first=operations[0],last=operations[operations.length-1];
+    const known=operations.filter(o=>typeof o.discipline==='boolean');
+    const disciplined=known.filter(o=>o.discipline).length;
+    const deviations=known.filter(o=>!o.discipline).length;
+    const disciplineState=!known.length?'unknown':deviations?'deviation':known.length===operations.length?'clean':'partial';
+    const rValues=operations.map(o=>{const risk=Number(o.riskUsd),pnl=Number(o.pnlNet);return Number.isFinite(risk)&&risk>0&&Number.isFinite(pnl)?pnl/risk:null;}).filter(v=>v!==null);
+    const pnl=operations.reduce((sum,o)=>sum+(Number(o.pnlNet)||0),0);
+    const sessionIds=[...new Set(operations.map(o=>o.journalSessionId).filter(Boolean))];
+    const sessions=sessionIds.map(id=>trSessionById(id,plan)).filter(Boolean).sort((a,b)=>String(a.startedAt||'').localeCompare(String(b.startedAt||'')));
+    const firstSession=sessions[0]||null,lastSession=sessions[sessions.length-1]||null;
+    const latest=lastSession?trConfidenceLatestPoint(lastSession):{point:{}};
+    const startPoint=firstSession?.start||{};
+    return {
+      index,type:streak.type,operations,count:operations.length,first,last,pnl,
+      r:rValues.length?rValues.reduce((a,b)=>a+b,0):null,rCount:rValues.length,
+      disciplineState,known:known.length,disciplined,deviations,
+      sessions,startConfidencePersonal:startPoint.confidencePersonal||'',startConfidenceSystem:startPoint.confidenceSystem||'',
+      endConfidencePersonal:latest.point?.confidencePersonal||'',endConfidenceSystem:latest.point?.confidenceSystem||''
+    };
+  });
+}
+function trStreakDisciplineLabel(streak){
+  if(streak.disciplineState==='clean')return 'Disciplina íntegra';
+  if(streak.disciplineState==='deviation')return `${streak.deviations} desviación${streak.deviations===1?'':'es'} registrada${streak.deviations===1?'':'s'}`;
+  if(streak.disciplineState==='partial')return `Disciplina parcial · ${streak.known}/${streak.count}`;
+  return 'Disciplina sin informar';
+}
+function trStreakConfidenceText(streak,plan,key){
+  const start=key==='personal'?streak.startConfidencePersonal:streak.startConfidenceSystem;
+  const end=key==='personal'?streak.endConfidencePersonal:streak.endConfidenceSystem;
+  if(start&&end)return start===end?trConfidenceLabel(start,plan):`${trConfidenceLabel(start,plan)} → ${trConfidenceLabel(end,plan)}`;
+  return trConfidenceLabel(end||start,plan);
+}
+function trStreakReading(streak){
+  if(!streak)return {title:'Sin racha registrada',text:'Todavía no hay operaciones suficientes para describir una racha.'};
+  const type=streak.type==='loss'?'perdedora':'ganadora';
+  if(streak.disciplineState==='clean'){
+    return streak.type==='loss'
+      ?{title:'Mala racha con disciplina intacta',text:'El resultado es negativo, pero todas las operaciones de la racha están registradas como disciplinadas.'}
+      :{title:'Buena racha con disciplina intacta',text:'El resultado es positivo y la disciplina registrada se mantiene íntegra.'};
+  }
+  if(streak.disciplineState==='deviation'){
+    return streak.type==='loss'
+      ?{title:'Mala racha con desviaciones registradas',text:'La racha combina pérdidas con al menos una desviación de disciplina registrada.'}
+      :{title:'Buena racha con desviaciones registradas',text:'La racha es ganadora, aunque contiene desviaciones de disciplina registradas; conviene observarlas sin confundir resultado con proceso.'};
+  }
+  if(streak.disciplineState==='partial')return {title:`Racha ${type} con datos parciales`,text:'Parte de la disciplina está registrada y parte permanece sin informar.'};
+  return {title:`Racha ${type} sin disciplina informada`,text:'Se describe el resultado, pero no hay datos suficientes para valorar el proceso.'};
+}
+function trJournalStreaksRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null;
+  const losing=streaks.filter(s=>s.type==='loss'&&s.count>=2),winning=streaks.filter(s=>s.type==='win'&&s.count>=2);
+  const cleanLosing=losing.filter(s=>s.disciplineState==='clean');
+  const reading=trStreakReading(current);
+  const currentText=current?`${current.count} ${current.type==='loss'?(current.count===1?'pérdida':'pérdidas'):(current.count===1?'ganancia':'ganancias')}`:'—';
+  const currentResult=current?(current.r!==null?`${current.r>=0?'+':''}${current.r.toFixed(2)}R`:`${current.pnl>=0?'+':''}${current.pnl.toFixed(2)}`):'—';
+  const relevant=streaks.filter(s=>s.count>=2).slice().reverse();
+  const feed=relevant.length?relevant.map(streak=>{
+    const kind=streak.type==='loss'?'Racha perdedora':'Racha ganadora';
+    const result=streak.r!==null?`${streak.r>=0?'+':''}${streak.r.toFixed(2)}R`:`${streak.pnl>=0?'+':''}${streak.pnl.toFixed(2)}`;
+    return `<article class="streak-card ${streak.type}">
+      <header class="streak-card-head"><div><strong>${kind} · ${streak.count}</strong><span>${esc(fmtDate(streak.first?.entryDate))} → ${esc(fmtDate(streak.last?.entryDate))}</span></div><b>${esc(result)}</b></header>
+      <div class="streak-card-grid">
+        <div><span>Disciplina</span><strong>${esc(trStreakDisciplineLabel(streak))}</strong></div>
+        <div><span>Confianza personal</span><strong>${esc(trStreakConfidenceText(streak,plan,'personal'))}</strong></div>
+        <div><span>Confianza en el sistema</span><strong>${esc(trStreakConfidenceText(streak,plan,'system'))}</strong></div>
+      </div>
+      <footer><span>${streak.sessions.length?`${streak.sessions.length} sesión${streak.sessions.length===1?'':'es'} vinculada${streak.sessions.length===1?'':'s'}`:'Sin sesión emocional vinculada'}</span></footer>
+    </article>`;
+  }).join(''):'<div class="empty">Todavía no hay rachas de 2 o más operaciones.</div>';
+  return `${pageHead('Diario emocional · Rachas y adaptación','Observa cómo atraviesas rachas ganadoras y perdedoras sin confundir resultado con calidad de ejecución.','')}
+    ${activePlanBanner()}
+    <div class="streak-kpis">
+      ${kpi('Racha actual',currentText,current?trStreakDisciplineLabel(current):'sin datos')}
+      ${kpi('Resultado de la racha',currentResult,current?'acumulado':'sin datos')}
+      ${kpi('Rachas perdedoras ≥2',losing.length,`${cleanLosing.length} con disciplina íntegra`)}
+      ${kpi('Rachas ganadoras ≥2',winning.length,'histórico del TP')}
+    </div>
+    <section class="card panel streak-reading"><div class="panel-title"><div><h3>Lectura de la racha actual</h3><small>Describe hechos registrados; no convierte una mala racha disciplinada en un fallo.</small></div></div><strong>${esc(reading.title)}</strong><p>${esc(reading.text)}</p></section>
+    <section class="card panel streak-adaptation"><div class="panel-title"><div><h3>Exposición a drawdowns</h3><small>Repetición de rachas perdedoras atravesadas con el mismo TP. No es una puntuación psicológica.</small></div></div>
+      <div class="streak-adaptation-grid">
+        <div><span>Rachas perdedoras registradas</span><strong>${losing.length}</strong></div>
+        <div><span>Con disciplina íntegra</span><strong>${cleanLosing.length}</strong></div>
+        <div><span>Con alguna desviación</span><strong>${losing.filter(s=>s.disciplineState==='deviation').length}</strong></div>
+        <div><span>Con datos parciales/sin informar</span><strong>${losing.filter(s=>['partial','unknown'].includes(s.disciplineState)).length}</strong></div>
+      </div>
+    </section>
+    <section class="card panel streak-history"><div class="panel-title"><div><h3>Historial de rachas</h3><small>Solo episodios de 2 o más operaciones consecutivas con el mismo signo.</small></div><span>${relevant.length} episodios</span></div><div class="streak-feed">${feed}</div></section>`;
+}
+
 function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -723,7 +839,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops','journalconfidence','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journal','journalops','journalconfidence','journalstreaks','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

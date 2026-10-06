@@ -6,6 +6,7 @@ const structural=fs.readFileSync('structural-runtime.js','utf8');
 const stateRuntime=fs.readFileSync('state-runtime.js','utf8');
 const security=fs.readFileSync('security-runtime.js','utf8');
 const closure=fs.readFileSync('render-closure-runtime.js','utf8');
+const emotional=fs.readFileSync('emotional-runtime.js','utf8');
 const evt=fs.readFileSync('event-runtime.js','utf8');
 const styleBoundary=fs.readFileSync('style-attr-runtime.js','utf8');
 const index=fs.readFileSync('index.html','utf8');
@@ -15,17 +16,17 @@ const executableAttr=/\s(?:onclick|onchange|oninput|onsubmit)\s*=/g;
 const legacyProgramAttr=/\sdata-tr-on(?:click|change|input|submit)\s*=/g;
 const structuredAttr=/\sdata-tr-action-(?:click|change|input|submit)\s*=/g;
 
-need(pkg.version==='31.28.0',`Versión inesperada ${pkg.version}`);
+need(pkg.version==='31.29.0',`Versión inesperada ${pkg.version}`);
 need(index.includes('<script src="event-runtime.js"></script>'),'index.html no carga event-runtime.js.');
 need(index.includes('<script src="render-closure-runtime.js"></script>'),'index.html no carga render-closure-runtime.js.');
 need(index.indexOf('event-runtime.js')>index.indexOf('security-runtime.js'),'event-runtime.js debe cargar después de security-runtime.js.');
 need(index.indexOf('render-closure-runtime.js')>index.indexOf('event-runtime.js'),'render closure debe cargar después de instalar la delegación de eventos.');
 
-for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security],['render-closure-runtime.js',closure]]){
+for(const [name,src] of [['app.js',app],['structural-runtime.js',structural],['state-runtime.js',stateRuntime],['security-runtime.js',security],['emotional-runtime.js',emotional],['render-closure-runtime.js',closure]]){
   const n=(src.match(executableAttr)||[]).length;need(n===0,`${name}: quedan ${n} handlers HTML ejecutables.`);
 }
-const sourceLegacy=[app,structural,stateRuntime,security,closure].reduce((n,src)=>n+(src.match(legacyProgramAttr)||[]).length,0);
-const sourceStructured=[app,structural,stateRuntime,security,closure].reduce((n,src)=>n+(src.match(structuredAttr)||[]).length,0);
+const sourceLegacy=[app,structural,stateRuntime,security,emotional,closure].reduce((n,src)=>n+(src.match(legacyProgramAttr)||[]).length,0);
+const sourceStructured=[app,structural,stateRuntime,security,emotional,closure].reduce((n,src)=>n+(src.match(structuredAttr)||[]).length,0);
 need(sourceLegacy>500,`Solo se detectan ${sourceLegacy} handlers legacy de fuente; revisar inventario antes de aceptar una caída grande.`);
 
 need(evt.includes("const TR_EVENT_RUNTIME_VERSION='31.24.0'"),'Event Runtime no está en V31.24.');

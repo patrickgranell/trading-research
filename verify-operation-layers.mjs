@@ -15,7 +15,7 @@ need("validationGroupMembers=(workspace,groupId)", 'validation grouping must sta
 need("selectObjField('Ámbito del Trading Plan','plan-environment'", 'plan editor must expose Backtesting / Replay / Sim / Live');
 need("case 'plan-group-open': {", 'Trading Plans must expose validation grouping through the existing command boundary');
 need("case 'plan-group-save': {", 'missing validation group persistence workflow');
-need("Cada TP/versión puede declararse Backtesting, Replay, Sim o Live", 'Trading Plan UI must explain independent plan environments');
+need("Los grupos reúnen TPs equivalentes de distintos entornos sin mezclar sus operaciones", 'Trading Plan UI must explain grouped independent plan environments');
 need("plan-validation-group", 'Trading Plans view must render validation groups as first-class visual blocks');
 need("Planes sin agrupar", 'Trading Plans view must keep ungrouped plans in a separate section');
 need("Comparación rápida por grupos", 'quick comparison must be organized by validation group');

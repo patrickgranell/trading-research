@@ -25,7 +25,7 @@ need(structural.includes("case 'journalops':")&&structural.includes("TradingRese
 need(structural.includes("case 'journalnotes':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderNotes();"),'Diario: Structural Runtime no exige Notas emocionales V31.29.');
 need(runtime.includes("render:()=>trJournalSessionsRender()")&&runtime.includes("renderOperations:()=>trJournalOperationsRender()")&&runtime.includes("renderNotes:()=>trJournalNotesRender()"),'Diario: Sesiones, Registro por operación y Notas no están separados en presentación.');
 need(runtime.includes("o?.emotional?.notes")&&runtime.includes("trSessionQuestions(plan).filter(q=>q.type==='text')"),'Diario: Notas emocionales no reúne texto de operaciones y sesiones.');
-need(runtime.includes("Las notas técnicas de Operaciones, setups o mercado no se mezclan"),'Diario: Notas emocionales no explicita la separación respecto a apuntes técnicos.');
+need(runtime.includes("Las notas técnicas de Operaciones, setups o mercado quedan fuera"),'Diario: Notas emocionales no explicita la separación respecto a apuntes técnicos.');
 need(runtime.includes("const mode=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified'"),'Diario: la sesión no hereda el entorno del Trading Plan.');
 need(!runtime.includes("document.getElementById('em-session-mode')"),'Diario: el usuario todavía puede escoger manualmente el tipo de sesión.');
 need(app.includes("{id:'emotional',label:'Diario emocional'")&&app.includes("['journal','◌','Sesiones']")&&app.includes("['journalops','▤','Registro por operación']")&&app.includes("['journalnotes','✎','Notas emocionales']"),'Diario: navegación no contiene Sesiones, Registro por operación y Notas emocionales.');

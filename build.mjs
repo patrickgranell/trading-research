@@ -69,6 +69,7 @@ const replacements=[
   ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
   ['event-runtime.js','data-tr-event-runtime',bundledSource('event-runtime.js')],
   ['cloud-v10-runtime.js','data-tr-cloud-v10-runtime',bundledSource('cloud-v10-runtime.js')],
+  ['emotional-runtime.js','data-tr-emotional-runtime',bundledSource('emotional-runtime.js')],
   ['exit-lab-runtime.js','data-tr-exit-lab-runtime',bundledSource('exit-lab-runtime.js')],
   ['canonical-metrics-runtime.js','data-tr-canonical-metrics-runtime',bundledSource('canonical-metrics-runtime.js')],
   ['csp-runtime.js','data-tr-csp-runtime',bundledSource('csp-runtime.js')],
@@ -78,7 +79,7 @@ const replacements=[
   ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
+const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','emotional-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;

@@ -10,11 +10,11 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const baseline=JSON.parse(fs.readFileSync('financial-regression-baseline.json','utf8'));
 const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-/* Preserve the audited V31.27 functional source byte-for-byte after the Operation Layers + TP Lineage change.
+/* Preserve the audited V31.28 functional source byte-for-byte after the Plan Builder + Frozen Derivations change.
  * The exact terminal contract chain remains the only permitted suffix outside that audited functional source:
  * Plan read, content encoding, Exit Lab presentation, Form Boundary,
  * Reports Presentation, Timeline Presentation, Date Presentation, Navigation Presentation, Operations Read, Context Help Presentation, View Presentation, Research Status, Reports Section Presentation, Operations Presentation, Navigation State, Navigation Runtime State, Operation Checklist Presentation, Running Chart Presentation, then Theme Read. Removing all nineteen suffixes
- * must reproduce the audited V31.27 functional app.js exactly. */
+ * must reproduce the audited V31.28 functional app.js exactly. */
 const expectedAuditedAppSha='bf91747daff3d1acba5b002c11aa21ead1c930fd468a0975ccac376453df9c9b';
 const planReadContractSuffix="\n/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */\nObject.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});\n";
 const contentEncodingContractSuffix="/* V31.25 · bounded classic-global debt · explicit content encoding contract */\nObject.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});\n";
@@ -40,7 +40,7 @@ if(!app.endsWith(architecturalContractSuffix)){
   fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation + Timeline Presentation + Date Presentation + Navigation Presentation + Operations Read + Context Help Presentation + View Presentation + Research Status + Reports Section Presentation + Operations Presentation + Navigation State + Navigation Runtime State + Operation Checklist Presentation + Running Chart Presentation + Theme Read permitida.');
 }else{
   const auditedApp=app.slice(0,-architecturalContractSuffix.length);
-  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.27 Operation Layers + TP Lineage auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
+  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.28 Plan Builder + Frozen Derivations auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
 }
 if((app.match(/TradingResearchPlanReadContract/g)||[]).length!==1)fail.push('TradingResearchPlanReadContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchContentEncodingContract/g)||[]).length!==1)fail.push('TradingResearchContentEncodingContract debe publicarse exactamente una vez en app.js.');
@@ -62,7 +62,7 @@ if((app.match(/TradingResearchOperationChecklistPresentationContract/g)||[]).len
 if((app.match(/TradingResearchRunningChartPresentationContract/g)||[]).length!==1)fail.push('TradingResearchRunningChartPresentationContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchThemeReadContract/g)||[]).length!==1)fail.push('TradingResearchThemeReadContract debe publicarse exactamente una vez en app.js.');
 const chunk=(start,end)=>{const a=app.indexOf(start),b=a<0?-1:app.indexOf(end,a+start.length);if(a<0||b<0){fail.push(`No se encuentra región ${start}`);return '';}return app.slice(a,b);};
-if(pkg.version!=='31.27.0')fail.push(`Versión inesperada: ${pkg.version}`);
+if(pkg.version!=='31.28.0')fail.push(`Versión inesperada: ${pkg.version}`);
 if(!app.includes("const TR_CORE_DB_NAME='tradingResearchCoreV1'"))fail.push('Falta IndexedDB core.');
 if(!app.includes("let trCoreWriteBlockReason=''"))fail.push('Falta recovery write lock del core durable.');
 if(!app.includes('function trCoreSetWriteBlock(')||!app.includes('function trCoreClearWriteBlock(')||!app.includes('function trCoreWriteBlocked('))fail.push('Falta ciclo set/clear/query del recovery write lock.');

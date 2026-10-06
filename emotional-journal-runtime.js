@@ -393,7 +393,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(globalThis.TradingResearchCurrentViewReadContract?.current?.()==='journal'){
+  if(['journal','journalops'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

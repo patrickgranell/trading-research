@@ -206,7 +206,17 @@ const basePlanConfig = {
     sessionScales:{
       confidence:{very_low:'Muy baja',low:'Baja',normal:'Normal',high:'Alta',very_high:'Muy alta'},
       tri:{low:'Bajo',medium:'Medio',high:'Alto'}
-    }
+    },
+    sessionQuestions:[
+      {id:'confidencePersonal',label:'Confianza personal',type:'scale5'},
+      {id:'confidenceSystem',label:'Confianza en el sistema',type:'scale5'},
+      {id:'stress',label:'Estrés',type:'scale3'},
+      {id:'focus',label:'Foco',type:'scale3'},
+      {id:'fatigue',label:'Fatiga',type:'scale3'},
+      {id:'emotionalWear',label:'Desgaste emocional',type:'scale3'},
+      {id:'emotion',label:'Emoción predominante',type:'emotion'},
+      {id:'note',label:'Nota',type:'text'}
+    ]
   },
   riskManagement: {
     daily:{maxConsecutiveLosses:2,maxLossValue:0,maxLossUnit:'usd',maxLossBasis:'net',stopAfterWinThenLoss:false},
@@ -359,6 +369,7 @@ function normalizePlan(p,instruments){
   out.emotionConfig.sessionScales={...clone(basePlanConfig.emotionConfig.sessionScales),...(out.emotionConfig.sessionScales||{})};
   out.emotionConfig.sessionScales.confidence={...clone(basePlanConfig.emotionConfig.sessionScales.confidence),...(out.emotionConfig.sessionScales.confidence||{})};
   out.emotionConfig.sessionScales.tri={...clone(basePlanConfig.emotionConfig.sessionScales.tri),...(out.emotionConfig.sessionScales.tri||{})};
+  out.emotionConfig.sessionQuestions=Array.isArray(out.emotionConfig.sessionQuestions)?out.emotionConfig.sessionQuestions.map((q,i)=>({id:String(q?.id||uid('ESQ')),label:String(q?.label||`Variable ${i+1}`),type:['scale5','scale3','emotion','boolean','text'].includes(q?.type)?q.type:'scale3'})):clone(basePlanConfig.emotionConfig.sessionQuestions);
   out.riskManagement={...clone(basePlanConfig.riskManagement),...(out.riskManagement||{})};
   out.riskManagement.daily={...clone(basePlanConfig.riskManagement.daily),...(out.riskManagement.daily||{})};
   out.riskManagement.weekly={...clone(basePlanConfig.riskManagement.weekly),...(out.riskManagement.weekly||{})};
@@ -595,22 +606,18 @@ function visualReferencePanel(p){const refs=p?.visualReferences||[];return `<sec
 function emotionConfigPanel(p){
   const e=p?.emotionConfig||basePlanConfig.emotionConfig;
   const list=(arr,type)=>`<div class="emotion-config-list">${(arr||[]).map((x,i)=>`<span class="emotion-token">${esc(x)}<button data-tr-onclick="removeEmotionConfig('${type}',${i})">×</button></span>`).join('')||'<span class="help">Sin categorías.</span>'}</div><div class="inline-add"><input id="new-emotion-${type}" class="input" placeholder="Añadir ${type==='emotions'?'emoción':'comportamiento'}…"><button class="btn small" data-tr-onclick="addEmotionConfig('${type}')">Añadir</button></div>`;
-  const sessionScales={...clone(basePlanConfig.emotionConfig.sessionScales),...(e.sessionScales||{})};
-  sessionScales.confidence={...clone(basePlanConfig.emotionConfig.sessionScales.confidence),...(sessionScales.confidence||{})};
-  sessionScales.tri={...clone(basePlanConfig.emotionConfig.sessionScales.tri),...(sessionScales.tri||{})};
-  const scaleInputs=(group,keys,labels)=>`<div class="form-grid">${keys.map((key,i)=>`<label class="field"><span>${esc(labels[i])}</span><input id="emotion-session-${group}-${key}" class="input" value="${esc(sessionScales[group][key]||'')}"></label>`).join('')}</div>`;
+  const questions=Array.isArray(e.sessionQuestions)?e.sessionQuestions:[];
+  const questionTypes=[['scale5','Escala 1–5'],['scale3','Bajo / Medio / Alto'],['emotion','Emoción / estado'],['boolean','Sí / No'],['text','Texto libre']];
+  const questionRows=questions.length?questions.map((q,i)=>`<div class="form-grid"><label class="field span2"><span>Pregunta / variable</span><input id="emotion-session-question-label-${i}" class="input" value="${esc(q.label||'')}"></label><label class="field"><span>Tipo de respuesta</span><select id="emotion-session-question-type-${i}" class="select">${questionTypes.map(([value,label])=>`<option value="${value}" ${q.type===value?'selected':''}>${label}</option>`).join('')}</select></label><div class="field"><span>Acción</span><button class="btn small danger" data-tr-onclick="removeEmotionConfig('sessionQuestions',${i})">Eliminar</button></div></div>`).join(''):'<div class="empty">No hay variables de sesión. Puedes crear las que necesites.</div>';
   return `<section class="card panel config-wide" style="margin-top:16px"><div class="panel-title"><div><h3>Taxonomía emocional · ${esc(planLabel(p))}</h3><div class="help">Estas categorías se usan en el Diario y en los filtros de resultados. Puedes adaptarlas a tu lenguaje operativo.</div></div><button class="btn small" data-tr-onclick="navigate('journal')">Abrir diario</button></div>
     <div class="grid two emotion-config-grid"><div><h4>Emociones / estados</h4>${list(e.emotions,'emotions')}</div><div><h4>Comportamientos observables</h4>${list(e.behaviors,'behaviors')}</div></div>
-    <div class="form-section session-taxonomy-section"><h4>Taxonomías de sesiones emocionales</h4><div class="help">Las claves internas permanecen estables; aquí solo adaptas el lenguaje visible del Trading Plan.</div>
-      <div class="grid two emotion-config-grid session-taxonomy-grid">
-        <div><h4>Escala de confianza</h4><div class="help">Se usa en Confianza personal y Confianza en el sistema.</div>${scaleInputs('confidence',['very_low','low','normal','high','very_high'],['Nivel 1','Nivel 2','Nivel 3','Nivel 4','Nivel 5'])}</div>
-        <div><h4>Escala de estado</h4><div class="help">Se usa en Estrés, Foco, Fatiga y Desgaste emocional.</div>${scaleInputs('tri',['low','medium','high'],['Nivel 1','Nivel 2','Nivel 3'])}</div>
-      </div>
-      <div class="panel-actions session-taxonomy-actions"><button class="btn primary small" data-tr-onclick="addEmotionConfig('sessionScales')">Guardar escalas de sesión</button></div>
+    <div class="form-section session-taxonomy-section"><div class="panel-title"><div><h4>Variables de sesiones emocionales</h4><div class="help">Decide qué quieres medir al iniciar y cerrar una sesión. Puedes añadir, quitar o renombrar preguntas; la escala es solo el tipo de respuesta.</div></div><button class="btn small" data-tr-onclick="addEmotionConfig('sessionQuestionsSave')">Guardar cambios</button></div>
+      <div class="session-question-list">${questionRows}</div>
+      <div class="form-grid session-question-add"><label class="field span2"><span>Nueva pregunta / variable</span><input id="new-emotion-session-question" class="input" placeholder="Ej. Miedo a ejecutar, energía, claridad mental…"></label><label class="field"><span>Tipo de respuesta</span><select id="new-emotion-session-question-type" class="select">${questionTypes.map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><div class="field"><span>Acción</span><button class="btn primary small" data-tr-onclick="addEmotionConfig('sessionQuestion')">+ Añadir variable</button></div></div>
     </div>
   </section>`;
 }
-function addEmotionConfig(type){const p=getCurrentPlan();if(!p)return;p.emotionConfig=p.emotionConfig||clone(basePlanConfig.emotionConfig);if(type==='sessionScales'){const current={...clone(basePlanConfig.emotionConfig.sessionScales),...(p.emotionConfig.sessionScales||{})};current.confidence={...clone(basePlanConfig.emotionConfig.sessionScales.confidence),...(current.confidence||{})};current.tri={...clone(basePlanConfig.emotionConfig.sessionScales.tri),...(current.tri||{})};for(const key of ['very_low','low','normal','high','very_high'])current.confidence[key]=document.getElementById(`emotion-session-confidence-${key}`)?.value.trim()||current.confidence[key];for(const key of ['low','medium','high'])current.tri[key]=document.getElementById(`emotion-session-tri-${key}`)?.value.trim()||current.tri[key];p.emotionConfig.sessionScales=current;p.updatedAt=new Date().toISOString();saveState();return;}const el=document.getElementById(`new-emotion-${type}`),v=el?.value.trim();if(!v)return;if(!p.emotionConfig[type].includes(v))p.emotionConfig[type].push(v);p.updatedAt=new Date().toISOString();saveState();}
+function addEmotionConfig(type){const p=getCurrentPlan();if(!p)return;p.emotionConfig=p.emotionConfig||clone(basePlanConfig.emotionConfig);if(type==='sessionQuestion'){p.emotionConfig.sessionQuestions=Array.isArray(p.emotionConfig.sessionQuestions)?p.emotionConfig.sessionQuestions:[];const label=document.getElementById('new-emotion-session-question')?.value.trim(),responseType=document.getElementById('new-emotion-session-question-type')?.value||'scale3';if(!label)return;p.emotionConfig.sessionQuestions.push({id:uid('ESQ'),label,type:['scale5','scale3','emotion','boolean','text'].includes(responseType)?responseType:'scale3'});p.updatedAt=new Date().toISOString();saveState();return;}if(type==='sessionQuestionsSave'){p.emotionConfig.sessionQuestions=(p.emotionConfig.sessionQuestions||[]).map((q,i)=>{const label=document.getElementById(`emotion-session-question-label-${i}`)?.value.trim()||q.label,responseType=document.getElementById(`emotion-session-question-type-${i}`)?.value||q.type;return {...q,label,type:['scale5','scale3','emotion','boolean','text'].includes(responseType)?responseType:'scale3'};});p.updatedAt=new Date().toISOString();saveState();return;}if(type==='sessionScales'){return;}const el=document.getElementById(`new-emotion-${type}`),v=el?.value.trim();if(!v)return;if(!p.emotionConfig[type].includes(v))p.emotionConfig[type].push(v);p.updatedAt=new Date().toISOString();saveState();}
 function removeEmotionConfig(type,i){const p=getCurrentPlan();if(!p?.emotionConfig?.[type])return;p.emotionConfig[type].splice(i,1);p.updatedAt=new Date().toISOString();saveState();}
 function ruleConfigText(rule,scope){const bits=[];if(Number(rule.maxConsecutiveLosses)>0)bits.push(`${rule.maxConsecutiveLosses} pérdidas consecutivas`);if(Number(rule.maxLossValue)>0)bits.push(`pérdida máx. ${rule.maxLossValue} ${String(rule.maxLossUnit||'usd').toUpperCase()} ${rule.maxLossBasis==='gross'?'bruto':'neto'}`);if(scope==='daily'&&rule.stopAfterWinThenLoss)bits.push('tras beneficio: primera pérdida cierra sesión');if(scope==='weekly'&&Number(rule.maxLosingDays)>0)bits.push(`${rule.maxLosingDays} días perdedores`);return bits.length?bits.join(' · '):'Sin límites activos';}
 function riskManagementPanel(p){const r=p?.riskManagement||basePlanConfig.riskManagement;return `<section class="card panel config-wide" style="margin-top:16px"><div class="panel-title"><div><h3>Normas de gestión de riesgo · ${esc(planLabel(p))}</h3><div class="help">La estadística puede simular cronológicamente qué operaciones habrías podido tomar después de aplicar estas reglas.</div></div><button class="btn primary small" data-tr-onclick="openRiskManagementModal()">Editar reglas</button></div><div class="risk-rule-cards"><div><span>Diario</span><strong>${esc(ruleConfigText(r.daily,'daily'))}</strong></div><div><span>Semanal</span><strong>${esc(ruleConfigText(r.weekly,'weekly'))}</strong></div></div><div class="notice" style="margin-top:12px">El trade que alcanza un límite sí cuenta; se excluyen las operaciones posteriores. El filtro se aplica sobre el subconjunto temporal/contextual que tengas seleccionado en Operaciones.</div></section>`;}

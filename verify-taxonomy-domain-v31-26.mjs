@@ -23,6 +23,9 @@ if(fs.existsSync(file)){
   need(src.includes("id:'h4Phase'"),'Batch 65 scope extension: Fase H4 sigue fuera del dominio de taxonomías.');
   need(src.includes('operationForm'),'Batch 65: el formulario de operación no consume taxonomías dinámicas.');
   need(src.includes('saveOperationFromForm'),'Batch 65: el guardado de operación no persiste taxonomías dinámicas.');
+  need(!src.includes("field('ATR observado (opcional)'"),'Operation cleanup: ATR legacy sigue duplicado como campo fijo fuera de taxonomías.');
+  need(!src.includes("get('atr')"),'Operation cleanup: el writer activo todavía depende del antiguo input ATR fijo.');
+  need(src.includes('atr:previous?.atr??null'),'Operation cleanup: al retirar el input ATR deben preservarse valores legacy ya almacenados.');
   need(src.includes('operationsFilterPanel'),'Batch 65: Operaciones no expone filtros dinámicos.');
   need(src.includes('labFilterPanel'),'Batch 65: Laboratorio no expone filtros dinámicos.');
   need(src.includes('baseFilteredOps'),'Batch 65: el pipeline compartido de filtros no consume taxonomías.');

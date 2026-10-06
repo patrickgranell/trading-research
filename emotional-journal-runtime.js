@@ -88,6 +88,29 @@ Object.defineProperty(globalThis,'TradingResearchEmotionalJournalDomain',{value:
 
 if(typeof state==='undefined'||typeof document==='undefined')return;
 
+/* Publish the V31.29 presentation/action surface before touching legacy bindings.
+ * This makes Journal fail-safe even if a compatibility wrapper later cannot be installed. */
+if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalRender()}),writable:false,enumerable:false,configurable:false});
+}
+const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
+trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
+trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};
+trEarlyActions.emotionalSessionClose=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};
+trEarlyActions.emotionalSessionEditEnd=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};
+trEarlyActions.emotionalSessionSaveStart=function(){return trSaveSessionStart(String(this.dataset.sessionId||''));};
+trEarlyActions.emotionalSessionSaveEnd=function(){return trSaveSessionEnd(String(this.dataset.sessionId||''));};
+trEarlyActions.emotionalSessionDelete=function(){return trDeleteSession(String(this.dataset.sessionId||''));};
+trEarlyActions.emotionalOpenOperation=function(){return openEmotionalEditor(String(this.dataset.operationId||''));};
+
+window.TradingResearchEmotionalJournal=Object.freeze({
+  version:TR_EMOTIONAL_JOURNAL_VERSION,
+  ensurePlan:trEnsurePlan,
+  eligible:trOperationEligible,
+  sessions:planId=>trSessions(getPlan(planId||state.currentPlanId)),
+  diagnostics:()=>({version:TR_EMOTIONAL_JOURNAL_VERSION,planId:state.currentPlanId,sessions:trSessions().length,eligibleOperations:trEligibleOperations(currentOps()).length,excludedBacktests:currentOps().filter(o=>trOperationLayer(o)==='backtest').length})
+});
+
 function trPlanSnapshot(plan){
   if(typeof planSnapshot==='function')return planSnapshot(plan);
   return plan?{id:plan.id,name:plan.name,version:plan.version}:null;
@@ -275,7 +298,7 @@ function trOperationTable(ops){
 function trJournalRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   trEnsurePlan(plan);
-  const allEligible=trEligibleOperations(currentOps()),ops=journalFilteredOps(),st=journalStats(ops),em=plan?.emotionConfig?.emotions||[],bh=plan?.emotionConfig?.behaviors||[];
+  const allEligible=trEligibleOperations(currentOps()),ops=trEligibleOperations(journalFilteredOps()),st=journalStats(ops),em=plan?.emotionConfig?.emotions||[],bh=plan?.emotionConfig?.behaviors||[];
   const env=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
   const sel=(id,label,arr,val)=>`<label class="filter-field"><span>${label}</span><select id="${id}" class="select" data-tr-onchange="readJournalFilters()"><option value="">Todos</option>${arr.map(x=>`<option value="${esc(typeof x==='object'?x.value:x)}" ${String(val)===String(typeof x==='object'?x.value:x)?'selected':''}>${esc(typeof x==='object'?x.label:x)}</option>`).join('')}</select></label>`;
   const counts={replay:0,sim:0,live:0,pending:0,unclassified:0};for(const o of allEligible){const layer=trOperationLayer(o);counts[layer]=(counts[layer]||0)+1;}
@@ -342,26 +365,6 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
   const session=trMatchingOpenSession(operation);if(session)operation.journalSessionId=session.id;
   return baseSaveEmotionalEditor(id);
 };
-
-Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:trJournalRender}),writable:false,enumerable:false,configurable:false});
-
-const actions=window.TradingResearchActions||(window.TradingResearchActions={});
-actions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
-actions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};
-actions.emotionalSessionClose=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};
-actions.emotionalSessionEditEnd=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};
-actions.emotionalSessionSaveStart=function(){return trSaveSessionStart(String(this.dataset.sessionId||''));};
-actions.emotionalSessionSaveEnd=function(){return trSaveSessionEnd(String(this.dataset.sessionId||''));};
-actions.emotionalSessionDelete=function(){return trDeleteSession(String(this.dataset.sessionId||''));};
-actions.emotionalOpenOperation=function(){return openEmotionalEditor(String(this.dataset.operationId||''));};
-
-window.TradingResearchEmotionalJournal=Object.freeze({
-  version:TR_EMOTIONAL_JOURNAL_VERSION,
-  ensurePlan:trEnsurePlan,
-  eligible:trOperationEligible,
-  sessions:planId=>trSessions(getPlan(planId||state.currentPlanId)),
-  diagnostics:()=>({version:TR_EMOTIONAL_JOURNAL_VERSION,planId:state.currentPlanId,sessions:trSessions().length,eligibleOperations:trEligibleOperations(currentOps()).length,excludedBacktests:currentOps().filter(o=>trOperationLayer(o)==='backtest').length})
-});
 
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */

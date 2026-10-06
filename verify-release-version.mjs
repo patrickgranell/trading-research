@@ -9,7 +9,7 @@ const fail=[];
 
 if(pkg.version!==EXPECTED)fail.push(`package.json version = ${pkg.version}, expected ${EXPECTED}`);
 if(!index.includes(`name="trading-research-source-version" content="${EXPECTED}"`))fail.push('index source-version no coincide con V31.28.0');
-if(!render.includes(`const TR_RELEASE_VERSION='${EXPECTED}'`))fail.push('falta TR_RELEASE_VERSION V31.27.0');
+if(!render.includes(`const TR_RELEASE_VERSION='${EXPECTED}'`))fail.push('falta TR_RELEASE_VERSION V31.28.0');
 if(!render.includes("const TR_RELEASE_LABEL='V31.28 · TP Builder + Derived Samples'"))fail.push('falta label global V31.28');
 if(!render.includes("<small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong>"))fail.push('Modo actual no usa la versión global de release');
 if(render.includes("<small>Modo actual</small><strong>V${TR_SOURCE_CONSOLIDATION_PHASE}</strong>"))fail.push('Modo actual sigue acoplado a Source Consolidation');

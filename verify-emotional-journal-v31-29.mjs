@@ -25,8 +25,11 @@ need(structural.includes("case 'journalops':")&&structural.includes("TradingRese
 need(structural.includes("case 'journalnotes':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderNotes();"),'Diario: Structural Runtime no exige Notas emocionales V31.29.');
 need(runtime.includes("render:()=>trJournalSessionsRender()")&&runtime.includes("renderOperations:()=>trJournalOperationsRender()")&&runtime.includes("renderNotes:()=>trJournalNotesRender()"),'Diario: Sesiones, Registro por operación y Notas no están separados en presentación.');
 need(runtime.includes("o?.emotional?.notes")&&runtime.includes("trSessionQuestions(plan).filter(q=>q.type==='text')"),'Diario: Notas emocionales no reúne texto de operaciones y sesiones.');
+need(runtime.includes("plan.emotionalLogs")&&runtime.includes("trEarlyActions.emotionalLogOpen")&&runtime.includes("+ Dejar constancia"),'Diario: falta la entidad independiente Dejar constancia.');
+need(runtime.includes("No tienes que convertir esto en un problema a resolver")&&runtime.includes("Quiero recordar esto"),'Diario: Dejar constancia pierde su propósito de descarga no prescriptiva.');
+need(runtime.includes("relatedReflection")&&runtime.includes("sessionId")&&runtime.includes("emotionalWear")&&runtime.includes("intensity"),'Diario: Dejar constancia no conserva los campos opcionales previstos.');
 need(runtime.includes("type=\"date\"")&&runtime.includes("type=\"week\"")&&runtime.includes("emotionalNotesFilterChange"),'Diario: Notas emocionales no permite filtrar por día/semana.');
-need(runtime.includes("value=\"session\"")&&runtime.includes("value=\"operation\"")&&runtime.includes("Buscar en notas"),'Diario: Notas emocionales no permite acotar por origen/texto.');
+need(runtime.includes("value=\"session\"")&&runtime.includes("value=\"operation\"")&&runtime.includes("value=\"standalone\"")&&runtime.includes("Buscar en notas"),'Diario: Notas emocionales no permite acotar por origen/texto/constancias.');
 need(runtime.includes("Las notas técnicas de Operaciones, setups o mercado quedan fuera"),'Diario: Notas emocionales no explicita la separación respecto a apuntes técnicos.');
 need(runtime.includes("const mode=globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified'"),'Diario: la sesión no hereda el entorno del Trading Plan.');
 need(!runtime.includes("document.getElementById('em-session-mode')"),'Diario: el usuario todavía puede escoger manualmente el tipo de sesión.');
@@ -38,7 +41,7 @@ need(runtime.includes("['journal','journalops','journalnotes'].includes(globalTh
 need(!runtime.includes('journal=trJournalRender'),'Diario: persiste la reasignación frágil del renderer legacy.');
 need(index.includes('<script src="emotional-journal-runtime.js"></script>'),'Diario: index no carga el runtime.');
 need(build.includes("'emotional-journal-runtime.js'"),'Diario: build no empaqueta el runtime.');
-need(app.includes('next.emotionalSessions=[]'),'TP Builder: el TP derivado hereda sesiones emocionales del origen.');
+need(app.includes('next.emotionalSessions=[]')&&app.includes('next.emotionalLogs=[]'),'TP Builder: el TP derivado hereda sesiones/constancias emocionales del origen.');
 need(app.includes("sourceJournalSessionId=x.journalSessionId||'';x.journalSessionId=''"),'TP Builder: operaciones derivadas conservan un journalSessionId ajeno.');
 
 const ctx={console,window:null};

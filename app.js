@@ -608,8 +608,7 @@ function openEmotionalEditor(id){
   const p=getPlan(o.tradingPlanId),e=o.emotional||{},em=['',...(p?.emotionConfig?.emotions||[])],beh=p?.emotionConfig?.behaviors||[];
   const ratingSelect=(label,name,value)=>{const labels=['','1 · Muy bajo','2 · Bajo','3 · Medio','4 · Alto','5 · Muy alto'];return `<label class="field"><span>${esc(label)}</span><select class="select" name="${esc(name)}">${labels.map((x,i)=>`<option value="${i||''}" ${Number(value)===i?'selected':''}>${i?esc(x):'Sin informar'}</option>`).join('')}</select></label>`;};
   const behaviors=`<div class="emotion-check-grid">${beh.map(x=>`<label><input type="checkbox" name="emotion-behavior" value="${esc(x)}" ${(e.behaviors||[]).includes(x)?'checked':''}> <span>${esc(x)}</span></label>`).join('')}</div>`;
-  const body=`<form data-tr-onsubmit="return false">
-    <div class="trade-context-strip"><strong>${fmtDate(o.entryDate)} · ${esc(o.contract||'—')} · ${esc(o.direction||'—')}</strong><span>${esc(o.setup||'—')} · ${esc(o.vd||'—')} · ${esc(o.riskStrategyName||'—')}</span><em class="${Number(o.pnlNet)>=0?'positive':'negative'}">${money(o.pnlNet||0,o.instrumentSnapshot?.currency||'USD')}</em></div>
+  const body=`<form data-tr-onsubmit="return false"><div class="trade-context-strip"><strong>${fmtDate(o.entryDate)} · ${esc(o.contract||'—')} · ${esc(o.direction||'—')}</strong><span>${esc(o.setup||'—')} · ${esc(o.vd||'—')} · ${esc(o.riskStrategyName||'—')}</span><em class="${Number(o.pnlNet)>=0?'positive':'negative'}">${money(o.pnlNet||0,o.instrumentSnapshot?.currency||'USD')}</em></div>
     <div class="form-section"><h4>Antes</h4><div class="form-grid">
       ${selectField('Estado emocional','emo-before',em,e.before||'')}
       ${ratingSelect('Estrés · 1-5','emo-stress',e.stress)}

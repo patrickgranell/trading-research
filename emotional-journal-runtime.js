@@ -2,6 +2,8 @@
 (()=>{
 'use strict';
 
+globalThis.__trEmotionalJournalStage='runtime-entered';
+
 const TR_EMOTIONAL_JOURNAL_VERSION='31.29.0';
 const TR_SESSION_MODES=Object.freeze(['replay','sim','live']);
 const TR_SESSION_MODE_LABELS=Object.freeze({replay:'Market Replay',sim:'SIM',live:'Live'});
@@ -84,15 +86,21 @@ const domain=Object.freeze({
   ensurePlan:trEnsurePlan,
   coverage:trCoverage
 });
-Object.defineProperty(globalThis,'TradingResearchEmotionalJournalDomain',{value:domain,writable:false,enumerable:false,configurable:false});
+if(!globalThis.TradingResearchEmotionalJournalDomain){
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalDomain',{value:domain,writable:false,enumerable:false,configurable:false});
+}
+globalThis.__trEmotionalJournalStage='domain-published';
 
-if(typeof state==='undefined'||typeof document==='undefined')return;
-
-/* Publish the V31.29 presentation/action surface before touching legacy bindings.
- * This makes Journal fail-safe even if a compatibility wrapper later cannot be installed. */
+/* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
+ * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
   Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalRender()}),writable:false,enumerable:false,configurable:false});
 }
+globalThis.__trEmotionalJournalStage='presentation-published';
+
+if(typeof state==='undefined'||typeof document==='undefined')return;
+
+/* Register actions only after the presentation contract is guaranteed to exist. */
 const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
 trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
 trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};

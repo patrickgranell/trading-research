@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='649292364db4fa86a735d436fa68f33811b7e97b5bf06b9fe6b7a7f8483f74cf';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='84fe8b4f9c274bc24f72eb3282bc2d72267f8e307bb71cb053084649bee57010';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);
@@ -49,6 +49,8 @@ need(structural.includes("case 'journalstatements':")&&structural.includes("Trad
   'El router no conserva la nueva vista Dejar constancia del Diario emocional.');
 need(structural.includes("case 'journalconfidence':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderConfidence();"),
   'El router no conserva la vista Confianza del Diario emocional.');
+need(structural.includes("case 'journalstreaks':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderStreaks();"),
+  'El router no conserva la vista Rachas y adaptación del Diario emocional.');
 
 if(fail.length){
   console.error('Current View Router Read Boundary verification FAILED');

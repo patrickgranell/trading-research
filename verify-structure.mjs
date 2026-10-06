@@ -10,12 +10,12 @@ const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const baseline=JSON.parse(fs.readFileSync('financial-regression-baseline.json','utf8'));
 const fail=[];
 const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
-/* Preserve the audited V31.27 functional source byte-for-byte after the Operation Layers + TP Lineage change.
+/* Preserve the audited V31.28 functional source byte-for-byte after the Operation Layers + TP Lineage change.
  * The exact terminal contract chain remains the only permitted suffix outside that audited functional source:
  * Plan read, content encoding, Exit Lab presentation, Form Boundary,
  * Reports Presentation, Timeline Presentation, Date Presentation, Navigation Presentation, Operations Read, Context Help Presentation, View Presentation, Research Status, Reports Section Presentation, Operations Presentation, Navigation State, Navigation Runtime State, Operation Checklist Presentation, Running Chart Presentation, then Theme Read. Removing all nineteen suffixes
- * must reproduce the audited V31.27 functional app.js exactly. */
-const expectedAuditedAppSha='bf91747daff3d1acba5b002c11aa21ead1c930fd468a0975ccac376453df9c9b';
+ * must reproduce the audited V31.28 functional app.js exactly. */
+const expectedAuditedAppSha='2695b929590d076970dcec38e480700150d31a2b76e7519e27e7b1483d230f1d';
 const planReadContractSuffix="\n/* V31.25 · bounded classic-global debt · explicit read-only Plan contract */\nObject.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});\n";
 const contentEncodingContractSuffix="/* V31.25 · bounded classic-global debt · explicit content encoding contract */\nObject.defineProperty(globalThis,'TradingResearchContentEncodingContract',{value:Object.freeze({html:esc,uri:inlineUriToken}),writable:false,enumerable:false,configurable:false});\n";
 const exitPresentationContractSuffix="/* V31.25 · bounded classic-global debt · explicit Exit Lab presentation contract */\nObject.defineProperty(globalThis,'TradingResearchExitPresentationContract',{value:Object.freeze({readGrossR:exitGrossR,classifyResult:exitResultClass,formatRValue:exitFmtR,formatPercentValue:exitFmtPct,formatProfitFactorValue:exitPf}),writable:false,enumerable:false,configurable:false});\n";
@@ -40,7 +40,7 @@ if(!app.endsWith(architecturalContractSuffix)){
   fail.push('app.js no termina exactamente con la cadena contractual Plan + Content Encoding + Exit Presentation + Form Boundary + Reports Presentation + Timeline Presentation + Date Presentation + Navigation Presentation + Operations Read + Context Help Presentation + View Presentation + Research Status + Reports Section Presentation + Operations Presentation + Navigation State + Navigation Runtime State + Operation Checklist Presentation + Running Chart Presentation + Theme Read permitida.');
 }else{
   const auditedApp=app.slice(0,-architecturalContractSuffix.length);
-  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.27 Operation Layers + TP Lineage auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
+  if(sha(auditedApp)!==expectedAuditedAppSha)fail.push(`El source previo a los contratos arquitectónicos ya no coincide con el V31.28 TP Builder + Derived Samples auditado (${sha(auditedApp)} != ${expectedAuditedAppSha}).`);
 }
 if((app.match(/TradingResearchPlanReadContract/g)||[]).length!==1)fail.push('TradingResearchPlanReadContract debe publicarse exactamente una vez en app.js.');
 if((app.match(/TradingResearchContentEncodingContract/g)||[]).length!==1)fail.push('TradingResearchContentEncodingContract debe publicarse exactamente una vez en app.js.');

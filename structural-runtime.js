@@ -396,7 +396,7 @@ render=function(){
     trRenderAfterView();
   }catch(e){
     trRenderLastError=e?.message||String(e);console.error('[Trading Research · render V31.13]',e);
-    const view=document.getElementById('view');if(view)view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchCurrentViewReadContract.current())}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError)}</div></section>`;
+    const view=document.getElementById('view');if(view){const journalDiag=globalThis.TradingResearchCurrentViewReadContract.current()==='journal'?(' · etapa emocional: '+String(globalThis.__trEmotionalJournalStage||'sin iniciar')+' · contrato: '+(globalThis.TradingResearchEmotionalJournalPresentationContract?'sí':'no')):'';view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchCurrentViewReadContract.current())}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError+journalDiag)}</div></section>`;}
   }
 };
 window.render=render;

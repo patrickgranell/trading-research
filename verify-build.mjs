@@ -18,6 +18,11 @@ need(!/<script\s+src=["'](?:app|style-attr-runtime|reports-purity-runtime|struct
 const scripts=[...h.matchAll(/<script\s+([^>]*)>([\s\S]*?)<\/script>/gi)].filter(m=>/data-tr-(?:build|style-attr-runtime|reports-purity-runtime|structural-runtime|state-runtime|taxonomy-runtime|emotional-journal-runtime|persistence-coalescing-runtime|backup-v2-runtime|security-runtime|event-runtime|cloud-v10-runtime|canonical-metrics-runtime|exit-lab-runtime|csp-runtime|style-runtime|operation-cleanup-runtime|blob-lifecycle-runtime|render-closure-runtime)=/.test(m[1]));need(scripts.length===19,`expected 19 bundled JS blocks, got ${scripts.length}`);
 const emotional=scripts.find(x=>/data-tr-emotional-journal-runtime=/.test(x[1]));
 const structuralBundle=scripts.find(x=>/data-tr-structural-runtime=/.test(x[1]));
+need(!!structuralBundle,'Structural runtime missing from final bundle');
+if(structuralBundle){
+  need(structuralBundle[2].includes("__trEmotionalJournalRuntimeInstalled"),'Structural bundle does not carry the emotional runtime fallback');
+  need(structuralBundle[2].indexOf("__trEmotionalJournalStage='runtime-entered'")<structuralBundle[2].indexOf("TR_RENDER_RUNTIME_VERSION"),'Emotional fallback is not installed before Structural render');
+}
 need(!!emotional,'Emotional Journal runtime missing from final bundle');
 if(emotional){
   need(emotional[2].includes("TradingResearchEmotionalJournalPresentationContract"),'Final Emotional Journal bundle lost its presentation contract');

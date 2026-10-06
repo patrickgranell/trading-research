@@ -17,6 +17,7 @@ need(runtime.includes("TR_TRI_LEVELS=Object.freeze(['low','medium','high'])"),'D
 need(runtime.includes("TR_CONFIDENCE_LEVELS=Object.freeze(['very_low','low','normal','high','very_high'])"),'Diario: las dos confianzas no conservan cinco niveles ordinales.');
 need(runtime.includes('Sin informar'),'Diario: falta estado explícito de dato ausente.');
 need(runtime.includes('journalSessionId'),'Diario: las operaciones no pueden vincularse a una sesión.');
+need(runtime.includes("emotionalBreakdown(ops,'emotion')")&&runtime.includes("emotionalBreakdown(ops,'behavior')"),'Diario: el rediseño eliminó los análisis históricos por emoción/comportamiento.');
 need(runtime.includes('trMatchingOpenSession'),'Diario: falta enlace automático a la sesión abierta del mismo entorno.');
 need(runtime.includes('Backtesting queda fuera del Diario Emocional'),'Diario: la exclusión de Backtesting no se comunica en UI.');
 need(runtime.includes('journal=trJournalRender'),'Diario: el runtime no sustituye el renderer mediante la resolución tardía existente.');

@@ -601,12 +601,12 @@ function emotionConfigPanel(p){
   const scaleInputs=(group,keys,labels)=>`<div class="form-grid">${keys.map((key,i)=>`<label class="field"><span>${esc(labels[i])}</span><input id="emotion-session-${group}-${key}" class="input" value="${esc(sessionScales[group][key]||'')}"></label>`).join('')}</div>`;
   return `<section class="card panel config-wide" style="margin-top:16px"><div class="panel-title"><div><h3>Taxonomía emocional · ${esc(planLabel(p))}</h3><div class="help">Estas categorías se usan en el Diario y en los filtros de resultados. Puedes adaptarlas a tu lenguaje operativo.</div></div><button class="btn small" data-tr-onclick="navigate('journal')">Abrir diario</button></div>
     <div class="grid two emotion-config-grid"><div><h4>Emociones / estados</h4>${list(e.emotions,'emotions')}</div><div><h4>Comportamientos observables</h4>${list(e.behaviors,'behaviors')}</div></div>
-    <div class="form-section" style="margin-top:16px"><h4>Taxonomías de sesiones emocionales</h4><div class="help">Las claves internas permanecen estables; aquí solo adaptas el lenguaje visible del Trading Plan.</div>
-      <div class="grid two emotion-config-grid" style="margin-top:12px">
+    <div class="form-section session-taxonomy-section"><h4>Taxonomías de sesiones emocionales</h4><div class="help">Las claves internas permanecen estables; aquí solo adaptas el lenguaje visible del Trading Plan.</div>
+      <div class="grid two emotion-config-grid session-taxonomy-grid">
         <div><h4>Escala de confianza</h4><div class="help">Se usa en Confianza personal y Confianza en el sistema.</div>${scaleInputs('confidence',['very_low','low','normal','high','very_high'],['Nivel 1','Nivel 2','Nivel 3','Nivel 4','Nivel 5'])}</div>
         <div><h4>Escala de estado</h4><div class="help">Se usa en Estrés, Foco, Fatiga y Desgaste emocional.</div>${scaleInputs('tri',['low','medium','high'],['Nivel 1','Nivel 2','Nivel 3'])}</div>
       </div>
-      <div class="panel-actions" style="margin-top:12px"><button class="btn primary small" data-tr-onclick="addEmotionConfig('sessionScales')">Guardar escalas de sesión</button></div>
+      <div class="panel-actions session-taxonomy-actions"><button class="btn primary small" data-tr-onclick="addEmotionConfig('sessionScales')">Guardar escalas de sesión</button></div>
     </div>
   </section>`;
 }

@@ -67,6 +67,26 @@ function trNormalizeSession(value={},plan=null){
     updatedAt:trText(value?.updatedAt)||startedAt
   };
 }
+function trNormalizeLog(value={},plan=null){
+  const at=trText(value?.at)||trNow(),intensity=String(value?.intensity??'');
+  return {
+    id:trText(value?.id)||trId('EL'),
+    schemaVersion:1,
+    tradingPlanId:trText(value?.tradingPlanId)||trText(plan?.id),
+    tradingPlanSnapshot:value?.tradingPlanSnapshot?trCopy(value.tradingPlanSnapshot):null,
+    at,
+    text:trText(value?.text),
+    context:trText(value?.context),
+    sessionId:trText(value?.sessionId),
+    confidence:TR_CONFIDENCE_LEVELS.includes(value?.confidence)?value.confidence:'',
+    emotionalWear:TR_TRI_LEVELS.includes(value?.emotionalWear)?value.emotionalWear:'',
+    intensity:['1','2','3','4','5'].includes(intensity)?intensity:'',
+    relatedReflection:trText(value?.relatedReflection),
+    remember:value?.remember===true||String(value?.remember)==='true',
+    createdAt:trText(value?.createdAt)||at,
+    updatedAt:trText(value?.updatedAt)||at
+  };
+}
 function trSessionScales(plan){
   const cfg=plan?.emotionConfig?.sessionScales||{};
   return {confidence:{...TR_CONFIDENCE_LABELS,...(cfg.confidence||{})},tri:{...TR_TRI_LABELS,...(cfg.tri||{})}};
@@ -87,6 +107,8 @@ function trEnsurePlan(plan){
   ];
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
+  const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
+  plan.emotionalLogs=logs.map(row=>trNormalizeLog(row,plan));
   return plan;
 }
 function trCoverage(operations,hasEntry){
@@ -108,6 +130,7 @@ const domain=Object.freeze({
   sessionModeForOperation:trSessionModeForOperation,
   normalizePoint:trNormalizePoint,
   normalizeSession:trNormalizeSession,
+  normalizeLog:trNormalizeLog,
   ensurePlan:trEnsurePlan,
   coverage:trCoverage
 });
@@ -147,6 +170,9 @@ trEarlyActions.emotionalNotesFilterChange=function(){
 trEarlyActions.emotionalNotesFilterReset=function(){
   trNotesFilter.period='all';trNotesFilter.value='';trNotesFilter.kind='all';trNotesFilter.query='';render();
 };
+trEarlyActions.emotionalLogOpen=function(){trLogEditor(String(this.dataset.logId||''));};
+trEarlyActions.emotionalLogSave=function(){return trSaveLog(String(this.dataset.logId||''));};
+trEarlyActions.emotionalLogDelete=function(){return trDeleteLog(String(this.dataset.logId||''));};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -168,7 +194,7 @@ try{addEventListener('tradingresearch:core-hydrated',()=>trEnsureAll());}catch{}
 
 if(typeof makeBlankPlan==='function'){
   const baseMakeBlankPlan=makeBlankPlan;
-  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];return trEnsurePlan(plan);};
+  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];plan.emotionalLogs=[];return trEnsurePlan(plan);};
 }
 if(typeof normalizePlan==='function'){
   const baseNormalizePlan=normalizePlan;
@@ -176,9 +202,14 @@ if(typeof normalizePlan==='function'){
 }
 if(typeof clonePlanForVersion==='function'){
   const baseClonePlanForVersion=clonePlanForVersion;
-  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];return trEnsurePlan(plan);};
+  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];plan.emotionalLogs=[];return trEnsurePlan(plan);};
 }
 
+function trLogs(plan=getCurrentPlan()){
+  trEnsurePlan(plan);
+  return plan?.emotionalLogs||[];
+}
+function trLogById(id,plan=getCurrentPlan()){return trLogs(plan).find(x=>x.id===id)||null;}
 function trSessions(plan=getCurrentPlan()){
   trEnsurePlan(plan);
   return plan?.emotionalSessions||[];
@@ -211,6 +242,63 @@ function trInputIso(value,fallback=''){
 }
 function trSelect(id,label,options,current=''){
   return `<label class="field"><span>${esc(label)}</span><select id="${esc(id)}" class="select"><option value="">Sin informar</option>${options.map(x=>`<option value="${esc(x.value)}" ${x.value===current?'selected':''}>${esc(x.label)}</option>`).join('')}</select></label>`;
+}
+function trLogEditor(id=''){
+  const plan=getCurrentPlan();if(!plan)return;
+  if(trJournalPlanEnvironment(plan)==='backtest')return alert('Backtesting queda fuera del Diario Emocional.');
+  trEnsurePlan(plan);
+  const existing=id?trLogById(id,plan):null,scales=trSessionScales(plan);
+  const open=trSessions(plan).find(s=>!s.endedAt),sessionId=existing?.sessionId||open?.id||'';
+  const sessionOptions=trSessions(plan).slice().sort((a,b)=>String(b.startedAt||'').localeCompare(String(a.startedAt||''))).map(s=>({value:s.id,label:(TR_SESSION_MODE_LABELS[s.mode]||s.mode)+' · '+fmtDate(s.startedAt)+(s.endedAt?'':' · abierta')}));
+  const confidence=TR_CONFIDENCE_LEVELS.map(value=>({value,label:scales.confidence[value]||TR_CONFIDENCE_LABELS[value]}));
+  const wear=TR_TRI_LEVELS.map(value=>({value,label:scales.tri[value]||TR_TRI_LABELS[value]}));
+  const intensity=[1,2,3,4,5].map(value=>({value:String(value),label:String(value)}));
+  const body=`<form id="emotional-log-form" data-tr-onsubmit="return false">
+    <div class="form-section emotional-log-primary"><h4>Dejar constancia</h4><div class="form-grid">
+      <label class="field span2"><span>Texto</span><textarea id="em-log-text" class="input emotional-log-text" placeholder="Escribe libremente qué estás viviendo, pensando o sintiendo…">${esc(existing?.text||'')}</textarea></label>
+      <label class="field"><span>Fecha / hora</span><input id="em-log-time" class="input" type="datetime-local" value="${esc(trSessionDateInput(existing?.at||trNow()))}"></label>
+      <label class="field"><span>Situación / contexto</span><input id="em-log-context" class="input" value="${esc(existing?.context||'')}" placeholder="Ej. mala racha, dudas, exceso de confianza…"></label>
+    </div><div class="help">No tienes que convertir esto en un problema a resolver. Puede ser simplemente una forma de desahogarte y dejar constancia.</div></div>
+    <details class="emotional-log-details"><summary>Detalles opcionales</summary><div class="form-grid emotional-log-details-grid">
+      ${trSelect('em-log-session','Vincular a sesión',sessionOptions,sessionId)}
+      ${trSelect('em-log-confidence','Confianza',confidence,existing?.confidence||'')}
+      ${trSelect('em-log-wear','Desgaste emocional',wear,existing?.emotionalWear||'')}
+      ${trSelect('em-log-intensity','Intensidad emocional',intensity,existing?.intensity||'')}
+      <label class="field span2"><span>Reflexión relacionada</span><input id="em-log-reflection" class="input" value="${esc(existing?.relatedReflection||'')}" placeholder="Opcional; podrá vincularse con la biblioteca de reflexiones."></label>
+      <label class="emotional-log-remember"><input id="em-log-remember" type="checkbox" ${existing?.remember?'checked':''}> <span>Quiero recordar esto</span></label>
+    </div></details>
+  </form>`;
+  const footer=`${existing?'<button class="btn danger" data-log-id="'+esc(existing.id)+'" data-tr-action-click="emotionalLogDelete">Eliminar</button>':''}<button class="btn" data-tr-action-click="closeModal">Cancelar</button><button class="btn primary" data-log-id="${esc(existing?.id||'')}" data-tr-action-click="emotionalLogSave">Guardar constancia</button>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(existing?'Editar constancia':'Dejar constancia',body,footer));
+}
+function trSaveLog(id=''){
+  const plan=getCurrentPlan();if(!plan)return false;
+  if(trJournalPlanEnvironment(plan)==='backtest')return false;
+  trEnsurePlan(plan);
+  const now=trNow(),at=trInputIso(document.getElementById('em-log-time')?.value,now);
+  const item=trNormalizeLog({
+    id:id||undefined,tradingPlanId:plan.id,tradingPlanSnapshot:trPlanSnapshot(plan),at,
+    text:document.getElementById('em-log-text')?.value||'',
+    context:document.getElementById('em-log-context')?.value||'',
+    sessionId:document.getElementById('em-log-session')?.value||'',
+    confidence:document.getElementById('em-log-confidence')?.value||'',
+    emotionalWear:document.getElementById('em-log-wear')?.value||'',
+    intensity:document.getElementById('em-log-intensity')?.value||'',
+    relatedReflection:document.getElementById('em-log-reflection')?.value||'',
+    remember:!!document.getElementById('em-log-remember')?.checked,
+    createdAt:id?(trLogById(id,plan)?.createdAt||at):at,updatedAt:now
+  },plan);
+  if(!item.text&&!item.context&&!item.confidence&&!item.emotionalWear&&!item.intensity&&!item.relatedReflection&&!item.remember)return alert('Añade al menos un texto, contexto o detalle antes de guardar.');
+  const existing=id?trLogById(id,plan):null;
+  if(existing)Object.assign(existing,item,{id:existing.id,createdAt:existing.createdAt});
+  else plan.emotionalLogs.unshift(item);
+  plan.updatedAt=now;persist();closeModal();render();return true;
+}
+function trDeleteLog(id){
+  const plan=getCurrentPlan();if(!plan)return false;
+  const item=trLogById(id,plan);if(!item)return false;
+  if(!confirm('¿Eliminar esta constancia emocional?'))return false;
+  plan.emotionalLogs=trLogs(plan).filter(x=>x.id!==id);plan.updatedAt=trNow();persist();closeModal();render();return true;
 }
 function trPointFields(prefix,point,plan){
   const scales=trSessionScales(plan),questions=trSessionQuestions(plan);
@@ -405,6 +493,21 @@ function trJournalNotesRender(){
       }
     }
   }
+  const scales=trSessionScales(plan);
+  for(const log of trLogs(plan)){
+    const linked=log.sessionId?trSessionById(log.sessionId,plan):null;
+    const extras=[];
+    if(log.confidence)extras.push('Confianza '+(scales.confidence[log.confidence]||TR_CONFIDENCE_LABELS[log.confidence]||log.confidence));
+    if(log.emotionalWear)extras.push('Desgaste '+(scales.tri[log.emotionalWear]||TR_TRI_LABELS[log.emotionalWear]||log.emotionalWear));
+    if(log.intensity)extras.push('Intensidad '+log.intensity+'/5');
+    if(log.remember)extras.push('Quiero recordar');
+    const linkedText=linked?(TR_SESSION_MODE_LABELS[linked.mode]||linked.mode)+' · sesión '+fmtDate(linked.startedAt):'';
+    allRows.push({
+      kind:'standalone',at:log.at,title:log.remember?'Constancia · recordar':'Constancia',
+      context:[log.context,linkedText,extras.join(' · ')].filter(Boolean).join(' · ')||'Reflexión personal',
+      label:'Dejar constancia',text:log.text||'Sin texto libre.',logId:log.id
+    });
+  }
   const localDay=at=>{const d=new Date(at);if(Number.isNaN(d.getTime()))return String(at||'').slice(0,10);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
   const localWeek=at=>{const d=new Date(at);if(Number.isNaN(d.getTime()))return '';const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day+3);const first=new Date(x.getFullYear(),0,4);const firstDay=(first.getDay()+6)%7;first.setDate(first.getDate()-firstDay+3);const week=1+Math.round((x-first)/604800000);return x.getFullYear()+'-W'+String(week).padStart(2,'0');};
   const q=trNotesFilter.query.trim().toLowerCase();
@@ -415,7 +518,7 @@ function trJournalNotesRender(){
     if(q&&!([row.text,row.context,row.label,row.title].join(' ').toLowerCase().includes(q)))return false;
     return true;
   }).sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
-  const operationCount=rows.filter(x=>x.kind==='operation').length,sessionCount=rows.filter(x=>x.kind==='session').length;
+  const operationCount=rows.filter(x=>x.kind==='operation').length,sessionCount=rows.filter(x=>x.kind==='session').length,standaloneCount=rows.filter(x=>x.kind==='standalone').length;
   const periodControl=trNotesFilter.period==='day'
     ?`<label class="filter-field"><span>Día</span><input class="input" type="date" value="${esc(trNotesFilter.value)}" data-notes-key="value" data-tr-action-change="emotionalNotesFilterChange"></label>`
     :trNotesFilter.period==='week'
@@ -425,23 +528,23 @@ function trJournalNotesRender(){
   const filterBar=`<div class="emotional-notes-filter">
     <label class="filter-field"><span>Periodo</span><select class="select" data-notes-key="period" data-tr-action-change="emotionalNotesFilterChange"><option value="all" ${trNotesFilter.period==='all'?'selected':''}>Todo</option><option value="day" ${trNotesFilter.period==='day'?'selected':''}>Día concreto</option><option value="week" ${trNotesFilter.period==='week'?'selected':''}>Semana concreta</option></select></label>
     ${periodControl}
-    <label class="filter-field"><span>Origen</span><select class="select" data-notes-key="kind" data-tr-action-change="emotionalNotesFilterChange"><option value="all" ${trNotesFilter.kind==='all'?'selected':''}>Todos</option><option value="session" ${trNotesFilter.kind==='session'?'selected':''}>Sesiones</option><option value="operation" ${trNotesFilter.kind==='operation'?'selected':''}>Operaciones</option></select></label>
+    <label class="filter-field"><span>Origen</span><select class="select" data-notes-key="kind" data-tr-action-change="emotionalNotesFilterChange"><option value="all" ${trNotesFilter.kind==='all'?'selected':''}>Todos</option><option value="session" ${trNotesFilter.kind==='session'?'selected':''}>Sesiones</option><option value="operation" ${trNotesFilter.kind==='operation'?'selected':''}>Operaciones</option><option value="standalone" ${trNotesFilter.kind==='standalone'?'selected':''}>Constancias</option></select></label>
     <label class="filter-field emotional-notes-search"><span>Buscar en notas</span><input class="input" value="${esc(trNotesFilter.query)}" placeholder="Texto, contexto, contrato…" data-notes-key="query" data-tr-action-change="emotionalNotesFilterChange"></label>
     <button class="btn small" data-tr-action-click="emotionalNotesFilterReset" ${filterActive?'':'disabled'}>Limpiar</button>
   </div>`;
   const feed=rows.length?rows.map(row=>`<article class="emotional-note-card">
     <header class="emotional-note-head">
-      <div class="emotional-note-meta"><span class="emotional-note-kind">${row.kind==='operation'?'Operación':'Sesión'}</span><span>${esc(row.title)}</span><span>·</span><time>${esc(fmtDate(row.at))}</time></div>
+      <div class="emotional-note-meta"><span class="emotional-note-kind">${row.kind==='operation'?'Operación':row.kind==='session'?'Sesión':'Constancia'}</span><span>${esc(row.title)}</span><span>·</span><time>${esc(fmtDate(row.at))}</time></div>
       <div class="emotional-note-context">${esc(row.context)}</div>
     </header>
     <div class="emotional-note-body"><div class="emotional-note-label">${esc(row.label)}</div><div class="emotional-note-text">${esc(row.text)}</div></div>
-    <footer class="emotional-note-foot">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</footer>
+    <footer class="emotional-note-foot">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':row.kind==='session'?'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>':'<button class="btn small" data-log-id="'+esc(row.logId)+'" data-tr-action-click="emotionalLogOpen">Editar constancia</button>'}</footer>
   </article>`).join(''):'<div class="empty">No hay notas emocionales que coincidan con estos filtros.</div>';
-  return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional de sesiones y operaciones, separado de los apuntes técnicos.', '')}
+  return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional de sesiones y operaciones, separado de los apuntes técnicos.', '<button class="btn primary" data-tr-action-click="emotionalLogOpen">+ Dejar constancia</button>')}
     ${activePlanBanner()}
     <div class="emotional-notes-scope">Solo texto del Diario emocional. Las notas técnicas de Operaciones, setups o mercado quedan fuera.</div>
     ${filterBar}
-    <div class="emotional-notes-summary"><span><strong>${rows.length}</strong> ${filterActive?'de '+allRows.length+' ':''}notas</span><span><strong>${sessionCount}</strong> de sesiones</span><span><strong>${operationCount}</strong> de operaciones</span></div>
+    <div class="emotional-notes-summary"><span><strong>${rows.length}</strong> ${filterActive?'de '+allRows.length+' ':''}notas</span><span><strong>${sessionCount}</strong> de sesiones</span><span><strong>${operationCount}</strong> de operaciones</span><span><strong>${standaloneCount}</strong> constancias</span></div>
     <section class="card panel emotional-notes-panel"><div class="panel-title emotional-notes-title"><div><h3>Historial de notas emocionales</h3><small>De más reciente a más antigua.</small></div></div><div class="emotional-notes-feed">${feed}</div></section>`;
 }
 

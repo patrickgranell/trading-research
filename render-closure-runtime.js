@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.28.0';
-const TR_RELEASE_LABEL='V31.28 · TP Builder + Derived Samples';
+const TR_RELEASE_VERSION='31.29.0';
+const TR_RELEASE_LABEL='V31.29 · Emotional Journal Sessions';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';

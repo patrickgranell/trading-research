@@ -209,11 +209,10 @@ function trPlanDeleteUpdateToolbar(){
 }
 function trPlanDeleteDecorate(){
   if(currentView!=='plans')return;
-  const grid=document.querySelector('#view .plan-grid');if(!grid)return;
-  const cards=[...grid.querySelectorAll(':scope > .plan-card')],plans=state.tradingPlans||[];
-  if(cards.length!==plans.length)return;
-  for(let i=0;i<cards.length;i++){
-    const p=plans[i],actions=cards[i].querySelector('.plan-actions');
+  const root=document.querySelector('#view');if(!root)return;
+  const cards=[...root.querySelectorAll('[data-tr-plan-card-id]')];if(!cards.length)return;
+  for(const card of cards){
+    const planId=String(card.dataset.trPlanCardId||''),p=(state.tradingPlans||[]).find(x=>String(x.id)===planId),actions=card.querySelector('.plan-actions');
     if(!p||!actions||actions.querySelector('[data-tr-plan-delete-id]'))continue;
     const check=document.createElement('label');check.className='btn small';
     const input=document.createElement('input');input.type='checkbox';input.dataset.trPlanSelect=String(p.id);
@@ -222,12 +221,15 @@ function trPlanDeleteDecorate(){
     button.dataset.trPlanDeleteId=String(p.id);button.textContent='Eliminar';
     actions.append(check,button);
   }
-  if(!grid.previousElementSibling?.matches?.('[data-tr-plan-delete-toolbar]')){
-    const toolbar=document.createElement('div');toolbar.className='actions';
-    toolbar.dataset.trPlanDeleteToolbar='1';
-    const bulk=document.createElement('button');bulk.type='button';bulk.className='btn small danger';
-    bulk.dataset.trPlanDeleteSelected='1';bulk.textContent='Eliminar seleccionados (0)';bulk.disabled=true;
-    toolbar.append(bulk);grid.parentNode.insertBefore(toolbar,grid);
+  if(!root.querySelector('[data-tr-plan-delete-toolbar]')){
+    const anchor=root.querySelector('.plan-validation-group,.plan-ungrouped');
+    if(anchor){
+      const toolbar=document.createElement('div');toolbar.className='actions';
+      toolbar.dataset.trPlanDeleteToolbar='1';
+      const bulk=document.createElement('button');bulk.type='button';bulk.className='btn small danger';
+      bulk.dataset.trPlanDeleteSelected='1';bulk.textContent='Eliminar seleccionados (0)';bulk.disabled=true;
+      toolbar.append(bulk);anchor.parentNode.insertBefore(toolbar,anchor);
+    }
   }
   trPlanDeleteUpdateToolbar();
 }

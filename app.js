@@ -655,7 +655,7 @@ function openBlockInOperations(i){opsViewState.block=String(i+1);currentView='op
 
 function plansView(){
   const envOrder={backtest:0,replay:1,sim:2,live:3,unclassified:4};
-  const planCard=p=>{const st=calcStats(state.operations.filter(o=>o.tradingPlanId===p.id)),imports=state.importBatches.filter(b=>b.tradingPlanId===p.id).length,layers=globalThis.TradingResearchOperationSemanticsContract.counts(state.operations,p.id);return `<section class="card plan-card ${p.id===state.currentPlanId?'selected-plan':''}"><div class="plan-card-head"><div><div class="plan-title">${esc(p.name)} <span class="badge">${esc(p.version)}</span> <span class="badge">${esc(globalThis.TradingResearchOperationSemanticsContract.planEnvironmentLabel(p))}</span> ${p.status==='archived'?'<span class="badge">Archivado</span>':''}</div><div class="config-meta">Familia: ${esc(p.familyName||p.name)} · creado ${fmtDateOnly(p.createdAt)}${p.validationGroupId?` · Grupo: ${esc(p.validationGroupName||'Validación')}`:' · Sin grupo'} · Backtest ${layers.backtest} · Replay ${layers.replay} · Sim ${layers.sim} · Live ${layers.live}${layers.unclassified?` · Sin clasificar ${layers.unclassified}`:''}</div></div>${p.id===state.currentPlanId?'<span class="badge win">Activo</span>':''}</div><p>${esc(p.description||'Sin descripción')}</p><div class="plan-metrics"><div><span>Trades</span><strong>${st.n}</strong></div><div><span>Expectancy</span><strong class="${st.expectancy>=0?'positive':'negative'}">${st.expectancy>=0?'+':''}${st.expectancy.toFixed(2)}R</strong></div><div><span>Setups</span><strong>${p.setups.length}</strong></div><div><span>Estrategias</span><strong>${p.riskStrategies.length}</strong></div><div><span>Importaciones</span><strong>${imports}</strong></div></div><div class="actions plan-actions"><button class="btn small primary" data-tr-onclick="switchPlanAndOpen('${p.id}')">Abrir</button><button class="btn small" data-tr-onclick="openPlanModal('${p.id}')">Editar</button><button class="btn small" data-tr-onclick="openPlanModal(null,'${p.id}')">Clonar versión</button><button class="btn small" data-tr-onclick="trLegacyStateCommand('plan-group-open','${p.id}')">${p.validationGroupId?'Gestionar grupo':'Agrupar'}</button><button class="btn small" data-tr-onclick="togglePlanStatus('${p.id}')">${p.status==='archived'?'Reactivar':'Archivar'}</button></div></section>`;};
+  const planCard=p=>{const st=calcStats(state.operations.filter(o=>o.tradingPlanId===p.id)),imports=state.importBatches.filter(b=>b.tradingPlanId===p.id).length,layers=globalThis.TradingResearchOperationSemanticsContract.counts(state.operations,p.id);return `<section class="card plan-card ${p.id===state.currentPlanId?'selected-plan':''}" data-tr-plan-card-id="${esc(p.id)}"><div class="plan-card-head"><div><div class="plan-title">${esc(p.name)} <span class="badge">${esc(p.version)}</span> <span class="badge">${esc(globalThis.TradingResearchOperationSemanticsContract.planEnvironmentLabel(p))}</span> ${p?.derivation?.type==='filtered_sample'?'<span class="badge">Derivado</span>':''} ${p.status==='archived'?'<span class="badge">Archivado</span>':''}</div><div class="config-meta">Familia: ${esc(p.familyName||p.name)} · creado ${fmtDateOnly(p.createdAt)}${p.validationGroupId?` · Grupo: ${esc(p.validationGroupName||'Validación')}`:' · Sin grupo'}${p?.derivation?.type==='filtered_sample'?` · Derivado de ${esc(p.derivation.sourcePlanLabel||p.derivation.sourcePlanId||'TP origen')} · muestra ${Number(p.derivation.includedCount)||0}/${Number(p.derivation.sourceCount)||0}`:''} · Backtest ${layers.backtest} · Replay ${layers.replay} · Sim ${layers.sim} · Live ${layers.live}${layers.unclassified?` · Sin clasificar ${layers.unclassified}`:''}</div></div>${p.id===state.currentPlanId?'<span class="badge win">Activo</span>':''}</div><p>${esc(p.description||'Sin descripción')}</p><div class="plan-metrics"><div><span>Trades</span><strong>${st.n}</strong></div><div><span>Expectancy</span><strong class="${st.expectancy>=0?'positive':'negative'}">${st.expectancy>=0?'+':''}${st.expectancy.toFixed(2)}R</strong></div><div><span>Setups</span><strong>${p.setups.length}</strong></div><div><span>Estrategias</span><strong>${p.riskStrategies.length}</strong></div><div><span>Importaciones</span><strong>${imports}</strong></div></div><div class="actions plan-actions"><button class="btn small primary" data-tr-onclick="switchPlanAndOpen('${p.id}')">Abrir</button><button class="btn small" data-tr-onclick="openPlanModal('${p.id}')">Editar</button><button class="btn small" data-tr-onclick="openPlanModal(null,'${p.id}')">Clonar versión</button><button class="btn small" data-tr-onclick="trLegacyStateCommand('plan-group-open','${p.id}')">${p.validationGroupId?'Gestionar grupo':'Agrupar'}</button><button class="btn small" data-tr-onclick="togglePlanStatus('${p.id}')">${p.status==='archived'?'Reactivar':'Archivar'}</button></div></section>`;};
   const groups=new Map(),ungrouped=[];
   for(const p of state.tradingPlans){if(p.validationGroupId){if(!groups.has(p.validationGroupId))groups.set(p.validationGroupId,[]);groups.get(p.validationGroupId).push(p);}else ungrouped.push(p);}
   const sortedMembers=members=>[...members].sort((a,b)=>(envOrder[globalThis.TradingResearchOperationSemanticsContract.planEnvironment(a)]??9)-(envOrder[globalThis.TradingResearchOperationSemanticsContract.planEnvironment(b)]??9)||String(a.name||'').localeCompare(String(b.name||''),'es'));
@@ -7004,6 +7004,7 @@ const V318_NAV_GROUPS=[
   ]},
   {id:'system',label:'Plan y sistema',icon:'◫',items:[
     ['plans','◫','Trading Plans'],
+    ['tpbuilder','⊕','Constructor de TP'],
     ['config','⚙','Configuración']
   ]}
 ];
@@ -7640,6 +7641,109 @@ function trLegacyStateCommand(command,a,b){
 window.TradingResearchActions.trLegacyStateCommand=trLegacyStateCommand;
 /* ===== END V31.19 compatibility commands ===== */
 
+/* ===== V31.28 · Constructor de Trading Plans derivados ===== */
+(()=>{
+  const actions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
+  const blankFilters=()=>({dateFrom:'',dateTo:'',timeFrom:'',timeTo:'',days:[],direction:'',risk:'',layer:'',result:'',contract:'',riskPolicy:'raw',rMin:'',rMax:'',taxonomyFilters:{}});
+  const ui={sourcePlanId:'',filters:blankFilters()};
+  const envRank={backtest:0,replay:1,sim:2,live:3,unclassified:4};
+  const plansWithData=()=>[...(state.tradingPlans||[])].filter(p=>state.operations.some(o=>o.tradingPlanId===p.id)).sort((a,b)=>(envRank[globalThis.TradingResearchOperationSemanticsContract.planEnvironment(a)]??9)-(envRank[globalThis.TradingResearchOperationSemanticsContract.planEnvironment(b)]??9)||String(a.name||'').localeCompare(String(b.name||''),'es'));
+  const ensureSource=()=>{
+    const valid=plansWithData();
+    if(!valid.some(p=>p.id===ui.sourcePlanId)){
+      const current=valid.find(p=>p.id===state.currentPlanId),backtest=valid.find(p=>globalThis.TradingResearchOperationSemanticsContract.planEnvironment(p)==='backtest');
+      ui.sourcePlanId=(current||backtest||valid[0])?.id||'';
+      ui.filters=blankFilters();
+    }
+    return getPlan(ui.sourcePlanId)||null;
+  };
+  const sourceOps=()=>{const p=ensureSource();return p?(state.operations||[]).filter(o=>o.tradingPlanId===p.id):[];};
+  const resultOps=()=>{
+    const p=ensureSource(),f=ui.filters;if(!p)return [];
+    let rows=baseFilteredOps({...f,q:'',month:'',year:'',source:'',block:'',emotion:'',behavior:'',emotionStatus:''},sourceOps(),new Map());
+    rows=rows.filter(o=>{
+      if(!globalThis.TradingResearchTaxonomyDomain.matchesFilters(o,p,f.taxonomyFilters||{}))return false;
+      const r=opMetricValue(o,'r','net');
+      if(f.rMin!==''&&Number.isFinite(Number(f.rMin))&&r<Number(f.rMin))return false;
+      if(f.rMax!==''&&Number.isFinite(Number(f.rMax))&&r>Number(f.rMax))return false;
+      return true;
+    });
+    if(f.riskPolicy==='plan')rows=applyRiskManagementRules(rows,p).included;
+    return [...rows].sort(v3194CompareOps);
+  };
+  const stats=ops=>{
+    const x=calcMetricStats(ops,'r','net');
+    return {n:x.n,sum:x.sum,expectancy:x.expectancy,winRate:x.winRate,pf:Number.isFinite(x.pf)?x.pf:null,pfInfinite:x.pf===Infinity,maxDD:x.maxDD};
+  };
+  const statCard=(title,x,subtitle)=>`<section class="card panel"><div class="panel-title"><div><h3>${esc(title)}</h3><div class="help">${esc(subtitle)}</div></div></div><div class="plan-metrics"><div><span>Trades</span><strong>${x.n}</strong></div><div><span>Win rate</span><strong>${Number(x.winRate||0).toFixed(1)}%</strong></div><div><span>Expectancy</span><strong class="${x.expectancy>=0?'positive':'negative'}">${x.expectancy>=0?'+':''}${Number(x.expectancy||0).toFixed(2)}R</strong></div><div><span>PF</span><strong>${x.pfInfinite?'∞':Number(x.pf||0).toFixed(2)}</strong></div><div><span>Max DD</span><strong class="${x.maxDD<0?'negative':''}">${Number(x.maxDD||0).toFixed(2)}R</strong></div></div></section>`;
+  const unique=(ops,key)=>[...new Set(ops.map(o=>String(typeof key==='function'?key(o):o?.[key]||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const options=(values,current,all='Todos')=>`<option value="">${all}</option>${values.map(v=>`<option value="${esc(v)}" ${String(current)===String(v)?'selected':''}>${esc(v)}</option>`).join('')}`;
+  const taxonomyFilterFields=p=>{
+    const api=globalThis.TradingResearchTaxonomyDomain;if(!p||!api)return '';
+    api.ensurePlan(p);
+    return globalThis.TradingResearchTaxonomyDomain.activeTaxonomies(p).map(t=>{
+      const selected=ui.filters.taxonomyFilters?.[t.id]||'',values=globalThis.TradingResearchTaxonomyDomain.selectionOptions(p,t);
+      const opts=`<option value="">Todos</option>${values.map(v=>`<option value="${esc(v.id)}" ${String(selected)===String(v.id)?'selected':''}>${esc(v.name)}</option>`).join('')}`;
+      return `<label>${esc(t.name)}<select class="select" data-taxonomy-id="${esc(t.id)}" data-tpb-taxonomy-filter="1" data-tr-action-change="tpBuilderReadFilters">${opts}</select></label>`;
+    }).join('');
+  };
+  const filterSummary=()=>{
+    const f=ui.filters,p=ensureSource(),parts=[];const add=(k,v)=>{if(v!==''&&v!==null&&v!==undefined&&(!Array.isArray(v)||v.length))parts.push(`${k}: ${Array.isArray(v)?v.join(', '):v}`);};
+    add('Desde',f.dateFrom);add('Hasta',f.dateTo);add('Hora',f.timeFrom||f.timeTo?`${f.timeFrom||'00:00'}–${f.timeTo||'23:59'}`:'');add('Días',f.days.map(d=>DOW_LABELS[d]));add('Dirección',f.direction);
+    const api=globalThis.TradingResearchTaxonomyDomain;if(p&&api){api.ensurePlan(p);for(const t of api.activeTaxonomies(p)){const selected=f.taxonomyFilters?.[t.id]||'';if(!selected)continue;const value=api.valueById(t,selected);add(t.name,value?.name||selected);}}
+    add('Régimen',f.risk);add('Ámbito',f.layer);add('Resultado',f.result);add('Contrato',f.contract);if(f.riskPolicy==='plan')parts.push('Gestión: reglas secuenciales del TP');if(f.rMin!==''||f.rMax!=='')parts.push(`R: ${f.rMin||'−∞'} → ${f.rMax||'∞'}`);
+    return parts.length?parts.join(' · '):'Sin filtros · muestra completa';
+  };
+  const readFilters=()=>{
+    const root=document.getElementById('tp-builder-view');if(!root)return;
+    const v=id=>root.querySelector('#'+id)?.value??'',taxonomyFilters={};
+    for(const el of root.querySelectorAll('[data-tpb-taxonomy-filter]')){const id=String(el.dataset.taxonomyId||'');if(id)taxonomyFilters[id]=el.value||'';}
+    Object.assign(ui.filters,{dateFrom:v('tpb-date-from'),dateTo:v('tpb-date-to'),timeFrom:v('tpb-time-from'),timeTo:v('tpb-time-to'),direction:v('tpb-direction'),risk:v('tpb-risk'),layer:v('tpb-layer'),result:v('tpb-result'),contract:v('tpb-contract'),riskPolicy:v('tpb-risk-policy')||'raw',rMin:v('tpb-rmin'),rMax:v('tpb-rmax'),taxonomyFilters});
+  };
+  const previewTable=ops=>{
+    const rows=[...ops].sort((a,b)=>v3194CompareOps(b,a)).slice(0,60);
+    if(!rows.length)return '<div class="empty">La muestra actual no contiene operaciones.</div>';
+    return `<div class="table-wrap"><table class="table"><thead><tr><th>Fecha</th><th>Dir.</th><th>Setup</th><th>VD</th><th>Contexto</th><th>Resultado</th><th>R neta</th></tr></thead><tbody>${rows.map(o=>{const r=opMetricValue(o,'r','net');return `<tr><td>${fmtDate(o.entryDate)}</td><td>${esc(o.direction||'—')}</td><td>${esc(o.setup||'—')}</td><td>${esc(o.vd||'—')}</td><td>${esc(o.h4Context||'—')}</td><td>${esc(o.result||'—')}</td><td class="${r>=0?'positive':'negative'}">${r>=0?'+':''}${Number(r||0).toFixed(2)}R</td></tr>`;}).join('')}</tbody></table></div>`;
+  };
+  const renderBuilder=()=>{
+    const p=ensureSource(),all=sourceOps(),filtered=resultOps(),excluded=Math.max(0,all.length-filtered.length),sourceStats=stats(all),resultStats=stats(filtered),taxonomyFields=taxonomyFilterFields(p),contracts=unique(all,o=>String(o.contract||o.instrumentSnapshot?.symbol||'').trim().split(/\s+/)[0]),riskOptions=(p?.riskStrategies||[]).map(r=>[r.id,r.name||r.id]),derived=(state.tradingPlans||[]).filter(x=>x?.derivation?.type==='filtered_sample').sort((a,b)=>new Date(b.derivation?.createdAt||b.createdAt)-new Date(a.derivation?.createdAt||a.createdAt));
+    const sourceSelect=`<select id="tpb-source" class="select" data-tr-action-change="tpBuilderSourceChanged">${plansWithData().map(x=>{const n=state.operations.filter(o=>o.tradingPlanId===x.id).length;return `<option value="${esc(x.id)}" ${x.id===ui.sourcePlanId?'selected':''}>${esc(planLabel(x))} · ${esc(globalThis.TradingResearchOperationSemanticsContract.planEnvironmentLabel(x))} · ${n} trades</option>`;}).join('')}</select>`;
+    const dayButtons=DOW_LABELS.map((d,i)=>`<button type="button" class="chip ${ui.filters.days.includes(i)?'active':''}" data-day="${i}" data-tr-action-click="tpBuilderToggleDay">${d}</button>`).join('');
+    const riskSelect=`<option value="">Todos</option>${riskOptions.map(([id,name])=>`<option value="${esc(id)}" ${ui.filters.risk===id?'selected':''}>${esc(name)}</option>`).join('')}`;
+    const derivations=derived.length?`<div class="table-wrap"><table class="table"><thead><tr><th>TP derivado</th><th>Origen</th><th>Muestra</th><th>Creado</th><th></th></tr></thead><tbody>${derived.map(x=>`<tr><td><strong>${esc(planLabel(x))}</strong></td><td>${esc(x.derivation.sourcePlanLabel||x.derivation.sourcePlanId||'—')}</td><td>${Number(x.derivation.includedCount)||0} / ${Number(x.derivation.sourceCount)||0}</td><td>${fmtDate(x.derivation.createdAt||x.createdAt)}</td><td><button class="btn tiny" data-plan-id="${esc(x.id)}" data-tr-action-click="tpBuilderOpenDerived">Abrir</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Todavía no has creado ningún TP derivado.</div>';
+    return `<div id="tp-builder-view">${pageHead('Constructor de Trading Plans','Construye una muestra nueva a partir de un TP existente. El origen no se modifica: al guardar se crea un TP independiente con una copia congelada de las operaciones incluidas.',`<button class="btn primary" data-tr-action-click="tpBuilderOpenCreate" ${filtered.length?'':'disabled'}>Crear TP derivado · ${filtered.length} trades</button>`)}<section class="card panel"><div class="panel-title"><div><h3>1 · Trading Plan origen</h3><div class="help">Normalmente será un TP de Backtesting, aunque el constructor admite cualquier TP con operaciones.</div></div></div>${sourceSelect}</section><section class="card panel"><div class="panel-title"><div><h3>2 · Filtros de derivación</h3><div class="help">Estos filtros definen qué operaciones formarán la nueva muestra. No alteran el TP origen.</div></div><button class="btn small" data-tr-action-click="tpBuilderReset">Limpiar filtros</button></div><div class="filter-grid"><label>Desde<input id="tpb-date-from" class="input" type="date" value="${esc(ui.filters.dateFrom)}" data-tr-action-change="tpBuilderReadFilters"></label><label>Hasta<input id="tpb-date-to" class="input" type="date" value="${esc(ui.filters.dateTo)}" data-tr-action-change="tpBuilderReadFilters"></label><label>Hora desde<input id="tpb-time-from" class="input" type="time" value="${esc(ui.filters.timeFrom)}" data-tr-action-change="tpBuilderReadFilters"></label><label>Hora hasta<input id="tpb-time-to" class="input" type="time" value="${esc(ui.filters.timeTo)}" data-tr-action-change="tpBuilderReadFilters"></label><label>Dirección<select id="tpb-direction" class="select" data-tr-action-change="tpBuilderReadFilters">${options(['LONG','SHORT'],ui.filters.direction)}</select></label>${taxonomyFields}<label>Régimen<select id="tpb-risk" class="select" data-tr-action-change="tpBuilderReadFilters">${riskSelect}</select></label><label>Ámbito<select id="tpb-layer" class="select" data-tr-action-change="tpBuilderReadFilters">${options(['backtest','replay','sim','live','unclassified'],ui.filters.layer)}</select></label><label>Resultado<select id="tpb-result" class="select" data-tr-action-change="tpBuilderReadFilters">${options(['win','loss','flat','pending'],ui.filters.result)}</select></label><label>Contrato<select id="tpb-contract" class="select" data-tr-action-change="tpBuilderReadFilters">${options(contracts,ui.filters.contract)}</select></label><label>R mínima<input id="tpb-rmin" class="input" type="number" step="0.01" value="${esc(ui.filters.rMin)}" data-tr-action-change="tpBuilderReadFilters"></label><label>R máxima<input id="tpb-rmax" class="input" type="number" step="0.01" value="${esc(ui.filters.rMax)}" data-tr-action-change="tpBuilderReadFilters"></label><label>Gestión<select id="tpb-risk-policy" class="select" data-tr-action-change="tpBuilderReadFilters"><option value="raw" ${ui.filters.riskPolicy==='raw'?'selected':''}>Muestra bruta</option><option value="plan" ${ui.filters.riskPolicy==='plan'?'selected':''}>Aplicar reglas secuenciales del TP</option></select></label></div><div class="chip-row"><span class="mini-label">Días:</span>${dayButtons}</div><div class="notice"><strong>Receta actual:</strong> ${esc(filterSummary())}</div></section><div class="grid two">${statCard('Muestra original',sourceStats,p?planLabel(p):'Sin TP')}${statCard('Muestra resultante',resultStats,`${filtered.length} incluidas · ${excluded} apartadas`)}</div><section class="card panel"><div class="panel-title"><div><h3>3 · Operaciones de la muestra resultante</h3><div class="help">Vista previa de hasta 60 operaciones. Al crear el TP se copiarán exactamente las ${filtered.length} incluidas con IDs nuevos.</div></div><span class="badge">${filtered.length} incluidas · ${excluded} excluidas</span></div>${previewTable(filtered)}</section><section class="card panel"><div class="panel-title"><div><h3>TPs derivados creados</h3><div class="help">Historial de muestras materializadas desde este Constructor.</div></div></div>${derivations}</section></div>`;
+  };
+  actions.tpBuilderSourceChanged=function(){ui.sourcePlanId=String(this.value||'');ui.filters=blankFilters();render();};
+  actions.tpBuilderReadFilters=function(){readFilters();render();};
+  actions.tpBuilderToggleDay=function(){const day=Number(this.dataset.day),days=ui.filters.days||[];ui.filters.days=days.includes(day)?days.filter(x=>x!==day):[...days,day];render();};
+  actions.tpBuilderReset=function(){ui.filters=blankFilters();render();};
+  actions.tpBuilderOpenDerived=function(){const id=String(this.dataset.planId||'');if(!getPlan(id))return;switchPlanAndOpen(id);};
+  actions.tpBuilderOpenCreate=function(){
+    const p=ensureSource(),ops=resultOps();if(!p||!ops.length)return alert('La muestra resultante está vacía.');
+    const defaultName=`${p.name} · derivado`,env=globalThis.TradingResearchOperationSemanticsContract.planEnvironment(p);
+    const body=`<form id="tp-builder-create-form" data-tr-onsubmit="return false"><div class="form-section"><h4>Nuevo Trading Plan derivado</h4><div class="form-grid">${field('Familia / sistema','tpb-new-family','text',esc(defaultName))}${field('Nombre','tpb-new-name','text',esc(defaultName))}${field('Versión','tpb-new-version','text','v1')}${selectObjField('Ámbito','tpb-new-environment',[{value:'backtest',label:'Backtesting'},{value:'replay',label:'Replay'},{value:'sim',label:'Sim'},{value:'live',label:'Live'},{value:'unclassified',label:'Sin clasificar'}],env)}${field('Descripción','tpb-new-description','textarea',esc(`Derivado de ${planLabel(p)} · ${ops.length}/${sourceOps().length} operaciones`),'full')}</div><div class="notice"><strong>Se congelará esta muestra:</strong> ${ops.length} operaciones de ${sourceOps().length}. El nuevo TP tendrá operaciones con IDs propios; cambios posteriores en el TP origen no añadirán ni eliminarán trades de esta muestra.</div></div></form>`;
+    document.body.insertAdjacentHTML('beforeend',modalShell('Crear TP derivado',body,`<button class="btn" data-tr-action-click="closeModal">Cancelar</button><button class="btn primary" data-tr-action-click="tpBuilderCommit">Crear Trading Plan</button>`));
+  };
+  actions.tpBuilderCommit=function(){
+    const form=document.getElementById('tp-builder-create-form'),p=ensureSource(),ops=resultOps();if(!form||!p||!ops.length)return false;
+    const val=id=>String(document.getElementById('f-'+id)?.value||'').trim(),name=val('tpb-new-name');if(!name)return alert('Escribe un nombre para el nuevo Trading Plan.');
+    const family=val('tpb-new-family')||name,version=val('tpb-new-version')||'v1',description=val('tpb-new-description'),env=globalThis.TradingResearchOperationSemanticsContract.planEnvironments.includes(val('tpb-new-environment'))?val('tpb-new-environment'):globalThis.TradingResearchOperationSemanticsContract.planEnvironment(p),now=new Date().toISOString(),sourceAll=sourceOps(),sourceStats=stats(sourceAll),derivedStats=stats(ops),newId=uid('TP');
+    let createdPlan=null;
+    window.TradingResearchStores.domain.commit('plan.derived.create',()=>{
+      const next=clone(p);
+      next.id=newId;next.familyId=`TPF_${newId}`;next.parentPlanId=null;next.validationGroupId='';next.validationGroupName='';next.familyName=family;next.name=name;next.version=version;next.description=description;next.planEnvironment=env;next.status='active';next.createdAt=now;next.updatedAt=now;
+      next.savedStudies=[];next.forwardTests=[];next.goals=[];next.reviewNotes=[];next.researchChanges={events:[],lastSnapshot:null,initializedAt:'',lastReviewedAt:''};
+      const copied=ops.map(o=>{const x=clone(o),sourceOperationId=o.id,newOpId=uid('OP');x.id=newOpId;x.tradingPlanId=newId;x.tradingPlanName=name;x.tradingPlanVersion=version;x.importBatchId='';x.derivedFromOperationId=sourceOperationId;x.derivation={type:'filtered_sample',sourcePlanId:p.id,sourceOperationId,sourceImportBatchId:o.importBatchId||'',derivedAt:now};return x;});
+      next.derivation={schema:1,type:'filtered_sample',createdAt:now,sourcePlanId:p.id,sourcePlanLabel:planLabel(p),sourcePlanSnapshot:planSnapshot(p),filters:clone(ui.filters),filterSummary:filterSummary(),sourceCount:sourceAll.length,includedCount:copied.length,excludedCount:Math.max(0,sourceAll.length-copied.length),sourceOperationIds:ops.map(o=>o.id),derivedOperationIds:copied.map(o=>o.id),sourceStats:clone(sourceStats),derivedStats:clone(derivedStats)};
+      const snap=planSnapshot(next);for(const x of copied)x.tradingPlanSnapshot=snap;
+      state.tradingPlans.push(next);state.operations.push(...copied);state.currentPlanId=newId;createdPlan=next;
+    },{persist:true,render:false});
+    if(!createdPlan)return false;closeModal();navigate('plans');return true;
+  };
+  actions.tpBuilderRender=renderBuilder;
+})();
+/* ===== END V31.28 · Constructor de Trading Plans derivados ===== */
+
 /* V31.25 · bounded classic-global debt · explicit read-only Plan contract */
 Object.defineProperty(globalThis,'TradingResearchPlanReadContract',{value:Object.freeze({current:getCurrentPlan,byId:getPlan,label:planLabel}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit content encoding contract */
@@ -7662,7 +7766,7 @@ Object.defineProperty(globalThis,'TradingResearchOperationsReadContract',{value:
 /* V31.25 · bounded classic-global debt · explicit Context Help presentation contract */
 Object.defineProperty(globalThis,'TradingResearchContextHelpPresentationContract',{value:Object.freeze({apply:applyContextHelp,ensureObserver:ensureContextHelpObserver}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit View presentation contract */
-Object.defineProperty(globalThis,'TradingResearchViewPresentationContract',{value:Object.freeze({decision:researchDecisionCenter,changes:researchChangesView,calendar:calendarView,goals:goalsView,quality:dataQualityView,compliance:complianceView,mistakes:mistakesView,lab:analyticsLab,review:reviewView,reports:reportsView,market:v314MarketDataView,plans:plansView}),writable:false,enumerable:false,configurable:false});
+Object.defineProperty(globalThis,'TradingResearchViewPresentationContract',{value:Object.freeze({decision:researchDecisionCenter,changes:researchChangesView,calendar:calendarView,goals:goalsView,quality:dataQualityView,compliance:complianceView,mistakes:mistakesView,lab:analyticsLab,review:reviewView,reports:reportsView,market:v314MarketDataView,plans:plansView,tpbuilder:window.TradingResearchActions.tpBuilderRender}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Research status contract */
 Object.defineProperty(globalThis,'TradingResearchResearchStatusContract',{value:Object.freeze({unreadCount:researchUnreadCount}),writable:false,enumerable:false,configurable:false});
 /* V31.25 · bounded classic-global debt · explicit Reports section presentation contract */

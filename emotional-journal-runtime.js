@@ -87,6 +87,22 @@ function trNormalizeLog(value={},plan=null){
     updatedAt:trText(value?.updatedAt)||at
   };
 }
+function trNormalizeReflection(value={},plan=null){
+  const at=trText(value?.at)||trNow(),sourceType=['operation','session','statement'].includes(value?.sourceType)?value.sourceType:'';
+  return {
+    id:trText(value?.id)||trId('ER'),
+    schemaVersion:1,
+    tradingPlanId:trText(value?.tradingPlanId)||trText(plan?.id),
+    tradingPlanSnapshot:value?.tradingPlanSnapshot?trCopy(value.tradingPlanSnapshot):null,
+    at,
+    text:trText(value?.text),
+    conclusion:trText(value?.conclusion),
+    sourceType,
+    sourceId:sourceType?trText(value?.sourceId):'',
+    createdAt:trText(value?.createdAt)||at,
+    updatedAt:trText(value?.updatedAt)||at
+  };
+}
 function trSessionScales(plan){
   const cfg=plan?.emotionConfig?.sessionScales||{};
   return {confidence:{...TR_CONFIDENCE_LABELS,...(cfg.confidence||{})},tri:{...TR_TRI_LABELS,...(cfg.tri||{})}};
@@ -123,6 +139,8 @@ function trEnsurePlan(plan){
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
   plan.emotionalLogs=logs.map(row=>trNormalizeLog(row,plan));
+  const reflections=Array.isArray(plan.emotionalReflections)?plan.emotionalReflections:[];
+  plan.emotionalReflections=reflections.map(row=>trNormalizeReflection(row,plan));
   return plan;
 }
 function trCoverage(operations,hasEntry){
@@ -145,6 +163,7 @@ const domain=Object.freeze({
   normalizePoint:trNormalizePoint,
   normalizeSession:trNormalizeSession,
   normalizeLog:trNormalizeLog,
+  normalizeReflection:trNormalizeReflection,
   ensurePlan:trEnsurePlan,
   coverage:trCoverage
 });
@@ -156,7 +175,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderReflections:()=>trJournalReflectionsRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -179,6 +198,11 @@ try{
         const streakIndex=group.items.findIndex(x=>x?.[0]==='journalstreaks');
         const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
         group.items.splice(streakIndex>=0?streakIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journaldrift','↝','Deriva conductual']);
+      }
+      if(!group.items.some(x=>x?.[0]==='journalreflections')){
+        const driftIndex=group.items.findIndex(x=>x?.[0]==='journaldrift');
+        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
+        group.items.splice(driftIndex>=0?driftIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalreflections','◈','Reflexiones']);
       }
       if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
     }
@@ -229,6 +253,10 @@ trEarlyActions.emotionalLogSave=function(){return trSaveLog(String(this.dataset.
 trEarlyActions.emotionalLogDelete=function(){return trDeleteLog(String(this.dataset.logId||''));};
 trEarlyActions.emotionalStreakCriteriaOpen=function(){return trStreakCriteriaEditor();};
 trEarlyActions.emotionalStreakCriteriaSave=function(){return trSaveStreakCriteria();};
+trEarlyActions.emotionalReflectionOpen=function(){return trReflectionEditor(String(this.dataset.reflectionId||''));};
+trEarlyActions.emotionalReflectionSave=function(){return trSaveReflection(String(this.dataset.reflectionId||''));};
+trEarlyActions.emotionalReflectionDelete=function(){return trDeleteReflection(String(this.dataset.reflectionId||''));};
+trEarlyActions.emotionalReflectionSourceOpen=function(){return trOpenReflectionSource(String(this.dataset.sourceType||''),String(this.dataset.sourceId||''));};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -301,7 +329,7 @@ if(typeof addEmotionConfig==='function'){
 
 if(typeof makeBlankPlan==='function'){
   const baseMakeBlankPlan=makeBlankPlan;
-  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];plan.emotionalLogs=[];return trEnsurePlan(plan);};
+  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];return trEnsurePlan(plan);};
 }
 if(typeof normalizePlan==='function'){
   const baseNormalizePlan=normalizePlan;
@@ -309,7 +337,7 @@ if(typeof normalizePlan==='function'){
 }
 if(typeof clonePlanForVersion==='function'){
   const baseClonePlanForVersion=clonePlanForVersion;
-  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];plan.emotionalLogs=[];return trEnsurePlan(plan);};
+  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];return trEnsurePlan(plan);};
 }
 
 function trLogs(plan=getCurrentPlan()){
@@ -317,6 +345,11 @@ function trLogs(plan=getCurrentPlan()){
   return plan?.emotionalLogs||[];
 }
 function trLogById(id,plan=getCurrentPlan()){return trLogs(plan).find(x=>x.id===id)||null;}
+function trReflections(plan=getCurrentPlan()){
+  trEnsurePlan(plan);
+  return plan?.emotionalReflections||[];
+}
+function trReflectionById(id,plan=getCurrentPlan()){return trReflections(plan).find(x=>x.id===id)||null;}
 function trSessions(plan=getCurrentPlan()){
   trEnsurePlan(plan);
   return plan?.emotionalSessions||[];
@@ -413,6 +446,82 @@ function trDeleteLog(id){
   if(!confirm('¿Eliminar esta constancia emocional?'))return false;
   plan.emotionalLogs=trLogs(plan).filter(x=>x.id!==id);plan.updatedAt=trNow();persist();closeModal();render();return true;
 }
+function trReflectionSourceOptions(plan,selectedType='',selectedId=''){
+  const options=['<option value="">Sin vínculo</option>'];
+  const operations=trEligibleOperations(currentOps()).filter(o=>o.tradingPlanId===plan.id).slice().sort((a,b)=>String(b.entryDate||'').localeCompare(String(a.entryDate||''))).slice(0,50);
+  for(const operation of operations){
+    const value='operation|'+operation.id,label='Operación · '+fmtDate(operation.entryDate)+' · '+(operation.contract||'—')+' · '+(operation.setup||'Sin setup');
+    options.push('<option value="'+esc(value)+'" '+(selectedType==='operation'&&selectedId===operation.id?'selected':'')+'>'+esc(label)+'</option>');
+  }
+  for(const session of trSessions(plan).slice().sort((a,b)=>String(b.startedAt||'').localeCompare(String(a.startedAt||''))).slice(0,30)){
+    const value='session|'+session.id,label='Sesión · '+fmtDate(session.startedAt)+' · '+(TR_SESSION_MODE_LABELS[session.mode]||session.mode);
+    options.push('<option value="'+esc(value)+'" '+(selectedType==='session'&&selectedId===session.id?'selected':'')+'>'+esc(label)+'</option>');
+  }
+  for(const statement of trLogs(plan).slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))).slice(0,30)){
+    const value='statement|'+statement.id,label='Constancia · '+fmtDate(statement.at)+' · '+trText(statement.text).slice(0,60);
+    options.push('<option value="'+esc(value)+'" '+(selectedType==='statement'&&selectedId===statement.id?'selected':'')+'>'+esc(label)+'</option>');
+  }
+  return options.join('');
+}
+function trReflectionEditor(id=''){
+  const plan=getCurrentPlan();if(!plan)return false;
+  if(trJournalPlanEnvironment(plan)==='backtest')return false;
+  trEnsurePlan(plan);
+  const existing=id?trReflectionById(id,plan):null;
+  const body=`<form id="emotional-reflection-form" data-tr-onsubmit="return false">
+    <div class="form-section"><h4>${existing?'Editar reflexión':'Nueva reflexión'}</h4>
+      <label class="field"><span>Reflexión</span><textarea id="em-reflection-text" class="input emotional-reflection-text" placeholder="¿Qué entiendes ahora que quizá no veías en el momento?">${esc(existing?.text||'')}</textarea></label>
+      <label class="field"><span>Conclusión que quieres conservar · opcional</span><textarea id="em-reflection-conclusion" class="input" placeholder="Una idea breve que quieras poder recuperar más adelante.">${esc(existing?.conclusion||'')}</textarea></label>
+      <label class="field"><span>Origen · opcional</span><select id="em-reflection-source" class="select">${trReflectionSourceOptions(plan,existing?.sourceType||'',existing?.sourceId||'')}</select></label>
+      <div class="help">Reflexionar no modifica la operación, la sesión ni la constancia vinculada.</div>
+    </div>
+  </form>`;
+  const footer=`${existing?'<button class="btn danger" data-reflection-id="'+esc(existing.id)+'" data-tr-action-click="emotionalReflectionDelete">Eliminar</button>':''}<button class="btn" data-tr-action-click="closeModal">Cancelar</button><button class="btn primary" data-reflection-id="${esc(existing?.id||'')}" data-tr-action-click="emotionalReflectionSave">Guardar reflexión</button>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell(existing?'Editar reflexión':'Nueva reflexión',body,footer));return true;
+}
+function trSaveReflection(id=''){
+  const plan=getCurrentPlan();if(!plan)return false;
+  trEnsurePlan(plan);
+  const existing=id?trReflectionById(id,plan):null,now=trNow(),at=existing?.at||now;
+  const source=String(document.getElementById('em-reflection-source')?.value||''),parts=source.split('|'),sourceType=['operation','session','statement'].includes(parts[0])?parts[0]:'',sourceId=sourceType?parts.slice(1).join('|'):'';
+  const item=trNormalizeReflection({
+    ...(existing||{}),id:id||undefined,tradingPlanId:plan.id,tradingPlanSnapshot:existing?.tradingPlanSnapshot||trPlanSnapshot(plan),at,
+    text:document.getElementById('em-reflection-text')?.value||'',conclusion:document.getElementById('em-reflection-conclusion')?.value||'',
+    sourceType,sourceId,createdAt:existing?.createdAt||at,updatedAt:now
+  },plan);
+  if(!item.text)return alert('Escribe la reflexión antes de guardarla.');
+  if(existing)Object.assign(existing,item,{id:existing.id,createdAt:existing.createdAt});
+  else plan.emotionalReflections.unshift(item);
+  plan.updatedAt=now;persist();closeModal();render();return true;
+}
+function trDeleteReflection(id){
+  const plan=getCurrentPlan(),item=trReflectionById(id,plan);if(!plan||!item)return false;
+  if(!confirm('¿Eliminar esta reflexión?'))return false;
+  plan.emotionalReflections=trReflections(plan).filter(x=>x.id!==id);plan.updatedAt=trNow();persist();closeModal();render();return true;
+}
+function trReflectionSourceLabel(reflection,plan){
+  if(reflection.sourceType==='operation'){
+    const o=(state.operations||[]).find(x=>x.id===reflection.sourceId&&x.tradingPlanId===plan.id);
+    return o?'Operación · '+fmtDate(o.entryDate)+' · '+(o.contract||'—'):'Operación vinculada';
+  }
+  if(reflection.sourceType==='session'){
+    const s=trSessionById(reflection.sourceId,plan);
+    return s?'Sesión · '+fmtDate(s.startedAt)+' · '+(TR_SESSION_MODE_LABELS[s.mode]||s.mode):'Sesión vinculada';
+  }
+  if(reflection.sourceType==='statement'){
+    const x=trLogById(reflection.sourceId,plan);
+    return x?'Constancia · '+fmtDate(x.at):'Constancia vinculada';
+  }
+  return '';
+}
+function trOpenReflectionSource(type,id){
+  const plan=getCurrentPlan();if(!plan||!id)return false;
+  if(type==='operation')return openEmotionalEditor(id);
+  if(type==='session'){const s=trSessionById(id,plan);if(s)return trSessionEditor(s,s.endedAt?'end':'start');}
+  if(type==='statement'){const x=trLogById(id,plan);if(x)return trLogEditor(id);}
+  return false;
+}
+
 function trPointFields(prefix,point,plan){
   const scales=trSessionScales(plan),questions=trSessionQuestions(plan);
   const answer=id=>trText(point?.answers?.[id]??point?.[id]??'');
@@ -955,6 +1064,30 @@ function trJournalDriftRender(){
     <section class="card panel drift-history"><div class="panel-title"><div><h3>Desviaciones recientes</h3><small>Últimas 5 operaciones del TP.</small></div><span>${recent.deviations.length} desviaciones</span></div><div class="drift-operation-feed">${feed}</div></section>`;
 }
 
+function trJournalReflectionsRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const rows=trReflections(plan).slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+  const withConclusion=rows.filter(x=>trText(x.conclusion)).length,linked=rows.filter(x=>x.sourceType&&x.sourceId).length;
+  const feed=rows.length?rows.map(reflection=>{
+    const sourceLabel=trReflectionSourceLabel(reflection,plan);
+    return `<article class="reflection-card">
+      <header><div><span>Reflexión</span><time>${esc(fmtDate(reflection.at))}</time></div>${sourceLabel?'<button class="btn small" data-source-type="'+esc(reflection.sourceType)+'" data-source-id="'+esc(reflection.sourceId)+'" data-tr-action-click="emotionalReflectionSourceOpen">'+esc(sourceLabel)+'</button>':''}</header>
+      <div class="reflection-body"><p>${esc(reflection.text)}</p>${reflection.conclusion?'<div class="reflection-conclusion"><span>Conclusión</span><strong>'+esc(reflection.conclusion)+'</strong></div>':''}</div>
+      <footer><button class="btn small" data-reflection-id="${esc(reflection.id)}" data-tr-action-click="emotionalReflectionOpen">Editar</button></footer>
+    </article>`;
+  }).join(''):'<div class="empty">Todavía no hay reflexiones. Una reflexión sirve para volver sobre algo vivido y extraer una conclusión, no para sustituir una constancia inmediata.</div>';
+  return `${pageHead('Diario emocional · Reflexiones','Vuelve sobre experiencias ya registradas y convierte observaciones en aprendizaje recuperable.','<button class="btn primary" data-tr-action-click="emotionalReflectionOpen">+ Nueva reflexión</button>')}
+    <div class="reflection-kpis">
+      ${kpi('Reflexiones',rows.length,'histórico del TP')}
+      ${kpi('Con conclusión',withConclusion,'idea conservable')}
+      ${kpi('Con origen',linked,'operación, sesión o constancia')}
+    </div>
+    <section class="card panel reflection-guide"><div class="panel-title"><div><h3>Qué diferencia una reflexión</h3></div></div><p><b>Dejar constancia</b> captura lo que necesitas escribir en el momento. <b>Reflexionar</b> es volver después y preguntarte qué entiendes ahora y qué merece conservarse.</p></section>
+    <section class="card panel reflection-history"><div class="panel-title"><div><h3>Historial de reflexiones</h3><small>De más reciente a más antigua.</small></div><span>${rows.length}</span></div><div class="reflection-feed">${feed}</div></section>`;
+}
+
 function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -1101,7 +1234,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops','journalconfidence','journalstreaks','journaldrift','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

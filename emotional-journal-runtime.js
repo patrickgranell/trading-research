@@ -334,7 +334,7 @@ try{
       trEnsurePlan(plan);
       let html=baseEmotionConfigPanel(plan);
       html=html.replace(/<\/section>\s*$/i,trPerspectiveConfigSection(plan)+'</section>');
-      if(globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)==='backtest')html=html.replace(/<button class="btn small" data-tr-onclick="navigate\('journal'\)">Abrir diario<\/button>/,'<span class="stable-pill">Backtesting · configuración disponible</span>');
+      if(globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)==='backtest')html=html.replace(/<button class="btn small"[^>]*>Abrir diario<\/button>/,'<span class="stable-pill">Backtesting · configuración disponible</span>');
       return html;
     };
     if(typeof configTabs==='function'){

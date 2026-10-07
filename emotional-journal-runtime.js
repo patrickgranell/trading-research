@@ -286,6 +286,7 @@ function trJournalMetricLabel(){return metricUnitLabel(trJournalResultUnit);}
 const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
 let trPerspectiveTab='personal';
 trEarlyActions.emotionalNavigate=function(){const view=String(this.dataset.view||'');if(view)return navigate(view);return false;};
+trEarlyActions.emotionalPerspectiveConfigOpen=function(){try{if(typeof configTab!=='undefined')configTab='emotional';}catch(_){}return navigate('config');};
 trEarlyActions.emotionalPerspectiveTab=function(){const tab=String(this.dataset.tab||'');if(['personal','traders'].includes(tab)){trPerspectiveTab=tab;render();}};
 function trPerspectiveItems(plan=getCurrentPlan(),options={}){
   if(!plan)return [];
@@ -338,6 +339,12 @@ try{
       return html;
     };
     globalThis.emotionConfigPanel=emotionConfigPanel;
+    if(typeof configTabs==='function'&&!globalThis.__trPerspectiveConfigTabsPatched){
+      globalThis.__trPerspectiveConfigTabsPatched=true;
+      const baseConfigTabsPerspective=configTabs;
+      configTabs=function(plan){return baseConfigTabsPerspective(plan).replace('<strong>Emocional</strong><span>Estados y comportamientos</span>','<strong>Emocional</strong><span>Estados, perspectiva y comportamientos</span>');};
+      globalThis.configTabs=configTabs;
+    }
   }
 }catch(e){console.warn('[Trading Research · perspectives config]',e);}
 Object.assign(window,{trOpenPerspectiveConfig,trSavePerspectiveConfig,trTogglePerspectiveConfig,trDeletePerspectiveConfig,trResetPerspectiveConfig});
@@ -1370,19 +1377,20 @@ function trPerspectiveTabs(active){
 function trTraderPerspectivesRender(){
   const plan=getCurrentPlan(),rows=trPerspectiveItems(plan,{activeOnly:true});
   const cards=rows.length?rows.map(item=>'<article class="trader-perspective-card"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source)+'</span></div><span class="badge">'+(item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="trader-perspective-context"><div><span>Cuándo aporta perspectiva</span><strong>'+esc(item.context||'—')+'</strong></div><div><span>Aplicación</span><p>'+esc(item.application||'—')+'</p></div></div></article>').join(''):'<div class="empty">No hay perspectivas activas. Puedes configurarlas en Configuración → Emocional.</div>';
-  return '<section class="card panel perspective-intro"><div class="panel-title"><div><h3>Perspectivas de traders</h3><small>Biblioteca configurable del Trading Plan.</small></div><button class="btn small" data-view="config" data-tr-action-click="emotionalNavigate">Configurar</button></div><p>Estas referencias no sustituyen tu Trading Plan. Sirven para recuperar criterio cuando el resultado o la emoción distorsionan la lectura del proceso.</p></section><div class="trader-perspective-feed">'+cards+'</div>';
+  return '<section class="card panel perspective-intro"><div class="panel-title"><div><h3>Perspectivas de traders</h3><small>Biblioteca configurable del Trading Plan.</small></div><button class="btn small" data-tr-action-click="emotionalPerspectiveConfigOpen">Configurar</button></div><p>Estas referencias no sustituyen tu Trading Plan. Sirven para recuperar criterio cuando el resultado o la emoción distorsionan la lectura del proceso.</p></section><div class="trader-perspective-feed">'+cards+'</div>';
 }
 let trPerspectiveRotation=0;
 function trPerspectivePickByTags(rows,tags=[]){for(const tag of tags){const found=rows.find(x=>(x.tags||[]).includes(tag));if(found)return found;}return null;}
 function trPerspectiveRecommendation(plan){
   const rows=trPerspectiveItems(plan,{activeOnly:true});
   if(!rows.length)return trNormalizePerspective({author:'Trading Research',source:'Biblioteca vacía',text:'Configura perspectivas en Configuración → Emocional.',context:'Sin biblioteca activa',application:'Añade o activa perspectivas para que el Dashboard pueda sugerirlas.',tags:[]});
+  const ordered=rows.slice().sort((a,b)=>a.author.localeCompare(b.author)||a.id.localeCompare(b.id));
+  if(trPerspectiveRotation>0)return ordered[trPerspectiveRotation%ordered.length]||rows[0];
   const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan),severity=trStreakSeverity(current,criterion),drift=trDriftData(plan);
   if(current?.type==='loss'&&['bad','outside'].includes(severity.key)&&current.disciplineState==='clean')return trPerspectivePickByTags(rows,['losing-streak','drawdown'])||rows[0];
   if(current?.type==='win'&&current.disciplineState==='deviation')return trPerspectivePickByTags(rows,['overconfidence','winning-streak'])||rows[0];
   if(['clear','rising','watch'].includes(drift.key))return trPerspectivePickByTags(rows,['self-awareness','drift','discipline'])||rows[0];
-  const ordered=rows.slice().sort((a,b)=>a.author.localeCompare(b.author)||a.id.localeCompare(b.id));
-  return ordered[trPerspectiveRotation%ordered.length]||rows[0];
+  return ordered[0]||rows[0];
 }
 
 function trJournalReflectionsRender(){

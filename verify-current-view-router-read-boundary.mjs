@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='20e7fa077957b6b85634ab04ac520f147be154ab8a2248f4171c7bb00f4ba5bb';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='0e7ff2284707bf988e996a9f0f1812ecde9047120faf927db27dea2e5b20493e';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);

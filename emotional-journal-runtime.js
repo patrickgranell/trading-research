@@ -114,6 +114,11 @@ function trEnsurePlan(plan){
     if(existing){existing.label=core.label;existing.type=core.type;}
     else plan.emotionConfig.sessionQuestions.unshift({...core});
   }
+  const streakCriteria=plan.emotionConfig.streakCriteria&&typeof plan.emotionConfig.streakCriteria==='object'?plan.emotionConfig.streakCriteria:{};
+  plan.emotionConfig.streakCriteria={
+    mode:streakCriteria.mode==='manual'?'manual':'reference',
+    manualLossCount:Math.max(2,Number(streakCriteria.manualLossCount)||3)
+  };
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
@@ -217,6 +222,8 @@ trEarlyActions.emotionalNotesFilterReset=function(){
 trEarlyActions.emotionalLogOpen=function(){trLogEditor(String(this.dataset.logId||''));};
 trEarlyActions.emotionalLogSave=function(){return trSaveLog(String(this.dataset.logId||''));};
 trEarlyActions.emotionalLogDelete=function(){return trDeleteLog(String(this.dataset.logId||''));};
+trEarlyActions.emotionalStreakCriteriaOpen=function(){return trStreakCriteriaEditor();};
+trEarlyActions.emotionalStreakCriteriaSave=function(){return trSaveStreakCriteria();};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -320,6 +327,33 @@ function trMatchingOpenSession(operation){
   const mode=trSessionModeForOperation(operation);
   if(!mode)return null;
   return trOpenSessions(operation.tradingPlanId).find(s=>s.mode===mode)||null;
+}
+function trSessionContainsOperation(session,operation){
+  if(!session||!operation||session.tradingPlanId!==operation.tradingPlanId)return false;
+  const mode=trSessionModeForOperation(operation);
+  if(!mode||session.mode!==mode)return false;
+  const at=Date.parse(operation.entryDate||''),start=Date.parse(session.startedAt||''),end=session.endedAt?Date.parse(session.endedAt):Infinity;
+  return Number.isFinite(at)&&Number.isFinite(start)&&at>=start&&at<=end;
+}
+function trSessionForOperation(operation,plan=getPlan(operation?.tradingPlanId)){
+  if(!operation||!plan)return null;
+  const explicit=operation.journalSessionId?trSessionById(operation.journalSessionId,plan):null;
+  if(explicit)return explicit;
+  const matches=trSessions(plan).filter(session=>trSessionContainsOperation(session,operation));
+  if(matches.length!==1)return null;
+  return matches[0];
+}
+function trRelinkSessionOperations(session,plan=getPlan(session?.tradingPlanId)){
+  if(!session||!plan)return 0;
+  let linked=0;
+  for(const operation of state.operations||[]){
+    if(operation.journalSessionId===session.id)operation.journalSessionId='';
+  }
+  for(const operation of state.operations||[]){
+    if(!trOperationEligible(operation)||operation.tradingPlanId!==plan.id||operation.journalSessionId)continue;
+    if(trSessionContainsOperation(session,operation)){operation.journalSessionId=session.id;linked++;}
+  }
+  return linked;
 }
 function trPersistRender(){
   persist();
@@ -435,12 +469,15 @@ function trSaveSessionStart(id=''){
       start:trReadPoint('em-session-point',plan),end:{},createdAt:now,updatedAt:now
     },plan));
   }
+  const saved=id?trSessionById(id,plan):trSessions(plan)[0];
+  if(saved?.endedAt)trRelinkSessionOperations(saved,plan);
   plan.updatedAt=now;persist();closeModal();render();return true;
 }
 function trSaveSessionEnd(id){
   const plan=getCurrentPlan(),session=trSessionById(id,plan);if(!session)return false;
   session.endedAt=trInputIso(document.getElementById('em-session-time')?.value,trNow());
   session.end=trReadPoint('em-session-point',plan);session.updatedAt=trNow();plan.updatedAt=session.updatedAt;
+  trRelinkSessionOperations(session,plan);
   persist();closeModal();render();return true;
 }
 function trDeleteSession(id){
@@ -629,8 +666,7 @@ function trStreaks(plan){
     const disciplineState=!known.length?'unknown':deviations?'deviation':known.length===operations.length?'clean':'partial';
     const rValues=operations.map(o=>{const risk=Number(o.riskUsd),pnl=Number(o.pnlNet);return Number.isFinite(risk)&&risk>0&&Number.isFinite(pnl)?pnl/risk:null;}).filter(v=>v!==null);
     const pnl=operations.reduce((sum,o)=>sum+(Number(o.pnlNet)||0),0);
-    const sessionIds=[...new Set(operations.map(o=>o.journalSessionId).filter(Boolean))];
-    const sessions=sessionIds.map(id=>trSessionById(id,plan)).filter(Boolean).sort((a,b)=>String(a.startedAt||'').localeCompare(String(b.startedAt||'')));
+    const sessions=[...new Map(operations.map(o=>trSessionForOperation(o,plan)).filter(Boolean).map(s=>[s.id,s])).values()].sort((a,b)=>String(a.startedAt||'').localeCompare(String(b.startedAt||'')));
     const firstSession=sessions[0]||null,lastSession=sessions[sessions.length-1]||null;
     const latest=lastSession?trConfidenceLatestPoint(lastSession):{point:{}};
     const startPoint=firstSession?.start||{};
@@ -655,9 +691,112 @@ function trStreakConfidenceText(streak,plan,key){
   if(start&&end)return start===end?trConfidenceLabel(start,plan):`${trConfidenceLabel(start,plan)} → ${trConfidenceLabel(end,plan)}`;
   return trConfidenceLabel(end||start,plan);
 }
-function trStreakReading(streak){
+function trStreakReferencePlan(plan){
+  if(!plan?.validationGroupId)return null;
+  const members=globalThis.TradingResearchOperationSemanticsContract?.validationGroupMembers?.(state,plan.validationGroupId)||[];
+  const candidates=members.filter(p=>globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(p)==='backtest');
+  if(!candidates.length)return null;
+  return candidates.slice().sort((a,b)=>{
+    const an=(state.operations||[]).filter(o=>o.tradingPlanId===a.id&&trOperationLayer(o)==='backtest').length;
+    const bn=(state.operations||[]).filter(o=>o.tradingPlanId===b.id&&trOperationLayer(o)==='backtest').length;
+    return bn-an;
+  })[0];
+}
+function trLossStreakLengths(operations){
+  const ordered=operations.slice().sort((a,b)=>typeof v3194CompareOps==='function'?v3194CompareOps(a,b):String(a.entryDate||'').localeCompare(String(b.entryDate||'')));
+  const lengths=[];let count=0;
+  for(const operation of ordered){
+    const outcome=trStreakOutcome(operation);
+    if(outcome==='loss')count++;
+    else{if(count)lengths.push(count);count=0;}
+  }
+  if(count)lengths.push(count);
+  return lengths.filter(x=>x>=2);
+}
+function trQuantile(values,q){
+  const rows=values.filter(Number.isFinite).slice().sort((a,b)=>a-b);
+  if(!rows.length)return null;
+  if(rows.length===1)return rows[0];
+  const pos=(rows.length-1)*q,base=Math.floor(pos),rest=pos-base;
+  return rows[base+1]!==undefined?rows[base]+rest*(rows[base+1]-rows[base]):rows[base];
+}
+function trStreakCriterion(plan){
+  trEnsurePlan(plan);
+  const cfg=plan?.emotionConfig?.streakCriteria||{mode:'reference',manualLossCount:3};
+  const referencePlan=trStreakReferencePlan(plan);
+  const referenceOps=referencePlan?(state.operations||[]).filter(o=>o.tradingPlanId===referencePlan.id&&trOperationLayer(o)==='backtest'):[];
+  const lossLengths=trLossStreakLengths(referenceOps),sufficient=referenceOps.length>=20&&lossLengths.length>=3;
+  const p75=sufficient?Math.max(3,Math.ceil(trQuantile(lossLengths,.75)||3)):null;
+  const maxLoss=lossLengths.length?Math.max(...lossLengths):null;
+  if(cfg.mode==='manual'){
+    return {mode:'manual',threshold:Math.max(2,Number(cfg.manualLossCount)||3),referencePlan,referenceOps,lossLengths,sufficient,p75,maxLoss};
+  }
+  return {mode:'reference',threshold:sufficient?p75:null,referencePlan,referenceOps,lossLengths,sufficient,p75,maxLoss};
+}
+function trStreakCriterionLabel(criterion){
+  if(criterion.mode==='manual')return `Manual · desde ${criterion.threshold} pérdidas consecutivas`;
+  if(!criterion.referencePlan)return 'Automático · sin Backtesting de referencia';
+  if(!criterion.sufficient)return `Automático · referencia insuficiente (${criterion.referenceOps.length} operaciones)`;
+  return `Automático · P75 del Backtesting = ${criterion.threshold} pérdidas · máximo histórico ${criterion.maxLoss}`;
+}
+function trStreakSeverity(streak,criterion){
+  if(!streak||streak.type!=='loss')return {key:'none',label:'No aplica'};
+  if(!criterion.threshold)return {key:'unknown',label:'Sin criterio suficiente'};
+  if(criterion.mode==='reference'&&criterion.maxLoss!==null&&streak.count>criterion.maxLoss)return {key:'outside',label:'Fuera del histórico'};
+  if(streak.count>=criterion.threshold)return {key:'bad',label:'Mala racha'};
+  return {key:'normal',label:'Racha perdedora dentro del rango'};
+}
+function trDrawdownEpisodes(operations){
+  const ordered=operations.slice().sort((a,b)=>typeof v3194CompareOps==='function'?v3194CompareOps(a,b):String(a.entryDate||'').localeCompare(String(b.entryDate||'')));
+  const episodes=[];let equity=0,peak=0,current=null;
+  const close=at=>{if(current){current.endAt=at;current.recovered=true;episodes.push(current);current=null;}};
+  for(const operation of ordered){
+    const value=Number(opMetricValue(operation,'ticks','net'))||0;
+    equity+=value;
+    if(equity>=peak){
+      close(operation.entryDate||'');
+      peak=equity;
+      continue;
+    }
+    if(!current)current={startAt:operation.entryDate||'',endAt:'',depth:0,recovered:false,operations:[]};
+    current.operations.push(operation);
+    current.depth=Math.min(current.depth,equity-peak);
+  }
+  if(current)episodes.push(current);
+  return episodes;
+}
+function trStreakCriteriaEditor(){
+  const plan=getCurrentPlan();if(!plan)return false;
+  const criterion=trStreakCriterion(plan),cfg=plan.emotionConfig.streakCriteria||{};
+  const ref=criterion.referencePlan?planLabel(criterion.referencePlan):'No disponible';
+  const info=criterion.referencePlan
+    ?`Referencia: ${esc(ref)} · ${criterion.referenceOps.length} operaciones · ${criterion.lossLengths.length} rachas perdedoras ≥2.`
+    :'Este TP no tiene un Backtesting de referencia dentro de su grupo de validación.';
+  const body=`<form id="streak-criteria-form" data-tr-onsubmit="return false"><div class="form-section"><h4>Definición de mala racha</h4>
+    <div class="form-grid">
+      <label class="field span2"><span>Criterio</span><select id="streak-criteria-mode" class="select"><option value="reference" ${cfg.mode!=='manual'?'selected':''}>Automático desde Backtesting de referencia</option><option value="manual" ${cfg.mode==='manual'?'selected':''}>Umbral manual</option></select></label>
+      <label class="field"><span>Pérdidas consecutivas · manual</span><input id="streak-manual-loss-count" class="input" type="number" min="2" step="1" value="${Math.max(2,Number(cfg.manualLossCount)||3)}"></label>
+    </div>
+    <div class="notice">${info}<br>El modo automático solo se activa con al menos 20 operaciones y 3 episodios perdedores en el Backtesting; el umbral se toma del P75 de sus rachas perdedoras, con mínimo de 3.</div>
+  </div></form>`;
+  document.body.insertAdjacentHTML('beforeend',modalShell('Criterio de mala racha',body,'<button class="btn" data-tr-action-click="closeModal">Cancelar</button><button class="btn primary" data-tr-action-click="emotionalStreakCriteriaSave">Guardar criterio</button>'));
+  return true;
+}
+function trSaveStreakCriteria(){
+  const plan=getCurrentPlan();if(!plan)return false;
+  const mode=document.getElementById('streak-criteria-mode')?.value==='manual'?'manual':'reference';
+  const manualLossCount=Math.max(2,Number(document.getElementById('streak-manual-loss-count')?.value)||3);
+  trEnsurePlan(plan);plan.emotionConfig.streakCriteria={mode,manualLossCount};plan.updatedAt=trNow();
+  persist();closeModal();render();return true;
+}
+function trStreakReading(streak,criterion){
   if(!streak)return {title:'Sin racha registrada',text:'Todavía no hay operaciones suficientes para describir una racha.'};
-  const type=streak.type==='loss'?'perdedora':'ganadora';
+  const type=streak.type==='loss'?'perdedora':'ganadora',severity=trStreakSeverity(streak,criterion);
+  if(streak.type==='loss'&&severity.key==='outside')return {title:'Racha fuera del histórico',text:'La longitud de la racha supera la máxima racha perdedora observada en el Backtesting de referencia.'};
+  if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='clean')return {title:'Mala racha con disciplina intacta',text:'La racha ha alcanzado el umbral definido como mala racha, pero la ejecución registrada mantiene la disciplina.'};
+  if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='deviation')return {title:'Mala racha con desviaciones registradas',text:'La racha ha alcanzado el umbral definido y contiene al menos una desviación de disciplina registrada.'};
+  if(streak.type==='loss'&&severity.key==='normal')return {title:'Racha perdedora dentro del rango',text:'Hay pérdidas consecutivas, pero todavía no alcanzan el criterio definido como mala racha.'};
+  if(streak.type==='loss'&&severity.key==='unknown')return {title:'Racha perdedora sin criterio suficiente',text:'La secuencia está detectada, pero falta una referencia estadística suficiente o un umbral manual para llamarla mala racha.'};
   if(streak.disciplineState==='clean'){
     return streak.type==='loss'
       ?{title:'Mala racha con disciplina intacta',text:'El resultado es negativo, pero todas las operaciones de la racha están registradas como disciplinadas.'}
@@ -675,20 +814,24 @@ function trJournalStreaksRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
   trEnsurePlan(plan);
-  const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null;
+  const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan);
   const losing=streaks.filter(s=>s.type==='loss'&&s.count>=2),winning=streaks.filter(s=>s.type==='win'&&s.count>=2);
-  const cleanLosing=losing.filter(s=>s.disciplineState==='clean');
-  const reading=trStreakReading(current);
+  const badLosing=losing.filter(s=>['bad','outside'].includes(trStreakSeverity(s,criterion).key));
+  const reading=trStreakReading(current,criterion);
   const currentText=current?`${current.count} ${current.type==='loss'?(current.count===1?'pérdida':'pérdidas'):(current.count===1?'ganancia':'ganancias')}`:'—';
   const currentMetric=current?calcMetricStats(current.operations,trJournalResultUnit,'net').sum:null;
   const currentResult=current?trJournalMetricText(currentMetric):'—';
   const relevant=streaks.filter(s=>s.count>=2).slice().reverse();
+  const drawdowns=trDrawdownEpisodes(trEligibleOperations(currentOps()).filter(o=>o.tradingPlanId===plan.id));
+  const recoveredDD=drawdowns.filter(d=>d.recovered),currentDD=drawdowns.find(d=>!d.recovered)||null;
+  const maxDD=drawdowns.length?Math.min(...drawdowns.map(d=>d.depth)):0;
   const feed=relevant.length?relevant.map(streak=>{
     const kind=streak.type==='loss'?'Racha perdedora':'Racha ganadora';
-    const result=trJournalMetricText(calcMetricStats(streak.operations,trJournalResultUnit,'net').sum);
+    const result=trJournalMetricText(calcMetricStats(streak.operations,trJournalResultUnit,'net').sum),severity=trStreakSeverity(streak,criterion);
     return `<article class="streak-card ${streak.type}">
       <header class="streak-card-head"><div><strong>${kind} · ${streak.count}</strong><span>${esc(fmtDate(streak.first?.entryDate))} → ${esc(fmtDate(streak.last?.entryDate))}</span></div><b>${esc(result)}</b></header>
       <div class="streak-card-grid">
+        <div><span>Clasificación</span><strong>${esc(severity.label)}</strong></div>
         <div><span>Disciplina</span><strong>${esc(trStreakDisciplineLabel(streak))}</strong></div>
         <div><span>Confianza personal</span><strong>${esc(trStreakConfidenceText(streak,plan,'personal'))}</strong></div>
         <div><span>Confianza en el sistema</span><strong>${esc(trStreakConfidenceText(streak,plan,'system'))}</strong></div>
@@ -696,21 +839,23 @@ function trJournalStreaksRender(){
       <footer><span>${streak.sessions.length?`${streak.sessions.length} sesión${streak.sessions.length===1?'':'es'} vinculada${streak.sessions.length===1?'':'s'}`:'Sin sesión emocional vinculada'}</span></footer>
     </article>`;
   }).join(''):'<div class="empty">Todavía no hay rachas de 2 o más operaciones.</div>';
-  return `${pageHead('Diario emocional · Rachas y adaptación','Observa cómo atraviesas rachas ganadoras y perdedoras sin confundir resultado con calidad de ejecución.',trJournalMetricSwitch())}
+  const refText=criterion.referencePlan?`${planLabel(criterion.referencePlan)} · ${criterion.referenceOps.length} operaciones`:'Sin Backtesting vinculado';
+  return `${pageHead('Diario emocional · Rachas y adaptación','Separa rachas consecutivas, malas rachas definidas y drawdown real del Trading Plan.',trJournalMetricSwitch())}
     ${activePlanBanner()}
     <div class="streak-kpis">
-      ${kpi('Racha actual',currentText,current?trStreakDisciplineLabel(current):'sin datos')}
+      ${kpi('Racha actual',currentText,current?trStreakSeverity(current,criterion).label:'sin datos')}
       ${kpi('Resultado de la racha',currentResult,current?'acumulado':'sin datos')}
-      ${kpi('Rachas perdedoras ≥2',losing.length,`${cleanLosing.length} con disciplina íntegra`)}
+      ${kpi('Rachas perdedoras ≥2',losing.length,`${badLosing.length} calificadas como mala racha`)}
       ${kpi('Rachas ganadoras ≥2',winning.length,'histórico del TP')}
     </div>
-    <section class="card panel streak-reading"><div class="panel-title"><div><h3>Lectura de la racha actual</h3><small>Describe hechos registrados; no convierte una mala racha disciplinada en un fallo.</small></div></div><strong>${esc(reading.title)}</strong><p>${esc(reading.text)}</p></section>
-    <section class="card panel streak-adaptation"><div class="panel-title"><div><h3>Exposición a drawdowns</h3><small>Repetición de rachas perdedoras atravesadas con el mismo TP. No es una puntuación psicológica.</small></div></div>
+    <section class="card panel streak-criterion"><div class="panel-title"><div><h3>Criterio de mala racha</h3><small>${esc(refText)}</small></div><button class="btn small" data-tr-action-click="emotionalStreakCriteriaOpen">Configurar criterio</button></div><strong>${esc(trStreakCriterionLabel(criterion))}</strong><p>Una racha perdedora es un hecho descriptivo. Solo se etiqueta como <b>mala racha</b> cuando alcanza este criterio.</p></section>
+    <section class="card panel streak-reading"><div class="panel-title"><div><h3>Lectura de la racha actual</h3><small>Resultado, criterio y disciplina se mantienen separados.</small></div></div><strong>${esc(reading.title)}</strong><p>${esc(reading.text)}</p></section>
+    <section class="card panel streak-adaptation"><div class="panel-title"><div><h3>Drawdown real</h3><small>Caídas desde un máximo acumulado de la curva en ticks netos; no equivale a pérdidas consecutivas.</small></div></div>
       <div class="streak-adaptation-grid">
-        <div><span>Rachas perdedoras registradas</span><strong>${losing.length}</strong></div>
-        <div><span>Con disciplina íntegra</span><strong>${cleanLosing.length}</strong></div>
-        <div><span>Con alguna desviación</span><strong>${losing.filter(s=>s.disciplineState==='deviation').length}</strong></div>
-        <div><span>Con datos parciales/sin informar</span><strong>${losing.filter(s=>['partial','unknown'].includes(s.disciplineState)).length}</strong></div>
+        <div><span>Episodios de drawdown</span><strong>${drawdowns.length}</strong></div>
+        <div><span>Recuperados</span><strong>${recoveredDD.length}</strong></div>
+        <div><span>Máximo drawdown</span><strong>${metricStatText(maxDD,'ticks')}</strong></div>
+        <div><span>Drawdown actual</span><strong>${currentDD?metricStatText(currentDD.depth,'ticks'):'0.0t'}</strong></div>
       </div>
     </section>
     <section class="card panel streak-history"><div class="panel-title"><div><h3>Historial de rachas</h3><small>Solo episodios de 2 o más operaciones consecutivas con el mismo signo.</small></div><span>${relevant.length} episodios</span></div><div class="streak-feed">${feed}</div></section>`;

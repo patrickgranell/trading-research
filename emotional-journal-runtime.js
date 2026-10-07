@@ -383,6 +383,7 @@ trEarlyActions.emotionalLibraryDelete=function(){return trDeleteLibraryEntry(Str
 trEarlyActions.emotionalLibrarySourceOpen=function(){return trOpenLibrarySource(String(this.dataset.sourceId||''));};
 trEarlyActions.emotionalLibrarySearch=function(){trLibrarySearch=String(this.value||'');render();};
 trEarlyActions.emotionalDashboardOpen=function(){const view=String(this.dataset.view||'');if(view)return navigate(view);return false;};
+trEarlyActions.emotionalPerspectiveNext=function(){trPerspectiveRotation++;render();};
 trEarlyActions.emotionalWeeklyWeekChange=function(){const value=String(this.value||'');if(/^\d{4}-W\d{2}$/.test(value)){trWeeklyReviewWeek=value;render();}};
 trEarlyActions.emotionalWeeklySave=function(){return trSaveWeeklyReview();};
 trEarlyActions.emotionalWeeklyDelete=function(){return trDeleteWeeklyReview();};
@@ -952,7 +953,7 @@ function trJournalDashboardRender(){
       <section class="card panel"><div class="panel-title"><div><h3>Señales para revisar</h3><small>Prioriza hechos registrados; no diagnostica ni prescribe.</small></div><span>${signals.length}</span></div><div class="emotional-dashboard-signals">${signalHtml}</div></section>
       <section class="card panel"><div class="panel-title"><div><h3>Actividad reciente</h3><small>Aprendizaje y escritura que has decidido conservar.</small></div></div><div class="emotional-dashboard-activity-list">${activityHtml}</div></section>
     </div>
-    <section class="card panel emotional-dashboard-perspective"><div class="panel-title"><div><h3>Perspectiva sugerida</h3><small>${esc(perspective.author)} · ${esc(perspective.source)}</small></div><button class="btn small" data-view="journalreflections" data-tr-action-click="emotionalDashboardOpen">Abrir perspectiva</button></div><blockquote>${esc(perspective.text)}</blockquote><p>${esc(perspective.application)}</p></section>`;
+    <section class="card panel emotional-dashboard-perspective"><div class="panel-title"><div><h3>Perspectiva sugerida</h3><small>${esc(perspective.author)} · ${esc(perspective.source)}</small></div><div class="actions"><button class="btn small" data-tr-action-click="emotionalPerspectiveNext">Otra perspectiva</button><button class="btn small" data-view="journalreflections" data-tr-action-click="emotionalDashboardOpen">Abrir perspectiva</button></div></div><blockquote>${esc(perspective.text)}</blockquote><p>${esc(perspective.application)}</p></section>`;
 }
 
 function trJournalSessionsRender(){
@@ -1363,51 +1364,25 @@ function trJournalDriftRender(){
     <section class="card panel drift-history"><div class="panel-title"><div><h3>Desviaciones recientes</h3><small>Últimas 5 operaciones del TP.</small></div><span>${recent.deviations.length} desviaciones</span></div><div class="drift-operation-feed">${feed}</div></section>`;
 }
 
-const TR_TRADER_PERSPECTIVES=Object.freeze([
-  Object.freeze({
-    id:'douglas-anything-can-happen',
-    author:'Mark Douglas',
-    source:'Trading in the Zone · Five Fundamental Truths',
-    kind:'quote',
-    text:'Anything can happen.',
-    context:'Incertidumbre · necesidad de acertar el siguiente trade',
-    application:'Una operación individual no confirma ni invalida un edge. Evalúa si ejecutaste el plan, no si adivinaste el resultado.',
-    tags:['uncertainty','loss','confidence']
-  }),
-  Object.freeze({
-    id:'douglas-random-distribution',
-    author:'Mark Douglas',
-    source:'Trading in the Zone · Five Fundamental Truths',
-    kind:'paraphrase',
-    text:'Los resultados de un edge se distribuyen en una secuencia imprevisible de ganancias y pérdidas.',
-    context:'Rachas perdedoras con disciplina intacta',
-    application:'Si la racha sigue dentro de la distribución esperada del sistema y la ejecución es correcta, una secuencia de SL no justifica cambiar el plan.',
-    tags:['losing-streak','discipline','drawdown']
-  }),
-  Object.freeze({
-    id:'douglas-edge-probability',
-    author:'Mark Douglas',
-    source:'Trading in the Zone · Five Fundamental Truths',
-    kind:'paraphrase',
-    text:'Un edge expresa una probabilidad favorable; no es una predicción sobre la próxima operación.',
-    context:'Confianza excesiva o necesidad de confirmar una tesis',
-    application:'Ni una racha ganadora convierte la siguiente entrada en segura ni una racha perdedora vuelve inválida una entrada que cumple el setup.',
-    tags:['winning-streak','overconfidence','discipline']
-  })
-]);
 function trPerspectiveTabs(active){
   return '<div class="journal-subtabs perspective-tabs"><button class="seg-btn '+(active==='personal'?'active':'')+'" data-tab="personal" data-tr-action-click="emotionalPerspectiveTab">Mis reflexiones</button><button class="seg-btn '+(active==='traders'?'active':'')+'" data-tab="traders" data-tr-action-click="emotionalPerspectiveTab">Perspectivas de traders</button></div>';
 }
 function trTraderPerspectivesRender(){
-  const cards=TR_TRADER_PERSPECTIVES.map(item=>'<article class="trader-perspective-card"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source)+'</span></div><span class="badge">'+(item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="trader-perspective-context"><div><span>Cuándo aporta perspectiva</span><strong>'+esc(item.context)+'</strong></div><div><span>Aplicación</span><p>'+esc(item.application)+'</p></div></div></article>').join('');
-  return '<section class="card panel perspective-intro"><div class="panel-title"><div><h3>Perspectivas de traders</h3><small>Material curado para recuperar perspectiva cuando el contexto emocional lo hace útil.</small></div></div><p>Estas referencias no sustituyen tu Trading Plan. Sirven para contrastar una reacción emocional con principios sobre probabilidad, disciplina y ejecución.</p></section><div class="trader-perspective-feed">'+cards+'</div>';
+  const plan=getCurrentPlan(),rows=trPerspectiveItems(plan,{activeOnly:true});
+  const cards=rows.length?rows.map(item=>'<article class="trader-perspective-card"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source)+'</span></div><span class="badge">'+(item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="trader-perspective-context"><div><span>Cuándo aporta perspectiva</span><strong>'+esc(item.context||'—')+'</strong></div><div><span>Aplicación</span><p>'+esc(item.application||'—')+'</p></div></div></article>').join(''):'<div class="empty">No hay perspectivas activas. Puedes configurarlas en Configuración → Emocional.</div>';
+  return '<section class="card panel perspective-intro"><div class="panel-title"><div><h3>Perspectivas de traders</h3><small>Biblioteca configurable del Trading Plan.</small></div><button class="btn small" data-view="config" data-tr-action-click="emotionalNavigate">Configurar</button></div><p>Estas referencias no sustituyen tu Trading Plan. Sirven para recuperar criterio cuando el resultado o la emoción distorsionan la lectura del proceso.</p></section><div class="trader-perspective-feed">'+cards+'</div>';
 }
+let trPerspectiveRotation=0;
+function trPerspectivePickByTags(rows,tags=[]){for(const tag of tags){const found=rows.find(x=>(x.tags||[]).includes(tag));if(found)return found;}return null;}
 function trPerspectiveRecommendation(plan){
+  const rows=trPerspectiveItems(plan,{activeOnly:true});
+  if(!rows.length)return trNormalizePerspective({author:'Trading Research',source:'Biblioteca vacía',text:'Configura perspectivas en Configuración → Emocional.',context:'Sin biblioteca activa',application:'Añade o activa perspectivas para que el Dashboard pueda sugerirlas.',tags:[]});
   const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan),severity=trStreakSeverity(current,criterion),drift=trDriftData(plan);
-  if(current?.type==='loss'&&['bad','outside'].includes(severity.key)&&current.disciplineState==='clean')return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-random-distribution');
-  if(current?.type==='win'&&current.disciplineState==='deviation')return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-edge-probability');
-  if(['clear','rising','watch'].includes(drift.key))return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-edge-probability');
-  return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-anything-can-happen');
+  if(current?.type==='loss'&&['bad','outside'].includes(severity.key)&&current.disciplineState==='clean')return trPerspectivePickByTags(rows,['losing-streak','drawdown'])||rows[0];
+  if(current?.type==='win'&&current.disciplineState==='deviation')return trPerspectivePickByTags(rows,['overconfidence','winning-streak'])||rows[0];
+  if(['clear','rising','watch'].includes(drift.key))return trPerspectivePickByTags(rows,['self-awareness','drift','discipline'])||rows[0];
+  const ordered=rows.slice().sort((a,b)=>a.author.localeCompare(b.author)||a.id.localeCompare(b.id));
+  return ordered[trPerspectiveRotation%ordered.length]||rows[0];
 }
 
 function trJournalReflectionsRender(){

@@ -14,6 +14,27 @@ const TR_TRI_LEVELS=Object.freeze(['low','medium','high']);
 const TR_CONFIDENCE_LABELS=Object.freeze({very_low:'Muy baja',low:'Baja',normal:'Normal',high:'Alta',very_high:'Muy alta'});
 const TR_TRI_LABELS=Object.freeze({low:'Bajo',medium:'Medio',high:'Alto'});
 const TR_DEFAULT_SESSION_SCALES=Object.freeze({confidence:TR_CONFIDENCE_LABELS,tri:TR_TRI_LABELS});
+const TR_DEFAULT_TRADER_PERSPECTIVES=Object.freeze([
+  Object.freeze({id:'douglas-anything-can-happen',author:'Mark Douglas',source:'Trading in the Zone · Five Fundamental Truths',sourceUrl:'https://books.google.com/books/about/Trading_in_the_Zone.html?id=HuECs_JTCmEC',kind:'quote',text:'Anything can happen.',context:'Incertidumbre · necesidad de acertar el siguiente trade',application:'Acepta que una operación individual puede terminar de cualquier forma. Evalúa la calidad de la ejecución y del edge sobre una muestra, no tu capacidad de adivinar el siguiente resultado.',tags:['uncertainty','confidence'],active:true}),
+  Object.freeze({id:'douglas-no-need-to-know',author:'Mark Douglas',source:'Trading in the Zone · Five Fundamental Truths',sourceUrl:'https://books.google.com/books/about/Trading_in_the_Zone.html?id=HuECs_JTCmEC',kind:'paraphrase',text:'No necesitas saber qué ocurrirá a continuación para ganar dinero; necesitas ejecutar una ventaja probabilística.',context:'Duda antes de ejecutar · búsqueda de certeza',application:'Si el setup cumple el plan, exigir certeza adicional puede convertirse en bloqueo o entrada tardía. La incertidumbre forma parte del trabajo.',tags:['uncertainty','execution','confidence'],active:true}),
+  Object.freeze({id:'douglas-random-distribution',author:'Mark Douglas',source:'Trading in the Zone · Five Fundamental Truths',sourceUrl:'https://books.google.com/books/about/Trading_in_the_Zone.html?id=HuECs_JTCmEC',kind:'paraphrase',text:'Las ganancias y pérdidas de un edge aparecen en una secuencia que no puedes conocer de antemano.',context:'Rachas perdedoras con disciplina intacta',application:'Si la racha sigue dentro de la distribución esperada del sistema y la ejecución es correcta, varios SL consecutivos no bastan para invalidar el plan.',tags:['losing-streak','discipline','drawdown'],active:true}),
+  Object.freeze({id:'douglas-edge-probability',author:'Mark Douglas',source:'Trading in the Zone · Five Fundamental Truths',sourceUrl:'https://books.google.com/books/about/Trading_in_the_Zone.html?id=HuECs_JTCmEC',kind:'paraphrase',text:'Un edge indica una probabilidad favorable; no promete el resultado de la próxima operación.',context:'Exceso de confianza · necesidad de confirmar una tesis',application:'Una racha ganadora no vuelve segura la siguiente entrada y una pérdida no vuelve inválido un setup que sigue cumpliendo las reglas.',tags:['winning-streak','overconfidence','discipline'],active:true}),
+  Object.freeze({id:'douglas-every-moment-unique',author:'Mark Douglas',source:'Trading in the Zone · Five Fundamental Truths',sourceUrl:'https://books.google.com/books/about/Trading_in_the_Zone.html?id=HuECs_JTCmEC',kind:'paraphrase',text:'Cada momento de mercado es único, aunque se parezca a situaciones anteriores.',context:'Sesgo por el resultado anterior · miedo a repetir una pérdida',application:'No conviertas el último trade en una regla nueva. Compara el contexto actual con tu plan y decide desde ahí.',tags:['recency','fear','discipline'],active:true}),
+  Object.freeze({id:'steenbarger-confidence-humility',author:'Brett Steenbarger',source:'TraderFeed · More Coaching Insights for Traders (18/04/2010)',sourceUrl:'https://traderfeed.blogspot.com/2010/04/more-coaching-insights-for-traders.html',kind:'quote',text:'Confidence when losing, humility when winning.',context:'Rachas ganadoras o perdedoras',application:'La confianza útil no depende del último P&L. En pérdidas sostiene la ejecución; en ganancias evita convertir una buena racha en permiso para excederte.',tags:['losing-streak','winning-streak','confidence','overconfidence'],active:true}),
+  Object.freeze({id:'steenbarger-trade-well',author:'Brett Steenbarger',source:'TraderFeed · More Coaching Insights for Traders (18/04/2010)',sourceUrl:'https://traderfeed.blogspot.com/2010/04/more-coaching-insights-for-traders.html',kind:'paraphrase',text:'No siempre ganarás dinero, pero sí puedes exigir una buena ejecución.',context:'Resultado malo con proceso correcto',application:'Separa perder dinero de operar mal. Una pérdida disciplinada y una ganancia indisciplinada no significan lo mismo.',tags:['discipline','loss','process'],active:true}),
+  Object.freeze({id:'steenbarger-self-awareness',author:'Brett Steenbarger',source:'TraderFeed · Building Self-Awareness (2019)',sourceUrl:'https://traderfeed.blogspot.com/2019/05/trading-psychology-techniques-6.html',kind:'quote',text:'There is no loss of discipline without a prior loss of self-awareness.',context:'Deriva conductual · impulsividad',application:'Antes de corregir la desviación, recupera conciencia de qué estás haciendo y por qué. La deriva suele empezar antes del clic.',tags:['discipline','self-awareness','drift','tilt'],active:true}),
+  Object.freeze({id:'steenbarger-fomo',author:'Brett Steenbarger',source:'TraderFeed · The Piece of Progress That Turns New Traders Into Successful Traders (2017)',sourceUrl:'https://traderfeed.blogspot.com/2017/12/the-piece-of-progress-that-turns-new.html',kind:'paraphrase',text:'Perder una oportunidad es barato; perder el control por miedo a perdértela puede costar la sesión.',context:'FOMO · entrada impulsiva · persecución del precio',application:'Una oportunidad perdida no necesita reparación. Espera a que vuelva a aparecer una condición de tu plan.',tags:['fomo','impulse','overtrading'],active:true}),
+  Object.freeze({id:'steenbarger-tilt',author:'Brett Steenbarger',source:'TraderFeed · Trading on Tilt: Regaining Self Control (2009)',sourceUrl:'https://traderfeed.blogspot.com/2009/04/trading-on-tilt-regaining-self-control.html',kind:'paraphrase',text:'El tilt aparece cuando empiezas a operar para regular tu malestar en vez de responder al mercado.',context:'Revenge trading · frustración · necesidad de recuperar',application:'Interrumpe la secuencia: pausa, revisa tu estado y vuelve a definir riesgo, stop y objetivo antes de considerar otro trade.',tags:['tilt','revenge','self-awareness','impulse'],active:true}),
+  Object.freeze({id:'steenbarger-emotion-not-enemy',author:'Brett Steenbarger',source:'TraderFeed · Controlling Emotions Is NOT The Goal Of Trading Psychology (2006)',sourceUrl:'https://traderfeed.blogspot.com/2006/12/controlling-emotions-is-not-goal-of.html',kind:'paraphrase',text:'El objetivo no es eliminar la emoción, sino mantener conciencia, foco y capacidad de decisión mientras la emoción existe.',context:'Ansiedad · frustración · intento de estar siempre calmado',application:'No conviertas sentir algo en un incumplimiento. Pregunta si sigues pudiendo procesar información y ejecutar el plan.',tags:['emotion','focus','self-awareness'],active:true}),
+  Object.freeze({id:'steenbarger-drawdown-information',author:'Brett Steenbarger',source:'TraderFeed · Adapting to Change: The Greatest Challenge in Trading (2014)',sourceUrl:'https://traderfeed.blogspot.com/2014/02/adapting-to-change-greatest-challenge.html',kind:'paraphrase',text:'Un drawdown también puede ser información: a veces señala variabilidad normal y otras veces un mercado que ha cambiado.',context:'Drawdown · pérdida de confianza en el sistema',application:'No uses psicología para tranquilizarte automáticamente. Compara el drawdown con el backtest y revisa si el régimen o el edge han cambiado.',tags:['drawdown','regime-change','system-confidence'],active:true}),
+  Object.freeze({id:'steenbarger-lapses-information',author:'Brett Steenbarger',source:'TraderFeed · Understanding Lapses in Trading Discipline (2006)',sourceUrl:'https://traderfeed.blogspot.com/2006/10/understanding-lapses-in-trading.html',kind:'paraphrase',text:'Una desviación repetida puede ser información sobre el ajuste entre tus reglas, tu estilo y el mercado, no solo falta de voluntad.',context:'Incumplimientos repetidos del mismo tipo',application:'Investiga qué reglas rompes, en qué contexto y por qué. Corregir disciplina no siempre significa añadir más reglas.',tags:['discipline','drift','self-awareness'],active:true}),
+  Object.freeze({id:'steenbarger-hot-hand',author:'Brett Steenbarger',source:'TraderFeed · The Most Common Trading Problem (2006)',sourceUrl:'https://traderfeed.blogspot.com/2006/05/most-common-trading-problem.html',kind:'paraphrase',text:'Una racha ganadora puede surgir por variabilidad normal y alimentar una confianza que no está respaldada por más edge.',context:'Racha ganadora · aumento espontáneo de tamaño',application:'No incrementes riesgo porque te sientas “caliente”. Exige la misma evidencia para cambiar tamaño que exigirías después de una mala racha.',tags:['winning-streak','overconfidence','sizing'],active:true}),
+  Object.freeze({id:'steenbarger-size-discipline',author:'Brett Steenbarger',source:'TraderFeed · Trading Discipline: Cause of Problems or Effect? (2007)',sourceUrl:'https://traderfeed.blogspot.com/2007/06/trading-discipline-cause-of-problems-or.html',kind:'paraphrase',text:'Un tamaño demasiado grande puede fabricar problemas emocionales y de disciplina que no aparecen con un riesgo tolerable.',context:'Miedo, euforia o incumplimientos que aparecen al aumentar posición',application:'Antes de atribuir el problema a tu psicología, comprueba si el tamaño está excediendo tu tolerancia real al riesgo.',tags:['sizing','discipline','fear','overconfidence'],active:true}),
+  Object.freeze({id:'lefevre-overtrading',author:'Edwin Lefèvre / Jesse Livermore',source:'Reminiscences of a Stock Operator · Chapter II',sourceUrl:'https://www.gutenberg.org/files/60979/60979-h/60979-h.htm',kind:'paraphrase',text:'Creer que debes operar continuamente es una de las formas clásicas de destruir una buena lectura del mercado.',context:'Aburrimiento · necesidad de estar dentro · sobreoperativa',application:'No operar también es una decisión. La ausencia de una oportunidad válida es una razón suficiente para no hacer nada.',tags:['overtrading','patience','fomo'],active:true}),
+  Object.freeze({id:'lefevre-sit-tight',author:'Edwin Lefèvre / Jesse Livermore',source:'Reminiscences of a Stock Operator · Chapter V',sourceUrl:'https://onlinelibrary.wiley.com/doi/10.1002/9781119198482.ch5',kind:'paraphrase',text:'Saber esperar —fuera del mercado y dentro de una buena posición— puede ser tan importante como acertar la dirección.',context:'Impaciencia · salida prematura · búsqueda constante de acción',application:'Distingue entre gestionar una posición y tocarla por incomodidad. Si el motivo de salida no pertenece al plan, quizá solo estás reaccionando.',tags:['patience','early-exit','overtrading'],active:true}),
+  Object.freeze({id:'lefevre-dont-argue',author:'Edwin Lefèvre / Jesse Livermore',source:'Reminiscences of a Stock Operator · selected passages',sourceUrl:'https://www.gutenberg.org/files/60979/60979-h/60979-h.htm',kind:'paraphrase',text:'Enfadarte con el mercado no cambia el mercado; solo empeora la calidad de tu siguiente decisión.',context:'Frustración · revenge trading · necesidad de tener razón',application:'Cuando notes que estás discutiendo mentalmente con el precio, vuelve a hechos observables: estructura, riesgo y condiciones del plan.',tags:['frustration','revenge','tilt','self-awareness'],active:true})
+]);
+
 
 const trCopy=value=>JSON.parse(JSON.stringify(value??null));
 const trText=value=>String(value??'').trim();
@@ -119,6 +140,22 @@ function trNormalizeLibraryEntry(value={},plan=null){
     updatedAt:trText(value?.updatedAt)||at
   };
 }
+
+function trNormalizePerspective(value={}){
+  const tags=Array.isArray(value?.tags)?value.tags.map(trText).filter(Boolean):String(value?.tags||'').split(',').map(trText).filter(Boolean);
+  return {
+    id:trText(value?.id)||trId('EP'),
+    author:trText(value?.author)||'Autor desconocido',
+    source:trText(value?.source),
+    sourceUrl:trText(value?.sourceUrl),
+    kind:value?.kind==='quote'?'quote':'paraphrase',
+    text:trText(value?.text),
+    context:trText(value?.context),
+    application:trText(value?.application),
+    tags:[...new Set(tags)],
+    active:value?.active!==false
+  };
+}
 function trNormalizeWeeklyReview(value={},plan=null){
   const at=trText(value?.at)||trNow();
   return {
@@ -166,6 +203,8 @@ function trEnsurePlan(plan){
     mode:streakCriteria.mode==='manual'?'manual':'reference',
     manualLossCount:Math.max(2,Number(streakCriteria.manualLossCount)||3)
   };
+  const perspectives=Array.isArray(plan.emotionConfig.perspectives)?plan.emotionConfig.perspectives:trCopy(TR_DEFAULT_TRADER_PERSPECTIVES);
+  plan.emotionConfig.perspectives=perspectives.map(trNormalizePerspective).filter(x=>x.text);
   const rows=Array.isArray(plan.emotionalSessions)?plan.emotionalSessions:[];
   plan.emotionalSessions=rows.map(row=>trNormalizeSession(row,plan));
   const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
@@ -200,6 +239,7 @@ const domain=Object.freeze({
   normalizeLog:trNormalizeLog,
   normalizeReflection:trNormalizeReflection,
   normalizeLibraryEntry:trNormalizeLibraryEntry,
+  normalizePerspective:trNormalizePerspective,
   normalizeWeeklyReview:trNormalizeWeeklyReview,
   ensurePlan:trEnsurePlan,
   coverage:trCoverage

@@ -156,7 +156,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -174,6 +174,11 @@ try{
         const confidenceIndex=group.items.findIndex(x=>x?.[0]==='journalconfidence');
         const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
         group.items.splice(confidenceIndex>=0?confidenceIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalstreaks','≈','Rachas y adaptación']);
+      }
+      if(!group.items.some(x=>x?.[0]==='journaldrift')){
+        const streakIndex=group.items.findIndex(x=>x?.[0]==='journalstreaks');
+        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
+        group.items.splice(streakIndex>=0?streakIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journaldrift','↝','Deriva conductual']);
       }
       if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
     }
@@ -863,6 +868,93 @@ function trJournalStreaksRender(){
     <section class="card panel streak-history"><div class="panel-title"><div><h3>Historial de rachas</h3><small>Solo episodios de 2 o más operaciones consecutivas con el mismo signo.</small></div><span>${relevant.length} episodios</span></div><div class="streak-feed">${feed}</div></section>`;
 }
 
+
+function trDriftOrderedOps(plan){
+  return trEligibleOperations(currentOps()).filter(o=>o?.tradingPlanId===plan?.id).slice().sort((a,b)=>typeof v3194CompareOps==='function'?v3194CompareOps(a,b):String(a.entryDate||'').localeCompare(String(b.entryDate||'')));
+}
+function trDriftBehaviorCounts(operations){
+  const map=new Map();
+  for(const operation of operations){
+    for(const behavior of operation?.emotional?.behaviors||[]){
+      const label=trText(behavior);if(!label)continue;
+      map.set(label,(map.get(label)||0)+1);
+    }
+  }
+  return [...map.entries()].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));
+}
+function trDriftWindowStats(operations){
+  const known=operations.filter(o=>typeof o.discipline==='boolean');
+  const deviations=known.filter(o=>o.discipline===false);
+  const clean=known.filter(o=>o.discipline===true);
+  const rate=known.length?deviations.length/known.length*100:null;
+  const behaviors=trDriftBehaviorCounts(deviations);
+  return {operations,known,deviations,clean,rate,behaviors};
+}
+function trDriftData(plan){
+  const ordered=trDriftOrderedOps(plan),recentOps=ordered.slice(-5),priorOps=ordered.slice(Math.max(0,ordered.length-15),Math.max(0,ordered.length-5));
+  const recent=trDriftWindowStats(recentOps),prior=trDriftWindowStats(priorOps);
+  const baselineReady=prior.known.length>=5,recentReady=recent.known.length>=3;
+  const delta=(baselineReady&&recent.rate!==null&&prior.rate!==null)?recent.rate-prior.rate:null;
+  const repeated=recent.behaviors.find(x=>x.count>=2)||recent.behaviors[0]||null;
+  const ticks=calcMetricStats(recentOps,'ticks','net').sum;
+  const sessions=[...new Map(recentOps.map(o=>trSessionForOperation(o,plan)).filter(Boolean).map(s=>[s.id,s])).values()].sort((a,b)=>String(a.startedAt||'').localeCompare(String(b.startedAt||'')));
+  const latestSession=sessions[sessions.length-1]||null,latestPoint=latestSession?trConfidenceLatestPoint(latestSession):{point:{}};
+  let key='stable',title='Sin deriva observable',text='La ventana reciente no muestra una acumulación relevante de desviaciones.';
+  if(!recentReady){
+    key='insufficient';title='Datos insuficientes';text='Se necesitan al menos 3 operaciones recientes con disciplina informada para describir una deriva.';
+  }else if(recent.deviations.length>=3&&recent.rate>=50){
+    key='clear';title='Deriva conductual clara';text='La ventana reciente concentra varias desviaciones y al menos la mitad de las operaciones con disciplina informada se apartan del plan.';
+  }else if(baselineReady&&recent.deviations.length>=2&&delta>=25){
+    key='rising';title='Deriva conductual creciente';text='La tasa de desviación reciente ha aumentado de forma material frente a la ventana anterior.';
+  }else if(recent.deviations.length>=2){
+    key='watch';title='Microdesviaciones repetidas';text='Hay varias desviaciones recientes, aunque todavía no existe una comparación histórica suficiente o el aumento frente al periodo anterior no es amplio.';
+  }
+  if(['clear','rising','watch'].includes(key)&&ticks>0){
+    title='Resultados favorables con deriva';
+    text='La ventana reciente sigue siendo positiva en ticks, pero contiene desviaciones repetidas. El resultado favorable no se utiliza para validar el proceso.';
+  }
+  return {ordered,recent,prior,baselineReady,recentReady,delta,repeated,ticks,sessions,latestSession,latestPoint,key,title,text};
+}
+function trDriftPct(value){return value===null||value===undefined?'—':value.toFixed(0)+'%';}
+function trDriftConfidence(plan,data,key){
+  const value=key==='personal'?data.latestPoint?.point?.confidencePersonal:data.latestPoint?.point?.confidenceSystem;
+  return trConfidenceLabel(value||'',plan);
+}
+function trJournalDriftRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const data=trDriftData(plan),recent=data.recent,prior=data.prior;
+  const deltaText=data.delta===null?'—':(data.delta>=0?'+':'')+data.delta.toFixed(0)+' pp';
+  const resultText=trJournalMetricText(calcMetricStats(recent.operations,trJournalResultUnit,'net').sum);
+  const repeatedText=data.repeated?`${data.repeated.label} · ${data.repeated.count}x`:'Sin repetición';
+  const deviationRows=recent.deviations.slice().reverse();
+  const feed=deviationRows.length?deviationRows.map(operation=>{
+    const behaviors=(operation?.emotional?.behaviors||[]).join(' · ')||'Sin comportamiento etiquetado';
+    const result=trJournalMetricText(trJournalMetricValue(operation));
+    return `<article class="drift-operation-card"><div><strong>${esc(fmtDate(operation.entryDate))}</strong><span>${esc(operation.contract||'—')} · ${esc(operation.direction||'—')} · ${esc(operation.setup||'Sin setup')}</span></div><div><span>Comportamientos</span><strong>${esc(behaviors)}</strong></div><b class="${trJournalMetricValue(operation)>0?'positive':trJournalMetricValue(operation)<0?'negative':''}">${esc(result)}</b><button class="btn small" data-operation-id="${esc(operation.id)}" data-tr-action-click="emotionalOpenOperation">Abrir diario</button></article>`;
+  }).join(''):'<div class="empty">No hay desviaciones de disciplina en las últimas 5 operaciones.</div>';
+  return `${pageHead('Diario emocional · Deriva conductual','Detecta cambios progresivos en la ejecución aunque los resultados todavía acompañen.',trJournalMetricSwitch())}
+    ${activePlanBanner()}
+    <div class="drift-kpis">
+      ${kpi('Desviación reciente',trDriftPct(recent.rate),`${recent.deviations.length}/${recent.known.length} con disciplina informada`)}
+      ${kpi('Ventana anterior',trDriftPct(prior.rate),`${prior.known.length} operaciones informadas`)}
+      ${kpi('Cambio',deltaText,'reciente vs anterior')}
+      ${kpi('Resultado reciente',resultText,'últimas 5 operaciones')}
+    </div>
+    <section class="card panel drift-reading"><div class="panel-title"><div><h3>Lectura actual</h3><small>La disciplina manda; el resultado solo aporta contexto.</small></div></div><strong>${esc(data.title)}</strong><p>${esc(data.text)}</p></section>
+    <section class="card panel drift-context"><div class="panel-title"><div><h3>Contexto de la deriva</h3><small>No clasifica automáticamente una etiqueta de comportamiento como buena o mala.</small></div></div>
+      <div class="drift-context-grid">
+        <div><span>Etiqueta repetida en desviaciones</span><strong>${esc(repeatedText)}</strong></div>
+        <div><span>Confianza personal más reciente</span><strong>${esc(trDriftConfidence(plan,data,'personal'))}</strong></div>
+        <div><span>Confianza en el sistema más reciente</span><strong>${esc(trDriftConfidence(plan,data,'system'))}</strong></div>
+        <div><span>Sesiones vinculadas en la ventana</span><strong>${data.sessions.length}</strong></div>
+      </div>
+    </section>
+    <section class="card panel drift-method"><div class="panel-title"><div><h3>Cómo se detecta</h3></div></div><p>Compara las últimas 5 operaciones con hasta 10 anteriores del mismo TP. Solo las operaciones con disciplina informada entran en la tasa. Se señala una deriva creciente cuando hay al menos 2 desviaciones recientes y la tasa aumenta ≥25 puntos porcentuales frente a una referencia de al menos 5 operaciones; 3 o más desviaciones en la ventana reciente constituyen una señal clara.</p></section>
+    <section class="card panel drift-history"><div class="panel-title"><div><h3>Desviaciones recientes</h3><small>Últimas 5 operaciones del TP.</small></div><span>${recent.deviations.length} desviaciones</span></div><div class="drift-operation-feed">${feed}</div></section>`;
+}
+
 function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -1009,7 +1101,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops','journalconfidence','journalstreaks','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journal','journalops','journalconfidence','journalstreaks','journaldrift','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

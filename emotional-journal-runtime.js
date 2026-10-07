@@ -181,7 +181,12 @@ if(typeof state==='undefined'||typeof document==='undefined')return;
 const trNotesFilter={planId:'',period:'all',value:'',kind:'all',query:''};
 let trJournalResultUnit='ticks';
 function trJournalMetricSwitch(){
-  return `<div class="metric-switch emotional-result-unit"><span>Resultado</span>${[['ticks','Ticks'],['r','R'],['usd','US
+  const usdLabel='US\u0024';
+  return '<div class="metric-switch emotional-result-unit"><span>Resultado</span>'+[['ticks','Ticks'],['r','R'],['usd',usdLabel]].map(([value,label])=>'<button class="seg-btn '+(trJournalResultUnit===value?'active':'')+'" data-result-unit="'+value+'" data-tr-action-click="emotionalResultUnit">'+label+'</button>').join('')+'</div>';
+}
+function trJournalMetricValue(operation){return opMetricValue(operation,trJournalResultUnit,'net');}
+function trJournalMetricText(value){return metricStatText(value,trJournalResultUnit);}
+function trJournalMetricLabel(){return metricUnitLabel(trJournalResultUnit);}
 const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
 trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
 trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};

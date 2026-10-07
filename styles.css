@@ -133,6 +133,23 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .drift-operation-card>b{font-size:12px;text-align:right}
 @media(max-width:1000px){.drift-kpis,.drift-context-grid{grid-template-columns:repeat(2,1fr)}.drift-operation-card{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.drift-kpis,.drift-context-grid{grid-template-columns:1fr}.drift-operation-card{grid-template-columns:1fr}}
+.reflection-kpis{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.reflection-guide{margin-bottom:16px}
+.reflection-guide>p{margin:0;color:var(--muted);font-size:12px;line-height:1.65;max-width:980px}
+.reflection-history{padding:16px 18px 18px}
+.reflection-feed{display:grid;gap:12px}
+.reflection-card{display:grid;gap:14px;padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:var(--panel2)}
+.reflection-card header,.reflection-card footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reflection-card header>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.reflection-card header span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.035em}
+.reflection-card time{font-size:11px;color:var(--muted)}
+.reflection-body{display:grid;gap:12px}
+.reflection-body>p{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.reflection-conclusion{display:grid;gap:5px;padding:12px 14px;border:1px solid var(--border);border-radius:11px;background:#0b1220}
+.reflection-conclusion span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.035em}
+.reflection-conclusion strong{font-size:13px;line-height:1.55}
+.emotional-reflection-text{min-height:170px;line-height:1.6}
+@media(max-width:800px){.reflection-kpis{grid-template-columns:1fr}.reflection-card header,.reflection-card footer{align-items:flex-start;flex-direction:column}}
 @media(max-width:900px){.confidence-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.confidence-kpis{grid-template-columns:1fr}.confidence-session-grid{grid-template-columns:1fr}.confidence-session-head,.confidence-session-card footer{align-items:flex-start;flex-direction:column}}
 .emotional-log-details{margin:0;padding:0;border:1px solid var(--border);border-radius:14px;background:#0b1220}

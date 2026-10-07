@@ -17,7 +17,7 @@ need(runtime.includes("TR_TRI_LEVELS=Object.freeze(['low','medium','high'])"),'D
 need(runtime.includes("TR_CONFIDENCE_LEVELS=Object.freeze(['very_low','low','normal','high','very_high'])"),'Diario: las dos confianzas no conservan cinco niveles ordinales.');
 need(runtime.includes('Sin informar'),'Diario: falta estado explícito de dato ausente.');
 need(runtime.includes('journalSessionId'),'Diario: las operaciones no pueden vincularse a una sesión.');
-need(runtime.includes("emotionalBreakdown(ops,'emotion')")&&runtime.includes("emotionalBreakdown(ops,'behavior')"),'Diario: el rediseño eliminó los análisis históricos por emoción/comportamiento.');
+need(runtime.includes("trEmotionalBreakdownMetric(ops,'emotion')")&&runtime.includes("trEmotionalBreakdownMetric(ops,'behavior')"),'Diario: el rediseño eliminó los análisis históricos por emoción/comportamiento.');
 need(runtime.includes('trMatchingOpenSession'),'Diario: falta enlace automático a la sesión abierta del mismo entorno.');
 need(runtime.includes('Backtesting queda fuera del Diario Emocional'),'Diario: la exclusión de Backtesting no se comunica en UI.');
 need(structural.includes("case 'journal':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.render();"),'Diario: Structural Runtime no exige la vista de Sesiones V31.29.');
@@ -32,6 +32,7 @@ need(runtime.includes("plan.emotionalLogs")&&runtime.includes("trEarlyActions.em
 need(runtime.includes("Sin preguntas ni campos adicionales")&&runtime.includes("fecha y la hora se guardan automáticamente"),'Diario: Dejar constancia ya no es el espacio libre y mínimo acordado.');
 need(runtime.includes("function trJournalConfidenceRender()")&&runtime.includes("Confianza personal")&&runtime.includes("Confianza en el sistema")&&runtime.includes("Inicio → cierre"),'Diario: falta el seguimiento de confianza personal vs sistema por sesión.');
 need(runtime.includes("function trJournalStreaksRender()")&&runtime.includes("Mala racha con disciplina intacta")&&runtime.includes("Buena racha con desviaciones registradas")&&runtime.includes("Exposición a drawdowns"),'Diario: falta la lectura conservadora de rachas y adaptación.');
+need(runtime.includes("let trJournalResultUnit='ticks'")&&runtime.includes("[['ticks','Ticks'],['r','R'],['usd',usdLabel]]")&&runtime.includes("calcMetricStats(x,trJournalResultUnit,'net')"),'Diario: resultados no priorizan Ticks con R y US$ como alternativas.');
 need(runtime.includes("journalSessionId")&&runtime.includes("Sin sesión emocional vinculada"),'Diario: Rachas debe cruzar confianza solo mediante sesiones explícitamente vinculadas.');
 need(runtime.includes("TR_LOCKED_CONFIDENCE_QUESTIONS")&&runtime.includes("confidencePersonal")&&runtime.includes("confidenceSystem")&&runtime.includes("confidence-taxonomy-lock"),'Diario: las dos variables base de confianza no están protegidas frente a edición/eliminación.');
 need(runtime.includes("function trJournalStatementsRender()")&&runtime.includes("renderStatements:()=>trJournalStatementsRender()"),'Diario: Dejar constancia no tiene una vista propia.');

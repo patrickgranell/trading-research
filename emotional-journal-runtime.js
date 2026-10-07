@@ -216,44 +216,18 @@ if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
-/* Keep Dejar constancia as a first-class child of Diario emocional without
- * reopening the legacy app.js navigation implementation in this PR. */
+/* Diario emocional: keep the sidebar intentionally compact.
+ * Detailed analyses remain reachable from Dashboard; Notes/Statements live inside Registro. */
 try{
   if(typeof V318_NAV_GROUPS!=='undefined'){
     const group=V318_NAV_GROUPS.find(x=>x?.id==='emotional');
-    if(group){
-      if(!group.items.some(x=>x?.[0]==='journaldashboard'))group.items.unshift(['journaldashboard','◈','Dashboard emocional']);
-      if(!group.items.some(x=>x?.[0]==='journalconfidence')){
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(notesIndex>=0?notesIndex:group.items.length,0,['journalconfidence','◇','Confianza']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journalstreaks')){
-        const confidenceIndex=group.items.findIndex(x=>x?.[0]==='journalconfidence');
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(confidenceIndex>=0?confidenceIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalstreaks','≈','Rachas y adaptación']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journaldrift')){
-        const streakIndex=group.items.findIndex(x=>x?.[0]==='journalstreaks');
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(streakIndex>=0?streakIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journaldrift','↝','Deriva conductual']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journalreflections')){
-        const driftIndex=group.items.findIndex(x=>x?.[0]==='journaldrift');
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(driftIndex>=0?driftIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalreflections','◈','Reflexiones']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journallibrary')){
-        const reflectionIndex=group.items.findIndex(x=>x?.[0]==='journalreflections');
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(reflectionIndex>=0?reflectionIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journallibrary','▣','Biblioteca personal']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journalweekly')){
-        const libraryIndex=group.items.findIndex(x=>x?.[0]==='journallibrary');
-        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
-        group.items.splice(libraryIndex>=0?libraryIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalweekly','✓','Revisión semanal']);
-      }
-      if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
-    }
+    if(group)group.items=[
+      ['journaldashboard','◈','Dashboard'],
+      ['journal','◌','Sesiones'],
+      ['journalops','▤','Registro'],
+      ['journalreflections','◈','Perspectiva'],
+      ['journalweekly','✓','Revisión semanal']
+    ];
   }
 }catch{}
 
@@ -270,6 +244,9 @@ function trJournalMetricValue(operation){return opMetricValue(operation,trJourna
 function trJournalMetricText(value){return metricStatText(value,trJournalResultUnit);}
 function trJournalMetricLabel(){return metricUnitLabel(trJournalResultUnit);}
 const trEarlyActions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
+let trPerspectiveTab='personal';
+trEarlyActions.emotionalNavigate=function(){const view=String(this.dataset.view||'');if(view)return navigate(view);return false;};
+trEarlyActions.emotionalPerspectiveTab=function(){const tab=String(this.dataset.tab||'');if(['personal','traders'].includes(tab)){trPerspectiveTab=tab;render();}};
 trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
 trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};
 trEarlyActions.emotionalSessionClose=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};
@@ -860,13 +837,11 @@ function trJournalDashboardRender(){
   const streakText=currentStreak?`${currentStreak.count} ${currentStreak.type==='loss'?'pérdida'+(currentStreak.count===1?'':'s'):'ganancia'+(currentStreak.count===1?'':'s')}`:'Sin racha';
   const drawdowns=trDrawdownEpisodes(trEligibleOperations(currentOps()).filter(o=>o.tradingPlanId===plan.id)),currentDD=drawdowns.find(d=>!d.recovered)||null;
   const drift=trDriftData(plan),signals=trDashboardSignalRows(plan);
-  const reflections=trReflections(plan),library=trLibrary(plan),logs=trLogs(plan);
+  const reflections=trReflections(plan),logs=trLogs(plan),perspective=trPerspectiveRecommendation(plan);
   const latestReflection=reflections.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
-  const latestLibrary=library.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
   const latestLog=logs.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
   const activity=[
     latestReflection?{label:'Última reflexión',title:latestReflection.conclusion||latestReflection.text,at:latestReflection.at,view:'journalreflections'}:null,
-    latestLibrary?{label:'Última entrada de biblioteca',title:latestLibrary.title,at:latestLibrary.at,view:'journallibrary'}:null,
     latestLog?{label:'Última constancia',title:latestLog.text,at:latestLog.at,view:'journalstatements'}:null
   ].filter(Boolean);
   const signalHtml=signals.length?signals.map(row=>`<button class="emotional-dashboard-signal ${row.kind}" data-view="${row.view}" data-tr-action-click="emotionalDashboardOpen"><span><strong>${esc(row.title)}</strong><small>${esc(row.text)}</small></span><b>Abrir</b></button>`).join(''):'<div class="empty compact-empty">No hay señales destacadas con los datos registrados actualmente.</div>';
@@ -882,7 +857,7 @@ function trJournalDashboardRender(){
       <section class="card panel"><div class="panel-title"><div><h3>Señales para revisar</h3><small>Prioriza hechos registrados; no diagnostica ni prescribe.</small></div><span>${signals.length}</span></div><div class="emotional-dashboard-signals">${signalHtml}</div></section>
       <section class="card panel"><div class="panel-title"><div><h3>Actividad reciente</h3><small>Aprendizaje y escritura que has decidido conservar.</small></div></div><div class="emotional-dashboard-activity-list">${activityHtml}</div></section>
     </div>
-    <section class="card panel emotional-dashboard-library-strip"><div><span>Reflexiones</span><strong>${reflections.length}</strong></div><div><span>Biblioteca personal</span><strong>${library.length}</strong></div><div><span>Constancias</span><strong>${logs.length}</strong></div><button class="btn small" data-view="journallibrary" data-tr-action-click="emotionalDashboardOpen">Abrir biblioteca</button></section>`;
+    <section class="card panel emotional-dashboard-perspective"><div class="panel-title"><div><h3>Perspectiva sugerida</h3><small>${esc(perspective.author)} · ${esc(perspective.source)}</small></div><button class="btn small" data-view="journalreflections" data-tr-action-click="emotionalDashboardOpen">Abrir perspectiva</button></div><blockquote>${esc(perspective.text)}</blockquote><p>${esc(perspective.application)}</p></section>`;
 }
 
 function trJournalSessionsRender(){
@@ -905,13 +880,18 @@ function trEmotionalBreakdownMetric(ops,key='emotion'){
   const max=Math.max(...rows.map(x=>x.ops.length),1);
   return '<div class="emotion-break-list">'+(rows.length?rows.map(row=>'<button data-filter-key="'+filterKey+'" data-filter-value="'+inlineUriToken(row.label)+'" data-tr-action-click="emotionalBreakdownFilter"><span>'+esc(row.label)+'</span><progress class="emotion-break-progress" max="100" value="'+Math.min(100,row.ops.length/max*100).toFixed(1)+'"></progress><strong>'+row.ops.length+'</strong><em>'+esc(trJournalMetricText(row.s.expectancy))+'</em></button>').join(''):'<div class="empty">Aún no hay datos emocionales.</div>')+'</div>';
 }
+function trJournalRecordTabs(active){
+  const items=[['journalops','Operaciones'],['journalnotes','Notas'],['journalstatements','Constancias']];
+  return '<div class="journal-subtabs">'+items.map(([view,label])=>'<button class="seg-btn '+(active===view?'active':'')+'" data-view="'+view+'" data-tr-action-click="emotionalNavigate">'+label+'</button>').join('')+'</div>';
+}
+
 function trJournalOperationsRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);
   if(env==='backtest')return '';
   const ops=trEligibleOperations(journalFilteredOps()),st=journalStats(ops),em=plan?.emotionConfig?.emotions||[],bh=plan?.emotionConfig?.behaviors||[];
   const sel=(id,label,arr,val)=>`<label class="filter-field"><span>${label}</span><select id="${id}" class="select" data-tr-onchange="readJournalFilters()"><option value="">Todos</option>${arr.map(x=>`<option value="${esc(typeof x==='object'?x.value:x)}" ${String(val)===String(typeof x==='object'?x.value:x)?'selected':''}>${esc(typeof x==='object'?x.label:x)}</option>`).join('')}</select></label>`;
-  return `${pageHead('Diario emocional · Registro por operación','Registro emocional de cada trade, separado de las sesiones.',trJournalMetricSwitch())}
+  return `${pageHead('Diario emocional · Registro','Operaciones, notas y constancias del Diario emocional.',trJournalMetricSwitch())}${trJournalRecordTabs('journalops')}
     ${activePlanBanner()}
     <section class="card filter-hub"><div class="filter-hub-top"><div><h3>Filtro emocional</h3><p>El registro conserva el contexto técnico de cada operación.</p></div><button class="btn small" data-tr-onclick="trLegacyStateCommand('journal-reset')">Limpiar</button></div><div class="filter-grid"><label class="filter-field wide"><span>Buscar</span><input id="journalQ" class="input" value="${esc(journalViewState.q)}" placeholder="Setup, contrato, notas…" data-tr-onchange="readJournalFilters()"></label>${sel('journalEmotion','Emoción',em,journalViewState.emotion)}${sel('journalBehavior','Comportamiento',bh,journalViewState.behavior)}${sel('journalDiscipline','Disciplina',[{value:'yes',label:'Disciplinada'},{value:'no',label:'No disciplinada'}],journalViewState.discipline)}${sel('journalStatus','Estado del diario',[{value:'complete',label:'Completado'},{value:'pending',label:'Pendiente'}],journalViewState.status)}</div></section>
     <div class="journal-kpis">${kpi('Trades visibles',ops.length,'con contexto técnico')}${kpi('Diario completado',pct(st.completion),`${st.complete}/${ops.length}`)}${kpi('Disciplina',pct(st.discipline),'sobre selección')}${kpi('Estrés medio',trLegacyMetric(st.stress),'trades registrados')}${kpi('Foco medio',trLegacyMetric(st.focus),'trades registrados')}${kpi('Intensidad',trLegacyMetric(st.intensity),'carga emocional')}</div>
@@ -1288,6 +1268,53 @@ function trJournalDriftRender(){
     <section class="card panel drift-history"><div class="panel-title"><div><h3>Desviaciones recientes</h3><small>Últimas 5 operaciones del TP.</small></div><span>${recent.deviations.length} desviaciones</span></div><div class="drift-operation-feed">${feed}</div></section>`;
 }
 
+const TR_TRADER_PERSPECTIVES=Object.freeze([
+  Object.freeze({
+    id:'douglas-anything-can-happen',
+    author:'Mark Douglas',
+    source:'Trading in the Zone · Five Fundamental Truths',
+    kind:'quote',
+    text:'Anything can happen.',
+    context:'Incertidumbre · necesidad de acertar el siguiente trade',
+    application:'Una operación individual no confirma ni invalida un edge. Evalúa si ejecutaste el plan, no si adivinaste el resultado.',
+    tags:['uncertainty','loss','confidence']
+  }),
+  Object.freeze({
+    id:'douglas-random-distribution',
+    author:'Mark Douglas',
+    source:'Trading in the Zone · Five Fundamental Truths',
+    kind:'paraphrase',
+    text:'Los resultados de un edge se distribuyen en una secuencia imprevisible de ganancias y pérdidas.',
+    context:'Rachas perdedoras con disciplina intacta',
+    application:'Si la racha sigue dentro de la distribución esperada del sistema y la ejecución es correcta, una secuencia de SL no justifica cambiar el plan.',
+    tags:['losing-streak','discipline','drawdown']
+  }),
+  Object.freeze({
+    id:'douglas-edge-probability',
+    author:'Mark Douglas',
+    source:'Trading in the Zone · Five Fundamental Truths',
+    kind:'paraphrase',
+    text:'Un edge expresa una probabilidad favorable; no es una predicción sobre la próxima operación.',
+    context:'Confianza excesiva o necesidad de confirmar una tesis',
+    application:'Ni una racha ganadora convierte la siguiente entrada en segura ni una racha perdedora vuelve inválida una entrada que cumple el setup.',
+    tags:['winning-streak','overconfidence','discipline']
+  })
+]);
+function trPerspectiveTabs(active){
+  return '<div class="journal-subtabs perspective-tabs"><button class="seg-btn '+(active==='personal'?'active':'')+'" data-tab="personal" data-tr-action-click="emotionalPerspectiveTab">Mis reflexiones</button><button class="seg-btn '+(active==='traders'?'active':'')+'" data-tab="traders" data-tr-action-click="emotionalPerspectiveTab">Perspectivas de traders</button></div>';
+}
+function trTraderPerspectivesRender(){
+  const cards=TR_TRADER_PERSPECTIVES.map(item=>'<article class="trader-perspective-card"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source)+'</span></div><span class="badge">'+(item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="trader-perspective-context"><div><span>Cuándo aporta perspectiva</span><strong>'+esc(item.context)+'</strong></div><div><span>Aplicación</span><p>'+esc(item.application)+'</p></div></div></article>').join('');
+  return '<section class="card panel perspective-intro"><div class="panel-title"><div><h3>Perspectivas de traders</h3><small>Material curado para recuperar perspectiva cuando el contexto emocional lo hace útil.</small></div></div><p>Estas referencias no sustituyen tu Trading Plan. Sirven para contrastar una reacción emocional con principios sobre probabilidad, disciplina y ejecución.</p></section><div class="trader-perspective-feed">'+cards+'</div>';
+}
+function trPerspectiveRecommendation(plan){
+  const streaks=trStreaks(plan),current=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan),severity=trStreakSeverity(current,criterion),drift=trDriftData(plan);
+  if(current?.type==='loss'&&['bad','outside'].includes(severity.key)&&current.disciplineState==='clean')return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-random-distribution');
+  if(current?.type==='win'&&current.disciplineState==='deviation')return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-edge-probability');
+  if(['clear','rising','watch'].includes(drift.key))return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-edge-probability');
+  return TR_TRADER_PERSPECTIVES.find(x=>x.id==='douglas-anything-can-happen');
+}
+
 function trJournalReflectionsRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -1299,17 +1326,13 @@ function trJournalReflectionsRender(){
     return `<article class="reflection-card">
       <header><div><span>Reflexión</span><time>${esc(fmtDate(reflection.at))}</time></div>${sourceLabel?'<button class="btn small" data-source-type="'+esc(reflection.sourceType)+'" data-source-id="'+esc(reflection.sourceId)+'" data-tr-action-click="emotionalReflectionSourceOpen">'+esc(sourceLabel)+'</button>':''}</header>
       <div class="reflection-body"><p>${esc(reflection.text)}</p>${reflection.conclusion?'<div class="reflection-conclusion"><span>Conclusión</span><strong>'+esc(reflection.conclusion)+'</strong></div>':''}</div>
-      <footer><div>${reflection.conclusion?(trLibraryByReflection(reflection.id,plan)?'<span class="badge win">En biblioteca</span>':'<button class="btn small" data-reflection-id="'+esc(reflection.id)+'" data-tr-action-click="emotionalLibraryOpen">Guardar en biblioteca</button>'):''}</div><button class="btn small" data-reflection-id="${esc(reflection.id)}" data-tr-action-click="emotionalReflectionOpen">Editar</button></footer>
+      <footer><button class="btn small" data-reflection-id="${esc(reflection.id)}" data-tr-action-click="emotionalReflectionOpen">Editar</button></footer>
     </article>`;
-  }).join(''):'<div class="empty">Todavía no hay reflexiones. Una reflexión sirve para volver sobre algo vivido y extraer una conclusión, no para sustituir una constancia inmediata.</div>';
-  return `${pageHead('Diario emocional · Reflexiones','Vuelve sobre experiencias ya registradas y convierte observaciones en aprendizaje recuperable.','<button class="btn primary" data-tr-action-click="emotionalReflectionOpen">+ Nueva reflexión</button>')}
-    <div class="reflection-kpis">
-      ${kpi('Reflexiones',rows.length,'histórico del TP')}
-      ${kpi('Con conclusión',withConclusion,'idea conservable')}
-      ${kpi('Con origen',linked,'operación, sesión o constancia')}
-    </div>
-    <section class="card panel reflection-guide"><div class="panel-title"><div><h3>Qué diferencia una reflexión</h3></div></div><p><b>Dejar constancia</b> captura lo que necesitas escribir en el momento. <b>Reflexionar</b> es volver después y preguntarte qué entiendes ahora y qué merece conservarse.</p></section>
-    <section class="card panel reflection-history"><div class="panel-title"><div><h3>Historial de reflexiones</h3><small>De más reciente a más antigua.</small></div><span>${rows.length}</span></div><div class="reflection-feed">${feed}</div></section>`;
+  }).join(''):'<div class="empty">Todavía no hay reflexiones personales.</div>';
+  const personal=`<div class="reflection-kpis">${kpi('Reflexiones',rows.length,'histórico del TP')}${kpi('Con conclusión',withConclusion,'aprendizaje extraído')}${kpi('Con origen',linked,'operación, sesión o constancia')}</div>
+    <section class="card panel reflection-guide"><div class="panel-title"><div><h3>Mis reflexiones</h3></div></div><p>Vuelve sobre una experiencia concreta y escribe qué entiendes ahora. No necesitas duplicarla en otra biblioteca.</p></section>
+    <section class="card panel reflection-history"><div class="panel-title"><div><h3>Historial</h3><small>De más reciente a más antigua.</small></div><span>${rows.length}</span></div><div class="reflection-feed">${feed}</div></section>`;
+  return `${pageHead('Diario emocional · Perspectiva','Tus reflexiones y referencias externas en un único lugar.','<button class="btn primary" data-tr-action-click="emotionalReflectionOpen">+ Nueva reflexión</button>')}${trPerspectiveTabs(trPerspectiveTab)}${trPerspectiveTab==='traders'?trTraderPerspectivesRender():personal}`;
 }
 
 function trJournalLibraryRender(){
@@ -1428,7 +1451,7 @@ function trJournalNotesRender(){
     <div class="emotional-note-body"><div class="emotional-note-label">${esc(row.label)}</div><div class="emotional-note-text">${esc(row.text)}</div></div>
     <footer class="emotional-note-foot">${row.kind==='operation'?'<button class="btn small" data-operation-id="'+esc(row.operationId)+'" data-tr-action-click="emotionalOpenOperation">Abrir diario</button>':'<button class="btn small" data-session-id="'+esc(row.sessionId)+'" data-tr-action-click="'+(row.phase==='cierre'?'emotionalSessionEditEnd':'emotionalSessionEditStart')+'">Abrir sesión</button>'}</footer>
   </article>`).join(''):'<div class="empty">No hay notas emocionales que coincidan con estos filtros.</div>';
-  return `${pageHead('Diario emocional · Notas emocionales','Archivo de texto emocional procedente de sesiones y operaciones, separado de los apuntes técnicos.', '')}
+  return `${pageHead('Diario emocional · Registro','Operaciones, notas y constancias del Diario emocional.','')}${trJournalRecordTabs('journalnotes')}
     ${activePlanBanner()}
     <div class="emotional-notes-scope">Solo texto del Diario emocional procedente de sesiones y operaciones. Las constancias libres tienen su propio apartado.</div>
     ${filterBar}
@@ -1448,7 +1471,7 @@ function trJournalStatementsRender(){
       <footer class="emotional-note-foot"><button class="btn small" data-log-id="${esc(log.id)}" data-tr-action-click="emotionalLogOpen">Editar</button></footer>
     </article>`;
   }).join(''):'<div class="empty">Todavía no has dejado ninguna constancia.</div>';
-  return `${pageHead('Diario emocional · Dejar constancia','Un espacio de escritura libre, sin preguntas, métricas ni campos obligatorios adicionales.','<button class="btn primary" data-tr-action-click="emotionalLogOpen">+ Nueva constancia</button>')}
+  return `${pageHead('Diario emocional · Registro','Operaciones, notas y constancias del Diario emocional.','<button class="btn primary" data-tr-action-click="emotionalLogOpen">+ Nueva constancia</button>')}${trJournalRecordTabs('journalstatements')}
     ${activePlanBanner()}
     <div class="emotional-notes-scope">Escribe lo que quieras dejar registrado. Al guardar se asignan automáticamente la fecha y la hora.</div>
     <div class="emotional-notes-summary"><span><strong>${logs.length}</strong> constancias</span></div>

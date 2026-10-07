@@ -197,6 +197,12 @@ trEarlyActions.emotionalSessionSaveEnd=function(){return trSaveSessionEnd(String
 trEarlyActions.emotionalSessionDelete=function(){return trDeleteSession(String(this.dataset.sessionId||''));};
 trEarlyActions.emotionalOpenOperation=function(){return openEmotionalEditor(String(this.dataset.operationId||''));};
 trEarlyActions.emotionalResultUnit=function(){const unit=String(this.dataset.resultUnit||'');if(['ticks','r','usd'].includes(unit)){trJournalResultUnit=unit;render();}};
+trEarlyActions.emotionalBreakdownFilter=function(){
+  const key=String(this.dataset.filterKey||'');
+  const value=decodeURIComponent(String(this.dataset.filterValue||''));
+  if(key==='emotion'||key==='behavior')return trLegacyStateCommand('journal-set',key,value);
+  return false;
+};
 trEarlyActions.emotionalNotesFilterChange=function(){
   const key=String(this.dataset.notesKey||''),value=String(this.value||'');
   if(key==='period'){trNotesFilter.period=value||'all';trNotesFilter.value='';}
@@ -518,11 +524,11 @@ function trJournalSessionsRender(){
     ${trSessionsPanel(plan)}`;
 }
 function trEmotionalBreakdownMetric(ops,key='emotion'){
-  const groups=new Map();
+  const groups=new Map(),filterKey=key==='emotion'?'emotion':'behavior';
   ops.forEach(o=>{const vals=key==='emotion'?operationEmotionValues(o):(o.emotional?.behaviors||[]);[...new Set(vals)].forEach(v=>{if(!groups.has(v))groups.set(v,[]);groups.get(v).push(o);});});
   const rows=[...groups.entries()].map(([label,x])=>({label,ops:x,s:calcMetricStats(x,trJournalResultUnit,'net')})).sort((a,b)=>b.ops.length-a.ops.length);
   const max=Math.max(...rows.map(x=>x.ops.length),1);
-  return '<div class="emotion-break-list">'+(rows.length?rows.map(row=>'<button data-tr-onclick="trLegacyStateCommand(\'journal-set\',\''+(key==='emotion'?'emotion':'behavior')+'\',decodeURIComponent(\''+inlineUriToken(row.label)+'\'))"><span>'+esc(row.label)+'</span><i><b style="width:'+Math.min(100,row.ops.length/max*100)+'%"></b></i><strong>'+row.ops.length+'</strong><em>'+esc(trJournalMetricText(row.s.expectancy))+'</em></button>').join(''):'<div class="empty">Aún no hay datos emocionales.</div>')+'</div>';
+  return '<div class="emotion-break-list">'+(rows.length?rows.map(row=>'<button data-filter-key="'+filterKey+'" data-filter-value="'+inlineUriToken(row.label)+'" data-tr-action-click="emotionalBreakdownFilter"><span>'+esc(row.label)+'</span><i><b style="width:'+Math.min(100,row.ops.length/max*100)+'%"></b></i><strong>'+row.ops.length+'</strong><em>'+esc(trJournalMetricText(row.s.expectancy))+'</em></button>').join(''):'<div class="empty">Aún no hay datos emocionales.</div>')+'</div>';
 }
 function trJournalOperationsRender(){
   const plan=getCurrentPlan();if(!plan)return '';

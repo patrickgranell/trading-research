@@ -19,13 +19,8 @@ Object.defineProperty(trCanonicalRenderEntry,'__trCanonicalRenderBase',{value:tr
 function trRenderClosureEnsureOwnership(){if(window.render!==trCanonicalRenderEntry){trRenderClosureOwnershipRecoveries++;window.render=trCanonicalRenderEntry;}return window.render===trCanonicalRenderEntry;}
 window.render=trCanonicalRenderEntry;
 /* The active Trading Plan is already persistently visible/selectable in the sidebar.
- * Suppress the legacy horizontal banner globally to avoid duplicating the same context
- * on every page. Keep a DOM cleanup as a compatibility fallback for any legacy view
- * that captured the old presenter before this runtime loaded. */
-if(typeof globalThis.activePlanBanner==='function'){
-  globalThis.activePlanBanner=function(){return '';};
-}
-function trRemoveRedundantActivePlanBanner(root=document){
+ * Remove the redundant legacy horizontal banner after every render. */
+function trRemoveRedundantPlanContext(root=document){
   for(const banner of root.querySelectorAll?.('.plan-banner')||[])banner.remove();
 }
 /* Result-unit presentation policy: Ticks first/default, then R, then US currency.
@@ -69,7 +64,7 @@ function trMetricUnitEnsureViewDefault(root=document){
   if(ticks&&!ticks.classList.contains('active'))ticks.click();
 }
 function trMetricUnitPostProcess(root=document){
-  try{trRemoveRedundantActivePlanBanner(root);trMetricUnitReorderButtons(root);trMetricUnitReorderSelects(root);trMetricUnitEnsureViewDefault(root);}catch(_){}
+  try{trRemoveRedundantPlanContext(root);trMetricUnitReorderButtons(root);trMetricUnitReorderSelects(root);trMetricUnitEnsureViewDefault(root);}catch(_){}
 }
 function trMetricUnitModalDefaults(){
   trMetricUnitPostProcess();

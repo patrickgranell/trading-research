@@ -3,7 +3,7 @@ const V3112_APP_LABEL='V31.13 · Structural Foundation II-B · Partial Operation
 const TR_RENDER_RUNTIME_VERSION='31.13';
 const TR_UI_SESSION_KEY='tradingResearchUiSessionV31121';
 const TR_OPERATION_DRAFT_KEY='tradingResearchOperationDraftV31121';
-const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journal','blocks','reports','market','plans','tpbuilder','config']);
+const TR_VALID_VIEWS=new Set(['dashboard','decision','changes','operations','calendar','goals','quality','compliance','mistakes','lab','review','gallery','journaldashboard','journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journallibrary','journalweekly','journalnotes','journalstatements','blocks','reports','market','plans','tpbuilder','config']);
 let trDraftRestoreAttempted=false;
 let trDraftSaveInProgress=false;
 let trOperationDraftContext=null;
@@ -49,7 +49,39 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'lab': return globalThis.TradingResearchViewPresentationContract.lab();
     case 'review': return globalThis.TradingResearchViewPresentationContract.review();
     case 'gallery': return globalThis.TradingResearchGalleryViewPresentationContract.render();
-    case 'journal': return globalThis.TradingResearchJournalViewPresentationContract.render();
+    case 'journaldashboard':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderDashboard();
+    case 'journal':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.render();
+    case 'journalops':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderOperations();
+    case 'journalconfidence':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderConfidence();
+    case 'journalstreaks':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderStreaks();
+    case 'journaldrift':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderDrift();
+    case 'journalreflections':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderReflections();
+    case 'journallibrary':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderLibrary();
+    case 'journalweekly':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderWeekly();
+    case 'journalnotes':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderNotes();
+    case 'journalstatements':
+      if(globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest')return trRenderViewHtml('__blocked-emotional__');
+      return globalThis.TradingResearchEmotionalJournalPresentationContract.renderStatements();
     case 'blocks': return globalThis.TradingResearchBlocksViewPresentationContract.render();
     case 'reports': return globalThis.TradingResearchViewPresentationContract.reports();
     case 'market': return globalThis.TradingResearchViewPresentationContract.market();
@@ -57,7 +89,7 @@ function trRenderViewHtml(view=globalThis.TradingResearchCurrentViewReadContract
     case 'tpbuilder': return globalThis.TradingResearchViewPresentationContract.tpbuilder();
     case 'config': return globalThis.TradingResearchConfigViewPresentationContract.render();
     default:
-      console.warn('[Trading Research · router] Vista desconocida:',view);
+      if(view!=='__blocked-emotional__')console.warn('[Trading Research · router] Vista desconocida:',view);
       globalThis.TradingResearchCurrentViewRouterFallbackWriteContract.toDashboard();
       return globalThis.TradingResearchDashboardViewPresentationContract.render();
   }
@@ -164,6 +196,8 @@ function trRenderSetBadge(host,count,extraClass=''){
   }else if(badge)badge.remove();
 }
 function trRenderSyncSidebar(){
+  const emotionalGroup=document.querySelector('.nav-group[data-nav-group="emotional"]');
+  if(emotionalGroup)emotionalGroup.hidden=globalThis.TradingResearchOperationSemanticsContract.planEnvironment(globalThis.TradingResearchPlanReadContract.current())==='backtest';
   if(typeof globalThis.TradingResearchNavigationPresentationContract?.groupForView==='function'){
     const activeGroup=globalThis.TradingResearchNavigationPresentationContract.groupForView(globalThis.TradingResearchCurrentViewReadContract.current());
     if(activeGroup&&globalThis.TradingResearchNavigationRuntimeStateContract.ensureGroupOpen(activeGroup))globalThis.TradingResearchNavigationStateContract.saveOpenGroups();
@@ -396,7 +430,7 @@ render=function(){
     trRenderAfterView();
   }catch(e){
     trRenderLastError=e?.message||String(e);console.error('[Trading Research · render V31.13]',e);
-    const view=document.getElementById('view');if(view)view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchCurrentViewReadContract.current())}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError)}</div></section>`;
+    const view=document.getElementById('view');if(view){const journalDiag=' · etapa emocional: '+String(globalThis.__trEmotionalJournalStage||'sin iniciar')+' · contrato: '+(globalThis.TradingResearchEmotionalJournalPresentationContract?'sí':'no');view.innerHTML=`<section class="card panel"><div class="notice danger"><strong>Error al renderizar ${globalThis.TradingResearchContentEncodingContract.html(globalThis.TradingResearchCurrentViewReadContract.current())}:</strong> ${globalThis.TradingResearchContentEncodingContract.html(trRenderLastError+journalDiag)}</div></section>`;}
   }
 };
 window.render=render;

@@ -5,7 +5,7 @@ import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs'
 const app=fs.readFileSync('app.js','utf8');
 const structural=fs.readFileSync('structural-runtime.js','utf8');
 const CONTRACT='TradingResearchCurrentViewReadContract';
-const EXPECTED_ROUTER_NORMALIZED_SHA256='fb326895095492fc1d56cbfacf925f594ce58671f3f032dc0774f1b5e3ae0b5c';
+const EXPECTED_ROUTER_NORMALIZED_SHA256='80a1bf7eaa751b445d88b3990b6bea104fabdba952f1efbeb81ac4c414b5cafc';
 
 function sliceBetween(source,startMarker,endMarker){
   const start=source.indexOf(startMarker);
@@ -45,6 +45,22 @@ need(structural.includes('function trUiRememberView(){trSessionSet(TR_UI_SESSION
   'La forma de persistencia de la vista UI cambió fuera de alcance.');
 need(structural.includes('TradingResearchCurrentViewReadContract.current()'),
   'El consumidor de router de Current View Read Contract desapareció.');
+need(structural.includes("case 'journalstatements':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderStatements();"),
+  'El router no conserva la nueva vista Dejar constancia del Diario emocional.');
+need(structural.includes("case 'journalconfidence':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderConfidence();"),
+  'El router no conserva la vista Confianza del Diario emocional.');
+need(structural.includes("case 'journalstreaks':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderStreaks();"),
+  'El router no conserva la vista Rachas y adaptación del Diario emocional.');
+need(structural.includes("case 'journaldrift':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderDrift();"),
+  'El router no conserva la vista Deriva conductual del Diario emocional.');
+need(structural.includes("case 'journaldashboard':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderDashboard();"),
+  'El router no conserva Dashboard emocional.');
+need(structural.includes("case 'journalreflections':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderReflections();"),
+  'El router no conserva la vista Reflexiones del Diario emocional.');
+need(structural.includes("case 'journallibrary':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderLibrary();"),
+  'El router no conserva la vista Biblioteca personal del Diario emocional.');
+need(structural.includes("case 'journalweekly':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderWeekly();"),
+  'El router no conserva la vista Revisión semanal del Diario emocional.');
 
 if(fail.length){
   console.error('Current View Router Read Boundary verification FAILED');

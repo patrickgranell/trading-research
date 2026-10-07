@@ -23,7 +23,7 @@ const rawScript=file=>fs.readFileSync(file,'utf8');
 const bundledScript=file=>safeScript(transformStyleAttrs(rawScript(file)).source);
 const appSource=rawScript('app.js');
 const appConsolidation=consolidateLegacyRenderAssignments(appSource,{expected:12});
-const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const appGlobalPruneRuntimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const appGlobalPruneRuntimeSources=appGlobalPruneRuntimeFiles.map(rawScript);
 const pruneCandidates=pruneCandidateInventory(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources,stateActionTransformSource:rawScript('state-action-transform.mjs')});
 const appGlobalPrune=pruneAppGlobalExports(appConsolidation.source,{runtimeSources:appGlobalPruneRuntimeSources});
@@ -40,7 +40,7 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
 
 /* V31.24 D04/D11: compile historical handler programs at BUILD TIME only.
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
-const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
+const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
 preEventSources['app.js']=residualMirrorClosure.source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
@@ -61,9 +61,10 @@ const replacements=[
   ['app.js','data-tr-build',bundledApp],
   ['style-attr-runtime.js','data-tr-style-attr-runtime',bundledSource('style-attr-runtime.js')],
   ['reports-purity-runtime.js','data-tr-reports-purity-runtime',bundledSource('reports-purity-runtime.js')],
-  ['structural-runtime.js','data-tr-structural-runtime',bundledSource('structural-runtime.js')],
+  ['structural-runtime.js','data-tr-structural-runtime',bundledSource('emotional-journal-runtime.js')+'\n'+bundledSource('structural-runtime.js')],
   ['state-runtime.js','data-tr-state-runtime',bundledState],
   ['taxonomy-runtime.js','data-tr-taxonomy-runtime',bundledSource('taxonomy-runtime.js')],
+  ['emotional-journal-runtime.js','data-tr-emotional-journal-runtime',bundledSource('emotional-journal-runtime.js')],
   ['persistence-coalescing-runtime.js','data-tr-persistence-coalescing-runtime',bundledSource('persistence-coalescing-runtime.js')],
   ['backup-v2-runtime.js','data-tr-backup-v2-runtime',bundledSource('backup-v2-runtime.js')],
   ['security-runtime.js','data-tr-security-runtime',bundledSource('security-runtime.js')],
@@ -78,7 +79,7 @@ const replacements=[
   ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
-const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
+const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
 const styleSourceText=styleSourceFiles.map(file=>fs.readFileSync(file,'utf8')).join('\n');
 const styleInlineAttributes=[...styleSourceText.matchAll(/\bstyle\s*=\s*["']/gi)].length;
 const styleCssomWrites=[...styleSourceText.matchAll(/\.style\.[A-Za-z_$][\w$]*\s*=/g)].length+[...styleSourceText.matchAll(/setAttribute\s*\(\s*["']style["']/gi)].length;

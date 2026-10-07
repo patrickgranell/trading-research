@@ -1,8 +1,8 @@
 /* ===== V31.23.5 RUNTIME · Source Consolidation · Runtime Namespace Pruning ===== */
 (()=>{
 'use strict';
-const TR_RELEASE_VERSION='31.28.0';
-const TR_RELEASE_LABEL='V31.28 · TP Builder + Derived Samples';
+const TR_RELEASE_VERSION='31.29.0';
+const TR_RELEASE_LABEL='V31.29 · Emotional Journal Sessions';
 const TR_RENDER_CLOSURE_VERSION='31.23.5';
 const TR_RENDER_CLOSURE_LABEL='V31.23.5 · Source Consolidation · Runtime Namespace Pruning';
 const TR_SOURCE_CONSOLIDATION_PHASE='31.23.52';
@@ -13,11 +13,68 @@ let trRenderClosureCalls=0;
 let trRenderClosureOwnershipRecoveries=0;
 let trRenderClosureLastAt='';
 let trRenderClosureLastError='';
-function trCanonicalRenderEntry(...args){trRenderClosureCalls++;trRenderClosureLastAt=new Date().toISOString();try{return trRenderClosureBase.apply(this,args);}catch(e){trRenderClosureLastError=e?.message||String(e);throw e;}}
+function trCanonicalRenderEntry(...args){trRenderClosureCalls++;trRenderClosureLastAt=new Date().toISOString();try{const out=trRenderClosureBase.apply(this,args);trMetricUnitPostProcess();return out;}catch(e){trRenderClosureLastError=e?.message||String(e);throw e;}}
 Object.defineProperty(trCanonicalRenderEntry,'__trCanonicalRenderEntry',{value:true});
 Object.defineProperty(trCanonicalRenderEntry,'__trCanonicalRenderBase',{value:trRenderClosureBase});
 function trRenderClosureEnsureOwnership(){if(window.render!==trCanonicalRenderEntry){trRenderClosureOwnershipRecoveries++;window.render=trCanonicalRenderEntry;}return window.render===trCanonicalRenderEntry;}
 window.render=trCanonicalRenderEntry;
+/* The active Trading Plan is already persistently visible/selectable in the sidebar.
+ * Remove the redundant legacy horizontal banner after every render. */
+function trRemoveRedundantPlanContext(root=document){
+  for(const banner of root.querySelectorAll?.('.plan-banner')||[])banner.remove();
+}
+/* Result-unit presentation policy: Ticks first/default, then R, then US currency.
+ * R-specific analytical constructs (R-multiple thresholds, R histograms, etc.) remain R by definition. */
+const trMetricUnitInitializedViews=new Set();
+function trMetricUnitReorderButtons(root=document){
+  for(const switcher of (root.querySelectorAll?.('.metric-switch')||[])){
+    const buttons=[...switcher.children].filter(x=>x.tagName==='BUTTON');
+    const byLabel=new Map(buttons.map(b=>[String(b.textContent||'').trim(),b]));
+    const usdLabel='US\u0024',desired=['Ticks','R',usdLabel];
+    if(!desired.every(label=>byLabel.has(label)))continue;
+    const unitButtons=buttons.filter(b=>desired.includes(String(b.textContent||'').trim()));
+    if(unitButtons.map(b=>String(b.textContent||'').trim()).join('|')===desired.join('|'))continue;
+    const first=unitButtons[0];if(!first)continue;
+    const mark=document.createComment('tr-metric-unit-order');switcher.insertBefore(mark,first);
+    const frag=document.createDocumentFragment();
+    for(const label of desired)frag.appendChild(byLabel.get(label));
+    mark.replaceWith(frag);
+  }
+}
+function trMetricUnitReorderSelects(root=document){
+  for(const select of (root.querySelectorAll?.('select')||[])){
+    const options=[...select.options],byValue=new Map(options.map(o=>[o.value,o])),desired=['ticks','r','usd'];
+    if(!desired.every(value=>byValue.has(value)))continue;
+    const unitOrder=options.filter(o=>desired.includes(o.value)).map(o=>o.value);
+    if(unitOrder.join('|')===desired.join('|'))continue;
+    const current=select.value,units=new Set(desired),frag=document.createDocumentFragment();
+    for(const value of desired)frag.appendChild(byValue.get(value));
+    for(const option of options)if(!units.has(option.value))frag.appendChild(option);
+    select.replaceChildren(frag);select.value=current;
+  }
+}
+function trMetricUnitEnsureViewDefault(root=document){
+  const view=String(globalThis.TradingResearchCurrentViewReadContract?.current?.()||'');
+  if(!view||trMetricUnitInitializedViews.has(view))return;
+  const usdLabel='US\u0024';
+  const switcher=[...(root.querySelectorAll?.('.metric-switch')||[])].find(el=>{const labels=[...el.querySelectorAll(':scope > button')].map(b=>String(b.textContent||'').trim());return labels.includes('Ticks')&&labels.includes('R')&&labels.includes(usdLabel);});
+  if(!switcher)return;
+  trMetricUnitInitializedViews.add(view);
+  const ticks=[...switcher.querySelectorAll(':scope > button')].find(b=>String(b.textContent||'').trim()==='Ticks');
+  if(ticks&&!ticks.classList.contains('active'))ticks.click();
+}
+function trMetricUnitPostProcess(root=document){
+  try{trRemoveRedundantPlanContext(root);trMetricUnitReorderButtons(root);trMetricUnitReorderSelects(root);trMetricUnitEnsureViewDefault(root);}catch(_){}
+}
+function trMetricUnitModalDefaults(){
+  trMetricUnitPostProcess();
+  try{
+    const goalUnit=document.getElementById('f-goal-unit');
+    const title=String(document.querySelector('.modal-backdrop .modal-title')?.textContent||'').trim();
+    if(goalUnit&&title==='Nuevo objetivo'&&goalUnit.dataset.trTicksDefault!=='1'){goalUnit.value='ticks';goalUnit.dataset.trTicksDefault='1';}
+  }catch(_){}
+}
+try{new MutationObserver(()=>trMetricUnitModalDefaults()).observe(document.body,{childList:true,subtree:true});}catch(_){}
 function trRenderClosureDiagnostics(){
   const structural=typeof trRenderDiagnostics==='function'?trRenderDiagnostics():null,stores=window.TradingResearchStores?.diagnostics?.()||null,canonicalEntry=window.render===trCanonicalRenderEntry,baseCaptured=typeof trRenderClosureBase==='function'&&trRenderClosureBase!==trCanonicalRenderEntry,structuralRuntime=String(structural?.runtime||''),stateRuntime=String(stores?.runtime||''),sourceLegacy=Number(document.querySelector('meta[name="trading-research-render-source-legacy-assignments"]')?.content||12),bundledLegacy=Number(document.querySelector('meta[name="trading-research-render-bundled-legacy-assignments"]')?.content||0),ok=canonicalEntry&&baseCaptured&&!!structuralRuntime&&!!stateRuntime&&bundledLegacy===0&&!trRenderClosureLastError;
   return {version:TR_RENDER_CLOSURE_VERSION,canonicalEntry,baseCaptured,structuralRuntime,stateRuntime,calls:trRenderClosureCalls,ownershipRecoveries:trRenderClosureOwnershipRecoveries,sourceLegacyAssignments:sourceLegacy,bundledLegacyAssignments:bundledLegacy,sourceRenderBaseAliases:5,bundledRenderBaseAliases:0,sourceDebtBudget:{...TR_RENDER_SOURCE_DEBT_BUDGET},lastAt:trRenderClosureLastAt,lastError:trRenderClosureLastError,ok};
@@ -43,7 +100,7 @@ if(typeof trRenderClosureDataBase==='function')trRenderClosureDataContract.repla
 const trRenderClosureModeContract=globalThis.TradingResearchModeCardPresentationContract;
 const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${globalThis.TradingResearchModeCardStateReadContract.expanded()?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${globalThis.TradingResearchModeCardStateReadContract.expanded()?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.28.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
 trRenderClosureModeContract.replace(trRenderClosureModeCard);
-trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
+trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);queueMicrotask(()=>trMetricUnitPostProcess());
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trRenderClosureModeCard();}catch(_){}
 try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>window.render(),0);}catch(_){}
 })();

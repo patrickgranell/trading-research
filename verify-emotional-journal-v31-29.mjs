@@ -52,6 +52,9 @@ need(runtime.includes("Perspectivas para psicología del trading")&&runtime.incl
 need(runtime.includes("Backtesting · configuración disponible")&&runtime.includes("planEnvironment?.(plan)==='backtest'"),'Diario: la biblioteca de Perspectiva no permanece visible/configurable desde un TP Backtesting.');
 need(runtime.includes("Cita breve verificada")&&runtime.includes("Paráfrasis / reflexión"),'Diario: Configuración no diferencia cita literal de paráfrasis.');
 need(runtime.includes("function trPerspectiveRecommendation(")&&runtime.includes("Perspectiva sugerida"),'Diario: Dashboard no puede recuperar perspectiva contextual según racha/deriva.');
+need(runtime.includes("perspective-focus-card")&&runtime.includes("Otra perspectiva →")&&runtime.includes("function trTraderPerspectivesRender()"),'Diario: Perspectiva no conserva la vista enfocada de una sola frase.');
+need(runtime.includes("DASHBOARD_SECONDARY_DEFS.push(['perspective','Perspectiva'])")&&runtime.includes("id!=='perspective'")&&runtime.includes("dashboard-perspective-widget"),'Diario: falta el widget Perspectiva en el personalizador del Dashboard principal.');
+need(runtime.includes("data-tr-action-click=\"emotionalPerspectiveNext\"")&&runtime.includes("trEarlyActions.emotionalPerspectivePrev"),'Diario: la rotación simple de Perspectiva no está disponible.');
 need(runtime.includes("trLibraryByReflection(")&&runtime.includes("Esta reflexión ya tiene una entrada en la Biblioteca personal."),'Diario: Biblioteca personal permite duplicar la misma reflexión como varias entradas.');
 need(runtime.includes("plan.emotionalLibrary=library.filter")&&runtime.includes("plan.emotionalLibrary=[]"),'Diario: Biblioteca personal puede heredarse indebidamente entre Trading Plans/versiones.');
 need(runtime.includes("Buscar en la biblioteca")&&runtime.includes("trLibrarySearch"),'Diario: Biblioteca personal no permite recuperar entradas por búsqueda.');

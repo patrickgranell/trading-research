@@ -37,22 +37,25 @@ function trMetricUnitReorderButtons(root=document){
   for(const switcher of (root.querySelectorAll?.('.metric-switch')||[])){
     const buttons=[...switcher.children].filter(x=>x.tagName==='BUTTON');
     const byLabel=new Map(buttons.map(b=>[String(b.textContent||'').trim(),b]));
-    const usdLabel='US\u0024';
-    if(!byLabel.has('Ticks')||!byLabel.has('R')||!byLabel.has(usdLabel))continue;
-    const first=buttons.find(b=>['Ticks','R',usdLabel].includes(String(b.textContent||'').trim()));
-    if(!first)continue;
+    const usdLabel='US\u0024',desired=['Ticks','R',usdLabel];
+    if(!desired.every(label=>byLabel.has(label)))continue;
+    const unitButtons=buttons.filter(b=>desired.includes(String(b.textContent||'').trim()));
+    if(unitButtons.map(b=>String(b.textContent||'').trim()).join('|')===desired.join('|'))continue;
+    const first=unitButtons[0];if(!first)continue;
     const mark=document.createComment('tr-metric-unit-order');switcher.insertBefore(mark,first);
     const frag=document.createDocumentFragment();
-    for(const label of ['Ticks','R',usdLabel])frag.appendChild(byLabel.get(label));
+    for(const label of desired)frag.appendChild(byLabel.get(label));
     mark.replaceWith(frag);
   }
 }
 function trMetricUnitReorderSelects(root=document){
   for(const select of (root.querySelectorAll?.('select')||[])){
-    const options=[...select.options],byValue=new Map(options.map(o=>[o.value,o]));
-    if(!byValue.has('ticks')||!byValue.has('r')||!byValue.has('usd'))continue;
-    const current=select.value,units=new Set(['ticks','r','usd']),frag=document.createDocumentFragment();
-    for(const value of ['ticks','r','usd'])frag.appendChild(byValue.get(value));
+    const options=[...select.options],byValue=new Map(options.map(o=>[o.value,o])),desired=['ticks','r','usd'];
+    if(!desired.every(value=>byValue.has(value)))continue;
+    const unitOrder=options.filter(o=>desired.includes(o.value)).map(o=>o.value);
+    if(unitOrder.join('|')===desired.join('|'))continue;
+    const current=select.value,units=new Set(desired),frag=document.createDocumentFragment();
+    for(const value of desired)frag.appendChild(byValue.get(value));
     for(const option of options)if(!units.has(option.value))frag.appendChild(option);
     select.replaceChildren(frag);select.value=current;
   }

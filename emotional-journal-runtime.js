@@ -119,6 +119,21 @@ function trNormalizeLibraryEntry(value={},plan=null){
     updatedAt:trText(value?.updatedAt)||at
   };
 }
+function trNormalizeWeeklyReview(value={},plan=null){
+  const at=trText(value?.at)||trNow();
+  return {
+    id:trText(value?.id)||trId('EWR'),
+    schemaVersion:1,
+    tradingPlanId:trText(value?.tradingPlanId)||trText(plan?.id),
+    tradingPlanSnapshot:value?.tradingPlanSnapshot?trCopy(value.tradingPlanSnapshot):null,
+    weekKey:/^\d{4}-W\d{2}$/.test(trText(value?.weekKey))?trText(value.weekKey):trWeekKeyFromDate(at),
+    learned:trText(value?.learned),
+    maintain:trText(value?.maintain),
+    watch:trText(value?.watch),
+    createdAt:trText(value?.createdAt)||at,
+    updatedAt:trText(value?.updatedAt)||at
+  };
+}
 function trSessionScales(plan){
   const cfg=plan?.emotionConfig?.sessionScales||{};
   return {confidence:{...TR_CONFIDENCE_LABELS,...(cfg.confidence||{})},tri:{...TR_TRI_LABELS,...(cfg.tri||{})}};
@@ -159,6 +174,8 @@ function trEnsurePlan(plan){
   plan.emotionalReflections=reflections.filter(row=>!trText(row?.tradingPlanId)||trText(row?.tradingPlanId)===trText(plan.id)).map(row=>trNormalizeReflection(row,plan));
   const library=Array.isArray(plan.emotionalLibrary)?plan.emotionalLibrary:[];
   plan.emotionalLibrary=library.filter(row=>!trText(row?.tradingPlanId)||trText(row?.tradingPlanId)===trText(plan.id)).map(row=>trNormalizeLibraryEntry(row,plan));
+  const weekly=Array.isArray(plan.emotionalWeeklyReviews)?plan.emotionalWeeklyReviews:[];
+  plan.emotionalWeeklyReviews=weekly.filter(row=>!trText(row?.tradingPlanId)||trText(row?.tradingPlanId)===trText(plan.id)).map(row=>trNormalizeWeeklyReview(row,plan));
   return plan;
 }
 function trCoverage(operations,hasEntry){
@@ -183,6 +200,7 @@ const domain=Object.freeze({
   normalizeLog:trNormalizeLog,
   normalizeReflection:trNormalizeReflection,
   normalizeLibraryEntry:trNormalizeLibraryEntry,
+  normalizeWeeklyReview:trNormalizeWeeklyReview,
   ensurePlan:trEnsurePlan,
   coverage:trCoverage
 });
@@ -194,7 +212,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderDashboard:()=>trJournalDashboardRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderReflections:()=>trJournalReflectionsRender(),renderLibrary:()=>trJournalLibraryRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderDashboard:()=>trJournalDashboardRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderReflections:()=>trJournalReflectionsRender(),renderLibrary:()=>trJournalLibraryRender(),renderWeekly:()=>trJournalWeeklyRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -228,6 +246,11 @@ try{
         const reflectionIndex=group.items.findIndex(x=>x?.[0]==='journalreflections');
         const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
         group.items.splice(reflectionIndex>=0?reflectionIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journallibrary','▣','Biblioteca personal']);
+      }
+      if(!group.items.some(x=>x?.[0]==='journalweekly')){
+        const libraryIndex=group.items.findIndex(x=>x?.[0]==='journallibrary');
+        const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
+        group.items.splice(libraryIndex>=0?libraryIndex+1:(notesIndex>=0?notesIndex:group.items.length),0,['journalweekly','✓','Revisión semanal']);
       }
       if(!group.items.some(x=>x?.[0]==='journalstatements'))group.items.push(['journalstatements','✎','Dejar constancia']);
     }
@@ -288,6 +311,10 @@ trEarlyActions.emotionalLibraryDelete=function(){return trDeleteLibraryEntry(Str
 trEarlyActions.emotionalLibrarySourceOpen=function(){return trOpenLibrarySource(String(this.dataset.sourceId||''));};
 trEarlyActions.emotionalLibrarySearch=function(){trLibrarySearch=String(this.value||'');render();};
 trEarlyActions.emotionalDashboardOpen=function(){const view=String(this.dataset.view||'');if(view)return navigate(view);return false;};
+trEarlyActions.emotionalWeeklyWeekChange=function(){const value=String(this.value||'');if(/^\d{4}-W\d{2}$/.test(value)){trWeeklyReviewWeek=value;render();}};
+trEarlyActions.emotionalWeeklySave=function(){return trSaveWeeklyReview();};
+trEarlyActions.emotionalWeeklyDelete=function(){return trDeleteWeeklyReview();};
+trEarlyActions.emotionalWeeklyOpen=function(){const value=String(this.dataset.weekKey||'');if(/^\d{4}-W\d{2}$/.test(value)){trWeeklyReviewWeek=value;render();}};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -360,7 +387,7 @@ if(typeof addEmotionConfig==='function'){
 
 if(typeof makeBlankPlan==='function'){
   const baseMakeBlankPlan=makeBlankPlan;
-  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];plan.emotionalLibrary=[];return trEnsurePlan(plan);};
+  makeBlankPlan=function(meta={}){const plan=baseMakeBlankPlan(meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];plan.emotionalLibrary=[];plan.emotionalWeeklyReviews=[];return trEnsurePlan(plan);};
 }
 if(typeof normalizePlan==='function'){
   const baseNormalizePlan=normalizePlan;
@@ -368,7 +395,7 @@ if(typeof normalizePlan==='function'){
 }
 if(typeof clonePlanForVersion==='function'){
   const baseClonePlanForVersion=clonePlanForVersion;
-  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];plan.emotionalLibrary=[];return trEnsurePlan(plan);};
+  clonePlanForVersion=function(source,meta={}){const plan=baseClonePlanForVersion(source,meta);plan.emotionalSessions=[];plan.emotionalLogs=[];plan.emotionalReflections=[];plan.emotionalLibrary=[];plan.emotionalWeeklyReviews=[];return trEnsurePlan(plan);};
 }
 
 function trLogs(plan=getCurrentPlan()){
@@ -385,6 +412,69 @@ function trLibrary(plan=getCurrentPlan()){trEnsurePlan(plan);return plan?.emotio
 function trLibraryById(id,plan=getCurrentPlan()){return trLibrary(plan).find(x=>x.id===id)||null;}
 function trLibraryByReflection(id,plan=getCurrentPlan()){return trLibrary(plan).find(x=>x.sourceType==='reflection'&&x.sourceId===id)||null;}
 let trLibrarySearch='';
+function trWeekKeyFromDate(value){
+  const d=value instanceof Date?new Date(value):new Date(value||Date.now());if(Number.isNaN(d.getTime()))return '';
+  const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()),day=(x.getDay()+6)%7;x.setDate(x.getDate()-day+3);
+  const isoYear=x.getFullYear(),first=new Date(isoYear,0,4),firstDay=(first.getDay()+6)%7;first.setDate(first.getDate()-firstDay+3);
+  const week=1+Math.round((x-first)/604800000);
+  return isoYear+'-W'+String(week).padStart(2,'0');
+}
+function trWeekBounds(weekKey){
+  const m=/^(\d{4})-W(\d{2})$/.exec(String(weekKey||''));if(!m)return null;
+  const year=Number(m[1]),week=Number(m[2]),jan4=new Date(year,0,4,0,0,0,0),day=(jan4.getDay()+6)%7;
+  const start=new Date(jan4);start.setDate(jan4.getDate()-day+(week-1)*7);start.setHours(0,0,0,0);
+  const end=new Date(start);end.setDate(start.getDate()+7);
+  return {start,end};
+}
+function trDateInWeek(value,weekKey){
+  const bounds=trWeekBounds(weekKey),d=new Date(value||'');return !!bounds&&!Number.isNaN(d.getTime())&&d>=bounds.start&&d<bounds.end;
+}
+function trWeeklyReviews(plan=getCurrentPlan()){trEnsurePlan(plan);return plan?.emotionalWeeklyReviews||[];}
+function trWeeklyReviewByWeek(weekKey,plan=getCurrentPlan()){return trWeeklyReviews(plan).find(x=>x.weekKey===weekKey)||null;}
+let trWeeklyReviewWeek=trWeekKeyFromDate(new Date());
+function trWeekLabel(weekKey){
+  const bounds=trWeekBounds(weekKey);if(!bounds)return weekKey||'Semana';
+  const end=new Date(bounds.end);end.setDate(end.getDate()-1);
+  return `${weekKey} · ${bounds.start.toLocaleDateString()} – ${end.toLocaleDateString()}`;
+}
+function trMaxLossStreak(operations){
+  const ordered=operations.slice().sort((a,b)=>typeof v3194CompareOps==='function'?v3194CompareOps(a,b):String(a.entryDate||'').localeCompare(String(b.entryDate||'')));
+  let current=0,max=0;
+  for(const operation of ordered){if(trStreakOutcome(operation)==='loss'){current++;max=Math.max(max,current);}else current=0;}
+  return max;
+}
+function trWeeklyData(plan,weekKey){
+  const ops=trEligibleOperations(currentOps()).filter(o=>o.tradingPlanId===plan.id&&trDateInWeek(o.entryDate,weekKey));
+  const sessions=trSessions(plan).filter(s=>trDateInWeek(s.startedAt,weekKey)).slice().sort((a,b)=>String(a.startedAt||'').localeCompare(String(b.startedAt||'')));
+  const disciplineKnown=ops.filter(o=>typeof o.discipline==='boolean'),deviations=disciplineKnown.filter(o=>o.discipline===false),clean=disciplineKnown.filter(o=>o.discipline===true);
+  const drawdowns=trDrawdownEpisodes(ops),maxDD=drawdowns.length?Math.min(0,...drawdowns.map(x=>x.depth)):0;
+  const firstSession=sessions[0]||null,lastSession=sessions[sessions.length-1]||null,lastPoint=lastSession?trConfidenceLatestPoint(lastSession).point:{};
+  const confidencePersonal=firstSession?trConfidenceDisplay(firstSession.start?.confidencePersonal||'',lastPoint?.confidencePersonal||'',plan):'Sin informar';
+  const confidenceSystem=firstSession?trConfidenceDisplay(firstSession.start?.confidenceSystem||'',lastPoint?.confidenceSystem||'',plan):'Sin informar';
+  return {
+    ops,sessions,disciplineKnown,deviations,clean,
+    disciplineRate:disciplineKnown.length?clean.length/disciplineKnown.length*100:null,
+    maxLossStreak:trMaxLossStreak(ops),maxDD,
+    confidencePersonal,confidenceSystem,
+    reflections:trReflections(plan).filter(x=>trDateInWeek(x.at,weekKey)),
+    library:trLibrary(plan).filter(x=>trDateInWeek(x.at,weekKey)),
+    logs:trLogs(plan).filter(x=>trDateInWeek(x.at,weekKey))
+  };
+}
+function trSaveWeeklyReview(){
+  const plan=getCurrentPlan();if(!plan)return false;trEnsurePlan(plan);
+  const weekKey=trWeeklyReviewWeek,existing=trWeeklyReviewByWeek(weekKey,plan),now=trNow();
+  const learned=trText(document.getElementById('weekly-learned')?.value),maintain=trText(document.getElementById('weekly-maintain')?.value),watch=trText(document.getElementById('weekly-watch')?.value);
+  if(!learned&&!maintain&&!watch)return alert('Escribe al menos una conclusión antes de guardar la revisión semanal.');
+  const item=trNormalizeWeeklyReview({...existing,id:existing?.id||undefined,tradingPlanId:plan.id,tradingPlanSnapshot:existing?.tradingPlanSnapshot||trPlanSnapshot(plan),weekKey,learned,maintain,watch,createdAt:existing?.createdAt||now,updatedAt:now},plan);
+  if(existing)Object.assign(existing,item,{id:existing.id,createdAt:existing.createdAt});else plan.emotionalWeeklyReviews.unshift(item);
+  plan.updatedAt=now;persist();render();return true;
+}
+function trDeleteWeeklyReview(){
+  const plan=getCurrentPlan(),existing=trWeeklyReviewByWeek(trWeeklyReviewWeek,plan);if(!plan||!existing)return false;
+  if(!confirm('¿Eliminar la revisión de '+trWeeklyReviewWeek+'?'))return false;
+  plan.emotionalWeeklyReviews=trWeeklyReviews(plan).filter(x=>x.id!==existing.id);plan.updatedAt=trNow();persist();render();return true;
+}
 function trSessions(plan=getCurrentPlan()){
   trEnsurePlan(plan);
   return plan?.emotionalSessions||[];
@@ -1243,6 +1333,38 @@ function trJournalLibraryRender(){
     <section class="card panel library-history"><div class="panel-title"><div><h3>Biblioteca</h3><small>Solo aquello que has decidido conservar.</small></div><span>${rows.length}${q?' de '+all.length:''}</span></div><div class="library-feed">${feed}</div></section>`;
 }
 
+function trJournalWeeklyRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  if(!/^\d{4}-W\d{2}$/.test(trWeeklyReviewWeek))trWeeklyReviewWeek=trWeekKeyFromDate(new Date());
+  const data=trWeeklyData(plan,trWeeklyReviewWeek),existing=trWeeklyReviewByWeek(trWeeklyReviewWeek,plan),metric=calcMetricStats(data.ops,trJournalResultUnit,'net');
+  const disciplineText=data.disciplineRate===null?'—':data.disciplineRate.toFixed(0)+'%';
+  const resultText=trJournalMetricText(metric.sum);
+  const history=trWeeklyReviews(plan).slice().sort((a,b)=>String(b.weekKey).localeCompare(String(a.weekKey)));
+  const historyHtml=history.length?history.map(row=>`<button class="weekly-history-row ${row.weekKey===trWeeklyReviewWeek?'active':''}" data-week-key="${esc(row.weekKey)}" data-tr-action-click="emotionalWeeklyOpen"><span><strong>${esc(row.weekKey)}</strong><small>${esc(trText(row.learned||row.maintain||row.watch).slice(0,120))}</small></span><time>${esc(fmtDate(row.updatedAt))}</time></button>`).join(''):'<div class="empty compact-empty">Todavía no hay revisiones semanales guardadas.</div>';
+  return `${pageHead('Diario emocional · Revisión semanal','Cierra la semana separando los datos automáticos de tus propias conclusiones.',trJournalMetricSwitch())}
+    <section class="card panel weekly-picker"><div class="weekly-picker-row"><label class="field"><span>Semana</span><input class="input" type="week" value="${esc(trWeeklyReviewWeek)}" data-tr-action-change="emotionalWeeklyWeekChange"></label><div><span>Estado</span><strong>${existing?'Guardada · '+fmtDate(existing.updatedAt):'Sin guardar'}</strong></div></div></section>
+    <div class="weekly-kpis">
+      ${kpi('Operaciones',data.ops.length,'semana seleccionada')}
+      ${kpi('Resultado',resultText,trJournalMetricLabel())}
+      ${kpi('Disciplina',disciplineText,`${data.deviations.length} desviación${data.deviations.length===1?'':'es'}`)}
+      ${kpi('Sesiones',data.sessions.length,'emocionales registradas')}
+      ${kpi('Peor racha perdedora',data.maxLossStreak,data.maxLossStreak===1?'1 pérdida consecutiva':'pérdidas consecutivas')}
+      ${kpi('Máximo drawdown',metricStatText(data.maxDD,'ticks'),'curva semanal')}
+    </div>
+    <section class="card panel weekly-confidence"><div class="panel-title"><div><h3>Confianza durante la semana</h3><small>Primera lectura registrada → última lectura registrada.</small></div></div><div class="weekly-confidence-grid"><div><span>Confianza personal</span><strong>${esc(data.confidencePersonal)}</strong></div><div><span>Confianza en el sistema</span><strong>${esc(data.confidenceSystem)}</strong></div><div><span>Reflexiones</span><strong>${data.reflections.length}</strong></div><div><span>Constancias</span><strong>${data.logs.length}</strong></div></div></section>
+    <section class="card panel weekly-review-form"><div class="panel-title"><div><h3>${esc(trWeekLabel(trWeeklyReviewWeek))}</h3><small>La app resume los hechos; esta parte la escribes tú.</small></div></div>
+      <div class="weekly-review-fields">
+        <label class="field"><span>Qué aprendí</span><textarea id="weekly-learned" class="input" placeholder="¿Qué entiendes mejor después de esta semana?">${esc(existing?.learned||'')}</textarea></label>
+        <label class="field"><span>Qué mantengo</span><textarea id="weekly-maintain" class="input" placeholder="¿Qué funcionó en tu proceso y quieres conservar?">${esc(existing?.maintain||'')}</textarea></label>
+        <label class="field"><span>Qué vigilo la próxima semana</span><textarea id="weekly-watch" class="input" placeholder="¿Qué merece atención sin convertirlo en una regla nueva?">${esc(existing?.watch||'')}</textarea></label>
+      </div>
+      <div class="weekly-review-actions">${existing?'<button class="btn danger" data-tr-action-click="emotionalWeeklyDelete">Eliminar revisión</button>':''}<button class="btn primary" data-tr-action-click="emotionalWeeklySave">${existing?'Actualizar revisión':'Guardar revisión semanal'}</button></div>
+    </section>
+    <section class="card panel weekly-history"><div class="panel-title"><div><h3>Historial semanal</h3><small>Una revisión por semana y Trading Plan.</small></div><span>${history.length}</span></div><div class="weekly-history-list">${historyHtml}</div></section>`;
+}
+
 function trJournalNotesRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
@@ -1389,7 +1511,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journaldashboard','journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journallibrary','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journaldashboard','journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journallibrary','journalweekly','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

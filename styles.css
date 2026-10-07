@@ -116,6 +116,23 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .streak-card footer{display:flex;justify-content:flex-end}
 @media(max-width:1000px){.streak-kpis,.streak-adaptation-grid{grid-template-columns:repeat(2,1fr)}.streak-card-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.streak-kpis,.streak-adaptation-grid{grid-template-columns:1fr}.streak-card-head{align-items:flex-start;flex-direction:column}}
+.drift-kpis{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.drift-reading,.drift-context,.drift-method{margin-bottom:16px}
+.drift-reading>strong{display:block;font-size:16px;margin:2px 0 6px}
+.drift-reading>p,.drift-method>p{margin:0;color:var(--muted);font-size:12px;line-height:1.6;max-width:980px}
+.drift-context-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px}
+.drift-context-grid>div{display:grid;gap:5px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel2)}
+.drift-context-grid span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.035em}
+.drift-context-grid strong{font-size:13px;line-height:1.45}
+.drift-history{padding:16px 18px 18px}
+.drift-operation-feed{display:grid;gap:10px}
+.drift-operation-card{display:grid;grid-template-columns:1.2fr 1.6fr auto auto;gap:14px;align-items:center;padding:13px 15px;border:1px solid var(--border);border-radius:12px;background:var(--panel2)}
+.drift-operation-card>div{display:grid;gap:4px}
+.drift-operation-card>div span{font-size:10px;color:var(--muted)}
+.drift-operation-card>div strong{font-size:12px}
+.drift-operation-card>b{font-size:12px;text-align:right}
+@media(max-width:1000px){.drift-kpis,.drift-context-grid{grid-template-columns:repeat(2,1fr)}.drift-operation-card{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.drift-kpis,.drift-context-grid{grid-template-columns:1fr}.drift-operation-card{grid-template-columns:1fr}}
 @media(max-width:900px){.confidence-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.confidence-kpis{grid-template-columns:1fr}.confidence-session-grid{grid-template-columns:1fr}.confidence-session-head,.confidence-session-card footer{align-items:flex-start;flex-direction:column}}
 .emotional-log-details{margin:0;padding:0;border:1px solid var(--border);border-radius:14px;background:#0b1220}

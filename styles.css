@@ -150,6 +150,18 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .reflection-conclusion strong{font-size:13px;line-height:1.55}
 .emotional-reflection-text{min-height:170px;line-height:1.6}
 @media(max-width:800px){.reflection-kpis{grid-template-columns:1fr}.reflection-card header,.reflection-card footer{align-items:flex-start;flex-direction:column}}
+.library-kpis{display:grid;grid-template-columns:repeat(3,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.library-search-panel{margin-bottom:16px}
+.library-history{padding:16px 18px 18px}
+.library-feed{display:grid;gap:12px}
+.library-entry-card{display:grid;gap:13px;padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:var(--panel2)}
+.library-entry-card header,.library-entry-card footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.library-entry-card header>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.library-entry-card header strong{font-size:14px}
+.library-entry-card time{font-size:11px;color:var(--muted)}
+.library-entry-card>p{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.emotional-library-text{min-height:150px;line-height:1.6}
+@media(max-width:800px){.library-kpis{grid-template-columns:1fr}.library-entry-card header,.library-entry-card footer{align-items:flex-start;flex-direction:column}}
 @media(max-width:900px){.confidence-kpis{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.confidence-kpis{grid-template-columns:1fr}.confidence-session-grid{grid-template-columns:1fr}.confidence-session-head,.confidence-session-card footer{align-items:flex-start;flex-direction:column}}
 .emotional-log-details{margin:0;padding:0;border:1px solid var(--border);border-radius:14px;background:#0b1220}

@@ -53,6 +53,8 @@ need(structural.includes("case 'journalstreaks':")&&structural.includes("Trading
   'El router no conserva la vista Rachas y adaptación del Diario emocional.');
 need(structural.includes("case 'journaldrift':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderDrift();"),
   'El router no conserva la vista Deriva conductual del Diario emocional.');
+need(structural.includes("case 'journaldashboard':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderDashboard();"),
+  'El router no conserva Dashboard emocional.');
 need(structural.includes("case 'journalreflections':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderReflections();"),
   'El router no conserva la vista Reflexiones del Diario emocional.');
 need(structural.includes("case 'journallibrary':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderLibrary();"),

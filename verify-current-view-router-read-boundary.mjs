@@ -55,6 +55,8 @@ need(structural.includes("case 'journaldrift':")&&structural.includes("TradingRe
   'El router no conserva la vista Deriva conductual del Diario emocional.');
 need(structural.includes("case 'journalreflections':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderReflections();"),
   'El router no conserva la vista Reflexiones del Diario emocional.');
+need(structural.includes("case 'journallibrary':")&&structural.includes("TradingResearchEmotionalJournalPresentationContract.renderLibrary();"),
+  'El router no conserva la vista Biblioteca personal del Diario emocional.');
 
 if(fail.length){
   console.error('Current View Router Read Boundary verification FAILED');

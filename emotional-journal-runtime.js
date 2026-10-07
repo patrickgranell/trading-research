@@ -194,7 +194,7 @@ globalThis.__trEmotionalJournalStage='domain-published';
 /* Publish the V31.29 presentation contract before any state/bootstrap compatibility work.
  * Function declarations are hoisted, so trJournalRender is safe to resolve lazily here. */
 if(!globalThis.TradingResearchEmotionalJournalPresentationContract){
-  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderReflections:()=>trJournalReflectionsRender(),renderLibrary:()=>trJournalLibraryRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
+  Object.defineProperty(globalThis,'TradingResearchEmotionalJournalPresentationContract',{value:Object.freeze({render:()=>trJournalSessionsRender(),renderDashboard:()=>trJournalDashboardRender(),renderOperations:()=>trJournalOperationsRender(),renderConfidence:()=>trJournalConfidenceRender(),renderStreaks:()=>trJournalStreaksRender(),renderDrift:()=>trJournalDriftRender(),renderReflections:()=>trJournalReflectionsRender(),renderLibrary:()=>trJournalLibraryRender(),renderNotes:()=>trJournalNotesRender(),renderStatements:()=>trJournalStatementsRender()}),writable:false,enumerable:false,configurable:false});
 }
 globalThis.__trEmotionalJournalStage='presentation-published';
 
@@ -204,6 +204,7 @@ try{
   if(typeof V318_NAV_GROUPS!=='undefined'){
     const group=V318_NAV_GROUPS.find(x=>x?.id==='emotional');
     if(group){
+      if(!group.items.some(x=>x?.[0]==='journaldashboard'))group.items.unshift(['journaldashboard','◈','Dashboard emocional']);
       if(!group.items.some(x=>x?.[0]==='journalconfidence')){
         const notesIndex=group.items.findIndex(x=>x?.[0]==='journalnotes');
         group.items.splice(notesIndex>=0?notesIndex:group.items.length,0,['journalconfidence','◇','Confianza']);
@@ -286,6 +287,7 @@ trEarlyActions.emotionalLibrarySave=function(){return trSaveLibraryEntry(String(
 trEarlyActions.emotionalLibraryDelete=function(){return trDeleteLibraryEntry(String(this.dataset.libraryId||''));};
 trEarlyActions.emotionalLibrarySourceOpen=function(){return trOpenLibrarySource(String(this.dataset.sourceId||''));};
 trEarlyActions.emotionalLibrarySearch=function(){trLibrarySearch=String(this.value||'');render();};
+trEarlyActions.emotionalDashboardOpen=function(){const view=String(this.dataset.view||'');if(view)return navigate(view);return false;};
 
 window.TradingResearchEmotionalJournal=Object.freeze({
   version:TR_EMOTIONAL_JOURNAL_VERSION,
@@ -743,6 +745,56 @@ function trOperationTable(ops){
 function trJournalPlanEnvironment(plan){
   return globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)||'unclassified';
 }
+
+function trDashboardLatestSession(plan){
+  return trSessions(plan).slice().sort((a,b)=>String(b.startedAt||'').localeCompare(String(a.startedAt||'')))[0]||null;
+}
+function trDashboardSignalRows(plan){
+  const rows=[],sessions=trSessions(plan),open=sessions.filter(x=>!x.endedAt),streaks=trStreaks(plan),currentStreak=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan),severity=trStreakSeverity(currentStreak,criterion),drift=trDriftData(plan),latest=trDashboardLatestSession(plan);
+  if(open.length)rows.push({kind:'info',title:'Sesión abierta',text:open.length===1?'Hay una sesión emocional pendiente de cierre.':`Hay ${open.length} sesiones emocionales pendientes de cierre.`,view:'journal'});
+  if(['bad','outside'].includes(severity.key))rows.push({kind:'warning',title:severity.label,text:'La racha actual ha alcanzado el criterio configurado. Revisa el detalle antes de extraer conclusiones.',view:'journalstreaks'});
+  if(['clear','rising','watch'].includes(drift.key))rows.push({kind:'warning',title:drift.title,text:drift.text,view:'journaldrift'});
+  if(latest){
+    const point=trConfidenceLatestPoint(latest).point||{},p=trConfidenceValue(point.confidencePersonal),s=trConfidenceValue(point.confidenceSystem);
+    if(p!==null&&s!==null&&Math.abs(p-s)>=2)rows.push({kind:'info',title:'Brecha de confianza',text:'La última sesión muestra una separación relevante entre confianza personal y confianza en el sistema.',view:'journalconfidence'});
+  }
+  return rows;
+}
+function trJournalDashboardRender(){
+  const plan=getCurrentPlan();if(!plan)return '';
+  const env=trJournalPlanEnvironment(plan);if(env==='backtest')return '';
+  trEnsurePlan(plan);
+  const sessions=trSessions(plan),open=sessions.filter(x=>!x.endedAt),latest=trDashboardLatestSession(plan),latestPoint=latest?trConfidenceLatestPoint(latest):{point:{},phase:'',at:''};
+  const personal=trConfidenceLabel(latestPoint.point?.confidencePersonal||'',plan),system=trConfidenceLabel(latestPoint.point?.confidenceSystem||'',plan);
+  const streaks=trStreaks(plan),currentStreak=streaks[streaks.length-1]||null,criterion=trStreakCriterion(plan),severity=trStreakSeverity(currentStreak,criterion);
+  const streakText=currentStreak?`${currentStreak.count} ${currentStreak.type==='loss'?'pérdida'+(currentStreak.count===1?'':'s'):'ganancia'+(currentStreak.count===1?'':'s')}`:'Sin racha';
+  const drawdowns=trDrawdownEpisodes(trEligibleOperations(currentOps()).filter(o=>o.tradingPlanId===plan.id)),currentDD=drawdowns.find(d=>!d.recovered)||null;
+  const drift=trDriftData(plan),signals=trDashboardSignalRows(plan);
+  const reflections=trReflections(plan),library=trLibrary(plan),logs=trLogs(plan);
+  const latestReflection=reflections.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
+  const latestLibrary=library.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
+  const latestLog=logs.slice().sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')))[0]||null;
+  const activity=[
+    latestReflection?{label:'Última reflexión',title:latestReflection.conclusion||latestReflection.text,at:latestReflection.at,view:'journalreflections'}:null,
+    latestLibrary?{label:'Última entrada de biblioteca',title:latestLibrary.title,at:latestLibrary.at,view:'journallibrary'}:null,
+    latestLog?{label:'Última constancia',title:latestLog.text,at:latestLog.at,view:'journalstatements'}:null
+  ].filter(Boolean);
+  const signalHtml=signals.length?signals.map(row=>`<button class="emotional-dashboard-signal ${row.kind}" data-view="${row.view}" data-tr-action-click="emotionalDashboardOpen"><span><strong>${esc(row.title)}</strong><small>${esc(row.text)}</small></span><b>Abrir</b></button>`).join(''):'<div class="empty compact-empty">No hay señales destacadas con los datos registrados actualmente.</div>';
+  const activityHtml=activity.length?activity.map(row=>`<button class="emotional-dashboard-activity" data-view="${row.view}" data-tr-action-click="emotionalDashboardOpen"><span>${esc(row.label)}</span><strong>${esc(trText(row.title).slice(0,180))}</strong><time>${esc(fmtDate(row.at))}</time></button>`).join(''):'<div class="empty compact-empty">Todavía no hay reflexiones, entradas de biblioteca ni constancias.</div>';
+  return `${pageHead('Diario emocional · Dashboard','Una lectura breve de lo que has registrado; cada módulo conserva su análisis completo.','')}
+    <div class="emotional-dashboard-grid">
+      <section class="card emotional-dashboard-card"><div><span>Sesión</span><strong>${open.length?(open.length===1?'1 abierta':open.length+' abiertas'):'Sin sesión abierta'}</strong><small>${latest?'Última · '+fmtDate(latest.startedAt):'Todavía sin sesiones'}</small></div><button class="btn small" data-view="journal" data-tr-action-click="emotionalDashboardOpen">Abrir sesiones</button></section>
+      <section class="card emotional-dashboard-card"><div><span>Confianza</span><strong>${esc(personal)} · ${esc(system)}</strong><small>Personal · Sistema${latestPoint.phase?' · '+latestPoint.phase:''}</small></div><button class="btn small" data-view="journalconfidence" data-tr-action-click="emotionalDashboardOpen">Abrir confianza</button></section>
+      <section class="card emotional-dashboard-card"><div><span>Racha / Drawdown</span><strong>${esc(streakText)}</strong><small>${esc(severity.label)} · DD actual ${currentDD?metricStatText(currentDD.depth,'ticks'):'0.0t'}</small></div><button class="btn small" data-view="journalstreaks" data-tr-action-click="emotionalDashboardOpen">Abrir rachas</button></section>
+      <section class="card emotional-dashboard-card"><div><span>Deriva</span><strong>${esc(drift.title)}</strong><small>${drift.recent.known.length} operaciones recientes con disciplina informada</small></div><button class="btn small" data-view="journaldrift" data-tr-action-click="emotionalDashboardOpen">Abrir deriva</button></section>
+    </div>
+    <div class="grid two emotional-dashboard-lower">
+      <section class="card panel"><div class="panel-title"><div><h3>Señales para revisar</h3><small>Prioriza hechos registrados; no diagnostica ni prescribe.</small></div><span>${signals.length}</span></div><div class="emotional-dashboard-signals">${signalHtml}</div></section>
+      <section class="card panel"><div class="panel-title"><div><h3>Actividad reciente</h3><small>Aprendizaje y escritura que has decidido conservar.</small></div></div><div class="emotional-dashboard-activity-list">${activityHtml}</div></section>
+    </div>
+    <section class="card panel emotional-dashboard-library-strip"><div><span>Reflexiones</span><strong>${reflections.length}</strong></div><div><span>Biblioteca personal</span><strong>${library.length}</strong></div><div><span>Constancias</span><strong>${logs.length}</strong></div><button class="btn small" data-view="journallibrary" data-tr-action-click="emotionalDashboardOpen">Abrir biblioteca</button></section>`;
+}
+
 function trJournalSessionsRender(){
   const plan=getCurrentPlan();if(!plan)return '';
   trEnsurePlan(plan);
@@ -1337,7 +1389,7 @@ if(baseSaveEmotionalEditor)saveEmotionalEditor=function(id){
 /* Structural Runtime can render a session-restored Journal before this later runtime is loaded.
  * Repaint once after the script chain completes so V31.29 becomes visible on first boot/F5 too. */
 try{
-  if(['journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journallibrary','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
+  if(['journaldashboard','journal','journalops','journalconfidence','journalstreaks','journaldrift','journalreflections','journallibrary','journalnotes','journalstatements'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.())){
     setTimeout(()=>{try{window.render?.();}catch(e){console.warn('[Trading Research · Emotional Journal boot repaint]',e);}},0);
   }
 }catch{}

@@ -20,19 +20,7 @@ function trRenderClosureEnsureOwnership(){if(window.render!==trCanonicalRenderEn
 window.render=trCanonicalRenderEntry;
 /* Result-unit presentation policy: Ticks first/default, then R, then US currency.
  * R-specific analytical constructs (R-multiple thresholds, R histograms, etc.) remain R by definition. */
-function trMetricUnitApplyDefaults(){
-  const setTicks=value=>{if(value&&typeof value==='object'&&'unit' in value)value.unit='ticks';};
-  try{if(typeof opsViewState!=='undefined')setTicks(opsViewState);}catch(_){}
-  try{if(typeof blockViewState!=='undefined')setTicks(blockViewState);}catch(_){}
-  try{if(typeof labState!=='undefined')setTicks(labState);}catch(_){}
-  try{if(typeof dashboardViewState!=='undefined')setTicks(dashboardViewState);}catch(_){}
-  try{if(typeof calendarState!=='undefined')setTicks(calendarState);}catch(_){}
-  try{if(typeof complianceViewState!=='undefined')setTicks(complianceViewState);}catch(_){}
-  try{if(typeof reviewViewState!=='undefined')setTicks(reviewViewState);}catch(_){}
-  try{if(typeof mistakesViewState!=='undefined')setTicks(mistakesViewState);}catch(_){}
-  try{if(typeof reportsViewState!=='undefined')setTicks(reportsViewState);}catch(_){}
-  try{window.__trDashboardUnit='ticks';}catch(_){}
-}
+const trMetricUnitInitializedViews=new Set();
 function trMetricUnitReorderButtons(root=document){
   for(const switcher of (root.querySelectorAll?.('.metric-switch')||[])){
     const buttons=[...switcher.children].filter(x=>x.tagName==='BUTTON');
@@ -60,23 +48,27 @@ function trMetricUnitReorderSelects(root=document){
     select.replaceChildren(frag);select.value=current;
   }
 }
-function trMetricUnitPostProcess(root=document){try{trMetricUnitReorderButtons(root);trMetricUnitReorderSelects(root);}catch(_){}}
+function trMetricUnitEnsureViewDefault(root=document){
+  const view=String(globalThis.TradingResearchCurrentViewReadContract?.current?.()||'');
+  if(!view||trMetricUnitInitializedViews.has(view))return;
+  const usdLabel='US\u0024';
+  const switcher=[...(root.querySelectorAll?.('.metric-switch')||[])].find(el=>{const labels=[...el.querySelectorAll(':scope > button')].map(b=>String(b.textContent||'').trim());return labels.includes('Ticks')&&labels.includes('R')&&labels.includes(usdLabel);});
+  if(!switcher)return;
+  trMetricUnitInitializedViews.add(view);
+  const ticks=[...switcher.querySelectorAll(':scope > button')].find(b=>String(b.textContent||'').trim()==='Ticks');
+  if(ticks&&!ticks.classList.contains('active'))ticks.click();
+}
+function trMetricUnitPostProcess(root=document){
+  try{trMetricUnitReorderButtons(root);trMetricUnitReorderSelects(root);trMetricUnitEnsureViewDefault(root);}catch(_){}
+}
 function trMetricUnitModalDefaults(){
   trMetricUnitPostProcess();
   try{
-    if(typeof editingGoalId!=='undefined'&&editingGoalId===null){
-      const goalUnit=document.getElementById('f-goal-unit');
-      if(goalUnit&&goalUnit.dataset.trTicksDefault!=='1'){goalUnit.value='ticks';goalUnit.dataset.trTicksDefault='1';}
-    }
+    const goalUnit=document.getElementById('f-goal-unit');
+    const title=String(document.querySelector('.modal-backdrop .modal-title')?.textContent||'').trim();
+    if(goalUnit&&title==='Nuevo objetivo'&&goalUnit.dataset.trTicksDefault!=='1'){goalUnit.value='ticks';goalUnit.dataset.trTicksDefault='1';}
   }catch(_){}
 }
-try{
-  if(typeof labStudyDefaultState==='function'){
-    const baseLabStudyDefaultState=labStudyDefaultState;
-    labStudyDefaultState=function(){return {...baseLabStudyDefaultState(),unit:'ticks'};};
-  }
-}catch(_){}
-trMetricUnitApplyDefaults();
 try{new MutationObserver(()=>trMetricUnitModalDefaults()).observe(document.body,{childList:true,subtree:true});}catch(_){}
 function trRenderClosureDiagnostics(){
   const structural=typeof trRenderDiagnostics==='function'?trRenderDiagnostics():null,stores=window.TradingResearchStores?.diagnostics?.()||null,canonicalEntry=window.render===trCanonicalRenderEntry,baseCaptured=typeof trRenderClosureBase==='function'&&trRenderClosureBase!==trCanonicalRenderEntry,structuralRuntime=String(structural?.runtime||''),stateRuntime=String(stores?.runtime||''),sourceLegacy=Number(document.querySelector('meta[name="trading-research-render-source-legacy-assignments"]')?.content||12),bundledLegacy=Number(document.querySelector('meta[name="trading-research-render-bundled-legacy-assignments"]')?.content||0),ok=canonicalEntry&&baseCaptured&&!!structuralRuntime&&!!stateRuntime&&bundledLegacy===0&&!trRenderClosureLastError;
@@ -103,7 +95,7 @@ if(typeof trRenderClosureDataBase==='function')trRenderClosureDataContract.repla
 const trRenderClosureModeContract=globalThis.TradingResearchModeCardPresentationContract;
 const trRenderClosureModeCard=function(){return `<div class="side-bottom"><div class="mini-card mode-card ${globalThis.TradingResearchModeCardStateReadContract.expanded()?'expanded':''}"><button class="mode-card-toggle" data-tr-onclick="toggleModeCard()"><span><small>Modo actual</small><strong>V${TR_RELEASE_VERSION}</strong></span><b class="mode-card-arrow">${globalThis.TradingResearchModeCardStateReadContract.expanded()?'▾':'▴'}</b></button><div class="mode-card-detail"><div class="mini-value">${globalThis.TradingResearchContentEncodingContract.html(TR_RELEASE_LABEL)}</div><div class="help">Release global V31.28.0. Los diagnósticos internos conservan sus versiones históricas por componente.</div></div></div></div>`;};
 trRenderClosureModeContract.replace(trRenderClosureModeCard);
-trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);
+trRenderClosureEnsureOwnership();queueMicrotask(trRenderClosureEnsureOwnership);queueMicrotask(()=>trMetricUnitPostProcess());
 try{const side=document.querySelector('.side-bottom');if(side)side.outerHTML=trRenderClosureModeCard();}catch(_){}
 try{if(globalThis.TradingResearchCurrentViewReadContract.current()==='config'&&globalThis.TradingResearchConfigTabStateContract.current()==='data')setTimeout(()=>window.render(),0);}catch(_){}
 })();

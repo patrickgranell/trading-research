@@ -528,7 +528,7 @@ function trEmotionalBreakdownMetric(ops,key='emotion'){
   ops.forEach(o=>{const vals=key==='emotion'?operationEmotionValues(o):(o.emotional?.behaviors||[]);[...new Set(vals)].forEach(v=>{if(!groups.has(v))groups.set(v,[]);groups.get(v).push(o);});});
   const rows=[...groups.entries()].map(([label,x])=>({label,ops:x,s:calcMetricStats(x,trJournalResultUnit,'net')})).sort((a,b)=>b.ops.length-a.ops.length);
   const max=Math.max(...rows.map(x=>x.ops.length),1);
-  return '<div class="emotion-break-list">'+(rows.length?rows.map(row=>'<button data-filter-key="'+filterKey+'" data-filter-value="'+inlineUriToken(row.label)+'" data-tr-action-click="emotionalBreakdownFilter"><span>'+esc(row.label)+'</span><i><b style="width:'+Math.min(100,row.ops.length/max*100)+'%"></b></i><strong>'+row.ops.length+'</strong><em>'+esc(trJournalMetricText(row.s.expectancy))+'</em></button>').join(''):'<div class="empty">Aún no hay datos emocionales.</div>')+'</div>';
+  return '<div class="emotion-break-list">'+(rows.length?rows.map(row=>'<button data-filter-key="'+filterKey+'" data-filter-value="'+inlineUriToken(row.label)+'" data-tr-action-click="emotionalBreakdownFilter"><span>'+esc(row.label)+'</span><progress class="emotion-break-progress" max="100" value="'+Math.min(100,row.ops.length/max*100).toFixed(1)+'"></progress><strong>'+row.ops.length+'</strong><em>'+esc(trJournalMetricText(row.s.expectancy))+'</em></button>').join(''):'<div class="empty">Aún no hay datos emocionales.</div>')+'</div>';
 }
 function trJournalOperationsRender(){
   const plan=getCurrentPlan();if(!plan)return '';

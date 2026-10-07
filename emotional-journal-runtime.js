@@ -1397,8 +1397,7 @@ try{
   if(typeof DASHBOARD_SECONDARY_DEFS!=='undefined'&&Array.isArray(DASHBOARD_SECONDARY_DEFS)&&!DASHBOARD_SECONDARY_DEFS.some(x=>x?.[0]==='perspective')){
     DASHBOARD_SECONDARY_DEFS.push(['perspective','Perspectiva']);
   }
-  if(typeof dashboardSecondaryHtml==='function'&&!globalThis.__trPerspectiveDashboardWidgetPatched){
-    globalThis.__trPerspectiveDashboardWidgetPatched=true;
+  if(typeof dashboardSecondaryHtml==='function'){
     const trDashboardSecondaryHtmlPerspectiveBase=dashboardSecondaryHtml;
     dashboardSecondaryHtml=function(id,ctx){
       if(id!=='perspective')return trDashboardSecondaryHtmlPerspectiveBase(id,ctx);

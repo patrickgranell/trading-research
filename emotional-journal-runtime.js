@@ -795,6 +795,8 @@ function trStreakReading(streak,criterion){
   if(streak.type==='loss'&&severity.key==='outside')return {title:'Racha fuera del histórico',text:'La longitud de la racha supera la máxima racha perdedora observada en el Backtesting de referencia.'};
   if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='clean')return {title:'Mala racha con disciplina intacta',text:'La racha ha alcanzado el umbral definido como mala racha, pero la ejecución registrada mantiene la disciplina.'};
   if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='deviation')return {title:'Mala racha con desviaciones registradas',text:'La racha ha alcanzado el umbral definido y contiene al menos una desviación de disciplina registrada.'};
+  if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='partial')return {title:'Mala racha con disciplina parcial',text:'La racha ha alcanzado el umbral definido, aunque solo parte de la disciplina está informada.'};
+  if(streak.type==='loss'&&severity.key==='bad'&&streak.disciplineState==='unknown')return {title:'Mala racha sin disciplina informada',text:'La racha ha alcanzado el umbral definido, pero no hay datos de disciplina suficientes para valorar el proceso.'};
   if(streak.type==='loss'&&severity.key==='normal')return {title:'Racha perdedora dentro del rango',text:'Hay pérdidas consecutivas, pero todavía no alcanzan el criterio definido como mala racha.'};
   if(streak.type==='loss'&&severity.key==='unknown')return {title:'Racha perdedora sin criterio suficiente',text:'La secuencia está detectada, pero falta una referencia estadística suficiente o un umbral manual para llamarla mala racha.'};
   if(streak.disciplineState==='clean'){

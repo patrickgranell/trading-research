@@ -185,6 +185,25 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 .weekly-history-row small,.weekly-history-row time{font-size:10px;color:var(--muted)}
 @media(max-width:1200px){.weekly-kpis{grid-template-columns:repeat(3,1fr)}.weekly-confidence-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:800px){.weekly-picker-row{align-items:flex-start;flex-direction:column}.weekly-picker-row>div{text-align:left}.weekly-kpis,.weekly-confidence-grid,.weekly-review-fields{grid-template-columns:1fr}.weekly-review-actions{justify-content:flex-start;flex-wrap:wrap}}
+.journal-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;padding:4px;border:1px solid var(--border);border-radius:11px;background:var(--panel2);width:max-content;max-width:100%}
+.journal-subtabs .seg-btn{min-width:110px}
+.perspective-tabs{margin-top:-4px}
+.perspective-intro{margin-bottom:14px}
+.perspective-intro>p{margin:0;color:var(--muted);font-size:12px;line-height:1.65;max-width:980px}
+.trader-perspective-feed{display:grid;gap:12px}
+.trader-perspective-card{display:grid;gap:14px;padding:17px 18px;border:1px solid var(--border);border-radius:14px;background:var(--panel2)}
+.trader-perspective-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.trader-perspective-card header>div{display:grid;gap:4px}
+.trader-perspective-card header strong{font-size:14px}
+.trader-perspective-card header span{font-size:10px;color:var(--muted)}
+.trader-perspective-card blockquote{margin:0;padding:13px 15px;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;background:#0b1220;font-size:15px;line-height:1.55}
+.trader-perspective-context{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr);gap:10px}
+.trader-perspective-context>div{display:grid;gap:5px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:#0b1220}
+.trader-perspective-context span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.035em}
+.trader-perspective-context strong,.trader-perspective-context p{margin:0;font-size:12px;line-height:1.55}
+.emotional-dashboard-perspective blockquote{margin:0 0 10px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--panel2);border-radius:0 10px 10px 0;font-size:14px;line-height:1.5}
+.emotional-dashboard-perspective>p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+@media(max-width:800px){.journal-subtabs{width:100%}.journal-subtabs .seg-btn{flex:1;min-width:0}.trader-perspective-context{grid-template-columns:1fr}.trader-perspective-card header{flex-direction:column}}
 .emotional-dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;margin-bottom:16px}
 .emotional-dashboard-card{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:15px 16px}
 .emotional-dashboard-card>div{display:grid;gap:5px;min-width:0}

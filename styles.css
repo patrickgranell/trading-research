@@ -222,6 +222,24 @@ button,input,select,textarea{font:inherit} button{cursor:pointer}
 #perspective-text{min-height:110px;line-height:1.55}
 #perspective-application{min-height:90px;line-height:1.55}
 @media(max-width:800px){.perspective-config-meta{grid-template-columns:1fr}.perspective-config-card header{flex-direction:column}.perspective-config-card footer{justify-content:flex-start}}
+.perspective-focus-card{display:grid;justify-items:center;text-align:center;gap:14px;padding:42px 34px;border:1px solid var(--border);border-radius:16px;background:linear-gradient(180deg,var(--panel2),#0b1220)}
+.perspective-focus-label{font-size:10px;color:var(--muted);letter-spacing:.12em;font-weight:700}
+.perspective-focus-card blockquote{margin:0;max-width:1050px;font-size:clamp(24px,2.25vw,40px);line-height:1.35;font-weight:650;letter-spacing:-.02em}
+.perspective-focus-author{font-size:14px;font-weight:700}
+.perspective-focus-source{font-size:11px;color:var(--muted)}
+.perspective-focus-context{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:4px;padding:9px 12px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,.02)}
+.perspective-focus-context span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.perspective-focus-context strong{font-size:11px}
+.perspective-focus-actions{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.perspective-focus-actions>span{font-size:10px;color:var(--muted);min-width:44px}
+.dashboard-perspective-widget{display:grid;gap:12px;min-height:150px}
+.dashboard-perspective-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dashboard-perspective-top>span{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+.dashboard-perspective-widget blockquote{margin:0;font-size:16px;line-height:1.5;font-weight:650}
+.dashboard-perspective-widget footer{display:grid;gap:3px;margin-top:auto}
+.dashboard-perspective-widget footer strong{font-size:11px}
+.dashboard-perspective-widget footer small{font-size:10px;color:var(--muted);line-height:1.35}
+@media(max-width:800px){.perspective-focus-card{padding:28px 18px}.perspective-focus-card blockquote{font-size:24px}.perspective-focus-actions{width:100%}.perspective-focus-actions .btn{flex:1}.dashboard-perspective-widget blockquote{font-size:15px}}
 .emotional-dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px;margin-bottom:16px}
 .emotional-dashboard-card{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:15px 16px}
 .emotional-dashboard-card>div{display:grid;gap:5px;min-width:0}

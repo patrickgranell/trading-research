@@ -140,7 +140,7 @@ function trEnsurePlan(plan){
   const logs=Array.isArray(plan.emotionalLogs)?plan.emotionalLogs:[];
   plan.emotionalLogs=logs.map(row=>trNormalizeLog(row,plan));
   const reflections=Array.isArray(plan.emotionalReflections)?plan.emotionalReflections:[];
-  plan.emotionalReflections=reflections.map(row=>trNormalizeReflection(row,plan));
+  plan.emotionalReflections=reflections.filter(row=>!trText(row?.tradingPlanId)||trText(row?.tradingPlanId)===trText(plan.id)).map(row=>trNormalizeReflection(row,plan));
   return plan;
 }
 function trCoverage(operations,hasEntry){

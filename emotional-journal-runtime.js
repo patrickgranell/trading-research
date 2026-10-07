@@ -296,8 +296,8 @@ function trPerspectiveItems(plan=getCurrentPlan(),options={}){
 }
 function trPerspectiveConfigSection(plan){
   const rows=trPerspectiveItems(plan),active=rows.filter(x=>x.active!==false).length;
-  const cards=rows.length?rows.map(item=>'<article class="perspective-config-card '+(item.active===false?'inactive':'')+'"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source||'Sin fuente')+'</span></div><span class="badge '+(item.active===false?'':'win')+'">'+(item.active===false?'Inactiva':item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="perspective-config-meta"><div><span>Contexto</span><strong>'+esc(item.context||'—')+'</strong></div><div><span>Etiquetas</span><strong>'+esc((item.tags||[]).join(' · ')||'—')+'</strong></div></div><p>'+esc(item.application||'')+'</p><footer><button class="btn small" data-tr-onclick="trOpenPerspectiveConfig(\''+esc(item.id)+'\')">Editar</button><button class="btn small" data-tr-onclick="trTogglePerspectiveConfig(\''+esc(item.id)+'\')">'+(item.active===false?'Activar':'Desactivar')+'</button><button class="btn small danger" data-tr-onclick="trDeletePerspectiveConfig(\''+esc(item.id)+'\')">Eliminar</button></footer></article>').join(''):'<div class="empty">No hay perspectivas configuradas.</div>';
-  return '<div class="form-section perspective-config-section"><div class="panel-title"><div><h4>Perspectivas para psicología del trading</h4><div class="help">Biblioteca del Trading Plan disponible también desde Backtesting. El Diario y el Dashboard consumen las entradas activas según su contexto.</div></div><div class="actions"><span class="stable-pill">'+active+'/'+rows.length+' activas</span><button class="btn small" data-tr-onclick="trResetPerspectiveConfig()">Restaurar base</button><button class="btn primary small" data-tr-onclick="trOpenPerspectiveConfig()">+ Añadir perspectiva</button></div></div><div class="perspective-config-list">'+cards+'</div></div>';
+  const cards=rows.length?rows.map(item=>'<article class="perspective-config-card '+(item.active===false?'inactive':'')+'"><header><div><strong>'+esc(item.author)+'</strong><span>'+esc(item.source||'Sin fuente')+'</span></div><span class="badge '+(item.active===false?'':'win')+'">'+(item.active===false?'Inactiva':item.kind==='quote'?'Cita breve':'Paráfrasis')+'</span></header><blockquote>'+esc(item.text)+'</blockquote><div class="perspective-config-meta"><div><span>Contexto</span><strong>'+esc(item.context||'—')+'</strong></div><div><span>Etiquetas</span><strong>'+esc((item.tags||[]).join(' · ')||'—')+'</strong></div></div><p>'+esc(item.application||'')+'</p><footer><button class="btn small" data-perspective-id="'+esc(item.id)+'" data-tr-action-click="emotionalPerspectiveConfigEdit">Editar</button><button class="btn small" data-perspective-id="'+esc(item.id)+'" data-tr-action-click="emotionalPerspectiveConfigToggle">'+(item.active===false?'Activar':'Desactivar')+'</button><button class="btn small danger" data-perspective-id="'+esc(item.id)+'" data-tr-action-click="emotionalPerspectiveConfigDelete">Eliminar</button></footer></article>').join(''):'<div class="empty">No hay perspectivas configuradas.</div>';
+  return '<div class="form-section perspective-config-section"><div class="panel-title"><div><h4>Perspectivas para psicología del trading</h4><div class="help">Biblioteca del Trading Plan disponible también desde Backtesting. El Diario y el Dashboard consumen las entradas activas según su contexto.</div></div><div class="actions"><span class="stable-pill">'+active+'/'+rows.length+' activas</span><button class="btn small" data-tr-action-click="emotionalPerspectiveConfigReset">Restaurar base</button><button class="btn primary small" data-tr-action-click="emotionalPerspectiveConfigEdit">+ Añadir perspectiva</button></div></div><div class="perspective-config-list">'+cards+'</div></div>';
 }
 function trOpenPerspectiveConfig(id=''){
   const plan=getCurrentPlan();if(!plan)return;trEnsurePlan(plan);
@@ -313,7 +313,7 @@ function trOpenPerspectiveConfig(id=''){
     '<label class="field span2"><span>Etiquetas · separadas por comas</span><input id="perspective-tags" class="input" value="'+esc((item?.tags||[]).join(', '))+'"></label>'+
     '<label class="field"><span>Estado</span><select id="perspective-active" class="select"><option value="true" '+(item?.active!==false?'selected':'')+'>Activa</option><option value="false" '+(item?.active===false?'selected':'')+'>Inactiva</option></select></label>'+
     '</div><div class="notice">Usa “Cita breve verificada” solo para texto literal. Para ideas resumidas o traducidas, usa “Paráfrasis / reflexión”.</div></div></form>';
-  document.body.insertAdjacentHTML('beforeend',modalShell(item?'Editar perspectiva':'Nueva perspectiva',body,'<button class="btn" data-tr-onclick="closeModal()">Cancelar</button><button class="btn primary" data-tr-onclick="trSavePerspectiveConfig(\''+esc(item?.id||'')+'\')">Guardar perspectiva</button>'));
+  document.body.insertAdjacentHTML('beforeend',modalShell(item?'Editar perspectiva':'Nueva perspectiva',body,'<button class="btn" data-tr-action-click="closeModal">Cancelar</button><button class="btn primary" data-perspective-id="'+esc(item?.id||'')+'" data-tr-action-click="emotionalPerspectiveConfigSave">Guardar perspectiva</button>'));
 }
 function trSavePerspectiveConfig(id=''){
   const plan=getCurrentPlan();if(!plan)return;trEnsurePlan(plan);
@@ -328,8 +328,7 @@ function trTogglePerspectiveConfig(id){const plan=getCurrentPlan(),item=trPerspe
 function trDeletePerspectiveConfig(id){const plan=getCurrentPlan(),item=trPerspectiveItems(plan).find(x=>x.id===id);if(!plan||!item)return;if(!confirm('¿Eliminar esta perspectiva del Trading Plan?'))return;plan.emotionConfig.perspectives=trPerspectiveItems(plan).filter(x=>x.id!==id);plan.updatedAt=trNow();persist();render();}
 function trResetPerspectiveConfig(){const plan=getCurrentPlan();if(!plan)return;if(!confirm('¿Restaurar la biblioteca base de perspectivas?'))return;plan.emotionConfig.perspectives=trCopy(TR_DEFAULT_TRADER_PERSPECTIVES).map(trNormalizePerspective);plan.updatedAt=trNow();persist();render();}
 try{
-  if(typeof emotionConfigPanel==='function'&&!globalThis.__trPerspectiveConfigPatched){
-    globalThis.__trPerspectiveConfigPatched=true;
+  if(typeof emotionConfigPanel==='function'){
     const baseEmotionConfigPanel=emotionConfigPanel;
     emotionConfigPanel=function(plan){
       trEnsurePlan(plan);
@@ -338,17 +337,17 @@ try{
       if(globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)==='backtest')html=html.replace(/<button class="btn small" data-tr-onclick="navigate\('journal'\)">Abrir diario<\/button>/,'<span class="stable-pill">Backtesting · configuración disponible</span>');
       return html;
     };
-    globalThis.emotionConfigPanel=emotionConfigPanel;
-    if(typeof configTabs==='function'&&!globalThis.__trPerspectiveConfigTabsPatched){
-      globalThis.__trPerspectiveConfigTabsPatched=true;
+    if(typeof configTabs==='function'){
       const baseConfigTabsPerspective=configTabs;
       configTabs=function(plan){return baseConfigTabsPerspective(plan).replace('<strong>Emocional</strong><span>Estados y comportamientos</span>','<strong>Emocional</strong><span>Estados, perspectiva y comportamientos</span>');};
-      globalThis.configTabs=configTabs;
     }
   }
 }catch(e){console.warn('[Trading Research · perspectives config]',e);}
-Object.assign(window,{trOpenPerspectiveConfig,trSavePerspectiveConfig,trTogglePerspectiveConfig,trDeletePerspectiveConfig,trResetPerspectiveConfig});
-
+trEarlyActions.emotionalPerspectiveConfigEdit=function(){return trOpenPerspectiveConfig(String(this.dataset.perspectiveId||''));};
+trEarlyActions.emotionalPerspectiveConfigSave=function(){return trSavePerspectiveConfig(String(this.dataset.perspectiveId||''));};
+trEarlyActions.emotionalPerspectiveConfigToggle=function(){return trTogglePerspectiveConfig(String(this.dataset.perspectiveId||''));};
+trEarlyActions.emotionalPerspectiveConfigDelete=function(){return trDeletePerspectiveConfig(String(this.dataset.perspectiveId||''));};
+trEarlyActions.emotionalPerspectiveConfigReset=function(){return trResetPerspectiveConfig();};
 trEarlyActions.emotionalSessionOpenStart=function(){trSessionEditor(null,'start');};
 trEarlyActions.emotionalSessionEditStart=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'start');};
 trEarlyActions.emotionalSessionClose=function(){const s=trSessionById(this.dataset.sessionId);if(s)trSessionEditor(s,'end');};

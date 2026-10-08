@@ -102,136 +102,52 @@ need(consumers.length===1&&consumers[0]==='structural-runtime.js',
   `Consumidores de ${CONTRACT} inesperados: ${consumers.join(', ')||'ninguno'}.`);
 
 
-/* Browser-independent regression: the Blocks Unit and Commission groups both
- * contain Ticks/US$, so repeated MutationObserver callbacks must reach a fixed point. */
+/* Regression for the Units/Commission duplicate-label DOM observer freeze. */
 function verifyBlocksMetricSwitchIdempotence(){
   const runtime=runtimeSources.get('render-closure-runtime.js')||'';
   const start=runtime.indexOf('function trMetricUnitReorderButtons(');
   const end=runtime.indexOf('\nfunction trMetricUnitReorderSelects(',start);
-  need(start>=0&&end>start,'No se encontró la implementación real del reordenador de unidades.');
+  need(start>=0&&end>start,'No se encontró el reordenador de unidades.');
   if(start<0||end<=start)return;
-
-  function fixture(spec){
-    let mutations=0;
-    const children=spec.map(([tagName,textContent])=>({tagName,textContent}));
-    const switcher={children,insertBefore(mark,target){
-      const index=this.children.indexOf(target);
-      if(index<0)throw Error('Cannot insert before missing child');
-      this.children.splice(index,0,mark);mutations++;
-      mark.replaceWith=(frag)=>{
-        const at=this.children.indexOf(mark);
-        if(at<0)throw Error('Missing marker');
-        this.children.splice(at,1,...frag.nodes);mutations++;
-      };
+  const code=runtime.slice(start,end)+'\ntrMetricUnitReorderButtons;';
+  function runScenario(spec){
+    let mutationCount=0;
+    const switcher={children:spec.map(([tagName,textContent])=>({tagName,textContent})),insertBefore(mark,target){
+      this.children.splice(this.children.indexOf(target),0,mark);mutationCount++;
+      mark.replaceWith=(frag)=>{this.children.splice(this.children.indexOf(mark),1,...frag.nodes);mutationCount++;};
     }};
     const document={
-      querySelectorAll(selector){return selector==='.metric-switch'?[switcher]:[];},
-      createComment(){return {tagName:'#comment',textContent:''};},
-      createDocumentFragment(){return {nodes:[],appendChild(node){
-        const index=switcher.children.indexOf(node);
-        if(index<0)throw Error('Missing node while moving to fragment');
-        switcher.children.splice(index,1);this.nodes.push(node);mutations++;
-      }};}
+      querySelectorAll:q=>q==='.metric-switch'?[switcher]:[],
+      createComment:()=>({tagName:'#comment'}),
+      createDocumentFragment:()=>({nodes:[],appendChild(node){
+        const pos=switcher.children.indexOf(node);
+        if(pos<0)throw Error('Moving missing node');
+        switcher.children.splice(pos,1);this.nodes.push(node);mutationCount++;
+      }})
     };
-    return {switcher,document,mutations:()=>mutations};
+    const fn=vm.runInNewContext(code,{document},{timeout:1000});
+    const commission=spec.some(([tag,value])=>tag==='SPAN'&&value==='Comisión')?switcher.children.slice(-2):[];
+    fn();
+    const firstSeparator=switcher.children.findIndex(n=>n.tagName==='I');
+    const segment=firstSeparator<0?switcher.children:switcher.children.slice(0,firstSeparator);
+    const unit=segment.filter(n=>n.tagName==='BUTTON').map(n=>n.textContent).join('|');
+    need(unit==='Ticks|R|US$','La Unidad debe quedar en Ticks, R, US$.');
+    need(commission.every((n,i)=>n===switcher.children[switcher.children.length-2+i]),
+      'Se movió un botón de Comisión.');
+    const previous=mutationCount;
+    for(let i=0;i<10;i++)fn();
+    need(mutationCount===previous,'MutationObserver continúa mutando después de ordenar.');
   }
-
-  const spec=[
-    ['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US
-  console.error('Blocks View Presentation Boundary verification FAILED');
-  for(const item of fail)console.error(' - '+item);
-  process.exit(1);
-}
-console.log('Blocks View Presentation Boundary verification OK');
-console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct blocks() runtime calls: 0');
-console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
-console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
-console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
-console.log(' - Blocks route: contract-bound with late resolution');
-console.log(' - Blocks metric switches: isolated Unit/Commission and DOM-observer idempotence OK');
-await import('./verify-current-view-router-read-boundary.mjs');
-],
+  runScenario([
+    ['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US$'],
     ['I',''],['SPAN','Base'],['BUTTON','Bruto'],['BUTTON','Neto'],
-    ['I',''],['SPAN','Comisión'],['BUTTON','US
-  console.error('Blocks View Presentation Boundary verification FAILED');
-  for(const item of fail)console.error(' - '+item);
-  process.exit(1);
+    ['I',''],['SPAN','Comisión'],['BUTTON','US$'],['BUTTON','Ticks']
+  ]);
+  runScenario([['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US$']]);
 }
-console.log('Blocks View Presentation Boundary verification OK');
-console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct blocks() runtime calls: 0');
-console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
-console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
-console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
-console.log(' - Blocks route: contract-bound with late resolution');
-await import('./verify-current-view-router-read-boundary.mjs');
-],['BUTTON','Ticks']
-  ];
-  const test=fixture(spec),commissionNodes=test.switcher.children.slice(-2);
-  const fn=vm.runInNewContext(runtime.slice(start,end)+'\ntrMetricUnitReorderButtons;',{
-    document:test.document
-  },{timeout:1000});
-  fn();
-  const firstI=test.switcher.children.findIndex(el=>el.tagName==='I');
-  const unit=test.switcher.children.slice(0,firstI).filter(el=>el.tagName==='BUTTON').map(el=>el.textContent);
-  need(unit.join('|')==='Ticks|R|US
-  console.error('Blocks View Presentation Boundary verification FAILED');
-  for(const item of fail)console.error(' - '+item);
-  process.exit(1);
+try{verifyBlocksMetricSwitchIdempotence();}catch(e){
+  need(false,'Error en regresión Bloques: '+(e?.message||String(e)));
 }
-console.log('Blocks View Presentation Boundary verification OK');
-console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct blocks() runtime calls: 0');
-console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
-console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
-console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
-console.log(' - Blocks route: contract-bound with late resolution');
-await import('./verify-current-view-router-read-boundary.mjs');
-,'Bloques: selector Unidad no se ordenó correctamente.');
-  need(test.switcher.children.slice(-2).every((node,i)=>node===commissionNodes[i]),
-    'Bloques: el reordenador movió los botones del selector Comisión.');
-  const fixedAt=test.mutations();
-  for(let i=0;i<8;i++)fn(); // emulate repeated MutationObserver callbacks
-  need(test.mutations()===fixedAt,'Bloques: el reordenador vuelve a mutar el DOM (bucle de observación).');
-
-  const simple=fixture([['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US
-  console.error('Blocks View Presentation Boundary verification FAILED');
-  for(const item of fail)console.error(' - '+item);
-  process.exit(1);
-}
-console.log('Blocks View Presentation Boundary verification OK');
-console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct blocks() runtime calls: 0');
-console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
-console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
-console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
-console.log(' - Blocks route: contract-bound with late resolution');
-await import('./verify-current-view-router-read-boundary.mjs');
-]]);
-  const simpleFn=vm.runInNewContext(runtime.slice(start,end)+'\ntrMetricUnitReorderButtons;',{
-    document:simple.document
-  },{timeout:1000});
-  simpleFn();
-  need(simple.switcher.children.filter(el=>el.tagName==='BUTTON').map(el=>el.textContent).join('|')==='Ticks|R|US
-  console.error('Blocks View Presentation Boundary verification FAILED');
-  for(const item of fail)console.error(' - '+item);
-  process.exit(1);
-}
-console.log('Blocks View Presentation Boundary verification OK');
-console.log(` - legacy lexical runtime name-overlap proxy: ${overlap.length} <= ${MAX_RUNTIME_NAME_OVERLAP}`);
-console.log(' - executable direct blocks() runtime calls: 0');
-console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
-console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
-console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
-console.log(' - Blocks route: contract-bound with late resolution');
-await import('./verify-current-view-router-read-boundary.mjs');
-,
-    'El cambio rompió un selector simple sin Comisión.');
-  const simpleMutations=simple.mutations();simpleFn();
-  need(simple.mutations()===simpleMutations,'El selector simple no es idempotente.');
-}
-try{verifyBlocksMetricSwitchIdempotence();}catch(e){need(false,'La prueba de regresión Bloques falló: '+(e?.message||String(e)));}
 
 if(fail.length){
   console.error('Blocks View Presentation Boundary verification FAILED');
@@ -245,4 +161,5 @@ console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
 console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
 console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
 console.log(' - Blocks route: contract-bound with late resolution');
+console.log(' - Blocks metric Unit/Commission observer regression OK');
 await import('./verify-current-view-router-read-boundary.mjs');

@@ -28,12 +28,17 @@ function trRemoveRedundantPlanContext(root=document){
 const trMetricUnitInitializedViews=new Set();
 function trMetricUnitReorderButtons(root=document){
   for(const switcher of (root.querySelectorAll?.('.metric-switch')||[])){
-    const buttons=[...switcher.children].filter(x=>x.tagName==='BUTTON');
-    const byLabel=new Map(buttons.map(b=>[String(b.textContent||'').trim(),b]));
+    /* Only reorder the Unit segment (before the first <i> separator).
+     * Blocks also has Commission buttons labelled Ticks/US$, which must not move. */
+    const children=[...switcher.children];
+    const separatorIndex=children.findIndex(x=>x.tagName==='I');
+    const unitSegment=separatorIndex<0?children:children.slice(0,separatorIndex);
+    const unitButtons=unitSegment.filter(x=>x.tagName==='BUTTON');
+    const labelOf=b=>String(b.textContent||'').trim();
     const usdLabel='US\u0024',desired=['Ticks','R',usdLabel];
-    if(!desired.every(label=>byLabel.has(label)))continue;
-    const unitButtons=buttons.filter(b=>desired.includes(String(b.textContent||'').trim()));
-    if(unitButtons.map(b=>String(b.textContent||'').trim()).join('|')===desired.join('|'))continue;
+    if(unitButtons.length!==desired.length||!desired.every(label=>unitButtons.some(b=>labelOf(b)===label)))continue;
+    if(unitButtons.map(labelOf).join('|')===desired.join('|'))continue;
+    const byLabel=new Map(unitButtons.map(b=>[labelOf(b),b]));
     const first=unitButtons[0];if(!first)continue;
     const mark=document.createComment('tr-metric-unit-order');switcher.insertBefore(mark,first);
     const frag=document.createDocumentFragment();

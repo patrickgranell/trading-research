@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import vm from 'node:vm';
 import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
 
 const app=fs.readFileSync('app.js','utf8');
@@ -100,6 +101,54 @@ const consumers=runtimeFiles.filter(file=>(runtimeSources.get(file)||'').include
 need(consumers.length===1&&consumers[0]==='structural-runtime.js',
   `Consumidores de ${CONTRACT} inesperados: ${consumers.join(', ')||'ninguno'}.`);
 
+
+/* Regression for the Units/Commission duplicate-label DOM observer freeze. */
+function verifyBlocksMetricSwitchIdempotence(){
+  const runtime=runtimeSources.get('render-closure-runtime.js')||'';
+  const start=runtime.indexOf('function trMetricUnitReorderButtons(');
+  const end=runtime.indexOf('\nfunction trMetricUnitReorderSelects(',start);
+  need(start>=0&&end>start,'No se encontró el reordenador de unidades.');
+  if(start<0||end<=start)return;
+  const code=runtime.slice(start,end)+'\ntrMetricUnitReorderButtons;';
+  function runScenario(spec){
+    let mutationCount=0;
+    const switcher={children:spec.map(([tagName,textContent])=>({tagName,textContent})),insertBefore(mark,target){
+      this.children.splice(this.children.indexOf(target),0,mark);mutationCount++;
+      mark.replaceWith=(frag)=>{this.children.splice(this.children.indexOf(mark),1,...frag.nodes);mutationCount++;};
+    }};
+    const document={
+      querySelectorAll:q=>q==='.metric-switch'?[switcher]:[],
+      createComment:()=>({tagName:'#comment'}),
+      createDocumentFragment:()=>({nodes:[],appendChild(node){
+        const pos=switcher.children.indexOf(node);
+        if(pos<0)throw Error('Moving missing node');
+        switcher.children.splice(pos,1);this.nodes.push(node);mutationCount++;
+      }})
+    };
+    const fn=vm.runInNewContext(code,{document},{timeout:1000});
+    const commission=spec.some(([tag,value])=>tag==='SPAN'&&value==='Comisión')?switcher.children.slice(-2):[];
+    fn();
+    const firstSeparator=switcher.children.findIndex(n=>n.tagName==='I');
+    const segment=firstSeparator<0?switcher.children:switcher.children.slice(0,firstSeparator);
+    const unit=segment.filter(n=>n.tagName==='BUTTON').map(n=>n.textContent).join('|');
+    need(unit==='Ticks|R|US$','La Unidad debe quedar en Ticks, R, US$.');
+    need(commission.every((n,i)=>n===switcher.children[switcher.children.length-2+i]),
+      'Se movió un botón de Comisión.');
+    const previous=mutationCount;
+    for(let i=0;i<10;i++)fn();
+    need(mutationCount===previous,'MutationObserver continúa mutando después de ordenar.');
+  }
+  runScenario([
+    ['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US$'],
+    ['I',''],['SPAN','Base'],['BUTTON','Bruto'],['BUTTON','Neto'],
+    ['I',''],['SPAN','Comisión'],['BUTTON','US$'],['BUTTON','Ticks']
+  ]);
+  runScenario([['SPAN','Unidad'],['BUTTON','R'],['BUTTON','Ticks'],['BUTTON','US$']]);
+}
+try{verifyBlocksMetricSwitchIdempotence();}catch(e){
+  need(false,'Error en regresión Bloques: '+(e?.message||String(e)));
+}
+
 if(fail.length){
   console.error('Blocks View Presentation Boundary verification FAILED');
   for(const item of fail)console.error(' - '+item);
@@ -112,4 +161,5 @@ console.log(` - blocks() source sha256 frozen: ${blocksHash}`);
 console.log(` - blockCore() source sha256 frozen: ${blockCoreHash}`);
 console.log(` - calcMetricStats() source sha256 frozen: ${calcMetricStatsHash}`);
 console.log(' - Blocks route: contract-bound with late resolution');
+console.log(' - Blocks metric Unit/Commission observer regression OK');
 await import('./verify-current-view-router-read-boundary.mjs');

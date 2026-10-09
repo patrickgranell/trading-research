@@ -25,7 +25,8 @@ function filterEmotionalList(root){
  const current=field.selectedOptions?.[0];
  const chosen=current&&!current.hidden&&!current.disabled?current:rows.find(o=>!o.hidden&&!o.disabled);
  if(chosen){field.value=chosen.value;perspectiveIndex=Number(chosen.value);}
- const cards=[...root.querySelectorAll('.tr4-emotion-panel .perspective-config-card')];
+ const panel=root.closest('.tr4-emotion-panel')||root;
+ const cards=[...panel.querySelectorAll('.perspective-config-card')];
  if(cards.length)cards.forEach((card,index)=>card.hidden=index!==perspectiveIndex);
  // No re-render while typing: preserve caret, focus, and any unsaved editor content.
 }

@@ -138,7 +138,7 @@ if(typeof trJournalDriftRender==='function'){
 
 function decorateKpiEmpty(root,rows){
   if(rows.total>0&&rows.eligible>0)return;
-  const blocks=root.querySelectorAll('.analytics-kpis .kpi, .lab-kpis .kpi, .report-kpis .kpi');
+  const blocks=root.querySelectorAll('.analytics-kpis .kpi, .lab-kpis .kpi, .report-kpis .kpi, .dashboard-kpis-custom .kpi');
   for(const card of blocks){
     const title=card.querySelector('.label, span')?.textContent?.trim().toLowerCase()||'';
     if(!/win rate|expectancy|profit factor|drawdown|max dd|media ganadora|media perdedora|r media|resultado/.test(title))continue;
@@ -159,6 +159,11 @@ function decorate(){
   if(q){
     const rows=countRows(q.shown,q.unit,q.basis);
     if(['operations','lab','reports','report','dashboard'].includes(q.view))decorateKpiEmpty(root,rows);
+    if(q.view==='dashboard'){
+      const card=[...root.querySelectorAll('.dashboard-kpis-custom .kpi')].find(x=>x.querySelector('.label')?.textContent?.trim()==='Operaciones');
+      const sub=card?.querySelector('.sub');
+      if(sub)sub.textContent=rows.total+' registros · '+rows.eligible+' cerradas elegibles'+(rows.noClose?' · '+rows.noClose+' sin cierre':'');
+    }
     if(q.view==='operations'){
       const card=[...root.querySelectorAll('.analytics-kpis .kpi')].find(x=>x.querySelector('.label')?.textContent?.trim()==='Operaciones');
       if(card){

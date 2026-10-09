@@ -7,8 +7,8 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
 | 1 · Contexto/estadística | 001, 004, 014, 024 | TR-UX-024 integrada parcialmente en #103; resto de Lote 1 en #102 (WIP) | Requiere reconciliar 001/004/014, validar UI y aprobar cierre |
 | 2 · Configuración/recursos | 009, 010, 013 | Cerrado, validado y fusionado · PR #106 | Usuario aprobó; merge squash 9c77c9ea; CI PASS |
-| 3 · Navegación | 002, 006, 011, 017 | Implementación conjunta PR #107 (draft, sin merge) | CI/build CSP/Chromium; certificación del usuario pendiente |
-| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
+| 3 · Navegación | 002, 006, 011, 017 | Cerrado y fusionado · PR #107 + #108 | Certificación usuario, navegación vertical sin duplicaciones y Chromium PASS |
+| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Implementado en rama PR #111 · sin merge | Build/Chromium, comprobación final agrupada usuario pendiente |
 | 5 · Operaciones/planes/imágenes | 003, 007, 012, 023 | Sin iniciar | Pendiente |
 | 6 · Laboratorio/informes/Market Data | 008, 018, 019, 025 | Sin iniciar | Pendiente |
 
@@ -69,3 +69,18 @@ Se integra la mejora comprobada en PR #105 sobre el estado fusionado de Lotes 0,
 ## Lote 1 · integración parcial segura (#103)
 
 Se integra únicamente la recuperación de IC95 desde la misma muestra canónica cerrada y elegible (TR-UX-024), más el test de regresión n=123/124 y subconjuntos. El indicador ámbar y visualización de pendientes está ya integrado desde #105; no se copian estilos de resultado obsoletos ni se duplican. **No se declara cerrado el Lote 1**: TR-UX-001/004/014 y reconciliación de denominadores/estados requieren implementación y prueba coherente; #102 sigue siendo un prototipo de presentación con frágiles mutaciones posrender, no apto para merge directo.
+
+
+## Lote 4 — Sistema visual, controles y accesibilidad · PR #111 (sin merge)
+
+**Fuente**: fichas TR-UX-005/015/016/020/021/022 y evidencias E02, E04, E13, E22, E30, E35, E42, E44–46, E54/56, E76/77, E79/83/85. Dependencias de Lotes 0, 2, 3 verificadas.
+
+- **005**: escala de lectura compartida (13px texto de definiciones, 12px ayudas); botones info con min-hit 30px; segmented sin wrap por opción; Research Grid bajo n no pierde opacidad, resalta advertencia con borde; referencia Inicio 0 → fin resultado + periodo junto a curvas Bloques; respeta SVG y cálculos. Temas claro/oscuro.
+- **015**: nombres de acciones más precisos. Limpiar dataset es un enlace a calidad, no elimina datos: se presenta como Revisar calidad del dataset. Guardar plantilla = Guardar en biblioteca. Actualizar referencia de comparación del TP y Borrar historial de cambios del TP distinguen mantenimiento. Confirmaciones existentes de eliminación intactas.
+- **016**: corregidos nombres accesibles de eliminar × en registros y diálogos, intercambio Research Grid, ayudas específicas de Máx. ganancia y pérdida sin confundir con media, ayuda junto al cero en límites de riesgo, contador seleccionado de galería sincronizado con Comparar. Corregido caso de aviso de plan nuevo al editar, cuando exista en el diálogo. Campo sin label recupera nombre de etiqueta visual. Códigos guardados intactos.
+- **020**: navegación local de Preguntas del TP, Categorías del TP y Biblioteca de perspectivas global, sin repetir el menú lateral. Búsqueda por texto de autor/contexto y filtro de estado; selector + una ficha de las existentes, con todos los botones originales. Cambiar de subvista no persiste ni reestructura elementos. Las citas originales mantienen su diseño destacado en Diario y Dashboard.
+- **021**: Glosario abre solo un modal. El detalle Qué significa/Para qué sirve se inserta dentro del mismo, conserva DOM del buscador, valor, filtros y posición. Volver a resultados sin nueva consulta. Ayudas directas conservadas.
+- **022**: foco al primer campo/título, aria-labelledby, navegación Tab/Shift+Tab confinada al diálogo activo, retorno al disparador si existe, Escape cierra ayuda de lectura, al cancelar un formulario modificado se confirma descarte; caso sin modificaciones se cierra directamente. El motor original de guardado y restauración no se altera.
+- **Arquitectura**: un adaptador Lote 4 y tokens CSS; ningún cambio en app.js ni en schemas/persistencia, estadísticas, operaciones, Nube o backup. Fuente/producción empaquetadas dentro del script CSP-hashed existente.
+- **Pruebas**: verificación bundle CSP 19 hashes, verificación sintaxis, CI web, Chromium con navegación emocional, galería, detalle Glosario sin apilar, teclado/glosario y Nueva operación (descartar cambios), claro/oscuro; suite de regresión Lotes 0/2/3 y Operaciones.
+- **Pendiente**: certificación funcional única del usuario; sin autorización no se fusiona. Bloques a Operativa y visibilidad del menú por entorno fuera de alcance.

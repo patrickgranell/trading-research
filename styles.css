@@ -1215,3 +1215,63 @@ html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last
 .sidebar .nav-organized>.tr3-main-destination[hidden]{display:none!important}
 .sidebar .nav-organized .tr3-execution-destination .nav-child-label{font-weight:700}
 html[data-theme="light"] .sidebar .nav-organized>.tr3-main-destination.active{background:#e1ecfa;color:#153661}
+
+
+/* Astra Lote 4 · shared typography, touch targets and dialog patterns. */
+:root{--l4-reading:13px;--l4-subtext:12px;--l4-hit:30px}
+.info-dot{min-width:var(--l4-hit)!important;min-height:var(--l4-hit)!important;width:var(--l4-hit)!important;height:var(--l4-hit)!important;line-height:1!important;vertical-align:middle}
+.context-help-modal p,.glossary-list>button span,.l4-glossary-detail p{font-size:var(--l4-reading)!important;line-height:1.55!important}
+.context-help-modal,.l4-glossary-detail{max-width:75ch}
+.modal-head h3{font-size:clamp(15px,1.25vw,18px);line-height:1.35}
+.modal .field>span,.modal .field>label{font-size:var(--l4-subtext);line-height:1.35}
+.modal .help,.modal .field small{font-size:var(--l4-subtext);line-height:1.45}
+.modal .modal-body{overflow-y:auto}
+.modal [role=tab],.l4-emotional-tab,.l4-field .input,.l4-field .select{min-height:32px}
+.segmented,.metric-segmented,.pill-switch,.block-unit-switch{display:flex;flex-wrap:wrap;gap:3px;max-width:100%}
+.segmented>button,.metric-segmented>button,.pill-switch>button,.block-unit-switch>button{white-space:nowrap;word-break:normal;flex:0 0 auto}
+.research-grid .heatmap-cell .value,.research-grid td strong,.research-heatmap .value{font-size:13px;font-weight:750;text-shadow:0 1px 1px rgba(0,0,0,.17)}
+.research-grid .heatmap-cell small,.research-heatmap small{font-size:12px;font-weight:650}
+html[data-theme="light"] .research-grid .heatmap-cell .value,html[data-theme="light"] .research-heatmap .value{color:#132c43}
+html[data-theme="light"] .research-grid .heatmap-cell small,html[data-theme="light"] .research-heatmap small{color:#273c55}
+.l4-emotional-tabs{display:flex;gap:6px;flex-wrap:wrap;border:1px solid var(--border);padding:6px;margin:14px 0 9px;border-radius:10px;background:var(--panel)}
+.l4-emotional-tab{font:inherit;font-size:12px;font-weight:650;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text);padding:9px 13px;cursor:pointer}
+.l4-emotional-tab:hover{background:var(--panel2)}
+.l4-emotional-tab.is-current{border-color:var(--accent);background:rgba(110,168,254,.17);font-weight:800}
+.l4-emotional-panel[hidden],.perspective-config-card[hidden],.l4-glossary-detail[hidden]{display:none!important}
+.l4-emotional-scope{color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px}
+.l4-perspective-controls{display:grid;grid-template-columns:minmax(180px,1.5fr) minmax(120px,.7fr) minmax(180px,1.2fr);gap:10px;align-items:end;margin:12px 0}
+.l4-field{display:grid;gap:5px;min-width:0;color:var(--text);font-size:12px;font-weight:650}
+.l4-perspective-hits{color:var(--muted);font-size:12px;min-height:1em;margin:5px 0 12px}
+.l4-glossary-detail{padding:16px 8px;max-width:75ch}
+.l4-glossary-detail h4{font-size:16px;margin:16px 0 8px}
+.l4-glossary-detail h5{font-size:13px;margin:17px 0 6px}
+.l4-glossary-detail>button{margin-bottom:9px}
+html[data-theme="light"] .l4-emotional-tab.is-current{background:#dfeafa;color:#15365e;border-color:#5b82b6}
+@media(max-width:850px){.l4-perspective-controls{grid-template-columns:1fr 1fr}.l4-perspective-controls .l4-field:first-child{grid-column:1/-1}}
+@media(max-width:530px){.l4-perspective-controls{grid-template-columns:1fr}}
+
+/* E77: low-n cells convey the caveat with a border, never unreadable opacity. */
+.research-grid-module .research-cell.low-sample{opacity:1;outline:1px dashed rgba(140,159,192,.65);outline-offset:-2px}
+.research-grid-module .research-cell.low-sample:hover{opacity:1}
+.research-grid-module .research-cell strong{font-size:13px;font-weight:800;color:var(--text)}
+.research-grid-module .research-cell small{font-size:12px;font-weight:650;color:var(--text)}
+html[data-theme="light"] .research-grid-module .research-cell strong,html[data-theme="light"] .research-grid-module .research-cell small{color:#192d41}
+.block-spark:has(.l4-curve-scale){height:auto;min-height:101px;display:grid;gap:3px;align-content:start}
+.block-spark:has(.l4-curve-scale) .spark-svg{height:68px}
+.l4-curve-scale{display:block;color:#bccde5;font-size:11px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+html[data-theme="light"] .l4-curve-scale{color:#354c69}
+.l4-zero-hint{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+
+/* Text on composite heatmap fills uses a consistent opaque-enough reading
+   surface; saturation of the underlying value cell is unchanged. */
+.research-grid-module .research-cell:not(.empty-cell) strong,
+.research-grid-module .research-cell:not(.empty-cell) small{
+ display:block;width:max-content;max-width:100%;margin:2px auto;
+ padding:2px 5px;border-radius:4px;
+ color:#f9fbff!important;background:rgba(3,12,26,.84);
+ text-shadow:none
+}
+html[data-theme="light"] .research-grid-module .research-cell:not(.empty-cell) strong,
+html[data-theme="light"] .research-grid-module .research-cell:not(.empty-cell) small{
+ color:#172b44!important;background:rgba(255,255,255,.91)
+}

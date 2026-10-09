@@ -35,7 +35,7 @@ function planEnvironment(p){return p&&envContract?.planEnvironment?.(p)||'unclas
 function isBacktest(p){return planEnvironment(p)==='backtest';}
 function sampleForView(){
   const view=String(typeof currentView!=='undefined'?currentView:'');
-  if(['plans','config','gallery','builder','tpbuilder'].includes(view))return null;
+  if(!['operations','lab','reports','report','blocks','dashboard','calendar','journalstreaks','journaldrift','journaldashboard'].includes(view))return null;
   const all=typeof currentOps==='function'?currentOps():[];
   let shown=all,unit='r',basis='gross',filterNote='';
   try{
@@ -49,8 +49,9 @@ function sampleForView(){
       shown=v313ReportOps();unit=reportsViewState.unit;basis=reportsViewState.basis;
       filterNote=typeof v313ReportScopeLabel==='function'?v313ReportScopeLabel(getCurrentPlan()):'Alcance del informe';
     }else if(view==='blocks'){unit=blockViewState.unit;basis=blockViewState.basis;}
-    else if(view==='calendar'&&typeof calendarViewState!=='undefined'){unit=calendarViewState.unit||unit;basis=calendarViewState.basis||basis;}
+    else if(view==='calendar'&&typeof calendarState!=='undefined'){unit=calendarState.unit||unit;basis=calendarState.basis||basis;filterNote='Mes '+(Number(calendarState.month)+1)+'/'+calendarState.year;}
     else if(view==='dashboard'&&typeof dashboardViewState!=='undefined'){unit=dashboardViewState.unit||unit;}
+    else if(view.startsWith('journal')&&typeof trJournalResultUnit!=='undefined'){unit=trJournalResultUnit;basis='net';}
   }catch(e){return null;}
   return {view,all,shown,unit,basis,filterNote};
 }

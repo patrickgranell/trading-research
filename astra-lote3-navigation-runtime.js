@@ -111,6 +111,7 @@ function returnLink(view,fragment){
 }
 function decorate(view,html){
  if(typeof document==='undefined'||typeof html!=='string'||!html)return html;
+ if(emotional.includes(view)&&env(plan())==='backtest')return html;
  const template=document.createElement('template');template.innerHTML=html;
  caption(view,template.content);
  resultLabels(template.content);
@@ -138,7 +139,7 @@ function syncSidebar(){
    if(label&&compactName[item.dataset.view])label.textContent=compactName[item.dataset.view];
  });
  nav.querySelectorAll('.nav-group').forEach(g=>{
-   const active=[...g.querySelectorAll('.nav-child')].some(b=>b.dataset.view===current);
+   const active=(g.dataset.navGroup==='emotional'&&emotional.includes(current))||[...g.querySelectorAll('.nav-child')].some(b=>b.dataset.view===current);
    g.classList.toggle('tr3-ancestor',active);
    const toggle=g.querySelector(':scope > .nav-group-toggle');
    if(toggle){if(active)toggle.setAttribute('data-tr-parent-of-active','');else toggle.removeAttribute('data-tr-parent-of-active');}

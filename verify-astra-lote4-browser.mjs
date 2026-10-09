@@ -46,12 +46,12 @@ const inspect=[
  'output.operation={start:document.activeElement.id,role:opDialog.getAttribute("role"),labelledBy:opDialog.getAttribute("aria-labelledby")};',
  'entry.value="2026-10-09 19:05";let dismissed=0;window.confirm=()=>false;cancel.addEventListener("click",()=>{dismissed++;closeModal();});cancel.click();output.operation.protected=!!opDialog.isConnected&&dismissed===0;',
  'window.confirm=()=>true;cancel.click();await new Promise(done=>setTimeout(done,1));output.operation.confirmed=dismissed===1&&!opDialog.isConnected;output.operation.restore=document.activeElement.id;',
- 'for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;output[theme]=getComputedStyle(scope.querySelector(".l4-emotional-tab.is-current")).backgroundColor;}',
+ 'for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;output[theme]=getComputedStyle(scope.querySelector(".l4-emotional-tab.is-current")).backgroundColor;const t=document.querySelector(".research-grid-module .research-cell");const val=t.querySelector("strong");output[theme+"Heat"]={cellOpacity:getComputedStyle(t).opacity,color:getComputedStyle(val).color,bg:getComputedStyle(val).backgroundColor};}',
  'output.hit=getComputedStyle(document.querySelector(".info-dot")).minHeight;',
  'document.body.setAttribute("data-l4-result",encodeURIComponent(JSON.stringify(output)));',
  '})().catch(e=>document.body.setAttribute("data-l4-error",String(e.stack||e)));'
 ].join('\n');
-const page='<!doctype html><html><head><meta charset="utf-8"><style>'+css+'</style></head><body><button id="launcher">Abrir</button><button id="outside">Detrás</button><button class="info-dot">i</button><div id="view"></div><script>'+prep+'</script><script>'+runtime+'</script><script>'+inspect+'</script></body></html>';
+const page='<!doctype html><html><head><meta charset="utf-8"><style>'+css+'</style></head><body><button id="launcher">Abrir</button><button id="outside">Detrás</button><button class="info-dot">i</button><div class="research-grid-module"><table><tbody><tr><td class="research-cell low-sample" style="background:rgba(120,210,155,.75)"><strong>+25.4t</strong><small>n=2 · baja</small></td></tr></tbody></table></div><div id="view"></div><script>'+prep+'</script><script>'+runtime+'</script><script>'+inspect+'</script></body></html>';
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'tr-l4-'));
 try{
  const file=path.join(dir,'l4.html');fs.writeFileSync(file,page);
@@ -70,6 +70,9 @@ try{
  assert(o.closed.closed===1&&o.closed.focus==='launcher'&&o.closed.backdrops===0);
  assert(o.operation.start==='new-op-entry'&&o.operation.role==='dialog'&&o.operation.labelledBy);
  assert(o.operation.protected&&o.operation.confirmed&&o.operation.restore==='launcher');
+ assert(o.darkHeat.cellOpacity==='1'&&o.lightHeat.cellOpacity==='1');
+ assert(o.darkHeat.color==='rgb(249, 251, 255)'&&o.lightHeat.color==='rgb(23, 43, 68)');
+ assert(o.darkHeat.bg!==o.lightHeat.bg);
  assert(o.dark!==o.light&&o.hit==='30px');
  console.log('Astra Lote4 Chromium PASS: tabs, one perspective, glossary, focus/Tab/Escape and themes');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

@@ -21,7 +21,7 @@ const view=()=>window.TradingResearchCurrentViewReadContract?.current?.()||'';
 const tab=()=>window.TradingResearchConfigTabStateContract?.current?.()||'';
 let emotionalTab='questions',pickedPerspective='',perspectiveQuery='',perspectiveState='all';
 const DIALOG_FOCUSABLE='button:not([disabled]):not([hidden]),[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
-let opener=null,dialog=null,initialFields='',wasDialogOpen=false,glossaryList=null,glossaryFocus=null;
+let opener=null,dialog=null,initialFields='',hadUserChange=false,wasDialogOpen=false,glossaryList=null,glossaryFocus=null;
 const content=v=>typeof v==='string'?v:'';
 function filters(container){
  const list=container.querySelector('.perspective-config-list');
@@ -253,7 +253,7 @@ function autofocus(){
  const active=topDialog();
  if(!active)return;
  if(active===dialog)return;
- dialog=active;wasDialogOpen=true;decorateDialog(active);initialFields=JSON.stringify(dialogFields(active));
+ dialog=active;wasDialogOpen=true;decorateDialog(active);initialFields=JSON.stringify(dialogFields(active));hadUserChange=false;
  const header=active.querySelector('.modal-head h3');
  if(header){if(!header.id)header.id='l4-dialog-title';active.setAttribute('aria-labelledby',header.id);header.tabIndex=-1;}
  const target=active.querySelector('input:not([type=hidden]),textarea,select')||active.querySelector('button:not([disabled])')||header;
@@ -263,7 +263,7 @@ function closeReadOnly(){
  if(typeof closeModal==='function'){closeModal();return true;}
  const backdrop=document.querySelector('.modal-backdrop');backdrop?.remove();return !!backdrop;
 }
-function changedForm(){return dialog&&JSON.stringify(dialogFields(dialog))!==initialFields;}
+function changedForm(){return dialog&&hadUserChange&&JSON.stringify(dialogFields(dialog))!==initialFields;}
 function glossaryOpenNow(){return !!dialog?.querySelector('#glossary-list,.context-help-modal');}
 document.addEventListener('click',e=>{
  const trigger=e.target.closest('button,a');if(!trigger)return;
@@ -277,6 +277,8 @@ document.addEventListener('click',e=>{
  }
  if(!active)opener=trigger;
 },true);
+document.addEventListener('input',e=>{if(dialog?.contains(e.target))hadUserChange=true;},true);
+document.addEventListener('change',e=>{if(dialog?.contains(e.target))hadUserChange=true;},true);
 document.addEventListener('keydown',e=>{
  const active=topDialog();if(!active)return;
  if(e.key==='Escape'&&glossaryOpenNow()){
@@ -299,7 +301,7 @@ const observer=new MutationObserver(()=>{
  const active=topDialog();
  if(active){autofocus();return;}
  if(wasDialogOpen){
-  wasDialogOpen=false;dialog=null;glossaryFocus=null;glossaryList=null;initialFields='';
+  wasDialogOpen=false;dialog=null;glossaryFocus=null;glossaryList=null;initialFields='';hadUserChange=false;
   const target=opener;opener=null;
   if(target?.isConnected&&!target.disabled)target.focus({preventScroll:true});
  }

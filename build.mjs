@@ -108,6 +108,8 @@ for(const [file,attr,src] of replacements){
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
   h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
+// Lote 4 UI reuses the final CSP-hashed script.
+h=h.replace(/<script\s+src=["']astra-lote4-accessibility-runtime\.js["']\s*><\/script>/i,'');
 // UX-104: operations register lives in the same final CSP-hashed script.
 h=h.replace(/<script\s+src=["']operations-register-presentation-runtime\.js["']\s*><\/script>/i,'');
 // Lote 3 navigation adapter lives in the same CSP-hashed final script.

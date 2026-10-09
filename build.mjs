@@ -76,7 +76,7 @@ const replacements=[
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
   ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],
   ['blob-lifecycle-runtime.js','data-tr-blob-lifecycle-runtime',bundledSource('blob-lifecycle-runtime.js')],
-  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')],
+  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')+'\n'+bundledScript('astra-lote4-accessibility-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
 const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];

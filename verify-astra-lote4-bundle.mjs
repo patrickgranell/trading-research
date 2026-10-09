@@ -9,7 +9,7 @@ const opener='<script data-tr-render-closure-runtime="'+v+'">';
 const from=html.indexOf(opener),to=html.indexOf('</script>',from);
 assert(from>=0&&to>from,'Astra Lote 4 CSP-bundled script missing');
 const script=html.slice(from+opener.length,to);
-for(const symbol of ['TradingResearchAstraLote4Dialog','trHelpDetailHtml','glossaryBackToResults','tr4-perspective-workspace','tr4-emotional-tabs','emotionalConfigQuestionSelect']){
+for(const symbol of ['TradingResearchAstraLote4Dialog','trHelpDetailHtml','glossary-detail','tr4-perspective-workspace','tr4-emotional-tabs','emotionalConfigQuestionSelect']){
  assert(html.includes(symbol),'Missing Lote 4 feature: '+symbol);
 }
 assert(script.includes('TradingResearchAstraLote4Dialog'),'Lote 4 accessibility boundary must remain in final bundled script');

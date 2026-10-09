@@ -8,8 +8,8 @@ const args=a=>encodeURIComponent(JSON.stringify(a));
 let emotionalTab='questions',questionIndex=0,perspectiveIndex=0,libraryQuery='',libraryStatus='all';
 const modeNames={questions:'Preguntas',categories:'Categorías',library:'Biblioteca de perspectivas'};
 actions.tr4EmotionTab=t=>{if(!modeNames[t])return;emotionalTab=t;window.render();};
-actions.tr4EmotionQuestion=function(){questionIndex=Math.max(0,Number(this.value)||0);window.render();};
-actions.tr4EmotionPerspective=function(){perspectiveIndex=Math.max(0,Number(this.value)||0);window.render();};
+actions.tr4EmotionQuestion=function(){questionIndex=Math.max(0,Number(this.value)||0);const rows=[...this.closest('.session-taxonomy-section')?.querySelectorAll('.session-question-list>.form-grid')||[]];rows.forEach((row,i)=>row.hidden=i!==questionIndex);};
+actions.tr4EmotionPerspective=function(){perspectiveIndex=Math.max(0,Number(this.value)||0);const cards=[...this.closest('.tr4-emotion-panel')?.querySelectorAll('.perspective-config-card')||[]];cards.forEach((card,i)=>card.hidden=i!==perspectiveIndex);};
 actions.tr4EmotionSearch=function(){
  libraryQuery=String(this.value||'').toLocaleLowerCase('es');
  filterEmotionalList(document);

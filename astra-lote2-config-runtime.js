@@ -227,6 +227,7 @@ function renderConfig(markup){
  if(current==='data')dataView(content);
  if(current==='cloud')cloudView(content);
  content.prepend(scopeNotice(scope,current,p));
+ if(current==='emotional')globalThis.TradingResearchAstraLote4?.decorateEmotional?.(content);
  return frame.innerHTML;
 }
 globalThis.TradingResearchAstraLote2=Object.freeze({renderConfig,groups,scopeFor:groupFor});

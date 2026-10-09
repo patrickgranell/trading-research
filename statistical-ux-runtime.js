@@ -77,6 +77,13 @@ pageHead=function(...args){
   return bar?output.replace('</p></div><div class="actions">','</p>'+bar+'</div><div class="actions">'):output;
 };
 
+/* Confidence's temporal split must use the SAME eligible universe as
+   the overall interval, otherwise a pending trade shifts the 50/50 cut. */
+const trUXConfidenceSplitBase=confidenceSplit;
+confidenceSplit=function(ops,unit,basis){
+  const eligible=trCanonicalOperationRows(ops,o=>opMetricValue(o,unit,basis)).map(x=>x.op);
+  return trUXConfidenceSplitBase(eligible,unit,basis);
+};
 const prevConfidenceMaturity=confidenceMaturity;
 confidenceMaturity=function(n){return n===0?{key:'unknown',label:'Sin operaciones',detail:'No existe muestra evaluable'}:prevConfidenceMaturity(n);};
 const prevConfidenceEvidence=confidenceEvidence;

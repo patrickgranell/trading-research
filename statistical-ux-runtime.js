@@ -264,6 +264,19 @@ function decorate(){
       const c=countRows(source,'r','net'),first=original.querySelector('div:first-child');
       first?.insertAdjacentHTML('beforeend','<small class="tr-ux-plan-n">'+c.total+' registros · '+c.closed+' cerradas · '+c.eligible+' elegibles</small>');
     }
+    // The builder's first metric is the eligible n. Pending-only subsets
+    // still appear in its operation preview, never as zero-valued edge.
+    for(const summary of builder.querySelectorAll('.grid.two .plan-metrics')){
+      const rows=summary.querySelectorAll(':scope>div');
+      const first=rows[0];
+      const key=first?.querySelector('span');
+      if(key)key.textContent='Trades elegibles';
+      const n=Number(first?.querySelector('strong')?.textContent);
+      if(n===0)for(const item of [...rows].slice(1)){
+        const val=item.querySelector('strong');
+        if(val){val.textContent='—';val.classList.remove('positive','negative');}
+      }
+    }
     // Derived universe has distinct source and filter counts; do not infer its
     // drawdown from the unfiltered row order.
     const cards=builder.querySelectorAll('.grid.two .plan-metrics');

@@ -71,14 +71,9 @@ assert.equal(ctx.calcMetricStats(missing).n,0,'Pending trades cannot count in KP
 assert.equal(ctx.calcMetricStats(zero).n,1,'Closed flat with finite zero is a real observation');
 assert.equal(ctx.calcMetricStats([sample5[0],missing[0]]).n,1,'Exclude pending from confidence denominator');
 assert.equal(ctx.calcMetricStats([op('other',12,{plan:'other'})].filter(o=>o.tradingPlanId==='tp')).n,0);
-const unordered=[{...op('c',-1),entryDate:'2026-01-03T12:00'},{...op('a',1),entryDate:'2026-01-01T12:00'},{...op('b',-2),entryDate:'2026-01-02T12:00'}];
 vm.runInContext(ux,ctx);
 ctx.state.operations=[...sample123,op('pending',-.16,{closed:false})];
 const api=ctx.window.TradingResearchStatisticalUX;
-ctx.currentView='tpbuilder';
-assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-3,'Builder chronological drawdown must use time order');
-ctx.currentView='operations';
-assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-2,'Outside the Builder the canonical estimator remains unchanged');
 
 const counts=api.countRows(ctx.state.operations);
 assert.equal(counts.total,124);assert.equal(counts.closed,123);assert.equal(counts.eligible,123);
@@ -109,7 +104,8 @@ const mature=ctx.confidenceMaturity(0);
 assert.equal(mature.label,'Sin operaciones');
 const nonfinite=ctx.confidenceEvidence({n:3,ciLow95:NaN,ciHigh95:NaN});
 assert(nonfinite.detail.includes('no finito'),'Do not wrongly claim n<2 when n=3');
-assert(ux.includes("currentView==='tpbuilder'")&&ux.includes('[...ops].sort(v3194CompareOps)'),
-  'Constructor source/filtered samples must use matching chronological inputs for Max DD');
+assert(app.includes('return calcMetricStatsV3194Base(v3194ChronologicalOps(ops),unit,basis);'),
+  'V31.9.4 already enforces chronology for all calcMetricStats callers: no new DD formula required');
+assert(!ux.includes('trUXCalcMetricBase'),'Lote 1 must not add a duplicate chronological calculation override');
 assert(ux.includes('No hay desviaciones de disciplina en las últimas 5 operaciones.')&&ux.includes('Sin observaciones suficientes'),'Drift empty-state guard');
-console.log('PASS 001 / 004 / 014 / 024: denominators, pending, flat 0, empty, filters, backtesting, nonfinite and DD order');
+console.log('PASS 001 / 004 / 014 / 024: denominators, pending, flat 0, empty, filters, backtesting, nonfinite and existing DD chronology');

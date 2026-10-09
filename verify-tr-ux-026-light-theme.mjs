@@ -71,12 +71,14 @@ for(const kind of ['positive','negative']){
   const composed=blend(tint,'#ffffff',.42); // strongest tint for --calendar-strength=1
   check('Calendario · '+kind+' day metadata over '+composed,calendarInk,composed);
 }
-const amber=value(light+'.rp-level-label.exit','fill');
-check('Market Data · Salida annotation on white',amber,'#ffffff');
-check('Market Data · Salida annotation on chart off-white',amber,'#eef3fa');
-assert.equal(value(light+'.rp-exit-level','stroke'),amber,'Exit marker and exit label must match');
-assert(rule(light+'.rp-exit,\n'+light+'.be-actual').includes('fill:'+amber),'Execution & Best Exit markers must share the amber color');
-assert(rule(light+'.rp-legend i.exit,\n'+light+'.be-legend i.be-actual-dot').includes('background:'+amber),'Exit legends must share the amber color');
+const amber=value('.rp-level-label.exit','fill');
+check('Market Data · Salida annotation on white · both themes',amber,'#ffffff');
+check('Market Data · Salida annotation on chart off-white · both themes',amber,'#eef3fa');
+assert.equal(value('.rp-exit-level','stroke'),amber,'Exit marker and exit label must match in both themes');
+assert.equal(value('.rp-exit-level','opacity'),'1','Exit line must be fully visible on white');
+assert(rule('.rp-exit,\n.be-actual').includes('fill:'+amber),'Execution & Best Exit markers must share the amber color in both themes');
+assert(rule('.rp-legend i.exit,\n.be-legend i.be-actual-dot').includes('background:'+amber),'Exit legends must share the amber color in both themes');
+assert(!css.slice(css.indexOf('/* ===== TR-UX-026')).includes('html[data-theme="light"] .rp-exit-level'),'Salida must not be restricted to light theme');
 assert(rule(light+'.perspective-focus-actions .btn:focus-visible,\n'+light+'.block-detail-head .btn:focus-visible').includes('outline:2px solid'),'Keyboard focus must remain visible');
 // Light-only changes: existing dark surfaces/semantic classes remain authored.
 const baseCss=css.slice(0,css.indexOf('/* ===== TR-UX-026'));

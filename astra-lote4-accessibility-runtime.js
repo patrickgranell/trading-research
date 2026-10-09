@@ -183,6 +183,12 @@ function normalizeContent(root){
    if(label==='Limpiar dataset')b.textContent='Revisar calidad del dataset';
    if(label==='Actualizar referencia'&&(b.dataset.trActionClick||'').includes('researchResetBaseline'))b.textContent='Actualizar referencia de comparación';
  }
+ const compareCount=root.querySelector('#galleryCompareCount')?.textContent?.trim();
+ if(compareCount!==undefined){
+   const selection=[...root.querySelectorAll('.gallery-kpis .kpi')].find(x=>x.querySelector('.label')?.textContent.trim()==='Seleccionadas');
+   const shown=selection?.querySelector('.value');
+   if(shown&&shown.textContent.trim()!==compareCount)shown.textContent=compareCount;
+ }
  for(const cell of root.querySelectorAll('.block-card')){
    const button=[...cell.querySelectorAll('button')].find(x=>/^Detalle \+ 20 operaciones$/.test(x.textContent.trim()));
    if(!button)continue;

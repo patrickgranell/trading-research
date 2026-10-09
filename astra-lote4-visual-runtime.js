@@ -119,12 +119,26 @@ function textFixes(root,current){
  for(const item of root.querySelectorAll('.block-actions button')){
   if(/Detalle \+ 20 operaciones/.test(item.textContent.trim()))item.textContent='Abrir detalle del bloque';
  }
- const activeCount=root.querySelectorAll('.selected-plan-card,.selected[data-plan-id]').length;
- const comparison=[...root.querySelectorAll('button')].find(b=>/^Comparar \(\d+\)/.test(b.textContent.trim()));
- const indicator=root.querySelector('[data-selected-count]');
- if(indicator&&comparison){
-  const n=Number(comparison.textContent.match(/\d+/)?.[0]);if(Number.isFinite(n))indicator.textContent=String(n);
+ const compareNumber=Number(root.querySelector('#galleryCompareCount')?.textContent);
+ const selectedCard=[...root.querySelectorAll('.gallery-kpis .kpi')].find(card=>card.querySelector('.label')?.textContent?.trim()==='Seleccionadas');
+ if(selectedCard&&Number.isFinite(compareNumber)){
+  const count=selectedCard.querySelector('.value,strong');
+  if(count)count.textContent=String(compareNumber);
  }
+ root.querySelectorAll('.research-swap').forEach(b=>b.setAttribute('aria-label','Intercambiar filas y columnas del Research Grid'));
+ root.querySelectorAll('.kpi .value,.block-core-grid strong,.research-grid td strong,.research-grid td .value').forEach(el=>{
+  const value=el.textContent.trim();
+  if(/^\+\+\d/.test(value))el.textContent=value.replace(/^\+\+/, '+');
+ });
+ root.querySelectorAll('.block-card .block-spark').forEach(spark=>{
+  if(spark.querySelector('.l4-curve-scale'))return;
+  const card=spark.closest('.block-card');
+  const date=card?.querySelector('.block-dates')?.textContent?.trim()||'Periodo no registrado';
+  const result=[...card?.querySelectorAll('.block-core-grid>div')||[]].find(div=>div.querySelector('span')?.textContent.trim()==='Resultado')?.querySelector('strong')?.textContent?.trim()||'—';
+  const note=document.createElement('small');note.className='l4-curve-scale';
+  note.textContent='Inicio: 0 · Fin: '+result+' · '+date;
+  spark.append(note);
+ });
  root.querySelectorAll('.metric-segmented button,.segmented button,.pill-switch button').forEach(b=>{
   b.style.whiteSpace='nowrap';
  });
@@ -134,9 +148,7 @@ function textFixes(root,current){
   const label=el.closest('.field,.filter-field')?.querySelector(':scope > span,:scope > label');
   if(label?.textContent?.trim())el.setAttribute('aria-label',label.textContent.trim().slice(0,110));
  });
- if(current==='config'){
-  emotionalConfig(root);
- }
+ if(current==='config')emotionalConfig(root);
 }
 function decorate(current,markup){
  if(typeof markup!=='string'||typeof document==='undefined')return markup;
@@ -180,11 +192,42 @@ actions.trAstraL4GlossaryBack=function(){
 function isVisible(el){return el.getClientRects().length>0&&!el.closest('[hidden]');}
 function dialogFields(node){return [...node.querySelectorAll('input,textarea,select')].map(el=>[el.name,el.id,el.value,el.checked]);}
 function topDialog(){return [...document.querySelectorAll('.modal-backdrop .modal')].filter(isVisible).at(-1)||null;}
+function decorateDialog(active){
+ if(active.dataset.l4DialogEnhanced)return;
+ active.dataset.l4DialogEnhanced='true';
+ active.querySelectorAll('button').forEach(btn=>{
+  if(btn.textContent.trim()!=='×'||btn.getAttribute('aria-label'))return;
+  const item=btn.closest('.emotion-token,.config-row,.form-grid,.modal-body')?.querySelector('strong,span')?.textContent?.trim();
+  btn.setAttribute('aria-label','Eliminar '+(item||'elemento'));
+ });
+ for(const input of active.querySelectorAll('input,textarea,select')){
+  if(input.getAttribute('aria-label')||input.labels?.length||input.closest('label'))continue;
+  const field=input.closest('.field');
+  const title=field?.querySelector('span,label')?.textContent?.trim();
+  if(title)input.setAttribute('aria-label',title.slice(0,100));
+ }
+ const name=active.querySelector('.modal-head h3')?.textContent?.trim()||'';
+ if(name.startsWith('Editar Trading Plan')){
+  for(const notice of active.querySelectorAll('.notice')){
+   if(notice.textContent.includes('El nuevo plan empezará')){
+    notice.textContent='Estás editando este Trading Plan. Sus operaciones, taxonomías y vínculos existentes no se sustituyen al guardar.';
+   }
+  }
+ }
+ if(name.includes('Gestión de riesgo')){
+  for(const field of active.querySelectorAll('.field')){
+   if(/límite|pérdida|diari|semanal/i.test(field.querySelector('span')?.textContent||'')){
+    const helper=document.createElement('small');helper.className='l4-zero-hint';helper.textContent='0 = límite desactivado';
+    field.append(helper);
+   }
+  }
+ }
+}
 function autofocus(){
  const active=topDialog();
  if(!active)return;
  if(active===dialog)return;
- dialog=active;wasDialogOpen=true;initialFields=JSON.stringify(dialogFields(active));
+ dialog=active;wasDialogOpen=true;decorateDialog(active);initialFields=JSON.stringify(dialogFields(active));
  const header=active.querySelector('.modal-head h3');
  if(header){if(!header.id)header.id='l4-dialog-title';active.setAttribute('aria-labelledby',header.id);header.tabIndex=-1;}
  const target=active.querySelector('input:not([type=hidden]),textarea,select')||active.querySelector('button:not([disabled])')||header;
@@ -195,7 +238,7 @@ function closeReadOnly(){
  const backdrop=document.querySelector('.modal-backdrop');backdrop?.remove();return !!backdrop;
 }
 function changedForm(){return dialog&&JSON.stringify(dialogFields(dialog))!==initialFields;}
-function glossaryOpenNow(){return !!dialog?.querySelector('#glossary-list');}
+function glossaryOpenNow(){return !!dialog?.querySelector('#glossary-list,.context-help-modal');}
 document.addEventListener('click',e=>{
  const trigger=e.target.closest('button,a');if(!trigger)return;
  const active=topDialog();

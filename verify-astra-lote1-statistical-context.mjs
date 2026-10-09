@@ -20,6 +20,7 @@ const ctx=vm.createContext({
   calcStats:()=>({}),calcMetricStats:()=>({}),exitStats:()=>({}),
   opMetricValue:(o,unit='r',basis='gross')=>unit==='r'?(basis==='net'?o.netR:o.rMultiple):unit==='ticks'?o.resultTicks:o.pnlGross,
   pageHead:()=>'<div class="topbar"><div class="page-title"><h2>Panel</h2><p>Intro</p></div><div class="actions"></div></div>',
+  activePlanBanner:()=>'<div class="active-plan">Plan</div>',
   confidenceMaturity:n=>({label:n>100?'Muestra amplia':'Exploratoria'}),
   confidenceEvidence:s=>({label:s.n<2?'Sin estimar':'Calculada'}),
   analyzeDataQuality:(p,ops)=>({

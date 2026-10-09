@@ -1030,3 +1030,64 @@ html[data-theme="dark"] .be-kpis>div,html[data-theme="dark"] .be-controls>div,ht
 .tr-style-actions{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 @media (max-width:1100px){.tr-style-grid{grid-template-columns:1fr}}
 /* ===== END V31.21 ===== */
+
+/* ===== TR-UX-026 · Light theme surface/text contrast (Astra audit E80–E87) ===== */
+/* E80: Blocks detail (including neutral numbers) must be light surface + dark ink.
+   Keep the existing dark-theme surfaces and financial semantic colors unchanged. */
+html[data-theme="light"] .block-detail-head{
+  background:#eef4fa;
+  border-color:#bfcee0;
+  color:#172033;
+}
+html[data-theme="light"] .block-detail-head span{color:#4b5d77}
+html[data-theme="light"] .block-detail-kpis>div{
+  background:#f7f9fc;
+  border-color:#d3dfeb;
+  color:#172033;
+}
+html[data-theme="light"] .block-detail-kpis span{color:#4b5d77}
+html[data-theme="light"] .block-detail-kpis strong{color:#172033}
+/* E87: the whole quotation gradient, context and action bar use a matching
+   light palette; do not shrink or flatten the quotation itself. */
+html[data-theme="light"] .perspective-focus-card{
+  background:linear-gradient(180deg,#ffffff 0%,#eef3fa 100%);
+  border-color:#cad7e7;
+  color:#172033;
+}
+html[data-theme="light"] .perspective-focus-label,
+html[data-theme="light"] .perspective-focus-source,
+html[data-theme="light"] .perspective-focus-actions>span{color:#50647e}
+html[data-theme="light"] .perspective-focus-author,
+html[data-theme="light"] .perspective-focus-card blockquote{color:#172033}
+html[data-theme="light"] .perspective-focus-context{
+  background:#f7f9fc;
+  border-color:#cbd8e7;
+  color:#172033;
+}
+html[data-theme="light"] .perspective-focus-context span{color:#4b5d77}
+html[data-theme="light"] .perspective-focus-actions .btn.ghost{color:#263b56}
+html[data-theme="light"] .perspective-focus-actions .btn:focus-visible,
+html[data-theme="light"] .block-detail-head .btn:focus-visible{
+  outline:2px solid #245a9b;
+  outline-offset:2px;
+}
+/* E81/E84/E86: enabled captions should not look like disabled controls. */
+html[data-theme="light"] .field label,
+html[data-theme="light"] .filter-field>span{color:#415571}
+html[data-theme="light"] .kpi .sub,
+html[data-theme="light"] .review-card-head small,
+html[data-theme="light"] .review-body section>span,
+html[data-theme="light"] .review-card-foot{color:#4b5d77}
+html[data-theme="light"] .calendar-day-head span,
+html[data-theme="light"] .calendar-day-meta,
+html[data-theme="light"] .calendar-month-kpis span,
+html[data-theme="light"] .calendar-detail-kpis span{color:#425670}
+/* E85: use one darker amber for the same 'Salida' meaning across candle,
+   execution and Best Exit charts; original amber is retained in dark mode. */
+html[data-theme="light"] .rp-exit-level{stroke:#8a5300;opacity:1}
+html[data-theme="light"] .rp-level-label.exit{fill:#8a5300}
+html[data-theme="light"] .rp-exit,
+html[data-theme="light"] .be-actual{fill:#8a5300}
+html[data-theme="light"] .rp-legend i.exit,
+html[data-theme="light"] .be-legend i.be-actual-dot{background:#8a5300}
+/* ===== END TR-UX-026 ===== */

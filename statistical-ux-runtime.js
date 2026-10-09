@@ -319,6 +319,19 @@ function decorate(){
       if(metric&&marker)metric.insertAdjacentHTML('beforeend','<small class="tr-ux-plan-n">'+marker[1]+' registros filtrados · '+marker[2]+' excluidos por filtros</small>');
     }
   }
+  if(isBacktest(p)&&root.querySelector('.dq-hero')){
+    // Process coverage in Backtesting excludes the optional emotional diary
+    // from both the score and the visible process coverage.
+    const a=analyzeDataQuality(p,currentOps());
+    const process=a.coverage.filter(x=>['checklist','images'].includes(x.id)&&x.total>0);
+    const value=process.length?process.reduce((sum,x)=>sum+x.pct,0)/process.length:null;
+    for(const cell of root.querySelectorAll('.dq-hero-kpis>div')){
+      if(cell.querySelector('span')?.textContent?.trim()!=='Proceso')continue;
+      const strong=cell.querySelector('strong');
+      if(strong)strong.textContent=value===null?'—':value.toFixed(0)+'%';
+      strong?.setAttribute('title','Backtesting: diario emocional opcional; cálculo sobre checklist e imágenes');
+    }
+  }
   if(isBacktest(p)){
     root.querySelectorAll('.report-grid-3>div').forEach(el=>{
       if(el.querySelector('span')?.textContent?.trim()==='Diario emocional'){

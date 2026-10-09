@@ -107,7 +107,12 @@ calcMetricStats=function(ops,unit='r',basis='gross'){
   const commissions=included.reduce((a,o)=>a+(Number(o.commission)||0),0);
   const netUsd=included.reduce((a,o)=>a+(Number(o.pnlNet)||0),0);
   const grossUsd=included.reduce((a,o)=>a+(Number(o.pnlGross)||0),0);
-  return {
+  // TR-UX-024: V18 computed confidence intervals, but this canonical override
+  // dropped those fields after establishing the closed/finite eligible subset.
+  // Feed that SAME subset into the original t/Wilson estimator; do not
+  // recompute from all input operations or change the estimator's formula.
+  const confidence=confidenceFromValues(rows.map(x=>x.value),base.wins);
+  return {...confidence,
     n:base.n,wins:base.wins,losses:base.losses,flats:base.flats,winRate:base.winRate,
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,
     equity:base.equity,avgWin:base.avgWin,avgLoss:base.avgLoss,maxWin:base.maxWin,maxLoss:base.maxLoss,

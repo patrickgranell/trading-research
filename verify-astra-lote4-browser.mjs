@@ -39,6 +39,13 @@ const inspect=[
  'document.querySelector("#outside").focus();output.trapped=modal.contains(document.activeElement);',
  'search.focus();search.dispatchEvent(new KeyboardEvent("keydown",{bubbles:true,key:"Escape"}));await new Promise(done=>setTimeout(done,1));',
  'output.closed={closed,focus:document.activeElement.id,backdrops:document.querySelectorAll(".modal-backdrop").length};',
+ 'document.querySelector("#launcher").click();',
+ 'document.body.insertAdjacentHTML("beforeend", "<div class=\\"modal-backdrop\\"><div class=\\"modal\\" role=\\"dialog\\"><div class=\\"modal-head\\"><h3>Nueva operación</h3></div><div class=\\"modal-body\\"><form><label>Fecha/hora de entrada <input id=\\"new-op-entry\\" value=\\"2026-10-09 19:00\\"></label><label>Notas <textarea id=\\"new-op-notes\\"></textarea></label></form></div><div class=\\"modal-foot\\"><button id=\\"op-cancel\\">Cancelar</button><button id=\\"op-save\\">Guardar operación</button></div></div></div>");',
+ 'await new Promise(done=>setTimeout(done,1));',
+ 'const opDialog=document.querySelector(".modal"),entry=opDialog.querySelector("#new-op-entry"),cancel=opDialog.querySelector("#op-cancel");',
+ 'output.operation={start:document.activeElement.id,role:opDialog.getAttribute("role"),labelledBy:opDialog.getAttribute("aria-labelledby")};',
+ 'entry.value="2026-10-09 19:05";let dismissed=0;window.confirm=()=>false;cancel.addEventListener("click",()=>{dismissed++;closeModal();});cancel.click();output.operation.protected=!!opDialog.isConnected&&dismissed===0;',
+ 'window.confirm=()=>true;cancel.click();await new Promise(done=>setTimeout(done,1));output.operation.confirmed=dismissed===1&&!opDialog.isConnected;output.operation.restore=document.activeElement.id;',
  'for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;output[theme]=getComputedStyle(scope.querySelector(".l4-emotional-tab.is-current")).backgroundColor;}',
  'output.hit=getComputedStyle(document.querySelector(".info-dot")).minHeight;',
  'document.body.setAttribute("data-l4-result",encodeURIComponent(JSON.stringify(output)));',
@@ -61,6 +68,8 @@ try{
  assert(o.returned.search==='pérdidas'&&o.returned.focus==='pf');
  assert(o.tabFocus==='glossary-search'&&o.shiftFocus==='close'&&o.trapped);
  assert(o.closed.closed===1&&o.closed.focus==='launcher'&&o.closed.backdrops===0);
+ assert(o.operation.start==='new-op-entry'&&o.operation.role==='dialog'&&o.operation.labelledBy);
+ assert(o.operation.protected&&o.operation.confirmed&&o.operation.restore==='launcher');
  assert(o.dark!==o.light&&o.hit==='30px');
  console.log('Astra Lote4 Chromium PASS: tabs, one perspective, glossary, focus/Tab/Escape and themes');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

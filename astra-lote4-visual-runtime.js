@@ -229,6 +229,10 @@ function decorateDialog(active){
   if(title)input.setAttribute('aria-label',title.slice(0,100));
  }
  const name=active.querySelector('.modal-head h3')?.textContent?.trim()||'';
+ if(active.querySelector('#glossary-list,.context-help-modal')){
+  const note=active.querySelector('.modal-lock-note');
+  if(note){note.textContent='Ayuda · Esc para cerrar';note.title='Glosario y ayudas de lectura se pueden cerrar con Escape';}
+ }
  if(name.startsWith('Editar Trading Plan')){
   for(const notice of active.querySelectorAll('.notice')){
    if(notice.textContent.includes('El nuevo plan empezará')){
@@ -238,7 +242,7 @@ function decorateDialog(active){
  }
  if(name.includes('Gestión de riesgo')){
   for(const field of active.querySelectorAll('.field')){
-   if(/límite|pérdida|diari|semanal/i.test(field.querySelector('span')?.textContent||'')){
+   if(field.querySelector('input[type="number"]')&&/límite|pérdida|diari|semanal/i.test(field.querySelector('span')?.textContent||'')){
     const helper=document.createElement('small');helper.className='l4-zero-hint';helper.textContent='0 = límite desactivado';
     field.append(helper);
    }

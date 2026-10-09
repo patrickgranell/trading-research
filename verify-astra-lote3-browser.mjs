@@ -8,7 +8,7 @@ const setup=[
  'let current="dashboard",environment="live",calls=0,opsTouched=0;',
  'const p={id:"tp1",name:"prova1",version:"v1",validationGroupId:"group1"};',
  'const unchanged=JSON.stringify(p);',
- 'window.TradingResearchActions={navigate:v=>{current=v;window.render();}};',
+ 'window.TradingResearchActions={navigate:v=>{current=v;window.render();},openPlanModal:id=>{window.openedPlanId=id;}};',
  'window.TradingResearchCurrentViewReadContract={current:()=>current};',
  'window.TradingResearchPlanReadContract={current:()=>p};',
  'window.TradingResearchOperationSemanticsContract={planEnvironment:()=>environment};',
@@ -56,7 +56,8 @@ const inspect=[
  'out.hasReturn=out.plans.html.includes("Volver a Diario emocional");window.TradingResearchActions.trAstraL3Return();out.returned=current;',
  'out.confidence=take("journalconfidence");out.sessionsCta=out.confidence.html.includes("Abrir sesiones");',
  'environment="unclassified";out.session=take("journal");out.envCta=out.session.html.includes("Definir entorno");',
- 'environment="backtest";out.blocked=take("journal");environment="live";',
+ 'window.TradingResearchActions.trAstraL3Prerequisite("plans","environment");out.envOpened=window.openedPlanId===p.id&&current==="plans";window.TradingResearchActions.trAstraL3Return();out.envReturned=current;',
+'environment="backtest";out.blocked=take("journal");environment="live";',
  'out.sidebar={client:document.querySelector(".sidebar").clientWidth,scroll:document.querySelector(".sidebar").scrollWidth,nav:document.querySelector(".nav-organized").scrollWidth,navClient:document.querySelector(".nav-organized").clientWidth,appearance:!!document.querySelector(".tr3-appearance"),buttons:document.querySelectorAll(".sidebar .theme-btn").length};',
  'const themes={};for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;take("compliance");const b=document.querySelector(".tr3-execution-link.is-current");themes[theme]={background:getComputedStyle(b).backgroundColor,color:getComputedStyle(b).color};}',
  'out.themes=themes;out.unchanged=JSON.stringify(p)===unchanged;out.calls=calls;',
@@ -82,7 +83,7 @@ try{
  assert.equal(v.streaks.local.length,8);
  assert.equal(v.streaks.current,'Rachas');
  assert(v.streaksCta&&v.hasReturn&&v.returned==='journalstreaks');
- assert(v.sessionsCta&&v.envCta);
+ assert(v.sessionsCta&&v.envCta&&v.envOpened&&v.envReturned==='journal');
  assert(!v.blocked.html.includes('tr3-journal-nav'),'Backtesting must not gain emotional links');
  assert(v.sidebar.appearance&&v.sidebar.buttons===2);
  assert(v.sidebar.scroll<=v.sidebar.client+1,'Sidebar overflows horizontally');

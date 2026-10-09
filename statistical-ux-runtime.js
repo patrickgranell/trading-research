@@ -154,6 +154,10 @@ function decorate(){
   if(typeof document==='undefined')return;
   const root=document.getElementById('view');if(!root)return;
   const q=sampleForView(),p=getCurrentPlan();
+  // Operations can refresh metrics without re-rendering the page title.
+  // Keep the compact universe/unit/basis context in sync on partial refresh.
+  const currentBar=root.querySelector('.tr-analytic-context');
+  if(currentBar&&q){const html=contextMarkup();if(html)currentBar.outerHTML=html;}
   if(q){
     const rows=countRows(q.shown,q.unit,q.basis);
     if(['operations','lab','reports','report','dashboard'].includes(q.view))decorateKpiEmpty(root,rows);

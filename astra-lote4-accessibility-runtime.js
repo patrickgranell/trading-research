@@ -12,7 +12,7 @@ const visible=el=>el?.getClientRects?.().length&&!el.hidden&&!el.closest('[hidde
 const getCurrent=()=>[...document.querySelectorAll('.modal-backdrop')].filter(x=>x.isConnected).at(-1)||null;
 const text=el=>String(el?.textContent||'').trim();
 function formSnapshot(form){
- return [...form.querySelectorAll('input,select,textarea')].map(c=>{
+ return [...form.querySelectorAll('input:not([readonly]):not([disabled]),select:not([disabled]),textarea:not([readonly]):not([disabled])')].map(c=>{
   if(c.type==='file')return [c.id,c.files?.length||0,c.files?.[0]?.name||''];
   if(c.type==='checkbox'||c.type==='radio')return [c.id,c.checked];
   return [c.id,c.value];
@@ -36,6 +36,11 @@ function titleFor(backdrop){
   const protectedNote=modal.querySelector('.modal-lock-note');if(protectedNote)protectedNote.remove();
  }
  if(body?.querySelector('#operationForm'))modal.classList.add('tr4-operation');
+ if(body?.querySelector('#operationForm')){
+  const category=body.querySelector('#screenCategory'),caption=body.querySelector('#screenCaption');
+  if(category)category.setAttribute('aria-label','Categoría de las nuevas capturas');
+  if(caption)caption.setAttribute('aria-label','Nota común de las nuevas capturas');
+ }
  if(body?.querySelector('[id^="f-rm-"]'))modal.classList.add('tr4-risk');
  for(const field of modal.querySelectorAll('.field')){
   const label=field.querySelector(':scope > label:not([for])');

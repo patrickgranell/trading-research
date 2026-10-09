@@ -1261,3 +1261,17 @@ html[data-theme="light"] .research-grid-module .research-cell strong,html[data-t
 .l4-curve-scale{display:block;color:#bccde5;font-size:11px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
 html[data-theme="light"] .l4-curve-scale{color:#354c69}
 .l4-zero-hint{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+
+/* Text on composite heatmap fills uses a consistent opaque-enough reading
+   surface; saturation of the underlying value cell is unchanged. */
+.research-grid-module .research-cell:not(.empty-cell) strong,
+.research-grid-module .research-cell:not(.empty-cell) small{
+ display:block;width:max-content;max-width:100%;margin:2px auto;
+ padding:2px 5px;border-radius:4px;
+ color:#f9fbff!important;background:rgba(3,12,26,.84);
+ text-shadow:none
+}
+html[data-theme="light"] .research-grid-module .research-cell:not(.empty-cell) strong,
+html[data-theme="light"] .research-grid-module .research-cell:not(.empty-cell) small{
+ color:#172b44!important;background:rgba(255,255,255,.91)
+}

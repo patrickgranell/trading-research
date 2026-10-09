@@ -7,8 +7,8 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
 | 1 · Contexto/estadística | 001, 004, 014, 024 | TR-UX-024 integrada parcialmente en #103; resto de Lote 1 en #102 (WIP) | Requiere reconciliar 001/004/014, validar UI y aprobar cierre |
 | 2 · Configuración/recursos | 009, 010, 013 | Cerrado, validado y fusionado · PR #106 | Usuario aprobó; merge squash 9c77c9ea; CI PASS |
-| 3 · Navegación | 002, 006, 011, 017 | Implementación conjunta PR #107 (draft, sin merge) | CI/build CSP/Chromium; certificación del usuario pendiente |
-| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
+| 3 · Navegación | 002, 006, 011, 017 | Certificado y fusionado · PR #107 y corrección #108 | Usuario aprobó y autorizó merge; regresión CI PASS |
+| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Implementado en PR #109 (draft, sin merge) | Build/CSP/Chromium teclado y claro/oscuro; certificación conjunta del usuario pendiente |
 | 5 · Operaciones/planes/imágenes | 003, 007, 012, 023 | Sin iniciar | Pendiente |
 | 6 · Laboratorio/informes/Market Data | 008, 018, 019, 025 | Sin iniciar | Pendiente |
 
@@ -69,3 +69,19 @@ Se integra la mejora comprobada en PR #105 sobre el estado fusionado de Lotes 0,
 ## Lote 1 · integración parcial segura (#103)
 
 Se integra únicamente la recuperación de IC95 desde la misma muestra canónica cerrada y elegible (TR-UX-024), más el test de regresión n=123/124 y subconjuntos. El indicador ámbar y visualización de pendientes está ya integrado desde #105; no se copian estilos de resultado obsoletos ni se duplican. **No se declara cerrado el Lote 1**: TR-UX-001/004/014 y reconciliación de denominadores/estados requieren implementación y prueba coherente; #102 sigue siendo un prototipo de presentación con frágiles mutaciones posrender, no apto para merge directo.
+
+
+## Lote 4 — Sistema visual, controles y accesibilidad · PR #109 (sin merge)
+
+**Informe base:** Auditoria-Trading-Research.md, fichas TR-UX-005/015/016/020/021/022, evidencias E02/E04/E12/E13/E22/E26/E30/E31/E35/E36/E38/E42/E44/E45/E46/E54/E56/E58/E76/E77/E78/E79 y dependencias 001/004/009/011. Se preservan Lotes 0–3 y Operaciones.
+
+- **005:** escala de lectura compartida (texto 13–14 px; ayuda clicable 30 × 30 px), estados de foco/hover, controles segmentados sin partir etiquetas, Grid sin opacidad que desvanezca n/resultado y referencias de tiempo y valor acumulado junto a curva de Bloques. Sin cambios en fórmulas ni datos de Market Data.
+- **015:** etiquetas con objeto y alcance: «Actualizar referencia de comparación», «Abrir calidad de datos» en el botón que en realidad navegaba y «Ver detalle del bloque» para evitar anunciar 20 registros en bloque parcial. No se añaden confirmaciones a consultas.
+- **016:** asociación label-for a campos, nombre accesible de eliminar categoría/pregunta, ayuda 0=sin límite junto al control, edición TP no descrita como creación, ayuda no relacionada de Nube fuera, signo positivo duplicado corregido en métricas visibles. Se conservan IDs/valores históricos.
+- **020:** editor único de Configuración emocional con tres vistas locales (Preguntas/Categorías/Biblioteca), estado global de perspectivas explícito, búsqueda por autor/contexto, filtro de estado, selector de una sola ficha activa; acciones originales de editar/toggle/eliminar/guardar, sin mover recursos ni duplicar persistencia. Se conserva frase protagonista del Diario.
+- **021:** Glosario busca y abre detalle dentro del contenedor original; botón volver restablece búsqueda y posición. Se reutiliza contenido de openContextHelp, sin segunda biblioteca.
+- **022:** gestor compartido de diálogos que etiqueta título/ayuda, enfoca, limita Tab/Shift+Tab, devuelve foco al disparador, Escape en ayudas, confirmación de descarte solo cuando existe diferencia real entre campos del formulario. Nueva operación y Glosario probados en Chromium.
+
+**Pruebas internas:** prebuild, producción CSP-hashed sin nuevo script externo y 19 hashes; Chromium de tabs emocionales, búsqueda/estado, Glosario un modal y vuelta, foco inicial, trap Tab, Escape, descarte protegido, retorno al disparador y temas claro/oscuro. Regresiones Lotes 0/2/3 y UX-104. No hay restauraciones ni cambios en datos reales.
+
+**Pendiente:** certificación visual/funcional conjunta del usuario sobre preview; sin merge hasta autorización. Mover Bloques y visibilidad del menú por entorno quedan expresamente fuera.

@@ -1215,3 +1215,73 @@ html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last
 .sidebar .nav-organized>.tr3-main-destination[hidden]{display:none!important}
 .sidebar .nav-organized .tr3-execution-destination .nav-child-label{font-weight:700}
 html[data-theme="light"] .sidebar .nav-organized>.tr3-main-destination.active{background:#e1ecfa;color:#153661}
+
+/* ===== ASTRA LOTE 4 · Shared type, control & focus scale (005/015/016/020/021/022) ===== */
+:root{--tr4-readable:13px;--tr4-detail:14px;--tr4-control-min:32px;--tr4-control-radius:9px}
+.panel-title h3,.card.panel h3{line-height:1.35}
+.card.panel .help,.notice,.empty,.modal .help{font-size:var(--tr4-readable);line-height:1.55}
+.modal .modal-body{font-size:var(--tr4-readable);line-height:1.55}
+.modal .modal-body p,.context-help-modal p{line-height:1.65}
+.glossary-list button span{font-size:var(--tr4-detail);line-height:1.55;overflow-wrap:anywhere}
+.glossary-list button strong{font-size:var(--tr4-detail);line-height:1.4}
+.context-help-summary,.context-help-modal>div p{font-size:var(--tr4-detail);line-height:1.6}
+.info-dot{width:30px;height:30px;min-width:30px;min-height:30px;font-size:13px;touch-action:manipulation;border-color:var(--border)}
+.metric-switch,.unit-switch,.segmented-control,.research-grid-controls{min-width:0;max-width:100%}
+.metric-switch button,.metric-switch .btn,.unit-switch button,.segmented-control button,
+.research-grid-controls button,.research-grid-controls select{white-space:nowrap;min-width:max-content}
+.metric-switch,.unit-switch,.segmented-control{flex-wrap:wrap;gap:6px}
+.metric-switch button,.unit-switch button{min-height:var(--tr4-control-min);border-radius:var(--tr4-control-radius)}
+.modal .field>label,.modal .field>span,.research-grid-controls label>span{font-size:var(--tr4-readable);line-height:1.4}
+.modal :is(input,textarea,select):focus-visible,.modal button:focus-visible,
+.glossary-list button:focus-visible,.info-dot:focus-visible,.research-cell:focus-visible,
+.tr4-emotional-nav button:focus-visible,.tr4-perspective-filters :is(input,select):focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px
+}
+/* Research Grid low-N is still data: dim the surface, never the labels. */
+.research-grid-table .research-cell strong{font-size:var(--tr4-detail);font-weight:850;color:var(--text);text-shadow:none}
+.research-grid-table .research-cell small{font-size:12px;font-weight:750;color:var(--text);opacity:1}
+.research-grid-table .research-cell.low-sample{opacity:1;background-image:linear-gradient(0deg,rgba(114,123,135,.14),rgba(114,123,135,.14))}
+.research-grid-table .research-cell.empty-cell{opacity:1}
+html[data-theme="light"] .research-grid-table .research-cell strong{color:#17283e}
+html[data-theme="light"] .research-grid-table .research-cell small{color:#22354e}
+html[data-theme="dark"] .research-grid-table .research-cell strong,
+html[data-theme="dark"] .research-grid-table .research-cell small{color:#f2f6ff}
+/* Preserve every heatmap cell's value and palette; provide enough separation. */
+.research-grid-table td.research-cell{border:1px solid color-mix(in srgb,var(--border) 68%,transparent)}
+/* Block curves and tabs: show units and axes with larger, stable supporting labels. */
+.block-card .block-top small,.block-detail-head small,.block-detail-kpis span{font-size:12px;line-height:1.45}
+.block-card .block-actions button{min-height:32px}
+/* Emotional configuration is ONE editor with three local panes; fields keep original IDs/actions. */
+.tr4-emotional-nav{display:flex;gap:7px;flex-wrap:wrap;padding:6px;background:var(--panel);border:1px solid var(--border);border-radius:11px;margin:14px 0}
+.tr4-emotional-tab{font-size:12.5px;min-height:34px;background:transparent;border:1px solid transparent;color:var(--muted);padding:7px 11px;border-radius:8px;cursor:pointer}
+.tr4-emotional-tab.is-current{background:rgba(110,168,254,.17);border-color:var(--accent);color:var(--text);font-weight:800}
+.tr4-emotional-tab:hover{background:var(--panel2);color:var(--text)}
+.tr4-scope{margin:3px 0 13px;padding:10px 13px;border:1px solid var(--border);border-radius:9px;font-size:12px;line-height:1.55;color:var(--muted)}
+.tr4-scope strong{color:var(--text)}
+.tr4-perspective-filters{display:grid;grid-template-columns:minmax(180px,1.2fr) minmax(150px,.6fr) minmax(210px,1.4fr);gap:10px;margin:8px 0 12px}
+.tr4-perspective-filters>label{display:grid;gap:5px;font-size:12px;color:var(--muted)}
+.perspective-config-list>.perspective-config-card[hidden],[data-tr4-pane][hidden]{display:none!important}
+.tr4-perspective-empty{font-size:12px;color:var(--muted);padding:0 4px}
+.tr4-perspective-filters :is(input,select){width:100%;min-width:0;min-height:34px}
+.session-taxonomy-section .session-question-list{max-width:100%}
+.session-taxonomy-section .form-grid{align-items:end}
+.confidence-taxonomy-lock,.tr4-risk-inline{font-size:12px;line-height:1.5;color:var(--muted)}
+.tr4-risk-inline{display:block;margin:5px 0 0}
+.modal .form-grid .field{min-width:0}
+.modal .form-grid .field :is(input,select,textarea){max-width:100%}
+/* One glossary modal: hide search/results while reading inline detail. */
+.tr4-glossary .modal-body{min-height:230px}
+.tr4-glossary #tr4-glossary-detail{display:grid;gap:12px}
+.tr4-glossary #tr4-glossary-detail h4{margin:0;font-size:16px;line-height:1.45}
+.tr4-glossary #tr4-glossary-detail>button{justify-self:start}
+.tr4-glossary .glossary-search[hidden],.tr4-glossary .glossary-list[hidden]{display:none!important}
+.tr4-glossary .context-help-modal{font-size:var(--tr4-detail)}
+html[data-theme="light"] .tr4-emotional-tab.is-current{background:#e5efff;color:#173759}
+html[data-theme="light"] .tr4-scope{background:#f7faff;border-color:#cbd9e9;color:#425975}
+html[data-theme="light"] .info-dot{color:#2d496a;border-color:#899bb0}
+@media(max-width:870px){.tr4-perspective-filters{grid-template-columns:1fr 1fr}.tr4-perspective-filters>label:first-child{grid-column:span 2}}
+@media(max-width:580px){.tr4-perspective-filters{grid-template-columns:1fr}.tr4-perspective-filters>label:first-child{grid-column:span 1}.glossary-list{grid-template-columns:1fr}}
+
+.tr4-block-curve-caption{display:flex;flex-wrap:wrap;gap:5px;margin:4px 1px 9px;color:var(--muted);font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums}
+html[data-theme="light"] .tr4-block-curve-caption{color:#425674}
+/* ===== END ASTRA LOTE 4 ===== */

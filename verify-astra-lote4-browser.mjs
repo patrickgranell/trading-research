@@ -23,7 +23,7 @@ try{
  assert(a.libraryShown&&a.libraryCardsVisible===1);assert.deepEqual(a.filtered,['Autor B']);assert(a.noMatches);
  assert(a.searchFocused&&a.searchAccessible==='Buscar conceptos en el glosario');
  assert(a.stacks===1&&a.hasDefinitions&&a.detailFocused&&a.returnedResults&&a.glossaryClosed&&a.openerFocus);
- assert(a.operationFocus&&a.formLabel&&a.dialogName&&a.trapped&&a.prevented&&a.operationClosed&&a.operationReturned);
+ assert(a.operationFocus&&a.formLabel&&a.dialogName&&a.trapped&&a.prevented&&a.operationClosed&&a.operationReturned,'Modal state '+JSON.stringify({operationFocus:a.operationFocus,formLabel:a.formLabel,dialogName:a.dialogName,trapped:a.trapped,prevented:a.prevented,operationClosed:a.operationClosed,operationReturned:a.operationReturned}));
  assert(a.unchanged);assert.deepEqual(a.infoSize,{dark:'30px',light:'30px'});
  console.log('Astra Lote 4 Chromium PASS: emotional filters, glossary single modal, focus/Tab/Escape, dirty edit protection and light/dark');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

@@ -6,6 +6,7 @@ import {spawnSync} from 'node:child_process';
 const runtime=fs.readFileSync('astra-lote4-accessibility-runtime.js','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const setup=`
+window.onerror=(message,url,line,column)=>{document.documentElement.setAttribute('data-js-error',String(message)+' at '+line+':'+column);};
 window.render=()=>{};window.TradingResearchActions={
  closeModal(){document.querySelector('.modal-backdrop')?.remove();},
  openContextHelp(id){document.body.insertAdjacentHTML('beforeend','<div class="modal-backdrop"><div class="modal"><section class="context-help-modal"><p>Qué significa</p><p>Para qué sirve</p></section></div></div>');}
@@ -58,7 +59,7 @@ try{
  assert(chrome,'Chromium unavailable');
  const r=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--virtual-time-budget=1500','--dump-dom','file://'+file],{encoding:'utf8',timeout:25000,maxBuffer:3000000});
  assert.equal(r.status,0,r.stderr?.slice(-900));
- const encoded=r.stdout.match(/data-smoke="([^"]+)"/)?.[1];assert(encoded,'Browser snapshot missing: '+r.stdout.slice(-3500)+' STDERR '+r.stderr?.slice(-1000));
+ const encoded=r.stdout.match(/data-smoke="([^"]+)"/)?.[1];assert(encoded,'Browser snapshot missing, JS error: '+(r.stdout.match(/data-js-error="([^"]+)"/)?.[1]||'no script error')+' DOM: '+r.stdout.slice(0,1400));
  const obj=JSON.parse(decodeURIComponent(encoded));
  assert.equal(obj.questions,3);assert.equal(obj.questionVisible,1);assert.equal(obj.shown,1);assert(obj.match,'Search must reveal matching author editor');
  assert.equal(obj.modalCount,1);assert(obj.detail&&obj.recovered);

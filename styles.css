@@ -1203,3 +1203,15 @@ html[data-theme="light"] .tr3-journal-link.is-current,html[data-theme="light"] .
 .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#ffd16a;background:rgba(255,198,65,.13);border-color:#ba8a30;font-weight:800}
 html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{color:#855300}
 html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#754700;background:#fff2ce;border-color:#b47c15}
+
+/* Lote 3 follow-up: vertical modules, horizontal internal pages.
+   A single Diario emocional entry replaces its five duplicate sidebar pages;
+   Revisión de ejecución replaces the sibling Cumplimiento/Errores sidebar pages. */
+.sidebar .nav-organized>.tr3-main-destination{
+  justify-content:flex-start;min-width:0;gap:9px;
+  padding:9px 10px;border-radius:9px;font-weight:750;
+}
+.sidebar .nav-organized>.tr3-main-destination .tr3-main-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .nav-organized>.tr3-main-destination[hidden]{display:none!important}
+.sidebar .nav-organized .tr3-execution-destination .nav-child-label{font-weight:700}
+html[data-theme="light"] .sidebar .nav-organized>.tr3-main-destination.active{background:#e1ecfa;color:#153661}

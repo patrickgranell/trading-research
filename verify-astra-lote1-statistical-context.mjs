@@ -45,6 +45,9 @@ const ctx=vm.createContext({
 });
 ctx.globalThis=ctx;
 vm.runInContext(calc,ctx);
+// Mirror V18's legacy confidence-bearing calculator (using the actual
+// estimator extracted verbatim above) before the canonical runtime overrides it.
+vm.runInContext("calcMetricStats=function(ops,unit='r',basis='gross'){ const vals=ops.map(o=>opMetricValue(o,unit,basis)); return {...confidenceFromValues(vals,vals.filter(v=>v>0).length)}; };",ctx);
 vm.runInContext(canonical,ctx);
 function op(id,r,{closed=true,env='backtest',plan='tp',hidden=false}={}){
  return {id,tradingPlanId:plan,entryDate:'2026-01-01T12:00',exitDate:closed?'2026-01-01T12:05':'',

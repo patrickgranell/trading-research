@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {consolidateLegacyRenderAssignments} from './render-source-transform.mjs';
+const app=fs.readFileSync('app.js','utf8');
+const transform=consolidateLegacyRenderAssignments(app,{expected:12});
+const rendered=transform.source;
+assert(rendered.includes('trAstraL2ConfigBase=config'),'Lote 2 wrapper missing from build boundary');
+assert(rendered.includes("render:config"),'Original config view contract not preserved');
+assert(rendered.includes('globalThis.TradingResearchAstraLote2?.renderConfig?.(original)??original'),'Non-invasive config projection not installed');
+const html=fs.readFileSync('dist/index.html','utf8');
+const version=JSON.parse(fs.readFileSync('package.json','utf8')).version;
+const script='<script data-tr-render-closure-runtime="'+version+'">';
+const start=html.indexOf(script),end=html.indexOf('</script>',start);
+assert(start>=0&&end>start,'Final bundled hashed runtime missing');
+const runtime=html.slice(start+script.length,end);
+for(const s of ['TradingResearchAstraLote2','trAstraL2Tab','trAstraL2Tax','trAstraL2Edit','renderConfig','taxonomyView','galleryView','dataView'])
+  assert(runtime.includes(s),'Missing Lote 2 runtime in production bundle: '+s);
+assert(!/src=["']astra-lote2-config-runtime\.js["']/.test(html),'No unbundled Lote 2 external script');
+const manifest=JSON.parse(fs.readFileSync('dist/csp-manifest.json','utf8'));
+assert(manifest.scriptHashes.length===19,'Existing CSP hash inventory changed');
+console.log('TR-UX-009/010/013 production bundle PASS: original app and data contracts, 19 script hashes');

@@ -5,7 +5,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | Lote | Fichas | Estado | Validación |
 | --- | --- | --- | --- |
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
-| 1 · Contexto/estadística | 001, 004, 014, 024 | En desarrollo independiente · PR #102/#103 abiertas | Sin merge ni certificación definitiva |
+| 1 · Contexto/estadística | 001, 004, 014, 024 | TR-UX-024 integrada parcialmente en #103; resto de Lote 1 en #102 (WIP) | Requiere reconciliar 001/004/014, validar UI y aprobar cierre |
 | 2 · Configuración/recursos | 009, 010, 013 | Cerrado, validado y fusionado · PR #106 | Usuario aprobó; merge squash 9c77c9ea; CI PASS |
 | 3 · Navegación | 002, 006, 011, 017 | Implementación conjunta PR #107 (draft, sin merge) | CI/build CSP/Chromium; certificación del usuario pendiente |
 | 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
@@ -65,3 +65,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 ## UX-104 · Registro de Operaciones (integración acumulativa)
 
 Se integra la mejora comprobada en PR #105 sobre el estado fusionado de Lotes 0, 2 y 3: columnas Fecha/Hora entrada y salida en lugar de Bloque en el registro, pendientes sin cierre visibles en ámbar y salida «—». Sin cambios en Bloques, persistencia, estadísticas ni operaciones. CI/Chromium y user QA pendientes en la versión acumulada.
+
+## Lote 1 · integración parcial segura (#103)
+
+Se integra únicamente la recuperación de IC95 desde la misma muestra canónica cerrada y elegible (TR-UX-024), más el test de regresión n=123/124 y subconjuntos. El indicador ámbar y visualización de pendientes está ya integrado desde #105; no se copian estilos de resultado obsoletos ni se duplican. **No se declara cerrado el Lote 1**: TR-UX-001/004/014 y reconciliación de denominadores/estados requieren implementación y prueba coherente; #102 sigue siendo un prototipo de presentación con frágiles mutaciones posrender, no apto para merge directo.

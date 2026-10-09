@@ -1082,12 +1082,13 @@ html[data-theme="light"] .calendar-day-head span,
 html[data-theme="light"] .calendar-day-meta,
 html[data-theme="light"] .calendar-month-kpis span,
 html[data-theme="light"] .calendar-detail-kpis span{color:#3b4f69}
-/* E85: use one darker amber for the same 'Salida' meaning across candle,
-   execution and Best Exit charts; original amber is retained in dark mode. */
-html[data-theme="light"] .rp-exit-level{stroke:#8a5300;opacity:1}
-html[data-theme="light"] .rp-level-label.exit{fill:#8a5300}
-html[data-theme="light"] .rp-exit,
-html[data-theme="light"] .be-actual{fill:#8a5300}
-html[data-theme="light"] .rp-legend i.exit,
-html[data-theme="light"] .be-legend i.be-actual-dot{background:#8a5300}
+/* E85: the plots use a white chart canvas in BOTH application themes.
+   Keep the same accessible 'Salida' amber on that canvas, including lines,
+   labels and legends, regardless of the surrounding application theme. */
+.rp-exit-level{stroke:#8a5300;opacity:1}
+.rp-level-label.exit{fill:#8a5300}
+.rp-exit,
+.be-actual{fill:#8a5300}
+.rp-legend i.exit,
+.be-legend i.be-actual-dot{background:#8a5300}
 /* ===== END TR-UX-026 ===== */

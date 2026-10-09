@@ -1281,4 +1281,7 @@ html[data-theme="light"] .tr4-scope{background:#f7faff;border-color:#cbd9e9;colo
 html[data-theme="light"] .info-dot{color:#2d496a;border-color:#899bb0}
 @media(max-width:870px){.tr4-perspective-filters{grid-template-columns:1fr 1fr}.tr4-perspective-filters>label:first-child{grid-column:span 2}}
 @media(max-width:580px){.tr4-perspective-filters{grid-template-columns:1fr}.tr4-perspective-filters>label:first-child{grid-column:span 1}.glossary-list{grid-template-columns:1fr}}
+
+.tr4-block-curve-caption{display:flex;flex-wrap:wrap;gap:5px;margin:4px 1px 9px;color:var(--muted);font-size:12px;line-height:1.5;font-variant-numeric:tabular-nums}
+html[data-theme="light"] .tr4-block-curve-caption{color:#425674}
 /* ===== END ASTRA LOTE 4 ===== */

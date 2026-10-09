@@ -287,5 +287,7 @@ if(typeof trRenderViewHtml==='function'){
 }
 new MutationObserver(scheduleRefresh).observe(document.body,{childList:true,subtree:true});
 onModalChanges();
+// A remembered Config page can be mounted before the final adapter loads.
+queueMicrotask(()=>{if(window.TradingResearchCurrentViewReadContract?.current?.()==='config'&&configTab()==='emotional')window.render?.();});
 window.TradingResearchAstraLote4=Object.freeze({currentEmotionalSection:()=>emotionalSection,isDirty,updatePerspectiveCards});
 })();

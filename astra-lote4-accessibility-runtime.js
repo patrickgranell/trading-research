@@ -181,7 +181,7 @@ function normalizeContent(root){
  for(const b of root.querySelectorAll('button')){
    const label=b.textContent.trim();
    if(label==='Limpiar dataset')b.textContent='Revisar calidad del dataset';
-   if(label==='Actualizar referencia'&&b.getAttribute('data-tr-onclick')?.includes('researchResetBaseline'))b.textContent='Actualizar referencia de comparación';
+   if(label==='Actualizar referencia'&&(b.dataset.trActionClick||'').includes('researchResetBaseline'))b.textContent='Actualizar referencia de comparación';
  }
  for(const cell of root.querySelectorAll('.block-card')){
    const button=[...cell.querySelectorAll('button')].find(x=>/^Detalle \+ 20 operaciones$/.test(x.textContent.trim()));

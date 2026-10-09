@@ -121,10 +121,45 @@ function decorate(view,html){
  if(view==='plans')returnLink(view,template.content);
  return template.innerHTML;
 }
+/*
+ * Sidebar owns modules; horizontal navigation owns pages inside a module.
+ * Replace only the redundant source-shell buttons, never the underlying
+ * routes/handlers or their persisted view IDs.
+ */
+function ensureModuleEntries(nav){
+ const oldJournal=nav.querySelector(':scope > .nav-group[data-nav-group="emotional"]');
+ if(oldJournal){
+  const main=document.createElement('button');
+  main.type='button';main.className='tr3-main-destination';
+  main.dataset.view='journaldashboard';
+  main.dataset.trActionClick='trAstraL3Go';
+  main.dataset.trArgsClick=arg(['journaldashboard']);
+  main.innerHTML='<span class="icon" aria-hidden="true">♡</span><span class="tr3-main-label">Diario emocional</span>';
+  oldJournal.replaceWith(main);
+ }
+ const control=nav.querySelector(':scope > .nav-group[data-nav-group="control"]');
+ if(control){
+  const container=control.querySelector(':scope > .nav-group-items');
+  const existing=container?[...container.querySelectorAll(':scope > .nav-child[data-view]')].filter(x=>x.dataset.view==='compliance'||x.dataset.view==='mistakes'):[];
+  // Replace both only when the pair is complete; never lose a destination
+  // if some unrelated runtime changes the source sidebar later.
+  if(existing.length===2&&!container.querySelector('.tr3-execution-destination')){
+   const entry=document.createElement('button');
+   entry.type='button';entry.className='nav-child tr3-execution-destination';
+   entry.dataset.view='compliance';
+   entry.dataset.trActionClick='trAstraL3Go';
+   entry.dataset.trArgsClick=arg(['compliance']);
+   entry.innerHTML='<span class="icon" aria-hidden="true">✓</span><span class="nav-child-label">Revisión de ejecución</span>';
+   existing[0].before(entry);
+   for(const old of existing)old.remove();
+  }
+ }
+}
 function syncSidebar(){
  const nav=document.querySelector('.sidebar .nav-organized');
  if(!nav)return;
  const current=read();
+ ensureModuleEntries(nav);
  // The persistent shell did not previously clear Dashboard's "active" class.
  const direct=nav.querySelector(':scope > button');
  if(direct){
@@ -139,6 +174,22 @@ function syncSidebar(){
    const label=item.querySelector('.nav-child-label');
    if(label&&compactName[item.dataset.view])label.textContent=compactName[item.dataset.view];
  });
+ const journalEntry=nav.querySelector(':scope > .tr3-main-destination');
+ if(journalEntry){
+   const eligible=env(plan())!=='backtest';
+   journalEntry.hidden=!eligible;
+   const active=eligible&&emotional.includes(current);
+   journalEntry.classList.toggle('active',active);
+   if(active)journalEntry.setAttribute('aria-current','location');
+   else journalEntry.removeAttribute('aria-current');
+ }
+ const reviewEntry=nav.querySelector('.tr3-execution-destination');
+ if(reviewEntry){
+   const active=current==='compliance'||current==='mistakes';
+   reviewEntry.classList.toggle('active',active);
+   if(active)reviewEntry.setAttribute('aria-current','location');
+   else reviewEntry.removeAttribute('aria-current');
+ }
  nav.querySelectorAll('.nav-group').forEach(g=>{
    const active=(g.dataset.navGroup==='emotional'&&emotional.includes(current))||[...g.querySelectorAll('.nav-child')].some(b=>b.dataset.view===current);
    g.classList.toggle('tr3-ancestor',active);

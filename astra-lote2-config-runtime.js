@@ -230,4 +230,7 @@ function renderConfig(markup){
  return frame.innerHTML;
 }
 globalThis.TradingResearchAstraLote2=Object.freeze({renderConfig,groups,scopeFor:groupFor});
+// The app may boot directly into Config from a remembered session, before this
+// final CSP-bundled adapter is registered. Refresh that view only once.
+if(globalThis.TradingResearchCurrentViewReadContract?.current?.()==='config')queueMicrotask(()=>window.render());
 })();

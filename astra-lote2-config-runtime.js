@@ -201,11 +201,11 @@ function renderConfig(markup){
  }
  const nav=navHeader(scope,current,p);
  oldNav.replaceWith(nav);
- content.prepend(scopeNotice(scope,current,p));
  if(current==='taxonomy')taxonomyView(content,p);
  if(current==='visual')galleryView(content,p);
  if(current==='data')dataView(content);
  if(current==='cloud')cloudView(content);
+ content.prepend(scopeNotice(scope,current,p));
  return frame.innerHTML;
 }
 globalThis.TradingResearchAstraLote2=Object.freeze({renderConfig,groups,scopeFor:groupFor});

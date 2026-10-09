@@ -52,3 +52,6 @@ jobs:
 
       - name: Astra Lote 3 · UI navigation scenarios in Chromium
         run: node verify-astra-lote3-browser.mjs
+
+      - name: UX-104 operations register Chromium smoke
+        run: node verify-ux104-operations-register-browser.mjs

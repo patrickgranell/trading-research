@@ -61,3 +61,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 **Verificación:** compilación, 19 hashes CSP y suite Chromium de rutas, bloqueo Backtesting, retorno, ancho, selección activa y claro/oscuro; sin acciones destructivas.
 
 **Pendiente:** comprobación funcional conjunta del usuario, luego autorización expresa de merge.
+
+## UX-104 · Registro de Operaciones (integración acumulativa)
+
+Se integra la mejora comprobada en PR #105 sobre el estado fusionado de Lotes 0, 2 y 3: columnas Fecha/Hora entrada y salida en lugar de Bloque en el registro, pendientes sin cierre visibles en ámbar y salida «—». Sin cambios en Bloques, persistencia, estadísticas ni operaciones. CI/Chromium y user QA pendientes en la versión acumulada.

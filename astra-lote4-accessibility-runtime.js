@@ -82,6 +82,28 @@ function enhancePresentation(){
   const note=document.createElement('small');note.className='tr4-limit-hint';
   note.textContent='0 = límite desactivado';input.after(note);
  }
+
+ // Keep the chart's chronological/value references visible without changing plotted points.
+ document.querySelectorAll('.v5-block .block-spark').forEach(spark=>{
+  if(spark.nextElementSibling?.classList.contains('tr4-spark-caption'))return;
+  const block=spark.closest('.v5-block');
+  const result=Array.from(block?.querySelectorAll('.block-core-grid>div')||[])
+   .find(n=>n.querySelector('span')?.textContent.trim()==='Resultado')?.querySelector('strong')?.textContent?.trim();
+  const label=document.createElement('div');label.className='tr4-spark-caption';
+  label.textContent='Inicio: 0 · Cierre: '+(result||'—')+' · progresión por operaciones';
+  spark.after(label);
+ });
+ document.querySelectorAll('.positive,.negative').forEach(el=>{
+  for(const node of el.childNodes){
+   if(node.nodeType===Node.TEXT_NODE&&/\+\+(?=\d)/.test(node.nodeValue||'')){
+    node.nodeValue=node.nodeValue.replace(/\+\+(?=\d)/g,'+');
+   }
+  }
+ });
+ // Nube must not display an unrelated Bruto/Neto definition.
+ if(globalThis.TradingResearchConfigTabStateContract?.current?.()==='cloud'){
+  document.querySelectorAll('.config-tab-content .info-dot[data-help-id="basis"]').forEach(btn=>btn.remove());
+ }
  const modal=topOverlay();
  if(modal){
   const lock=modal.querySelector('.modal-lock-note');

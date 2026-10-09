@@ -4,6 +4,16 @@
 'use strict';
 const envContract=globalThis.TradingResearchOperationSemanticsContract;
 const envLabels={backtest:'Backtesting',replay:'Market Replay',sim:'SIM',live:'Live',pending:'Pendiente',unclassified:'Sin clasificar'};
+/* The Builder sorts the derived sample chronologically but keeps the source
+   in storage order. Drawdown is path-dependent: reuse the existing calculator
+   with chronological inputs for BOTH Builder preview and frozen provenance.
+   No new formula and no effect outside the Builder view. */
+const trUXCalcMetricBase=calcMetricStats;
+calcMetricStats=function(ops,unit='r',basis='gross'){
+  const ordered=typeof currentView!=='undefined'&&currentView==='tpbuilder'&&Array.isArray(ops)
+    ? [...ops].sort(v3194CompareOps):ops;
+  return trUXCalcMetricBase(ordered,unit,basis);
+};
 const htmlValue=v=>typeof esc==='function'?esc(String(v)):String(v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 const countRows=(ops,unit='r',basis='gross')=>{

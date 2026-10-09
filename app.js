@@ -4200,11 +4200,18 @@ function showHelpHover(btn){
   const el=ensureHelpPopover();el.querySelector('strong').textContent=item.title;el.querySelector('p').textContent=item.summary;positionHelpPopover(btn,el);el.classList.add('show');
 }
 function hideHelpHover(){document.getElementById('context-help-popover')?.classList.remove('show');}
-function trHelpDetailHtml(item){
-  return `<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
-}
 function openContextHelp(id){
-  if(id==='__back__'){glossaryBackToResults();return;}
+  function trHelpDetailHtml(item){
+    return `<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
+  }
+  if(id==='__back__'){
+    const detail=document.getElementById('glossary-detail');
+    if(!detail)return;
+    detail.classList.add('hidden');
+    document.querySelector('.glossary-results')?.classList.remove('hidden');
+    document.getElementById('glossary-search')?.focus();
+    return;
+  }
   hideHelpHover();
   const item=CONTEXT_HELP.find(x=>x.id===id);
   if(!item)return;
@@ -4219,15 +4226,6 @@ function openContextHelp(id){
     return;
   }
   document.body.insertAdjacentHTML('beforeend',modalShell(`ⓘ ${item.title}`,trHelpDetailHtml(item),`<button class="btn primary" data-tr-onclick="closeModal()">Entendido</button>`));
-}
-function glossaryBackToResults(){
-  const detail=document.getElementById('glossary-detail');
-  if(!detail)return;
-  detail.classList.add('hidden');
-  const results=document.querySelector('.glossary-results');
-  if(results)results.classList.remove('hidden');
-  const search=document.getElementById('glossary-search');
-  if(search)search.focus();
 }
 function openGlossary(){
   const body=`<div class="glossary-results"><div class="glossary-search"><label for="glossary-search" class="tr4-field-label">Buscar concepto</label><input class="input" id="glossary-search" type="search" placeholder="Buscar métrica o concepto…" data-tr-oninput="filterGlossary(this.value)"></div><div id="glossary-list" class="glossary-list">${CONTEXT_HELP.map(x=>`<button type="button" data-glossary-search="${esc(helpNormalizeText(x.title+' '+x.summary+' '+x.body))}" data-tr-onclick="openContextHelp('${x.id}')"><strong>${esc(x.title)}</strong><span>${esc(x.summary)}</span></button>`).join('')}</div></div><div id="glossary-detail" class="glossary-detail hidden"></div>`;

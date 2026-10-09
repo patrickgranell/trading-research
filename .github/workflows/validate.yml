@@ -43,3 +43,6 @@ jobs:
 
       - name: Build verification
         run: npm run build
+
+      - name: TR-UX-026 light/dark Chromium visual smoke
+        run: node verify-tr-ux-026-browser.mjs

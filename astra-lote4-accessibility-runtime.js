@@ -21,8 +21,13 @@ function filterEmotionalList(root){
  for(const option of rows){const active=option.dataset.active!=='false';const match=(!libraryQuery||option.textContent.toLocaleLowerCase('es').includes(libraryQuery))&&(libraryStatus==='all'||(libraryStatus==='active'?active:!active));
  option.hidden=!match;option.disabled=!match;if(match)count++;
  }
- const counter=root.querySelector('.tr4-library-count');if(counter)counter.textContent=count+' referencias coincidentes';
- // Do not overwrite an editing form or selection on every keystroke.
+ const counter=root.querySelector('.tr4-library-count');if(counter&&counter.textContent!==count+' referencias coincidentes')counter.textContent=count+' referencias coincidentes';
+ const current=field.selectedOptions?.[0];
+ const chosen=current&&!current.hidden&&!current.disabled?current:rows.find(o=>!o.hidden&&!o.disabled);
+ if(chosen){field.value=chosen.value;perspectiveIndex=Number(chosen.value);}
+ const cards=[...root.querySelectorAll('.tr4-emotion-panel .perspective-config-card')];
+ if(cards.length)cards.forEach((card,index)=>card.hidden=index!==perspectiveIndex);
+ // No re-render while typing: preserve caret, focus, and any unsaved editor content.
 }
 function button(label,action,arg,active=false){
  return '<button type="button" class="tr4-local-tab'+(active?' is-active':'')+'" data-tr-action-click="'+action+'" data-tr-args-click="'+args([arg])+'"'+(active?' aria-current="page"':'')+'>'+safe(label)+'</button>';
@@ -173,7 +178,19 @@ function normalizeContent(root){
    b.setAttribute('title','Eliminar '+item);
  }
  for(const b of root.querySelectorAll('button')){
-   if(b.textContent.trim()==='Limpiar dataset')b.textContent='Revisar calidad del dataset';
+   const label=b.textContent.trim();
+   if(label==='Limpiar dataset')b.textContent='Revisar calidad del dataset';
+   if(label==='Actualizar referencia'&&b.getAttribute('data-tr-onclick')?.includes('researchResetBaseline'))b.textContent='Actualizar referencia de comparación';
+ }
+ for(const cell of root.querySelectorAll('.block-card')){
+   const button=[...cell.querySelectorAll('button')].find(x=>/^Detalle \+ 20 operaciones$/.test(x.textContent.trim()));
+   if(!button)continue;
+   const n=Number(cell.querySelector('.block-core-grid>div:first-child strong')?.textContent?.trim());
+   if(Number.isFinite(n)&&n>=0)button.textContent='Detalle · '+n+' operaciones';
+ }
+ for(const el of root.querySelectorAll('.kpi .value,.stat-delta,.delta,.value-right')){
+   if(el.children.length)continue;
+   if(/^\+\+\d/.test(el.textContent.trim()))el.textContent=el.textContent.replace(/^\s*\+\+/,'+');
  }
  for(const panel of root.querySelectorAll('.modal')){
    const title=panel.querySelector('.modal-head h3')?.textContent||'';

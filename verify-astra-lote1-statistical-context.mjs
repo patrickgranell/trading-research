@@ -83,6 +83,10 @@ assert.equal(ctx.confidenceSplit(ctx.state.operations,'r','gross').eligible,123,
 
 const context=api.contextMarkup();
 assert(context.includes('prova1')&&context.includes('Backtesting')&&context.includes('Registros <b>124</b>')&&context.includes('Elegibles <b>123</b>'));
+ctx.opsViewState.setup='Retest';
+assert(api.contextMarkup().includes('Filtros: Setup: Retest'),'Active filter name must be visible');
+ctx.opsViewState.setup='';
+
 assert(api.stateLabel(0,0,0)==='Sin operaciones');
 assert(api.stateLabel(12,0,0)==='Sin resultados por filtros');
 assert(api.stateLabel(2,2,0)==='Sin operaciones cerradas elegibles');

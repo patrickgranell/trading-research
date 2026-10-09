@@ -6,7 +6,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | --- | --- | --- | --- |
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
 | 1 · Contexto/estadística | 001, 004, 014, 024 | Sin iniciar | Pendiente |
-| 2 · Configuración/recursos | 009, 010, 013 | Sin iniciar | Pendiente |
+| 2 · Configuración/recursos | 009, 010, 013 | Implementado en rama PR #106 · sin merge | CI, build CSP, Chromium claro/oscuro PASS; certificación funcional del usuario pendiente |
 | 3 · Navegación | 002, 006, 011, 017 | Sin iniciar | Pendiente |
 | 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
 | 5 · Operaciones/planes/imágenes | 003, 007, 012, 023 | Sin iniciar | Pendiente |
@@ -27,3 +27,16 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 **Criterio de cierre:** contrastes AA en casos de texto normales sobre fondos representativos (incluidos extremos del degradado), ambas apariencias funcionales y legibles, sin cambios de comportamiento ni cálculo. El test CSS es una comprobación de paleta y selectores, no una certificación universal de accesibilidad.
 
 **Restricción de alcance:** no se han intervenido cálculos, datos, operaciones, configuración persistente ni los lotes 1–6.
+
+
+## Lote 2 — TR-UX-009, 010 y 013 · PR #106 (sin merge)
+
+**Base:** main. Solo presentación de Configuración. E24/E30/E33/E34/E35/E38 y fichas originales consultadas antes de editar.
+
+- **009, ámbitos reales:** gestión, riesgo, checklist, errores, taxonomías y cuestionario emocional se conservan por TP/versión. Instrumentos/contratos y plantillas viven en recursos compartidos; la galería visual consulta referencias **propias del TP**, sin presentarlas falsamente como globales. Aplicación y datos contiene Backup/Restauración y conexión. Las perspectivas globales dentro de Emocional se señalan como compartidas; no cambian de propietario. Tres grupos compactos + subnavegación contextual sustituyen a la cuadrícula simultánea de once accesos.
+- **010, seguridad:** datos muestra acceso a copia primero, luego persistencia/integridad; diagnósticos completos conservados en soporte avanzado. Nube prioriza sincronización/estado, cuenta y snapshots antes de conexión avanzada. Enlaces cruzados, sin duplicar comandos. No se almacena fecha de última copia/exportación de backup: se informa explícitamente en lugar de inventarla. Previsualización, restauración, Backup V2, journal y durable flush permanecen en su código original.
+- **013, ficha única:** Taxonomías muestra listado de categorías y solo un panel de valores a la vez, con su ficha modal original. Referencias visuales se deriva de definiciones y visualReferences del mismo TP: filtro de categoría, búsqueda, imágenes LONG/SHORT, históricos, un acceso a ficha canónica; las capturas reales de operaciones no se mezclan.
+- **Compatibilidad:** se preservaron app.js, IDs, relaciones, esquema, almacenamiento y módulos ajenos al lote. Cambio build-only del contrato de presentación manteniendo render:config; bundle en script CSP-hashed existente, sin script externo.
+- **Pruebas:** prebuild + build completo + 19 hashes CSP; prueba Chromium con 3 ámbitos, editor por TP, consulta/edición canónica, copias primero, enlaces Nube/Datos y apariencia claro/oscuro. No se han ejecutado restauraciones reales ni operaciones destructivas.
+
+**Pendiente:** una única revisión funcional visual del usuario en preview; merge solo tras autorización expresa.

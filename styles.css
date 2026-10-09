@@ -1092,3 +1092,66 @@ html[data-theme="light"] .calendar-detail-kpis span{color:#3b4f69}
 .rp-legend i.exit,
 .be-legend i.be-actual-dot{background:#8a5300}
 /* ===== END TR-UX-026 ===== */
+
+/* Astra Lote 2 · three true scopes, compact navigation, one canonical detail. */
+.tr2-config-nav{display:grid;gap:10px;margin:0 0 16px}
+.tr2-scope-switch,.tr2-subnav{display:flex;flex-wrap:wrap;gap:6px}
+.tr2-scope-switch{padding:5px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.tr2-nav-button{border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text);padding:8px 12px;font-size:12px;line-height:1.25;cursor:pointer}
+.tr2-scope-switch>.tr2-nav-button{flex:1;min-width:165px;font-weight:700}
+.tr2-nav-button:hover{border-color:var(--accent);background:var(--panel2)}
+.tr2-nav-button.is-active,.tr2-tax-choice.is-active{background:rgba(110,168,254,.16);border-color:var(--accent);color:var(--text);font-weight:800}
+.tr2-subnav{padding:0 1px}
+.tr2-subnav>.tr2-nav-button{padding:7px 11px;font-size:11px}
+.tr2-scope-label{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:3px 4px}
+.tr2-scope-label>div{display:grid;gap:3px}
+.tr2-scope-label strong{font-size:15px}
+.tr2-scope-label span,.tr2-scope-label small{font-size:11px;color:var(--muted)}
+.tr2-scope-label small{text-align:right}
+.tr2-editor-target{border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12px;background:var(--panel);color:var(--muted)}
+.tr2-editor-target strong{color:var(--text)}
+.tr2-tax-layout{display:grid;grid-template-columns:minmax(190px,240px) minmax(0,1fr);gap:14px;align-items:start}
+.tr2-tax-select{position:sticky;top:8px;display:grid;gap:5px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--panel);max-height:calc(100vh - 130px);overflow-y:auto}
+.tr2-tax-select>strong{font-size:13px}
+.tr2-tax-select>small{font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.45}
+.tr2-tax-choice{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid transparent;border-radius:8px;padding:9px 10px;text-align:left;color:var(--text);background:transparent;cursor:pointer;font-size:12px}
+.tr2-tax-choice:hover{background:var(--panel2)}
+.tr2-tax-choice small{font-size:10px;color:var(--muted);white-space:nowrap}
+.tr2-tax-detail{min-width:0}
+.tr2-tax-detail>.card{margin:0}
+.tr2-tax-gallery-link{margin:12px 0 0}
+.tr2-gallery-intro{display:grid;gap:12px;margin-bottom:14px}
+.tr2-gallery-intro h3,.tr2-data-overview h3{font-size:15px;margin:0 0 4px}
+.tr2-gallery-intro p,.tr2-data-overview p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.tr2-gallery-filters{display:grid;grid-template-columns:minmax(150px,.75fr) minmax(220px,1.5fr) auto;gap:12px;align-items:end}
+.tr2-gallery-filters>label{display:grid;gap:5px;color:var(--muted);font-size:11px}
+.tr2-gallery-filters .tr2-gallery-check{display:flex;align-items:center;gap:7px;padding-bottom:9px;color:var(--text)}
+.tr2-gallery-count{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px}
+.tr2-ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.tr2-ref-card{display:flex;flex-direction:column;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:15px;min-width:0}
+.tr2-ref-top{display:flex;align-items:start;justify-content:space-between;gap:8px}
+.tr2-ref-top h3{font-size:15px;margin:8px 0 0;overflow-wrap:anywhere}
+.tr2-ref-meta{font-size:10px;color:var(--muted);margin-left:5px}
+.tr2-ref-card>p{font-size:12px;margin:0;line-height:1.5;white-space:normal}
+.tr2-ref-specs{font-size:12px;line-height:1.6;padding:8px;border-radius:8px;border:1px solid var(--border);overflow-wrap:anywhere}
+.tr2-muted{color:var(--muted)}
+.tr2-ref-media>small{display:block;margin-bottom:5px;color:var(--muted);font-size:10px;letter-spacing:.04em}
+.tr2-ref-media>div{display:flex;gap:6px;flex-wrap:wrap}
+.tr2-ref-thumb{display:grid;justify-items:center;gap:4px;width:88px;padding:4px;border:1px solid var(--border);background:transparent;border-radius:8px;color:var(--text);cursor:pointer}
+.tr2-ref-thumb img{width:76px;height:60px;object-fit:cover;border-radius:5px}
+.tr2-ref-thumb span{font-size:10px;overflow-wrap:anywhere}
+.tr2-ref-actions{margin-top:auto}
+.tr2-data-primary,.tr2-advanced-body{display:grid;gap:14px}
+.tr2-data-overview{display:flex;justify-content:space-between;gap:18px;align-items:center}
+.tr2-advanced{margin-top:14px;border:1px solid var(--border);background:var(--panel);border-radius:12px}
+.tr2-advanced>summary{padding:13px 17px;cursor:pointer;font-weight:700;font-size:12px}
+.tr2-advanced-body{padding:0 12px 14px}
+.tr2-data-remaining:empty{display:none}
+html[data-theme="light"] .tr2-nav-button.is-active,html[data-theme="light"] .tr2-tax-choice.is-active{background:#e2edfa;color:#172033;border-color:#6b8fbd}
+html[data-theme="light"] .tr2-nav-button:hover{background:#f0f5fc}
+html[data-theme="light"] .tr2-editor-target,html[data-theme="light"] .tr2-ref-card,html[data-theme="light"] .tr2-tax-select{background:#fff}
+@media(max-width:850px){.tr2-tax-layout{grid-template-columns:1fr}.tr2-tax-select{position:static;max-height:none}.tr2-gallery-filters{grid-template-columns:1fr 1fr}.tr2-scope-label{align-items:start;flex-direction:column}.tr2-scope-label small{text-align:left}}
+@media(max-width:600px){.tr2-gallery-filters{grid-template-columns:1fr}.tr2-data-overview{flex-direction:column;align-items:start}.tr2-scope-switch>.tr2-nav-button{min-width:0}}
+
+/* Lote 2 · prioritize actual sync/status, keep credential setup accessible but secondary. */
+.tr2-cloud-primary{display:grid;gap:14px}

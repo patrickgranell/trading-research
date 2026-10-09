@@ -7,8 +7,8 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
 | 1 · Contexto/estadística | 001, 004, 014, 024 | TR-UX-024 integrada parcialmente en #103; resto de Lote 1 en #102 (WIP) | Requiere reconciliar 001/004/014, validar UI y aprobar cierre |
 | 2 · Configuración/recursos | 009, 010, 013 | Cerrado, validado y fusionado · PR #106 | Usuario aprobó; merge squash 9c77c9ea; CI PASS |
-| 3 · Navegación | 002, 006, 011, 017 | Implementación conjunta PR #107 (draft, sin merge) | CI/build CSP/Chromium; certificación del usuario pendiente |
-| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
+| 3 · Navegación | 002, 006, 011, 017 | Cerrado: PR #107 y ajuste #108 fusionados | Usuario validó corrección, CI en main PASS |
+| 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Implementación agrupada PR #110, sin merge | Verificaciones CI/Chromium y certificación funcional pendiente |
 | 5 · Operaciones/planes/imágenes | 003, 007, 012, 023 | Sin iniciar | Pendiente |
 | 6 · Laboratorio/informes/Market Data | 008, 018, 019, 025 | Sin iniciar | Pendiente |
 
@@ -69,3 +69,18 @@ Se integra la mejora comprobada en PR #105 sobre el estado fusionado de Lotes 0,
 ## Lote 1 · integración parcial segura (#103)
 
 Se integra únicamente la recuperación de IC95 desde la misma muestra canónica cerrada y elegible (TR-UX-024), más el test de regresión n=123/124 y subconjuntos. El indicador ámbar y visualización de pendientes está ya integrado desde #105; no se copian estilos de resultado obsoletos ni se duplican. **No se declara cerrado el Lote 1**: TR-UX-001/004/014 y reconciliación de denominadores/estados requieren implementación y prueba coherente; #102 sigue siendo un prototipo de presentación con frágiles mutaciones posrender, no apto para merge directo.
+
+## Lote 4 — TR-UX-005/015/016/020/021/022 · PR #110 (sin merge)
+
+Base consolidada Lotes 0, 2, 3 y UX-104. El resto del Lote 1 permanece separado.
+
+- 005: escala de lectura y controles compartidos, ayudas 28 px, segmentados sin quiebres, Research Grid, claro/oscuro.
+- 015: revisión de calidad de datos y referencia de comparación con verbos de alcance explícito.
+- 016: labels accesibles en diálogos, objeto en botones ×, editar vs crear TP, límite 0 al lado del campo, doble signo y detalle de Bloques relativo a muestra.
+- 020: Preguntas, Categorías y biblioteca global como tres vistas locales; selector de elemento, autor/contexto/estado, preservando editores originales.
+- 021: Glosario con detalle inline y botón de regreso sin perder búsqueda; un solo diálogo.
+- 022: título y foco del diálogo, Tab/Shift-Tab restringidos, Escape y confirmación únicamente con cambios reales; restaurar foco al origen.
+
+Implementación de presentación: astra-lote4-accessibility-runtime.js añadido al bundle CSP existente, CSS compartido y hook de Configuración en el Lote 2. app.js, Restore, cálculos y persistencia sin cambios. Suite Chromium de perspectivas, glosario, foco y temas; regresiones anteriores conservadas.
+
+**Pendiente:** certificación visual y funcional del usuario. Sin merge y sin iniciar el Lote 5.

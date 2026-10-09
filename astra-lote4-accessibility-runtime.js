@@ -82,7 +82,11 @@ function enhancePresentation(){
   const note=document.createElement('small');note.className='tr4-limit-hint';
   note.textContent='0 = límite desactivado';input.after(note);
  }
- const modal=document.querySelector('.modal-backdrop:last-of-type');
+ const modal=topOverlay();
+ if(modal){
+  const lock=modal.querySelector('.modal-lock-note');
+  if(lock)lock.remove(); // Escape/focus behavior is documented by actual controls, not a false 'Protected' pill.
+ }
  if(modal?.querySelector('.modal-head h3')?.textContent.trim()==='Editar Trading Plan'){
   const notice=modal.querySelector('.modal-body .notice');
   const first=notice?.firstChild;

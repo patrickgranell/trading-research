@@ -1215,3 +1215,39 @@ html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last
 .sidebar .nav-organized>.tr3-main-destination[hidden]{display:none!important}
 .sidebar .nav-organized .tr3-execution-destination .nav-child-label{font-weight:700}
 html[data-theme="light"] .sidebar .nav-organized>.tr3-main-destination.active{background:#e1ecfa;color:#153661}
+
+/* Astra Lote 4 · unified reading, controls, focus and editor density. */
+:root{--tr4-body:13px;--tr4-sub:12px;--tr4-control-hit:28px;--tr4-control-gap:8px}
+.card.panel .help,.card.panel small,.modal .help,.modal .context-help-modal p,.glossary-list span{font-size:var(--tr4-sub);line-height:1.55}
+.glossary-list span,.context-help-modal p{font-size:13px;line-height:1.6}
+.info-dot{min-width:var(--tr4-control-hit);min-height:var(--tr4-control-hit);width:var(--tr4-control-hit);height:var(--tr4-control-hit);font-size:12px;cursor:pointer}
+.metric-switch,.segmented,.seg,.seg-control,.metric-segment{display:inline-flex;flex-wrap:wrap;gap:3px;min-width:0}
+.seg-btn{white-space:nowrap;word-break:normal;min-width:max-content}
+button,.btn,select,input{scroll-margin:12px}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.tr4-local-tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.research-cell:not(.empty){color:var(--text);text-shadow:none}
+.research-cell.low-sample{opacity:.78}
+.research-cell strong,.research-total-cell strong{font-size:13px}
+.research-cell small,.research-cell span{font-size:12px}
+.modal-backdrop .modal{outline:none}
+.modal-backdrop .modal-head h3:focus{outline:none}
+.tr4-glossary-detail{display:grid;gap:12px}
+.tr4-glossary-detail .context-help-modal{font-size:13px;line-height:1.6}
+.tr4-glossary-back{justify-self:start}
+.tr4-emotion-panel .tr4-emotional-tabs{display:flex;gap:6px;padding:5px;background:var(--panel2);border:1px solid var(--border);border-radius:11px;margin:12px 0 9px;flex-wrap:wrap}
+.tr4-local-tab{padding:9px 13px;background:transparent;color:var(--muted);border:1px solid transparent;border-radius:8px;cursor:pointer;font-size:12px}
+.tr4-local-tab.is-active{color:var(--text);background:color-mix(in srgb,var(--accent) 16%,var(--panel));border-color:var(--accent);font-weight:750}
+.tr4-emotion-owner{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:12px}
+.tr4-editor-picker{display:grid;gap:6px;max-width:560px;margin:9px 0 14px}
+.tr4-editor-picker>label{font-size:12px;color:var(--text);font-weight:700}
+.tr4-library-toolbar{display:grid;grid-template-columns:minmax(180px,1.25fr) minmax(130px,.65fr) minmax(220px,1.5fr);gap:10px;margin:12px 0 16px;align-items:end}
+.tr4-library-toolbar label{font-size:12px;display:grid;gap:6px;color:var(--text)}
+.tr4-library-count{font-size:12px;color:var(--muted);grid-column:1/-1}
+.tr4-emotion-panel .perspective-config-list{display:block}
+.tr4-emotion-panel .perspective-config-card{max-width:100%;font-size:13px}
+.tr4-emotion-panel .perspective-config-card blockquote{font-size:clamp(15px,1.3vw,18px);line-height:1.55}
+.tr4-emotion-panel [hidden],.tr4-library-toolbar option[hidden]{display:none!important}
+html[data-theme="light"] .tr4-local-tab.is-active{color:#173c67;background:#e4effe;border-color:#7ea7d4}
+html[data-theme="light"] .research-cell{filter:saturate(.93)}
+@media(max-width:800px){.tr4-library-toolbar{grid-template-columns:1fr 1fr}.tr4-library-toolbar>label:first-child{grid-column:1/-1}}
+@media(max-width:550px){.tr4-library-toolbar{grid-template-columns:1fr}.tr4-library-toolbar>label:first-child{grid-column:auto}}

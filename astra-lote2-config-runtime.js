@@ -61,7 +61,7 @@ function navHeader(scope,current,p){
 }
 function scopeNotice(scope,current,p){
  const n=document.createElement('div');n.className='tr2-editor-target';
- if(scope==='plan')n.innerHTML='<strong>Destino de edición:</strong> '+esc(planLabel(p))+' · Sus ajustes y referencias no se aplican automáticamente a otros TP.';
+ if(scope==='plan')n.innerHTML='<strong>Destino de edición:</strong> '+esc(planLabel(p))+' · Sus ajustes y referencias no se aplican automáticamente a otros TP.'+(current==='emotional'?' La biblioteca de perspectivas pertenece a recursos globales, no al cuestionario del plan.':'');
  else if(current==='visual')n.innerHTML='<strong>Consulta visual:</strong> referencias del TP '+esc(planLabel(p))+'; la ficha editable pertenece a Taxonomías. Las capturas reales de operaciones son independientes.';
  else if(current==='instruments')n.innerHTML='<strong>Catálogo global:</strong> tick size, valor del tick y comisiones reutilizados por todos los Trading Plans.';
  else if(current==='library')n.innerHTML='<strong>Biblioteca compartida:</strong> plantillas y recursos guardados para reutilizar. La aplicación de una plantilla a un plan tiene su propio comando.';
@@ -184,8 +184,29 @@ function dataView(content){
  content.append(prim,advanced,remainder);
 }
 function cloudView(content){
+ const wrap=content.querySelector('.cloud-layout');
+ if(wrap){
+  const sections=[...wrap.children].filter(el=>el.matches?.('section.card.panel'));
+  const title=el=>el.querySelector('.panel-title h3')?.textContent?.trim()||'';
+  if(sections.length>=3){
+   const visible=document.createElement('div');visible.className='tr2-cloud-primary';
+   for(const prefix of ['Sincronización','Cuenta','Snapshots locales']){
+    const found=sections.find(el=>title(el).startsWith(prefix));
+    if(found)visible.append(found);
+   }
+   const advanced=document.createElement('details');advanced.className='tr2-advanced';
+   advanced.innerHTML='<summary>Conexión y configuración avanzada</summary>';
+   const body=document.createElement('div');body.className='tr2-advanced-body';
+   sections.filter(el=>!visible.contains(el)).forEach(el=>body.append(el));
+   advanced.append(body);
+   // No forms or actions are cloned; relocate original nodes once.
+   const others=document.createElement('div');
+   while(wrap.firstChild)others.append(wrap.firstChild);
+   wrap.append(visible,advanced,others);
+  }
+ }
  const note=document.createElement('section');note.className='card panel tr2-data-overview';
- note.innerHTML='<div><h3>Sincronización y snapshots</h3><p>La descarga remota sustituye datos locales solo tras confirmación. Consulta las copias descargables y la integridad en Datos.</p></div><div>'+
+ note.innerHTML='<div><h3>Estado y sincronización</h3><p>Consulta la revisión y los snapshots antes de sustituir datos locales. La descarga remota conserva las confirmaciones de seguridad actuales.</p></div><div>'+
  button('Ir a copias y datos →','trAstraL2Tab',['data'])+'</div>';
  content.prepend(note);
 }

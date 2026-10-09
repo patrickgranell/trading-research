@@ -107,7 +107,17 @@ calcMetricStats=function(ops,unit='r',basis='gross'){
   const commissions=included.reduce((a,o)=>a+(Number(o.commission)||0),0);
   const netUsd=included.reduce((a,o)=>a+(Number(o.pnlNet)||0),0);
   const grossUsd=included.reduce((a,o)=>a+(Number(o.pnlGross)||0),0);
+  // TR-UX-024: V31.24 replaced the V18 confidence-bearing stats object and
+  // inadvertently stripped ciLow95/ciHigh95/winLow95/winHigh95. Recompute
+  // intervals from the SAME eligible closed rows used for every point metric.
+  const legacyConfidence=trCanonicalCalcMetricStatsLegacy(included,unit,basis);
+  const confidence={
+    mean:legacyConfidence.mean,sd:legacyConfidence.sd,se:legacyConfidence.se,
+    ciLow95:legacyConfidence.ciLow95,ciHigh95:legacyConfidence.ciHigh95,
+    winLow95:legacyConfidence.winLow95,winHigh95:legacyConfidence.winHigh95
+  };
   return {
+    ...confidence,
     n:base.n,wins:base.wins,losses:base.losses,flats:base.flats,winRate:base.winRate,
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,
     equity:base.equity,avgWin:base.avgWin,avgLoss:base.avgLoss,maxWin:base.maxWin,maxLoss:base.maxLoss,

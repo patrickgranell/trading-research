@@ -107,11 +107,13 @@ calcMetricStats=function(ops,unit='r',basis='gross'){
   const commissions=included.reduce((a,o)=>a+(Number(o.commission)||0),0);
   const netUsd=included.reduce((a,o)=>a+(Number(o.pnlNet)||0),0);
   const grossUsd=included.reduce((a,o)=>a+(Number(o.pnlGross)||0),0);
-  // TR-UX-024: V18 computed confidence intervals, but this canonical override
-  // dropped those fields after establishing the closed/finite eligible subset.
-  // Feed that SAME subset into the original t/Wilson estimator; do not
-  // recompute from all input operations or change the estimator's formula.
-  const confidence=typeof confidenceFromValues==='function'?confidenceFromValues(rows.map(x=>x.value),base.wins):{};
+  // TR-UX-024: canonical summary had discarded V18 t/Wilson fields.
+  // V18's calculator already owns the t/Wilson estimator. Use it ONLY on
+  // the closed, finite canonical rows rather than recalculating over input
+  // rows that may include pending trades.
+  const prior=trCanonicalCalcMetricStatsLegacy(included,unit,basis);
+  const confidence={mean:prior.mean,sd:prior.sd,se:prior.se,ciLow95:prior.ciLow95,
+    ciHigh95:prior.ciHigh95,winLow95:prior.winLow95,winHigh95:prior.winHigh95};
   return {...confidence,
     n:base.n,wins:base.wins,losses:base.losses,flats:base.flats,winRate:base.winRate,
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,

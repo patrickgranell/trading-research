@@ -3,7 +3,7 @@
 (()=>{
 'use strict';
 const actions=window.TradingResearchActions||(window.TradingResearchActions=Object.create(null));
-const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;':'&quot;',"'":'&#39;'}[c]));
+const safe=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const args=a=>encodeURIComponent(JSON.stringify(a));
 let emotionalTab='questions',questionIndex=0,perspectiveIndex=0,libraryQuery='',libraryStatus='all';
 const modeNames={questions:'Preguntas',categories:'Categorías',library:'Biblioteca de perspectivas'};

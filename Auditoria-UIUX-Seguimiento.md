@@ -4,7 +4,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 
 | Lote | Fichas | Estado | Validación |
 | --- | --- | --- | --- |
-| 0 · Tema claro | TR-UX-026 | Implementado en rama; pendiente aceptación funcional | Contraste automatizado y build/CI; revisión comparativa de usuario pendiente |
+| 0 · Tema claro | TR-UX-026 | Implementado en rama; pendiente aceptación funcional | Pruebas automáticas; usuario validó Bloques, Perspectiva, Nueva operación, Calendario y Review & Notes; E85 oscuro pendiente |
 | 1 · Contexto/estadística | 001, 004, 014, 024 | Sin iniciar | Pendiente |
 | 2 · Configuración/recursos | 009, 010, 013 | Sin iniciar | Pendiente |
 | 3 · Navegación | 002, 006, 011, 017 | Sin iniciar | Pendiente |
@@ -17,9 +17,11 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 - [x] Corrección limitada a tema claro: par fondo/borde/texto del detalle de Bloques, incluidos valores neutros.
 - [x] Superficie y degradado compatibles con Perspectiva: cita, autor, fuente, contexto, contador y botón Configurar biblioteca.
 - [x] Contraste de etiquetas del formulario Nueva operación y textos secundarios de Review/Calendario.
-- [x] Oscurecer tono ámbar de Salida en gráfico de velas, ejecución y Best Exit (incluida leyenda), sin alterar semántica.
-- [x] Mantener reglas existentes de tema oscuro, badges y componentes de ayuda/tooltip E82/E83/E88.
-- [ ] Revisión visual real en preview: Bloque 07 en claro/oscuro, cita 1/18 en claro/oscuro, etiquetas del formulario, metadatos de Review/Calendario, Salida en gráfico, foco, disabled.
+- [x] Oscurecer tono ámbar de Salida en gráfico de velas, ejecución y Best Exit (incluida leyenda), en **ambos temas**: el lienzo del gráfico es blanco en claro y oscuro (observación del usuario).
+- [x] Mantener resto de reglas del tema oscuro, badges y componentes de ayuda/tooltip E82/E83/E88; única excepción intencional en oscuro: «Salida» sobre gráfico blanco.
+- [x] Revisión visual del usuario: Bloques en claro/oscuro, Perspectiva claro, Nueva operación, Calendario y Review & Notes.
+- [x] Market Data «Salida» en tema claro: mejora confirmada por usuario.
+- [ ] Confirmar el nuevo «Salida» de Market Data en tema oscuro (antes mostraba el ámbar anterior sobre blanco); verificar también cualquier residuo de accesibilidad pendiente de TR-UX-026.
 - [ ] Autorización expresa del usuario para merge y cierre de ficha.
 
 **Criterio de cierre:** contrastes AA en casos de texto normales sobre fondos representativos (incluidos extremos del degradado), ambas apariencias funcionales y legibles, sin cambios de comportamiento ni cálculo. El test CSS es una comprobación de paleta y selectores, no una certificación universal de accesibilidad.

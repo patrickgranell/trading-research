@@ -7,7 +7,7 @@ assert(html.includes(tag),'Final render closure bundle missing');
 const start=html.indexOf(tag),end=html.indexOf('</script>',start);
 assert(start>=0&&end>start,'Final render closure script invalid');
 const body=html.slice(start+tag.length,end);
-for(const x of ['TradingResearchStatisticalUX','tr-analytic-context','Sin resultados por filtros','Muestra insuficiente','trCanonicalOperationRows','tpbuilder']){
+for(const x of ['TradingResearchStatisticalUX','tr-analytic-context','Sin resultados por filtros','Muestra insuficiente','trCanonicalOperationRows','confidenceSplit']){
   assert(body.includes(x),'Astra Lote 1 runtime not bundled in CSP-hashed final script: '+x);
 }
 assert(!/src=["']statistical-ux-runtime\.js["']/.test(html),'Production must not rely on a non-deployed external UX script');

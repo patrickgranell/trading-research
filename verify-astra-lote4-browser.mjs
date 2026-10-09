@@ -44,7 +44,7 @@ const inspect=[
  'await new Promise(done=>setTimeout(done,1));',
  'const opDialog=document.querySelector(".modal"),entry=opDialog.querySelector("#new-op-entry"),cancel=opDialog.querySelector("#op-cancel");',
  'output.operation={start:document.activeElement.id,role:opDialog.getAttribute("role"),labelledBy:opDialog.getAttribute("aria-labelledby")};',
- 'entry.value="2026-10-09 19:05";let dismissed=0;window.confirm=()=>false;cancel.addEventListener("click",()=>{dismissed++;closeModal();});cancel.click();output.operation.protected=!!opDialog.isConnected&&dismissed===0;',
+ 'entry.value="2026-10-09 19:05";entry.dispatchEvent(new Event("input",{bubbles:true}));let dismissed=0;window.confirm=()=>false;cancel.addEventListener("click",()=>{dismissed++;closeModal();});cancel.click();output.operation.protected=!!opDialog.isConnected&&dismissed===0;',
  'window.confirm=()=>true;cancel.click();await new Promise(done=>setTimeout(done,1));output.operation.confirmed=dismissed===1&&!opDialog.isConnected;output.operation.restore=document.activeElement.id;',
  'for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;output[theme]=getComputedStyle(scope.querySelector(".l4-emotional-tab.is-current")).backgroundColor;const t=document.querySelector(".research-grid-module .research-cell");const val=t.querySelector("strong");output[theme+"Heat"]={cellOpacity:getComputedStyle(t).opacity,color:getComputedStyle(val).color,bg:getComputedStyle(val).backgroundColor};}',
  'output.hit=getComputedStyle(document.querySelector(".info-dot")).minHeight;',

@@ -1317,4 +1317,5 @@ html[data-theme="light"] .research-grid-table td strong{text-shadow:none;}
  .tr4-perspective-items{max-height:260px;}
  .tr4-perspective-detail .perspective-config-card{padding:15px;}
 }
+.tr4-spark-caption{display:flex;justify-content:space-between;margin:-4px 2px 9px;color:var(--muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;}
 /* ===== End Astra Lote 4 ===== */

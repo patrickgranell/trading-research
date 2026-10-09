@@ -21,7 +21,7 @@ const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><style>${
 <div class="field"><label>Fecha/hora de entrada</label><input class="input"></div>
 <section class="card kpi"><div class="sub">Texto secundario KPI</div></section>
 <div class="calendar-day positive-day" style="--calendar-strength:1"><div class="calendar-day-meta">WR 45% / Disc 100%</div></div>
-<svg width="300" height="40"><text x="4" y="18" class="rp-level-label exit">Salida</text><line class="rp-exit-level" x1="50" y1="30" x2="240" y2="30"/></svg>
+<div class="rp-chart-wrap" style="background:#fff"><svg class="rp-chart" width="300" height="40"><text x="4" y="18" class="rp-level-label exit">Salida</text><line class="rp-exit-level" x1="50" y1="30" x2="240" y2="30"/><rect class="rp-exit" x="250" y="15" width="9" height="9"/></svg></div><div class="rp-legend"><i class="exit"></i></div><svg width="25" height="25"><circle class="be-actual" r="6" cx="12" cy="12"/></svg><div class="be-legend"><i class="be-actual-dot"></i></div>
 <script>
 function snapshot(theme){
  document.documentElement.dataset.theme=theme;
@@ -39,7 +39,12 @@ function snapshot(theme){
   fieldLabel:get('.field label','color'),
   calendarText:get('.calendar-day-meta','color'),
   exitLabel:get('.rp-level-label.exit','fill'),
-  exitLine:get('.rp-exit-level','stroke')
+  exitLine:get('.rp-exit-level','stroke'),
+  exitLineOpacity:get('.rp-exit-level','opacity'),
+  exitMarker:get('.rp-exit','fill'),
+  exitLegend:get('.rp-legend i.exit','backgroundColor'),
+  bestExitMarker:get('.be-actual','fill'),
+  bestExitLegend:get('.be-legend i.be-actual-dot','backgroundColor')
  };
 }
 document.body.setAttribute('data-tr-browser-results',encodeURIComponent(JSON.stringify({light:snapshot('light'),dark:snapshot('dark')})));
@@ -73,6 +78,14 @@ try{
  assert.equal(dark.headBackground,'rgb(10, 24, 42)');
  assert.equal(dark.metricBackground,'rgb(9, 17, 31)');
  assert(dark.perspectiveGradient.includes('rgb(11, 18, 32)'),dark.perspectiveGradient);
- assert.equal(dark.exitLabel,'rgb(216, 151, 34)');
- console.log('TR-UX-026 Chromium computed-style smoke: PASS (light & dark, 14 checks)');
+ assert.equal(dark.exitLabel,'rgb(138, 83, 0)');
+ assert.equal(dark.exitLine,'rgb(138, 83, 0)');
+ assert.equal(dark.exitLineOpacity,'1');
+ for(const theme of [light,dark]){
+   assert.equal(theme.exitMarker,'rgb(138, 83, 0)');
+   assert.equal(theme.exitLegend,'rgb(138, 83, 0)');
+   assert.equal(theme.bestExitMarker,'rgb(138, 83, 0)');
+   assert.equal(theme.bestExitLegend,'rgb(138, 83, 0)');
+ }
+ console.log('TR-UX-026 Chromium computed-style smoke: PASS (light & dark, exit label/line/marker/legends consistent)');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

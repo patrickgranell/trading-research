@@ -59,7 +59,18 @@ check('Perspective · context text',value(light+'.perspective-focus-context','co
 check('Perspective · context caption',value(light+'.perspective-focus-context span','color'),contextBg);
 check('Nueva operación · form labels',value(light+'.field label','color'),'#f8fafc');
 check('Review & Notes · secondary captions',value(light+'.kpi .sub','color'),'#ffffff');
-check('Calendario · metadata on strongest white background',value(light+'.calendar-day-meta','color'),'#ffffff');
+check('Calendario · metadata on uncolored day',value(light+'.calendar-day-meta','color'),'#ffffff');
+assert(css.includes('opacity:calc(.08 + var(--calendar-strength)*.34)'),'Calendar alpha limit changed; review composed backgrounds');
+function blend(foreground,background,opacity){
+  const a=rgb(foreground),b=rgb(background);
+  return '#'+a.map((c,i)=>Math.round((c*opacity+b[i]*(1-opacity))*255).toString(16).padStart(2,'0')).join('');
+}
+const calendarInk=value(light+'.calendar-day-meta','color');
+for(const kind of ['positive','negative']){
+  const tint=value(light+'.calendar-day.'+kind+'-day:before','background');
+  const composed=blend(tint,'#ffffff',.42); // strongest tint for --calendar-strength=1
+  check('Calendario · '+kind+' day metadata over '+composed,calendarInk,composed);
+}
 const amber=value(light+'.rp-level-label.exit','fill');
 check('Market Data · Salida annotation on white',amber,'#ffffff');
 check('Market Data · Salida annotation on chart off-white',amber,'#eef3fa');

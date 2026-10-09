@@ -1081,7 +1081,7 @@ html[data-theme="light"] .review-card-foot{color:#4b5d77}
 html[data-theme="light"] .calendar-day-head span,
 html[data-theme="light"] .calendar-day-meta,
 html[data-theme="light"] .calendar-month-kpis span,
-html[data-theme="light"] .calendar-detail-kpis span{color:#425670}
+html[data-theme="light"] .calendar-detail-kpis span{color:#3b4f69}
 /* E85: use one darker amber for the same 'Salida' meaning across candle,
    execution and Best Exit charts; original amber is retained in dark mode. */
 html[data-theme="light"] .rp-exit-level{stroke:#8a5300;opacity:1}

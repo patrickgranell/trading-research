@@ -12,5 +12,5 @@ for(const x of ['TradingResearchStatisticalUX','tr-analytic-context','Sin result
 }
 assert(!/src=["']statistical-ux-runtime\.js["']/.test(html),'Production must not rely on a non-deployed external UX script');
 const manifest=JSON.parse(fs.readFileSync(new URL('./dist/csp-manifest.json',import.meta.url),'utf8'));
-assert(Array.isArray(manifest.scriptHashes)&&manifest.scriptHashes.length===18,'Existing CSP script inventory must remain stable');
+assert(Array.isArray(manifest.scriptHashes)&&manifest.scriptHashes.length===19,'Existing CSP script inventory must remain stable');
 console.log('Astra Lote 1 production bundling PASS (CSP hash inventory and final inline runtime)');

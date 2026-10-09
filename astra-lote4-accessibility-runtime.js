@@ -261,6 +261,21 @@ function microcopy(view,html){
   }
   if(button.classList.contains('research-swap'))button.setAttribute('aria-label','Intercambiar filas y columnas del Research Grid');
  }
+ if(view==='blocks'){
+  for(const card of root.querySelectorAll('.block-card')){
+   const spark=card.querySelector('.block-spark'),dates=text(card.querySelector('.block-dates'));
+   const final=text(card.querySelector('.block-core-grid>div:nth-child(3)>strong'));
+   if(!spark||!dates||!final||card.querySelector('.tr4-block-curve-caption'))continue;
+   const caption=document.createElement('div');caption.className='tr4-block-curve-caption';
+   caption.textContent='Curva acumulada · '+dates+' · inicio 0 → final '+final;
+   spark.after(caption);
+  }
+  for(const card of root.querySelectorAll('.block-detail-kpis>div')){
+   const label=card.querySelector('span'),title=text(label);
+   if(title==='Máx. ganancia')label.title='Mayor resultado positivo de una sola operación del bloque, no media ganadora.';
+   if(title==='Máx. pérdida')label.title='Mayor pérdida individual de una sola operación del bloque, no media perdedora.';
+  }
+ }
  for(const field of root.querySelectorAll('.field')){
   const label=field.querySelector(':scope > label:not([for])');
   const control=field.querySelector(':scope > input[id],:scope > select[id],:scope > textarea[id]');

@@ -35,7 +35,7 @@ function accessible(root){
  if(count){
   const kpi=Array.from(document.querySelectorAll('.gallery-kpis .kpi')).find(n=>n.textContent.includes('Seleccionadas'));
   const value=kpi?.querySelector('.value');
-  if(value)value.textContent=count.textContent;
+  if(value&&value.textContent!==count.textContent)value.textContent=count.textContent;
  }
 }
 function setup(overlay){

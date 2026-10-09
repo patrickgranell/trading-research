@@ -1192,3 +1192,14 @@ html[data-theme="light"] .sidebar .nav-organized .nav-child.active,html[data-the
 html[data-theme="light"] .sidebar .nav-group.tr3-ancestor>.nav-group-toggle{color:#254369;background:transparent}
 html[data-theme="light"] .tr3-journal-link.is-current,html[data-theme="light"] .tr3-execution-link.is-current{color:#163d69;background:#e3efff}
 @media(max-width:850px){.tr3-prerequisite{align-items:start;flex-direction:column}.tr3-journal-nav{gap:3px}.tr3-journal-link{padding:7px 8px}}
+
+/* Issue #104 · Operaciones: entrada/salida sin columna Bloque; no altera las otras vistas. */
+.analytics-table.tr-ops-entry-exit{min-width:1810px}
+.analytics-table.tr-ops-entry-exit th:nth-child(-n+4){white-space:nowrap}
+.analytics-table.tr-ops-entry-exit .tr-ops-exit-empty{color:var(--muted)}
+/* Lote 1: pending remains in the list, amber in both themes, without counting as a closed result. */
+.analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child{box-shadow:inset 3px 0 0 #d3a13c}
+.analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{content:"● Pendiente";display:block;width:max-content;margin-top:4px;color:#ffd16a;font-size:10px;font-weight:800;line-height:1.3;white-space:nowrap}
+.analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#ffd16a;background:rgba(255,198,65,.13);border-color:#ba8a30;font-weight:800}
+html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{color:#855300}
+html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#754700;background:#fff2ce;border-color:#b47c15}

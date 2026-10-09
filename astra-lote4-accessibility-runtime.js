@@ -109,6 +109,9 @@ document.addEventListener('keydown',ev=>{
   else if(!ev.shiftKey&&(!inside||document.activeElement===last)){ev.preventDefault();first.focus();}
  }else if(ev.key==='Escape'){
   const hasForm=!!dialog.querySelector('form');
+  const hasEditable=!!dialog.querySelector('input:not([readonly]):not([type="hidden"]),textarea,select');
+  // Do not dismiss unstructured editors whose change-tracking semantics are unknown.
+  if(!hasForm&&hasEditable&&!dialog.querySelector('#glossary-search'))return;
   if(!hasForm||!changed(dialog)||window.confirm('Hay cambios sin guardar. ¿Descartarlos y cerrar?')){
    ev.preventDefault();ev.stopImmediatePropagation();
    if(typeof window.closeModal==='function')window.closeModal();

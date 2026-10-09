@@ -1249,3 +1249,15 @@ html[data-theme="light"] .research-grid .heatmap-cell small,html[data-theme="lig
 html[data-theme="light"] .l4-emotional-tab.is-current{background:#dfeafa;color:#15365e;border-color:#5b82b6}
 @media(max-width:850px){.l4-perspective-controls{grid-template-columns:1fr 1fr}.l4-perspective-controls .l4-field:first-child{grid-column:1/-1}}
 @media(max-width:530px){.l4-perspective-controls{grid-template-columns:1fr}}
+
+/* E77: low-n cells convey the caveat with a border, never unreadable opacity. */
+.research-grid-module .research-cell.low-sample{opacity:1;outline:1px dashed rgba(140,159,192,.65);outline-offset:-2px}
+.research-grid-module .research-cell.low-sample:hover{opacity:1}
+.research-grid-module .research-cell strong{font-size:13px;font-weight:800;color:var(--text)}
+.research-grid-module .research-cell small{font-size:12px;font-weight:650;color:var(--text)}
+html[data-theme="light"] .research-grid-module .research-cell strong,html[data-theme="light"] .research-grid-module .research-cell small{color:#192d41}
+.block-spark:has(.l4-curve-scale){height:auto;min-height:101px;display:grid;gap:3px;align-content:start}
+.block-spark:has(.l4-curve-scale) .spark-svg{height:68px}
+.l4-curve-scale{display:block;color:#bccde5;font-size:11px;line-height:1.35;white-space:normal;overflow-wrap:anywhere}
+html[data-theme="light"] .l4-curve-scale{color:#354c69}
+.l4-zero-hint{display:block;color:var(--muted);font-size:12px;margin-top:4px}

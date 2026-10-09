@@ -22,6 +22,12 @@ window.TradingResearchActions.tr4EmotionTab('library');
 panel.innerHTML='<section class="card panel"><div class="panel-title"><h3>Emocional</h3></div><div class="emotion-config-grid">Estados</div><section class="session-taxonomy-section"></section><section class="perspective-config-section"><div class="perspective-config-list">'+Array.from({length:18},(_,i)=>'<article class="perspective-config-card"><header><strong>Autor '+i+'</strong></header><blockquote>Frase '+i+'</blockquote><div class="perspective-config-meta"><strong>Contexto '+i+'</strong></div></article>').join('')+'</div></section></section>';
 window.TradingResearchAstraLote4.decorateEmotional(panel);
 const shown=[...panel.querySelectorAll('.perspective-config-card')].filter(x=>!x.hidden).length;
+const themes={};
+for(const theme of ['dark','light']){
+ document.documentElement.dataset.theme=theme;
+ const tab=panel.querySelector('.tr4-local-tab.is-active');
+ themes[theme]=getComputedStyle(tab).backgroundColor;
+}
 const search=panel.querySelector('.tr4-library-toolbar input');
 search.value='Autor 17';
 window.TradingResearchActions.tr4EmotionSearch.call(search);
@@ -48,7 +54,7 @@ setTimeout(()=>{
  document.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',shiftKey:true,bubbles:true,cancelable:true}));
  const wrapBackward=document.activeElement?.id;
  document.querySelector('.modal-backdrop')?.remove();
- setTimeout(()=>document.body.setAttribute('data-smoke',encodeURIComponent(JSON.stringify({questions,questionVisible,shown,match,modalCount,detail,recovered,initialFocus,wrapForward,wrapBackward,focusRestored:document.activeElement?.id==='opener'}))),25);
+ setTimeout(()=>document.body.setAttribute('data-smoke',encodeURIComponent(JSON.stringify({questions,questionVisible,shown,themes,match,modalCount,detail,recovered,initialFocus,wrapForward,wrapBackward,focusRestored:document.activeElement?.id==='opener'}))),25);
 },25);
 `;
 const page='<html><head><style>'+css+'</style></head><body><div id="config"></div><script>'+setup+'</script><script>'+runtime+'</script><script>'+checks+'</script></body></html>';
@@ -61,7 +67,7 @@ try{
  assert.equal(r.status,0,r.stderr?.slice(-900));
  const encoded=r.stdout.match(/data-smoke="([^"]+)"/)?.[1];assert(encoded,'Browser snapshot missing, JS error: '+(r.stdout.match(/data-js-error="([^"]+)"/)?.[1]||'no script error')+' DOM: '+r.stdout.slice(0,1400));
  const obj=JSON.parse(decodeURIComponent(encoded));
- assert.equal(obj.questions,3);assert.equal(obj.questionVisible,1);assert.equal(obj.shown,1);assert(obj.match,'Search must reveal matching author editor');
+ assert.equal(obj.questions,3);assert.equal(obj.questionVisible,1);assert.equal(obj.shown,1);assert.notEqual(obj.themes.dark,obj.themes.light);assert(obj.match,'Search must reveal matching author editor');
  assert.equal(obj.modalCount,1);assert(obj.detail&&obj.recovered);
  assert(obj.initialFocus==='entry','Modal should focus first field');
  assert(obj.wrapForward==='entry'&&obj.wrapBackward==='cancel','Tab/Shift+Tab escape dialog');

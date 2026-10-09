@@ -22,7 +22,7 @@ const plan=()=>window.TradingResearchPlanReadContract?.current?.()||null;
 const env=p=>window.TradingResearchOperationSemanticsContract?.planEnvironment?.(p)||'unclassified';
 const safe=v=>window.TradingResearchContentEncodingContract?.html?.(String(v??''))||String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const arg=a=>encodeURIComponent(JSON.stringify(a));
-const link=(label,target,kind='trAstraL3Go')=>'<button type="button" class="tr3-link" data-tr-action-click="'+kind+'" data-tr-args-click="'+arg([target])+'">'+safe(label)+'</button>';
+const link=(label,target,kind='trAstraL3Go',mode='')=>'<button type="button" class="tr3-link" data-tr-action-click="'+kind+'" data-tr-args-click="'+arg(mode?[target,mode]:[target])+'">'+safe(label)+'</button>';
 let returnFromPrereq=null;
 function go(target){
  if(!target||typeof registry.navigate!=='function')return;
@@ -31,10 +31,11 @@ function go(target){
  registry.navigate(target);
 }
 registry.trAstraL3Go=go;
-registry.trAstraL3Prerequisite=function(target){
+registry.trAstraL3Prerequisite=function(target,mode=''){
  const origin=read();if(!emotional.includes(origin))return;
  returnFromPrereq={view:origin,planId:plan()?.id||''};
  go(target);
+ if(mode==='environment'&&typeof registry.openPlanModal==='function')registry.openPlanModal(plan()?.id||null);
 };
 registry.trAstraL3Return=function(){
  const back=returnFromPrereq;
@@ -60,16 +61,16 @@ function journalNavigation(view,fragment){
  const bar=fragment.querySelector('.topbar');if(!bar)return;
  const nav=document.createElement('nav');nav.className='tr3-journal-nav';nav.setAttribute('aria-label','Navegación del Diario emocional');
  for(const [id,label] of tabs){
-   const b=document.createElement('button');b.type='button';b.className='tr3-journal-link'+(view===id?' is-current':'');
+   const b=document.createElement('button');b.type='button';b.className='tr3-journal-link'+((view==='journalnotes'||view==='journalstatements'?'journalops':view==='journallibrary'?'journalreflections':view)===id?' is-current':'');
    b.textContent=label;b.dataset.trActionClick='trAstraL3Go';b.dataset.trArgsClick=arg([id]);
-   if(view===id)b.setAttribute('aria-current','page');nav.appendChild(b);
+   if((view==='journalnotes'||view==='journalstatements'?'journalops':view==='journallibrary'?'journalreflections':view)===id)b.setAttribute('aria-current','page');nav.appendChild(b);
  }
  bar.after(nav);
  const p=plan(),known=!!p&&['live','sim','replay'].includes(env(p));
  const sessions=p?.id?window.TradingResearchEmotionalJournal?.sessions?.(p.id)||[]:[];
  const notices=[];
  if(view==='journal'&&!known){
-   notices.push(['El entorno del Trading Plan está sin definir. Para iniciar sesiones es necesario seleccionar Live, SIM o Replay.','Definir entorno','plans']);
+   notices.push(['El entorno del Trading Plan está sin definir. Para iniciar sesiones es necesario seleccionar Live, SIM o Replay.','Definir entorno','plans','environment']);
  }
  if(view==='journalstreaks'&&fragment.textContent.includes('Sin Backtesting vinculado')){
    notices.push(['Este TP no tiene Backtesting de referencia vinculado. Revisa el grupo de validación en Trading Plans; el umbral manual sigue disponible.','Revisar grupo / Backtesting de referencia','plans']);
@@ -79,8 +80,8 @@ function journalNavigation(view,fragment){
  }
  if(notices.length){
   const box=document.createElement('div');box.className='tr3-prerequisite-list';
-  for(const [message,cta,dest] of notices){
-    const item=document.createElement('section');item.className='tr3-prerequisite';item.innerHTML='<div><strong>Para continuar</strong><p>'+safe(message)+'</p></div><div>'+link(cta,dest,dest==='plans'?'trAstraL3Prerequisite':'trAstraL3Go')+'</div>';box.appendChild(item);
+  for(const [message,cta,dest,mode] of notices){
+    const item=document.createElement('section');item.className='tr3-prerequisite';item.innerHTML='<div><strong>Para continuar</strong><p>'+safe(message)+'</p></div><div>'+link(cta,dest,dest==='plans'?'trAstraL3Prerequisite':'trAstraL3Go',mode||'')+'</div>';box.appendChild(item);
   }
   nav.after(box);
  }

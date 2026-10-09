@@ -50,14 +50,16 @@ const inspect=[
  '  current:document.querySelector("#view [aria-current=page]")?.textContent,html:document.getElementById("view").innerHTML};}',
  'out.dashboard=take("dashboard");out.decision=take("decision");out.changes=take("changes");out.review=take("review");',
  'out.mistakes=take("mistakes");out.compliance=take("compliance");',
+ 'out.executionSidebar={entry:document.querySelector(".nav-group[data-nav-group=control] .tr3-execution-destination")?.textContent.trim(),children:[...document.querySelectorAll(".nav-group[data-nav-group=control] .nav-child")].map(x=>x.textContent.trim()),oldMistakes:!!document.querySelector(".nav-group[data-nav-group=control] .nav-child[data-view=mistakes]"),selected:document.querySelector(".nav-group[data-nav-group=control] .tr3-execution-destination")?.classList.contains("active")};',
  'out.siblings=[...document.querySelectorAll(".tr3-execution-nav button")].map(b=>b.textContent);',
  'out.streaks=take("journalstreaks");out.streaksCta=out.streaks.html.includes("Revisar grupo / Backtesting de referencia");',
+ 'out.journalSidebar={entry:document.querySelector(".nav-organized>.tr3-main-destination")?.textContent.trim(),active:document.querySelector(".nav-organized>.tr3-main-destination")?.classList.contains("active"),route:document.querySelector(".nav-organized>.tr3-main-destination")?.dataset.trArgsClick,legacy:!!document.querySelector(".nav-group[data-nav-group=emotional]"),childPages:[...document.querySelectorAll(".nav-organized .nav-child[data-view^=journal]")].length,localCurrent:document.querySelector(".tr3-journal-link.is-current")?.textContent};',
  'window.TradingResearchActions.trAstraL3Prerequisite("plans");out.plans=take("plans");',
  'out.hasReturn=out.plans.html.includes("Volver a Diario emocional");window.TradingResearchActions.trAstraL3Return();out.returned=current;',
  'out.confidence=take("journalconfidence");out.sessionsCta=out.confidence.html.includes("Abrir sesiones");',
  'environment="unclassified";out.session=take("journal");out.envCta=out.session.html.includes("Definir entorno");',
  'window.TradingResearchActions.trAstraL3Prerequisite("plans","environment");out.envOpened=window.openedPlanId===p.id&&current==="plans";window.TradingResearchActions.trAstraL3Return();out.envReturned=current;',
-'environment="backtest";out.blocked=take("journal");environment="live";',
+'environment="backtest";out.blocked=take("journal");out.backtestHidden=document.querySelector(".nav-organized>.tr3-main-destination")?.hidden;environment="live";',
  'out.sidebar={client:document.querySelector(".sidebar").clientWidth,scroll:document.querySelector(".sidebar").scrollWidth,nav:document.querySelector(".nav-organized").scrollWidth,navClient:document.querySelector(".nav-organized").clientWidth,appearance:!!document.querySelector(".tr3-appearance"),buttons:document.querySelectorAll(".sidebar .theme-btn").length};',
  'const themes={};for(const theme of ["dark","light"]){document.documentElement.dataset.theme=theme;take("compliance");const b=document.querySelector(".tr3-execution-link.is-current");themes[theme]={background:getComputedStyle(b).backgroundColor,color:getComputedStyle(b).color};}',
  'out.themes=themes;out.unchanged=JSON.stringify(p)===unchanged;out.calls=calls;',
@@ -74,21 +76,31 @@ try{
  const raw=p.stdout.match(/data-l3-result="([^"]+)"/)?.[1];assert(raw,'No L3 browser result. '+p.stderr?.slice(-800));
  const v=JSON.parse(decodeURIComponent(raw));
  assert.deepEqual(v.dashboard.active,['dashboard']);
- for(const target of ['decision','changes','review','mistakes','compliance'])assert.deepEqual(v[target].active,[target],target+' duplicate active route');
+ for(const target of ['decision','changes','review'])assert.deepEqual(v[target].active,[target],target+' duplicate active route');
+ assert.deepEqual(v.mistakes.active,['compliance'],'Análisis de errores belongs to Revisión de ejecución');
+ assert.deepEqual(v.compliance.active,['compliance']);
  assert.equal(v.decision.heading,'Centro de investigación');
  assert.equal(v.changes.heading,'Cambios y alertas');
  assert.equal(v.review.heading,'Hallazgos y decisiones');
  assert.equal(v.mistakes.heading,'Análisis de errores');
  assert.deepEqual(v.siblings,['Cumplimiento','Análisis de errores']);
+ assert.deepEqual(v.executionSidebar.children,['Revisión de ejecución']);
+ assert(!v.executionSidebar.oldMistakes&&v.executionSidebar.selected);
  assert.equal(v.streaks.local.length,8);
+ assert.deepEqual(v.streaks.active,['journaldashboard']);
+ assert(v.journalSidebar.active&&!v.journalSidebar.legacy&&v.journalSidebar.childPages===0);
+ assert.equal(v.journalSidebar.entry,'♡Diario emocional');
+ assert.equal(v.journalSidebar.localCurrent,'Rachas');
+ assert.deepEqual(JSON.parse(decodeURIComponent(v.journalSidebar.route)),['journaldashboard']);
  assert.equal(v.streaks.current,'Rachas');
  assert(v.streaksCta&&v.hasReturn&&v.returned==='journalstreaks');
  assert(v.sessionsCta&&v.envCta&&v.envOpened&&v.envReturned==='journal');
  assert(!v.blocked.html.includes('tr3-journal-nav'),'Backtesting must not gain emotional links');
+ assert(v.backtestHidden,'Backtesting must hide the single emotional sidebar entry');
  assert(v.sidebar.appearance&&v.sidebar.buttons===2);
  assert(v.sidebar.scroll<=v.sidebar.client+1,'Sidebar overflows horizontally');
  assert(v.sidebar.nav<=v.sidebar.navClient+1,'Navigation overflows horizontally');
  assert(v.themes.dark.background!==v.themes.light.background);
  assert(v.unchanged,'Navigation mutated plan');
- console.log('Lote 3 Chromium PASS: single active, 8 journal tabs, prerequisite/return, execution siblings, no horizontal scroll, themes');
+ console.log('Lote 3 Chromium PASS: one vertical module per domain, 8 local journal tabs, 2 execution tabs, prerequisites, no overflow, themes');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

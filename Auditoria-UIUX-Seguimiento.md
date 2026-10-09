@@ -5,9 +5,9 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 | Lote | Fichas | Estado | Validación |
 | --- | --- | --- | --- |
 | 0 · Tema claro | TR-UX-026 | Validado y autorizado para merge | Pruebas automatizadas y Chromium en ambos temas PASS; usuario confirmó Bloques, Perspectiva, Nueva operación, Calendario, Review & Notes y Salida en ambos temas |
-| 1 · Contexto/estadística | 001, 004, 014, 024 | Sin iniciar | Pendiente |
-| 2 · Configuración/recursos | 009, 010, 013 | Implementado en rama PR #106 · sin merge | CI, build CSP, Chromium claro/oscuro PASS; certificación funcional del usuario pendiente |
-| 3 · Navegación | 002, 006, 011, 017 | Sin iniciar | Pendiente |
+| 1 · Contexto/estadística | 001, 004, 014, 024 | En desarrollo independiente · PR #102/#103 abiertas | Sin merge ni certificación definitiva |
+| 2 · Configuración/recursos | 009, 010, 013 | Cerrado, validado y fusionado · PR #106 | Usuario aprobó; merge squash 9c77c9ea; CI PASS |
+| 3 · Navegación | 002, 006, 011, 017 | Implementación conjunta PR #107 (draft, sin merge) | CI/build CSP/Chromium; certificación del usuario pendiente |
 | 4 · Controles/accesibilidad | 005, 015, 016, 020, 021, 022 | Sin iniciar | Pendiente |
 | 5 · Operaciones/planes/imágenes | 003, 007, 012, 023 | Sin iniciar | Pendiente |
 | 6 · Laboratorio/informes/Market Data | 008, 018, 019, 025 | Sin iniciar | Pendiente |
@@ -29,7 +29,7 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 **Restricción de alcance:** no se han intervenido cálculos, datos, operaciones, configuración persistente ni los lotes 1–6.
 
 
-## Lote 2 — TR-UX-009, 010 y 013 · PR #106 (sin merge)
+## Lote 2 — TR-UX-009, 010 y 013 · PR #106 (fusionada y certificada)
 
 **Base:** main. Solo presentación de Configuración. E24/E30/E33/E34/E35/E38 y fichas originales consultadas antes de editar.
 
@@ -40,3 +40,24 @@ Documento de ejecución independiente del informe de auditoría original (88 evi
 - **Pruebas:** prebuild + build completo + 19 hashes CSP; prueba Chromium con 3 ámbitos, editor por TP, consulta/edición canónica, copias primero, enlaces Nube/Datos y apariencia claro/oscuro. No se han ejecutado restauraciones reales ni operaciones destructivas.
 
 **Pendiente:** una única revisión funcional visual del usuario en preview; merge solo tras autorización expresa.
+
+
+## Lote 3 — TR-UX-002, 006, 011 y 017 · PR #107 (sin merge)
+
+**Evidencias consultadas:** E05 (Dashboard activo falso/scroll), E06/E07/E39/E40 (rutas emocionales y prerrequisitos), E03/E12/E18/E28 (vocabulario), E17/E37 (Cumplimiento y Errores). Dependencias: contexto 001, cobertura 004, ámbitos 009; sin alterar objetos ni cálculos.
+
+**Mapa de nombres canónicos (solo presentación):**
+- Investigación: Centro Research / Research Decision Center → **Centro de investigación**; Cambios / Research Alerts & Change Tracking → **Cambios y alertas**; Review & Notes → **Hallazgos y decisiones**.
+- Revisión: Mistakes Analysis / Errores → **Análisis de errores**; Cumplimiento conserva su identidad.
+- Diario: Dashboard → **Resumen**, Sesiones, Registro emocional, Confianza, Rachas, Deriva, Perspectiva, Revisión semanal. Notas y Constancias quedan en Registro; la Biblioteca de Perspectiva, en Perspectiva.
+- Códigos de estado visibles win/loss/pending/unclassified → Ganadora/Perdedora/Pendiente/Sin clasificar en etiquetas u opciones; valores/IDs guardados intactos.
+
+**002:** Dashboard activo correcto en shell persistente, aria-current en destino final, ancestro secundario, sidebar vertical sin scroll horizontal, Apariencia compacta; conserva TP.
+**006:** ocho enlaces locales; Definir entorno abre el editor existente del TP; revisión de grupo lleva a Trading Plans; Abrir sesiones directo; retorno al Diario si el TP sigue válido; Backtesting excluido.
+**011:** un mapa de nombres canónicos en menú y títulos, códigos legibles sin cambiar los almacenados.
+**017:** decisión: destinos hermanos Cumplimiento/Análisis de errores, unidos por navegación local compacta. Metodología larga plegable cuando procede. Coberturas, denominadores, evaluación y snapshots separados.
+
+**Implementación:** adaptador de presentación aislado astra-lote3-navigation-runtime.js dentro del script CSP-hashed actual. app.js, structural-runtime.js, emotional-journal-runtime.js y persistencia sin modificación. Sin merge.
+**Verificación:** compilación, 19 hashes CSP y suite Chromium de rutas, bloqueo Backtesting, retorno, ancho, selección activa y claro/oscuro; sin acciones destructivas.
+
+**Pendiente:** comprobación funcional conjunta del usuario, luego autorización expresa de merge.

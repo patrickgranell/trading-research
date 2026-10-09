@@ -49,3 +49,6 @@ jobs:
 
       - name: Astra Lote 2 · UI scenarios in Chromium
         run: node verify-astra-lote2-browser.mjs
+
+      - name: Astra Lote 3 · UI navigation scenarios in Chromium
+        run: node verify-astra-lote3-browser.mjs

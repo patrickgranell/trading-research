@@ -66,12 +66,12 @@ assert.equal(ctx.calcMetricStats(missing).n,0,'Pending trades cannot count in KP
 assert.equal(ctx.calcMetricStats(zero).n,1,'Closed flat with finite zero is a real observation');
 assert.equal(ctx.calcMetricStats([sample5[0],missing[0]]).n,1,'Exclude pending from confidence denominator');
 assert.equal(ctx.calcMetricStats([op('other',12,{plan:'other'})].filter(o=>o.tradingPlanId==='tp')).n,0);
-const unordered=[{...op('c',-2),entryDate:'2026-01-03T12:00'},{...op('a',1),entryDate:'2026-01-01T12:00'},{...op('b',1),entryDate:'2026-01-02T12:00'}];
+const unordered=[{...op('c',-1),entryDate:'2026-01-03T12:00'},{...op('a',1),entryDate:'2026-01-01T12:00'},{...op('b',-2),entryDate:'2026-01-02T12:00'}];
 vm.runInContext(ux,ctx);
 ctx.state.operations=[...sample123,op('pending',-.16,{closed:false})];
 const api=ctx.window.TradingResearchStatisticalUX;
 ctx.currentView='tpbuilder';
-assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-2,'Builder chronological drawdown must use time order');
+assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-3,'Builder chronological drawdown must use time order');
 ctx.currentView='operations';
 assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-2,'Outside the Builder the canonical estimator remains unchanged');
 

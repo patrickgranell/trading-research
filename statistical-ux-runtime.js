@@ -167,6 +167,45 @@ function decorate(){
         }
       }
     }
+    if(q.view==='lab'){
+      const confidence=root.querySelector('.confidence-module');
+      if(confidence){
+        const evidence=confidence.querySelector('.confidence-status:first-child');
+        const maturity=confidence.querySelector('.confidence-status:nth-child(2)');
+        if(!rows.total&&q.all.length){
+          for(const panel of [evidence,maturity]){
+            const title=panel?.querySelector('strong'),sub=panel?.querySelector('small');
+            if(title)title.textContent='Sin resultados por filtros';
+            if(sub)sub.textContent='La selección actual no contiene operaciones';
+          }
+        }
+        if(rows.eligible===0){
+          const cells=confidence.querySelectorAll('.confidence-kpis>div');
+          for(const cell of cells){
+            const value=cell.querySelector('strong');
+            if(value){value.textContent='—';value.classList.remove('positive','negative');}
+            const sub=cell.querySelector('small');
+            if(sub)sub.textContent=rows.total?'Sin cierre elegible':'Sin muestra';
+          }
+        }
+      }
+    }
+    if(['reports','report'].includes(q.view)&&rows.eligible===0){
+      for(const section of root.querySelectorAll('.report-section')){
+        const heading=section.querySelector('h3')?.textContent||'';
+        if(!heading.includes('Confianza')&&!heading.includes('Desglose'))continue;
+        for(const cell of section.querySelectorAll('.report-grid-3>div, .report-two-col td')){
+          if(heading.includes('Confianza')){
+            const label=cell.querySelector('span')?.textContent||'';
+            if(!/IC95|primera mitad|segunda mitad|límite inferior|evidencia/i.test(label))continue;
+          }
+          const strong=cell.querySelector('strong');
+          if(strong&&(/^(?:0(?:\\.0+)?%?|NaN%?|—|Sin estimar|0\\.00R)/i.test(strong.textContent.trim())||heading.includes('Desglose'))){
+            strong.textContent='—';strong.classList.remove('positive','negative');
+          }
+        }
+      }
+    }
     if(q.view==='lab'&&isBacktest(p)){
       const card=[...root.querySelectorAll('.lab-kpis .kpi')].find(x=>x.querySelector('.label')?.textContent?.trim()==='Muestra');
       const sub=card?.querySelector('.sub');if(sub)sub.textContent=rows.eligible+' elegibles · diario emocional opcional en Backtesting';
@@ -183,6 +222,27 @@ function decorate(){
         if(box&&!box.querySelector('.tr-ux-block-n'))box.insertAdjacentHTML('beforeend','<small class="tr-ux-block-n">'+c.total+' registros · '+c.eligible+' elegibles</small>');
         if(!c.eligible)for(const block of card.querySelectorAll('.block-core-grid>div:not(:first-child)')){const v=block.querySelector('strong');if(v)v.textContent='—';}
       });
+    }
+  }
+  // A plan comparison is grouped for navigation only; every row owns its TP
+  // and version. 'Trades' uses the closed/finite denominator, not total records.
+  for(const table of root.querySelectorAll('.plan-table')){
+    const heading=table.querySelector('thead th:nth-child(4)');
+    if(heading)heading.textContent='Cerradas elegibles';
+    for(const row of table.querySelectorAll('tbody tr')){
+      const identity=row.querySelector('td:first-child strong')?.textContent?.trim();
+      if(!identity)continue;
+      const candidates=state.tradingPlans.filter(x=>planLabel(x)===identity);
+      if(candidates.length!==1)continue; // Ambiguous names: never guess an ID.
+      const ops=state.operations.filter(x=>x.tradingPlanId===candidates[0].id);
+      const c=countRows(ops,'r','gross');
+      const count=row.querySelector('td:nth-child(4)');
+      if(count){count.title=c.total+' registros · '+c.closed+' cerradas · '+c.eligible+' elegibles'+(c.noClose?' · '+c.noClose+' sin cierre':'');}
+      if(!c.eligible){
+        for(const td of [...row.querySelectorAll('td')].slice(4)){
+          td.textContent='—';td.classList.remove('positive','negative');
+        }
+      }
     }
   }
   if(root.querySelector('.plan-card')){

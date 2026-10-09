@@ -18,6 +18,92 @@ function fields(form){
 }
 function changed(dialog){const form=dialog?.querySelector('form');return !!(form&&JSON.stringify(fields(form))!==dialog.dataset.tr4Initial);}
 function focusItems(dialog){return Array.from(dialog.querySelectorAll(focusable)).filter(visible);}
+
+let glossaryTop=null;
+let glossaryDetail=null;
+let pendingMetricHelp=null;
+function consolidateGlossary(){
+ const all=Array.from(document.querySelectorAll('.modal-backdrop'));
+ if(all.length<2)return;
+ const parent=all[all.length-2],child=all[all.length-1];
+ const list=parent.querySelector('#glossary-list');
+ const help=child.querySelector('.context-help-modal');
+ if(!list||!help)return;
+ const body=parent.querySelector('.modal-body');
+ if(!body)return;
+ let results=body.querySelector('.tr4-glossary-results');
+ if(!results){
+  results=document.createElement('div');
+  results.className='tr4-glossary-results';
+  const search=body.querySelector('.glossary-search');
+  if(search)results.appendChild(search);
+  results.appendChild(list);
+  body.appendChild(results);
+ }
+ let detail=body.querySelector('.tr4-glossary-detail');
+ if(!detail){
+  detail=document.createElement('div');detail.className='tr4-glossary-detail';
+  body.appendChild(detail);
+ }
+ detail.replaceChildren();
+ const head=document.createElement('div');head.className='glossary-detail-head';
+ const back=document.createElement('button');back.type='button';back.className='btn small';
+ back.textContent='← Volver a resultados';back.dataset.tr4GlossaryBack='true';
+ const title=document.createElement('h4');title.textContent=child.querySelector('.modal-head h3')?.textContent||'Definición';
+ head.append(back,title);detail.append(head,help);
+ results.classList.add('hidden');detail.classList.remove('hidden');
+ child.remove();
+ glossaryTop=parent;glossaryDetail=detail;
+ queueMicrotask(()=>{if(parent.isConnected)back.focus({preventScroll:true});});
+}
+function enhancePresentation(){
+ const search=document.getElementById('glossary-search');
+ if(search&&!search.hasAttribute('aria-label')&&!document.getElementById('tr4-glossary-label')){
+  const label=document.createElement('label');label.id='tr4-glossary-label';
+  label.htmlFor='glossary-search';label.className='tr4-field-label';
+  label.textContent='Buscar concepto';search.before(label);
+ }
+ for(const button of document.querySelectorAll('button[data-tr-onclick]')){
+  const action=button.getAttribute('data-tr-onclick')||'';
+  const label=button.textContent.trim();
+  let next='';
+  if(label==='Limpiar dataset'&&action.includes("navigate('quality')"))next='Revisar calidad del dataset';
+  else if(label==='Guardar'&&action.includes('savePlanItemToLibrary'))next='Guardar en biblioteca';
+  else if(label==='Actualizar referencia'&&action.includes('researchResetBaseline'))next='Actualizar referencia de comparación';
+  else if(label==='Limpiar historial'&&action.includes('researchClearHistory'))next='Borrar historial de cambios';
+  else if(label==='Detalle + 20 operaciones'){
+   const range=button.closest('.v5-block')?.querySelector('.block-range')?.textContent?.match(/(\d+)\s*[–-]\s*(\d+)/);
+   if(range)next='Detalle · '+(Number(range[2])-Number(range[1])+1)+' operaciones';
+  }
+  if(next&&label!==next)button.textContent=next;
+ }
+ for(const input of document.querySelectorAll('.modal input[id^="f-rm-"][type="number"]')){
+  if(input.parentElement.querySelector('.tr4-limit-hint'))continue;
+  const note=document.createElement('small');note.className='tr4-limit-hint';
+  note.textContent='0 = límite desactivado';input.after(note);
+ }
+ const modal=document.querySelector('.modal-backdrop:last-of-type');
+ if(modal?.querySelector('.modal-head h3')?.textContent.trim()==='Editar Trading Plan'){
+  const notice=modal.querySelector('.modal-body .notice');
+  const first=notice?.firstChild;
+  if(first?.nodeType===Node.TEXT_NODE&&first.textContent.includes('El nuevo plan empezará')){
+   first.textContent='Estás editando este Trading Plan. Guardar cambios no crea otro plan ni altera las operaciones existentes.';
+  }
+ }
+ if(pendingMetricHelp){
+  const help=modal?.querySelector('.context-help-modal');
+  if(help){
+   const title=modal.querySelector('.modal-head h3');
+   if(title)title.textContent=pendingMetricHelp==='maxwin'?'ⓘ Máxima ganancia':'ⓘ Máxima pérdida';
+   const summary=help.querySelector('.context-help-summary'),paragraphs=help.querySelectorAll('p');
+   if(summary)summary.textContent=pendingMetricHelp==='maxwin'?'Mayor resultado positivo de una sola operación.':'Peor resultado negativo de una sola operación.';
+   if(paragraphs[0])paragraphs[0].textContent=pendingMetricHelp==='maxwin'?'Es el resultado individual más alto, no la ganancia media.':'Es el resultado individual más negativo, no la pérdida media ni el drawdown acumulado.';
+   if(paragraphs[1])paragraphs[1].textContent='Consulta este extremo junto a la media de las operaciones y el tamaño de muestra.';
+   pendingMetricHelp=null;
+  }
+ }
+}
+
 function accessible(root){
  root.querySelectorAll('.field > label:not([for])').forEach(label=>{
   const ctrl=label.parentElement?.querySelector('input,select,textarea');
@@ -62,6 +148,8 @@ function setup(overlay){
  });
 }
 function refresh(){
+ consolidateGlossary();
+ enhancePresentation();
  accessible(document);
  const top=topOverlay();
  if(!top){
@@ -74,6 +162,12 @@ function refresh(){
  }
  if(top!==active?.overlay)setup(top);
 }
+document.addEventListener('click',ev=>{
+ const btn=ev.target.closest('.info-dot');
+ if(!btn){pendingMetricHelp=null;return;}
+ const label=btn.parentElement?.textContent||'';
+ pendingMetricHelp=/Máx\.?\s*ganancia/i.test(label)?'maxwin':/Máx\.?\s*pérdida/i.test(label)?'maxloss':null;
+},true);
 document.addEventListener('pointerdown',ev=>{
  if(!topOverlay())latestTrigger=ev.target.closest('button,a,[role="button"],input,select');
 },true);
@@ -83,6 +177,14 @@ document.addEventListener('click',ev=>{
  if(!top)return;
  const button=ev.target.closest('button');
  if(!button||!top.contains(button))return;
+ if(button.dataset.tr4GlossaryBack==='true'){
+  ev.preventDefault();ev.stopImmediatePropagation();
+  const detail=top.querySelector('.tr4-glossary-detail');
+  detail?.classList.add('hidden');
+  top.querySelector('.tr4-glossary-results')?.classList.remove('hidden');
+  top.querySelector('#glossary-search')?.focus({preventScroll:true});
+  return;
+ }
  const action=String(button.getAttribute('data-tr-onclick')||button.getAttribute('data-tr-action-click')||'');
  const cancelling=/closeModal/.test(action)&&/cancelar|cerrar/i.test(button.textContent||'');
  if(!cancelling)return;

@@ -1152,3 +1152,6 @@ html[data-theme="light"] .tr2-nav-button:hover{background:#f0f5fc}
 html[data-theme="light"] .tr2-editor-target,html[data-theme="light"] .tr2-ref-card,html[data-theme="light"] .tr2-tax-select{background:#fff}
 @media(max-width:850px){.tr2-tax-layout{grid-template-columns:1fr}.tr2-tax-select{position:static;max-height:none}.tr2-gallery-filters{grid-template-columns:1fr 1fr}.tr2-scope-label{align-items:start;flex-direction:column}.tr2-scope-label small{text-align:left}}
 @media(max-width:600px){.tr2-gallery-filters{grid-template-columns:1fr}.tr2-data-overview{flex-direction:column;align-items:start}.tr2-scope-switch>.tr2-nav-button{min-width:0}}
+
+/* Lote 2 · prioritize actual sync/status, keep credential setup accessible but secondary. */
+.tr2-cloud-primary{display:grid;gap:14px}

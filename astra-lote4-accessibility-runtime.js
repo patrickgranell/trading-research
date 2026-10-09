@@ -193,10 +193,18 @@ function normalizeContent(root){
    if(el.children.length)continue;
    if(/^\+\+\d/.test(el.textContent.trim()))el.textContent=el.textContent.replace(/^\s*\+\+/,'+');
  }
+ for(const id of ['f-rm-d-loss','f-rm-w-loss','f-rm-d-consec','f-rm-w-days']){
+  const control=root.querySelector('#'+id);
+  const holder=control?.closest('.field');
+  if(!holder||holder.querySelector('.tr4-zero-help'))continue;
+  const help=document.createElement('small');help.className='tr4-zero-help';
+  help.id=id+'-help';help.textContent='0 desactiva este límite.';
+  holder.append(help);control.setAttribute('aria-describedby',help.id);
+ }
  for(const panel of root.querySelectorAll('.modal')){
    const title=panel.querySelector('.modal-head h3')?.textContent||'';
    if(/Editar Trading Plan/i.test(title)){
-    panel.querySelectorAll('.help,.notice').forEach(n=>{if(/crea(r|ción)? (un |otro )?plan/i.test(n.textContent))n.textContent=n.textContent.replace(/crear (un |otro )?plan/i,'editar este Trading Plan');});
+    panel.querySelectorAll('.help,.notice').forEach(n=>{if(/El nuevo plan empezará/i.test(n.textContent))n.textContent='Estás editando este Trading Plan. Los cambios afectarán a esta versión; las operaciones existentes se conservan.';});
    }
  }
 }

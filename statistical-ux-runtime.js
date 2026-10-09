@@ -45,6 +45,19 @@ function sampleForView(){
   }catch(e){return null;}
   return {view,all,shown,unit,basis,filterNote};
 }
+function activeFilterLabel(view){
+  const f=view==='operations'?opsViewState:view==='lab'?labState:null;
+  if(!f)return '';
+  const keys=[['q','Buscar'],['dateFrom','Desde'],['dateTo','Hasta'],['month','Mes'],['year','Año'],['timeFrom','Hora desde'],['timeTo','Hora hasta'],['direction','Dirección'],['setup','Setup'],['vd','VD'],['nr','NR'],['hypothesis','Hipótesis'],['context','Contexto'],['risk','Gestión'],['layer','Entorno'],['source','Origen'],['result','Resultado'],['contract','Contrato'],['block','Bloque'],['emotion','Emoción'],['behavior','Conducta'],['rMin','R mínima'],['rMax','R máxima'],['days','Días']];
+  const active=keys.flatMap(([key,label])=>{
+    const raw=f[key];const v=Array.isArray(raw)?raw.join(','):String(raw??'').trim();
+    return v?[label+': '+v.slice(0,28)]:[];
+  });
+  if(f.riskPolicy==='plan')active.push('Gestión secuencial TP');
+  const tax=f.taxonomyFilters&&typeof f.taxonomyFilters==='object'?Object.values(f.taxonomyFilters).filter(Boolean).length:0;
+  if(tax)active.push(tax+' taxonomía(s)');
+  return active.length?'Filtros: '+active.slice(0,3).join(' · ')+(active.length>3?' · +'+(active.length-3):''):'Sin filtros activos';
+}
 function contextMarkup(){
   const p=getCurrentPlan(),q=sampleForView();if(!p||!q)return '';
   const c=countRows(q.shown,q.unit,q.basis),layers=new Map();
@@ -59,7 +72,8 @@ function contextMarkup(){
   const note=q.filterNote?' · '+q.filterNote:'';
   const units=q.unit==='ticks'?'Ticks':q.unit==='usd'?'US$':'R';
   const unusual=q.view==='journalstreaks'?' · Drawdown de rachas: ticks netos (escala fija)':'';
-  const body=`<span><b>${htmlValue(planLabel(p))}</b></span><span>${htmlValue(environment)}</span><span title="Los pendientes y los resultados no finitos no entran en el denominador del KPI">Registros <b>${c.total}</b> · Cerradas <b>${c.closed}</b> · Elegibles <b>${c.eligible}</b>${c.noClose?` · ${c.noClose} sin cierre`:''}${c.noFinite?` · ${c.noFinite} sin métrica válida`:''}</span><span>${htmlValue(units)} · ${q.basis==='net'?'Neto':'Bruto'}${htmlValue(unusual)}</span>${note?`<span>${htmlValue(note.slice(3))}</span>`:''}${status?`<span class="tr-ux-absence">${htmlValue(status)}</span>`:''}`;
+  const applied=activeFilterLabel(q.view);
+  const body=`<span><b>${htmlValue(planLabel(p))}</b></span><span>${htmlValue(environment)}</span><span title="Los pendientes y los resultados no finitos no entran en el denominador del KPI">Registros <b>${c.total}</b> · Cerradas <b>${c.closed}</b> · Elegibles <b>${c.eligible}</b>${c.noClose?` · ${c.noClose} sin cierre`:''}${c.noFinite?` · ${c.noFinite} sin métrica válida`:''}</span><span>${htmlValue(units)} · ${q.basis==='net'?'Neto':'Bruto'}${htmlValue(unusual)}</span>${note?`<span>${htmlValue(note.slice(3))}</span>`:''}${applied?`<span>${htmlValue(applied)}</span>`:''}${status?`<span class="tr-ux-absence">${htmlValue(status)}</span>`:''}`;
   return '<div class="tr-analytic-context" aria-label="Contexto y denominador del análisis">'+body+'</div>';
 }
 const prevPageHead=pageHead;

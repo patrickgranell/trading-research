@@ -4204,6 +4204,7 @@ function trHelpDetailHtml(item){
   return `<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
 }
 function openContextHelp(id){
+  if(id==='__back__'){glossaryBackToResults();return;}
   hideHelpHover();
   const item=CONTEXT_HELP.find(x=>x.id===id);
   if(!item)return;
@@ -4213,7 +4214,7 @@ function openContextHelp(id){
     const results=list.closest('.glossary-results');
     if(results)results.classList.add('hidden');
     detail.classList.remove('hidden');
-    detail.innerHTML=`<div class="glossary-detail-head"><button class="btn small" data-tr-onclick="glossaryBackToResults()">← Volver a resultados</button><h4>${esc(item.title)}</h4></div>`+trHelpDetailHtml(item);
+    detail.innerHTML=`<div class="glossary-detail-head"><button class="btn small" data-tr-onclick="openContextHelp('__back__')">← Volver a resultados</button><h4>${esc(item.title)}</h4></div>`+trHelpDetailHtml(item);
     detail.querySelector('button')?.focus();
     return;
   }
@@ -4261,7 +4262,7 @@ function ensureContextHelpObserver(){
 }
 const renderV21Base=render;
 render=function(){renderV21Base();ensureContextHelpObserver();setTimeout(applyContextHelp,0);};
-Object.assign(window,{openContextHelp,openGlossary,filterGlossary,glossaryBackToResults});
+Object.assign(window,{openContextHelp,openGlossary,filterGlossary});
 render();
 /* ===== END V21 PATCH ===== */
 

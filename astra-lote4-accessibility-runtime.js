@@ -186,8 +186,7 @@ function normalizeContent(root){
  for(const cell of root.querySelectorAll('.block-card')){
    const button=[...cell.querySelectorAll('button')].find(x=>/^Detalle \+ 20 operaciones$/.test(x.textContent.trim()));
    if(!button)continue;
-   const n=Number(cell.querySelector('.block-core-grid>div:first-child strong')?.textContent?.trim());
-   if(Number.isFinite(n)&&n>=0)button.textContent='Detalle · '+n+' operaciones';
+   button.textContent='Ver operaciones del bloque';
  }
  for(const el of root.querySelectorAll('.kpi .value,.stat-delta,.delta,.value-right')){
    if(el.children.length)continue;

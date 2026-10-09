@@ -23,6 +23,7 @@ const ctx=vm.createContext({
   activePlanBanner:()=>'<div class="active-plan">Plan</div>',
   confidenceMaturity:n=>({label:n>100?'Muestra amplia':'Exploratoria'}),
   confidenceEvidence:s=>({label:s.n<2?'Sin estimar':'Calculada'}),
+  confidenceSplit:(ops,unit,basis)=>({eligible:ops.length,unit,basis}),
   analyzeDataQuality:(p,ops)=>({
     coverage:[{id:'journal',weight:10,pct:0,total:ops.length,ok:0,missingIds:ops.map(o=>o.id),label:'Diario emocional'}],
     baseScore:72,penalty:2,score:70,issues:[]}),
@@ -82,6 +83,9 @@ assert.equal(ctx.calcMetricStats(unordered,'r','gross').maxDD,-2,'Outside the Bu
 const counts=api.countRows(ctx.state.operations);
 assert.equal(counts.total,124);assert.equal(counts.closed,123);assert.equal(counts.eligible,123);
 assert.equal(counts.noClose,1);assert.equal(counts.noFinite,0);
+assert.equal(ctx.confidenceSplit(ctx.state.operations,'r','gross').eligible,123,
+  'Confidence split cannot include pending trades rejected by canonical stats');
+
 const context=api.contextMarkup();
 assert(context.includes('prova1')&&context.includes('Backtesting')&&context.includes('Registros <b>124</b>')&&context.includes('Elegibles <b>123</b>'));
 assert(api.stateLabel(0,0,0)==='Sin operaciones');

@@ -744,19 +744,19 @@ function addHypothesis(){const p=getCurrentPlan(),el=document.getElementById('ne
 function editHyp(id){const p=getCurrentPlan(),h=p?.hypotheses.find(x=>x.id===id);if(!h)return;const name=prompt('Nombre',h.name);if(name===null)return;const desc=prompt('Descripción / lógica de la hipótesis',h.description||'');h.name=name.trim()||h.name;h.description=desc??h.description;p.updatedAt=new Date().toISOString();saveState();}
 function resetPlanConfig(){const p=getCurrentPlan();if(!p)return;if(confirm(`¿Restaurar la estructura base dentro de ${planLabel(p)}? Las operaciones e importaciones del plan se conservarán.`)){const base=clone(basePlanConfig);p.setups=base.setups;p.vd=base.vd;p.nr=base.nr;p.hypotheses=base.hypotheses;p.discretionaryTargets=base.discretionaryTargets;p.emotionConfig=base.emotionConfig;p.riskManagement=base.riskManagement;p.visualReferences=[];p.riskStrategies=base.riskStrategies.map(r=>normalizeRiskStrategy({...r,id:uid('R')},state.settings.instruments));p.updatedAt=new Date().toISOString();saveState();}}
 
-function modalShell(title,body,footer){return `<div class="modal-backdrop" data-modal-locked="true"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h3>${esc(title)}</h3><span class="modal-lock-note" title="Esta ventana solo se cierra con sus botones de acción">● Protegido</span></div><div class="modal-body">${body}</div><div class="modal-foot">${footer}</div></div></div>`;}
+function modalShell(title,body,footer){return `<div class="modal-backdrop" data-modal-locked="true"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-head"><h3>${esc(title)}</h3></div><div class="modal-body">${body}</div><div class="modal-foot">${footer}</div></div></div>`;}
 function closeModal(){document.querySelector('.modal-backdrop')?.remove();editingId=null;editingInstrumentId=null;editingRiskId=null;editingPlanId=null;cloningPlanId=null;editingVisualReferenceId=null;}
 function formDataFrom(formOrSelector){const form=typeof formOrSelector==='string'?document.querySelector(formOrSelector):formOrSelector;return form&&typeof FormData!=='undefined'?new FormData(form):null;}
 function formDataValue(fd,name,fallback=''){const v=fd?.get(name);return typeof v==='string'?v:fallback;}
-function field(label,name,type,value='',span='',extra=''){return `<div class="field ${span==='full'?'full':span==='span2'?'span2':''}"><label>${label}</label>${type==='textarea'?`<textarea id="f-${name}" name="${esc(name)}" class="textarea" ${extra}>${value}</textarea>`:`<input id="f-${name}" name="${esc(name)}" class="input" type="${type}" value="${value}" ${extra}>`}</div>`;}
-function selectField(label,name,options,value,extra=''){return `<div class="field"><label>${label}</label><select id="f-${name}" name="${esc(name)}" class="select" ${extra}>${options.map(x=>`<option value="${esc(x)}" ${String(x)===String(value)?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`;}
-function selectObjField(label,name,options,value,extra=''){return `<div class="field"><label>${label}</label><select id="f-${name}" name="${esc(name)}" class="select" ${extra}>${options.map(x=>`<option value="${esc(x.value)}" ${String(x.value)===String(value)?'selected':''}>${esc(x.label)}</option>`).join('')}</select></div>`;}
+function field(label,name,type,value='',span='',extra=''){const id='f-'+name,hint=name.startsWith('rm-')&&type==='number'?'<small class="tr4-limit-hint">0 = límite desactivado</small>':'';return `<div class="field ${span==='full'?'full':span==='span2'?'span2':''}"><label for="${esc(id)}">${label}</label>${type==='textarea'?`<textarea id="${esc(id)}" name="${esc(name)}" class="textarea" ${extra}>${value}</textarea>`:`<input id="${esc(id)}" name="${esc(name)}" class="input" type="${type}" value="${value}" ${extra}>`}${hint}</div>`;}
+function selectField(label,name,options,value,extra=''){return `<div class="field"><label for="f-${esc(name)}">${label}</label><select id="f-${name}" name="${esc(name)}" class="select" ${extra}>${options.map(x=>`<option value="${esc(x)}" ${String(x)===String(value)?'selected':''}>${esc(x)}</option>`).join('')}</select></div>`;}
+function selectObjField(label,name,options,value,extra=''){return `<div class="field"><label for="f-${esc(name)}">${label}</label><select id="f-${name}" name="${esc(name)}" class="select" ${extra}>${options.map(x=>`<option value="${esc(x.value)}" ${String(x.value)===String(value)?'selected':''}>${esc(x.label)}</option>`).join('')}</select></div>`;}
 
 function openPlanModal(id=null,cloneFrom=null){
   editingPlanId=id;cloningPlanId=cloneFrom;
   const source=cloneFrom?getPlan(cloneFrom):null,p=id?getPlan(id):source?{familyName:source.familyName,name:source.name,version:nextVersionLabel(source.version),description:source.description,planEnvironment:globalThis.TradingResearchOperationSemanticsContract.planEnvironment(source)}:{familyName:'',name:'',version:'v1',description:'',planEnvironment:'unclassified'};
   const title=id?'Editar Trading Plan':source?'Clonar nueva versión':'Nuevo Trading Plan desde cero';
-  const notice=source?`Se copiarán categorías, hipótesis, salidas y estrategias de <strong>${esc(planLabel(source))}</strong>. No se copiarán operaciones ni importaciones.`:'El nuevo plan empezará sin setups, VD, NR, hipótesis ni estrategias. Los contratos globales seguirán disponibles.';
+  const notice=id?'Estás editando este Trading Plan. Guardar cambios no crea una versión nueva ni modifica las operaciones históricas.':source?`Se copiarán categorías, hipótesis, salidas y estrategias de <strong>${esc(planLabel(source))}</strong>. No se copiarán operaciones ni importaciones.`:'El nuevo plan empezará sin setups, VD, NR, hipótesis ni estrategias. Los contratos globales seguirán disponibles.';
   document.body.insertAdjacentHTML('beforeend',modalShell(title,`<form data-tr-onsubmit="return false"><div class="form-section"><h4>Identidad del plan</h4><div class="form-grid">${field('Familia / sistema','plan-family','text',esc(p?.familyName||''))}${field('Nombre','plan-name','text',esc(p?.name||''))}${field('Versión','plan-version','text',esc(p?.version||'v1'))}${selectObjField('Ámbito del Trading Plan','plan-environment',[{value:'unclassified',label:'Sin clasificar'},{value:'backtest',label:'Backtesting'},{value:'replay',label:'Replay'},{value:'sim',label:'Sim'},{value:'live',label:'Live'}],globalThis.TradingResearchOperationSemanticsContract.planEnvironment(p))}${selectObjField('Estado','plan-status',[{value:'active',label:'Activo'},{value:'archived',label:'Archivado'}],p?.status||'active')}${field('Descripción','plan-description','textarea',esc(p?.description||''),'full')}</div><div class="notice" style="margin-top:12px">${notice}<br>El ámbito identifica el uso principal de este TP. Cambiarlo no reclasifica operaciones históricas; las nuevas operaciones heredarán este entorno por defecto cuando corresponda.</div></div></form>`,`<button class="btn" data-tr-onclick="closeModal()">Cancelar</button><button class="btn primary" data-tr-onclick="savePlan()">${id?'Guardar cambios':source?'Crear versión':'Crear plan'}</button>`));
 }
 function savePlan(){const fd=formDataFrom(document.querySelector('.modal-backdrop form')),get=n=>formDataValue(fd,n),name=get('plan-name').trim(),family=get('plan-family').trim()||name,version=get('plan-version').trim()||'v1',description=get('plan-description').trim(),status=get('plan-status')||'active',planEnvironment=globalThis.TradingResearchOperationSemanticsContract.planEnvironments.includes(get('plan-environment'))?get('plan-environment'):'unclassified';if(!name)return alert('El nombre del plan es obligatorio.');if(editingPlanId){const p=getPlan(editingPlanId);if(!p)return;p.familyName=family;p.name=name;p.version=version;p.description=description;p.status=status;p.planEnvironment=planEnvironment;p.updatedAt=new Date().toISOString();}else if(cloningPlanId){const source=getPlan(cloningPlanId);if(!source)return;const p=clonePlanForVersion(source,{familyName:family,name,version,description,planEnvironment});p.status=status;state.tradingPlans.push(p);state.currentPlanId=p.id;}else{const p=makeBlankPlan({familyName:family,name,version,description,status,planEnvironment});state.tradingPlans.push(p);state.currentPlanId=p.id;}persist();closeModal();currentView='plans';render();}
@@ -4198,16 +4198,42 @@ function showHelpHover(btn){
   const el=ensureHelpPopover();el.querySelector('strong').textContent=item.title;el.querySelector('p').textContent=item.summary;positionHelpPopover(btn,el);el.classList.add('show');
 }
 function hideHelpHover(){document.getElementById('context-help-popover')?.classList.remove('show');}
+function trHelpDetailHtml(item){
+  return `<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
+}
 function openContextHelp(id){
-  hideHelpHover();const item=CONTEXT_HELP.find(x=>x.id===id);if(!item)return;
-  const body=`<div class="context-help-modal"><div class="context-help-summary">${esc(item.summary)}</div><div><span>Qué significa</span><p>${esc(item.body)}</p></div><div><span>Para qué sirve</span><p>${esc(item.use)}</p></div></div>`;
-  document.body.insertAdjacentHTML('beforeend',modalShell(`ⓘ ${item.title}`,body,`<button class="btn primary" data-tr-onclick="closeModal()">Entendido</button>`));
+  hideHelpHover();
+  const item=CONTEXT_HELP.find(x=>x.id===id);
+  if(!item)return;
+  const list=document.getElementById('glossary-list');
+  const detail=document.getElementById('glossary-detail');
+  if(list&&detail){
+    const results=list.closest('.glossary-results');
+    if(results)results.classList.add('hidden');
+    detail.classList.remove('hidden');
+    detail.innerHTML=`<div class="glossary-detail-head"><button class="btn small" data-tr-onclick="glossaryBackToResults()">← Volver a resultados</button><h4>${esc(item.title)}</h4></div>`+trHelpDetailHtml(item);
+    detail.querySelector('button')?.focus();
+    return;
+  }
+  document.body.insertAdjacentHTML('beforeend',modalShell(`ⓘ ${item.title}`,trHelpDetailHtml(item),`<button class="btn primary" data-tr-onclick="closeModal()">Entendido</button>`));
+}
+function glossaryBackToResults(){
+  const detail=document.getElementById('glossary-detail');
+  if(!detail)return;
+  detail.classList.add('hidden');
+  const results=document.querySelector('.glossary-results');
+  if(results)results.classList.remove('hidden');
+  const search=document.getElementById('glossary-search');
+  if(search)search.focus();
 }
 function openGlossary(){
-  const body=`<div class="glossary-search"><input class="input" id="glossary-search" placeholder="Buscar métrica o concepto…" data-tr-oninput="filterGlossary(this.value)"></div><div id="glossary-list" class="glossary-list">${CONTEXT_HELP.map(x=>`<button type="button" data-glossary-search="${esc(helpNormalizeText(x.title+' '+x.summary+' '+x.body))}" data-tr-onclick="openContextHelp('${x.id}')"><strong>${esc(x.title)}</strong><span>${esc(x.summary)}</span></button>`).join('')}</div>`;
+  const body=`<div class="glossary-results"><div class="glossary-search"><label for="glossary-search" class="tr4-field-label">Buscar concepto</label><input class="input" id="glossary-search" type="search" placeholder="Buscar métrica o concepto…" data-tr-oninput="filterGlossary(this.value)"></div><div id="glossary-list" class="glossary-list">${CONTEXT_HELP.map(x=>`<button type="button" data-glossary-search="${esc(helpNormalizeText(x.title+' '+x.summary+' '+x.body))}" data-tr-onclick="openContextHelp('${x.id}')"><strong>${esc(x.title)}</strong><span>${esc(x.summary)}</span></button>`).join('')}</div></div><div id="glossary-detail" class="glossary-detail hidden"></div>`;
   document.body.insertAdjacentHTML('beforeend',modalShell('Glosario de Trading Research',body,`<button class="btn" data-tr-onclick="closeModal()">Cerrar</button>`));
 }
-function filterGlossary(q){const n=helpNormalizeText(q);document.querySelectorAll('#glossary-list [data-glossary-search]').forEach(el=>el.classList.toggle('hidden',n&&!el.dataset.glossarySearch.includes(n)));}
+function filterGlossary(q){
+  const n=helpNormalizeText(q);
+  document.querySelectorAll('#glossary-list [data-glossary-search]').forEach(el=>el.classList.toggle('hidden',n&&!el.dataset.glossarySearch.includes(n)));
+}
 function attachInfoButton(el,item){
   if(!el||!item||el.dataset.helpAttached)return;el.dataset.helpAttached=item.id;
   const btn=document.createElement('button');btn.type='button';btn.className='info-dot';btn.dataset.helpId=item.id;btn.textContent='i';btn.setAttribute('aria-label',`Información: ${item.title}`);btn.title='Información';
@@ -4233,7 +4259,7 @@ function ensureContextHelpObserver(){
 }
 const renderV21Base=render;
 render=function(){renderV21Base();ensureContextHelpObserver();setTimeout(applyContextHelp,0);};
-Object.assign(window,{openContextHelp,openGlossary,filterGlossary});
+Object.assign(window,{openContextHelp,openGlossary,filterGlossary,glossaryBackToResults});
 render();
 /* ===== END V21 PATCH ===== */
 

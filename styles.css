@@ -1155,3 +1155,40 @@ html[data-theme="light"] .tr2-editor-target,html[data-theme="light"] .tr2-ref-ca
 
 /* Lote 2 · prioritize actual sync/status, keep credential setup accessible but secondary. */
 .tr2-cloud-primary{display:grid;gap:14px}
+
+/* Astra Lote 3 · active route hierarchy and clipped-width, vertically scrollable sidebar. */
+.sidebar{display:flex;flex-direction:column;min-width:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain}
+.sidebar .brand{flex:0 0 auto;padding-bottom:13px}
+.sidebar .plan-switch,.sidebar .tr3-appearance,.sidebar .nav-organized,.sidebar .side-bottom{flex:0 0 auto;min-width:0;max-width:100%}
+.sidebar .plan-switch select{max-width:100%;min-width:0}
+.sidebar .side-bottom{position:static;left:auto;right:auto;bottom:auto;margin:12px 4px 4px}
+.sidebar .nav-organized{width:100%;min-width:0}
+.sidebar .nav-organized .nav-group,.sidebar .nav-organized .nav-group-items,.sidebar .nav-organized .nav-child{min-width:0;max-width:100%}
+.sidebar .nav-organized .nav-child-label,.sidebar .nav-organized .nav-group-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .nav-organized .nav-child.active{background:rgba(110,168,254,.19);color:var(--text);box-shadow:inset 3px 0 0 var(--accent);font-weight:750}
+.sidebar .nav-organized>button.active{background:rgba(110,168,254,.19);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.sidebar .nav-group.tr3-ancestor>.nav-group-toggle{background:transparent;color:var(--text)}
+.sidebar .nav-group.tr3-ancestor>.nav-group-toggle .nav-group-label{font-weight:750}
+.sidebar .tr3-appearance{margin:2px 4px 9px;border:1px solid var(--border);background:var(--panel);border-radius:9px}
+.sidebar .tr3-appearance>summary{padding:7px 11px;cursor:pointer;color:var(--muted);font-size:11px;font-weight:700}
+.sidebar .tr3-appearance>.theme-switch{margin:0 4px 5px;padding:5px;background:transparent;border:none}
+.sidebar .tr3-appearance .theme-switch-label{display:none}
+.tr3-journal-nav{display:flex;gap:5px;flex-wrap:wrap;padding:6px;border:1px solid var(--border);background:var(--panel);border-radius:12px;margin:-8px 0 15px}
+.tr3-journal-link{padding:8px 10px;font-size:11.5px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:8px}
+.tr3-journal-link:hover,.tr3-execution-link:hover{color:var(--text);background:var(--panel2)}
+.tr3-journal-link.is-current,.tr3-execution-link.is-current{color:var(--text);background:rgba(110,168,254,.16);border-color:var(--accent);font-weight:750}
+.tr3-prerequisite-list{display:grid;gap:8px;margin:0 0 14px}
+.tr3-prerequisite{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:12px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--warning);min-width:0}
+.tr3-prerequisite strong{font-size:12px}.tr3-prerequisite p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
+.tr3-link{padding:7px 11px;color:var(--text);font-size:11.5px;font-weight:700;background:var(--panel2);border:1px solid var(--border);border-radius:8px;white-space:normal;cursor:pointer}
+.tr3-link:hover{border-color:var(--accent)}
+.tr3-execution-nav{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:9px 12px;margin:-9px 0 15px;background:var(--panel);border:1px solid var(--border);border-radius:11px}
+.tr3-execution-label{font-size:11.5px;color:var(--muted);font-weight:750;margin-right:5px}
+.tr3-execution-link{font-size:12px;color:var(--muted);border:1px solid transparent;border-radius:8px;padding:8px 11px;background:transparent}
+.tr3-method{margin:8px 0}.tr3-method>summary{font-size:12px;padding:10px;color:var(--text);background:var(--panel2);border-radius:8px;cursor:pointer}
+.tr3-return-context{display:flex;flex-wrap:wrap;align-items:center;gap:9px 15px;padding:12px 14px;margin:0 0 15px;border:1px solid var(--accent);border-radius:10px;background:var(--panel)}
+.tr3-return-context strong{font-size:12px}.tr3-return-context p{color:var(--muted);font-size:11px;margin:0;flex:1}
+html[data-theme="light"] .sidebar .nav-organized .nav-child.active,html[data-theme="light"] .sidebar .nav-organized>button.active{color:#153661;background:#e1ecfa}
+html[data-theme="light"] .sidebar .nav-group.tr3-ancestor>.nav-group-toggle{color:#254369;background:transparent}
+html[data-theme="light"] .tr3-journal-link.is-current,html[data-theme="light"] .tr3-execution-link.is-current{color:#163d69;background:#e3efff}
+@media(max-width:850px){.tr3-prerequisite{align-items:start;flex-direction:column}.tr3-journal-nav{gap:3px}.tr3-journal-link{padding:7px 8px}}

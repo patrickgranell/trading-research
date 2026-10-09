@@ -69,8 +69,14 @@ assert(rule(light+'.rp-legend i.exit,\n'+light+'.be-legend i.be-actual-dot').inc
 assert(rule(light+'.perspective-focus-actions .btn:focus-visible,\n'+light+'.block-detail-head .btn:focus-visible').includes('outline:2px solid'),'Keyboard focus must remain visible');
 // Light-only changes: existing dark surfaces/semantic classes remain authored.
 const baseCss=css.slice(0,css.indexOf('/* ===== TR-UX-026'));
-assert(rule('.block-detail-head',baseCss).includes('background:#0a182a'),'Dark Blocks header must remain unchanged');
-assert(rule('.block-detail-kpis>div',baseCss).includes('background:#09111f'),'Dark Blocks metrics must remain unchanged');
-assert(rule('.perspective-focus-card',baseCss).includes('#0b1220'),'Dark Perspective gradient must remain unchanged');
+function firstBaseRule(selector){
+  const start=baseCss.indexOf(selector+'{');
+  assert(start>=0,'Missing original dark rule: '+selector);
+  const end=baseCss.indexOf('}',start);
+  return baseCss.slice(start+selector.length+1,end);
+}
+assert(firstBaseRule('.block-detail-head').includes('background:#0a182a'),'Dark Blocks header must remain unchanged');
+assert(firstBaseRule('.block-detail-kpis>div').includes('background:#09111f'),'Dark Blocks metrics must remain unchanged');
+assert(firstBaseRule('.perspective-focus-card').includes('#0b1220'),'Dark Perspective gradient must remain unchanged');
 assert(css.includes('html[data-theme="light"] .positive')&&css.includes('html[data-theme="light"] .negative'),'Financial semantics must remain theme-aware');
 console.log('TR-UX-026 Light Theme · targeted contrast & invariants PASS');

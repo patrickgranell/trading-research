@@ -194,6 +194,19 @@ function decorate(){
         }
       }
     }
+    if(['reports','report'].includes(q.view)){
+      const docHead=root.querySelector('.report-doc-head p');
+      if(docHead&&!docHead.querySelector('.tr-report-universe')){
+        docHead.insertAdjacentHTML('beforeend','<span class="tr-report-universe">Alcance: '+rows.total+' registros · '+rows.closed+' cerradas · '+rows.eligible+' elegibles'+(rows.noClose?' · '+rows.noClose+' sin cierre':'')+'</span>');
+      }
+      if(!rows.total){
+        for(const section of root.querySelectorAll('.report-section')){
+          if(!section.querySelector('h3')?.textContent?.includes('Calidad del dataset'))continue;
+          const badge=section.querySelector('.panel-title .badge');if(badge)badge.textContent='Sin evaluar';
+          for(const value of section.querySelectorAll('.report-grid-3 strong'))value.textContent='—';
+        }
+      }
+    }
     if(['reports','report'].includes(q.view)&&rows.eligible===0){
       for(const section of root.querySelectorAll('.report-section')){
         const heading=section.querySelector('h3')?.textContent||'';
@@ -231,6 +244,7 @@ function decorate(){
   // A plan comparison is grouped for navigation only; every row owns its TP
   // and version. 'Trades' uses the closed/finite denominator, not total records.
   for(const table of root.querySelectorAll('.plan-table')){
+    if(!table.querySelector('.tr-ux-comparison-caption'))table.insertAdjacentHTML('afterbegin','<caption class="tr-ux-comparison-caption">R · Bruto · cada Trading Plan/versión por separado</caption>');
     const heading=table.querySelector('thead th:nth-child(4)');
     if(heading)heading.textContent='Cerradas elegibles';
     for(const row of table.querySelectorAll('tbody tr')){
@@ -256,6 +270,12 @@ function decorate(){
       const metric=card.querySelector('.plan-metrics>div:first-child');
       if(metric){
         const label=metric.querySelector('span');if(label)label.textContent='Trades elegibles';
+        if(!c.eligible){
+          for(const val of card.querySelectorAll('.plan-metrics>div')){
+            if(val.querySelector('span')?.textContent?.trim()!=='Expectancy')continue;
+            const strong=val.querySelector('strong');if(strong){strong.textContent='—';strong.classList.remove('positive','negative');}
+          }
+        }
         if(!metric.querySelector('.tr-ux-plan-n'))metric.insertAdjacentHTML('beforeend','<small class="tr-ux-plan-n">'+c.total+' registros · '+c.closed+' cerradas'+(c.noClose?' · '+c.noClose+' sin cierre':'')+'</small>');
       }
     }

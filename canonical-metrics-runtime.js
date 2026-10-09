@@ -107,7 +107,14 @@ calcMetricStats=function(ops,unit='r',basis='gross'){
   const commissions=included.reduce((a,o)=>a+(Number(o.commission)||0),0);
   const netUsd=included.reduce((a,o)=>a+(Number(o.pnlNet)||0),0);
   const grossUsd=included.reduce((a,o)=>a+(Number(o.pnlGross)||0),0);
-  return {
+  // TR-UX-024: canonical summary had discarded V18 t/Wilson fields.
+  // V18's calculator already owns the t/Wilson estimator. Use it ONLY on
+  // the closed, finite canonical rows rather than recalculating over input
+  // rows that may include pending trades.
+  const prior=trCanonicalCalcMetricStatsLegacy(included,unit,basis);
+  const confidence={mean:prior.mean,sd:prior.sd,se:prior.se,ciLow95:prior.ciLow95,
+    ciHigh95:prior.ciHigh95,winLow95:prior.winLow95,winHigh95:prior.winHigh95};
+  return {...confidence,
     n:base.n,wins:base.wins,losses:base.losses,flats:base.flats,winRate:base.winRate,
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,
     equity:base.equity,avgWin:base.avgWin,avgLoss:base.avgLoss,maxWin:base.maxWin,maxLoss:base.maxLoss,

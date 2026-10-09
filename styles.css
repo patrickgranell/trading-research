@@ -1110,5 +1110,8 @@ html[data-theme="light"] .calendar-detail-kpis span{color:#3b4f69}
 .tr-ux-na{border-color:var(--border)!important;background:var(--card)!important}
 .tr-ux-na .dq-cov-head strong{color:var(--muted)!important}
 .tr-ux-dd-scope{color:var(--muted)}
+.tr-report-universe{display:block;margin-top:3px;font-size:11px;line-height:1.4;color:var(--muted)}
+.tr-ux-comparison-caption{caption-side:top;text-align:left;padding:3px 0 7px;color:var(--muted);font-size:10.5px;font-weight:500}
+
 @media(max-width:700px){.tr-analytic-context{font-size:10.5px;gap:2px 8px}}
 /* ===== END Astra Lote 1 ===== */

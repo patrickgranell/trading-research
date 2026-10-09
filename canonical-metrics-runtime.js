@@ -111,7 +111,7 @@ calcMetricStats=function(ops,unit='r',basis='gross'){
   // dropped those fields after establishing the closed/finite eligible subset.
   // Feed that SAME subset into the original t/Wilson estimator; do not
   // recompute from all input operations or change the estimator's formula.
-  const confidence=confidenceFromValues(rows.map(x=>x.value),base.wins);
+  const confidence=typeof confidenceFromValues==='function'?confidenceFromValues(rows.map(x=>x.value),base.wins):{};
   return {...confidence,
     n:base.n,wins:base.wins,losses:base.losses,flats:base.flats,winRate:base.winRate,
     sum:base.sum,expectancy:base.expectancy,pf:base.pf,maxDD:base.maxDD,maxDU:base.maxDU,

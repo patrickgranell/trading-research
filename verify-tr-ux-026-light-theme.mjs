@@ -4,12 +4,15 @@ import assert from 'node:assert/strict';
 // TR-UX-026: deterministic WCAG AA text checks for the documented theme
 // surfaces. This is a stylesheet regression gate, not a browser accessibility audit.
 const css=fs.readFileSync(new URL('./styles.css',import.meta.url),'utf8');
-function rule(selector){
-  const start=css.lastIndexOf(selector+'{');
+function rule(selector,source=css){
+  const exact=source.lastIndexOf(selector+'{');
+  const group=source.lastIndexOf(selector+',');
+  const start=Math.max(exact,group);
   assert(start>=0,'Missing CSS selector: '+selector);
-  const end=css.indexOf('}',start);
-  assert(end>start,'Unterminated CSS rule: '+selector);
-  return css.slice(start+selector.length+1,end);
+  const open=source.indexOf('{',start);
+  const end=source.indexOf('}',start);
+  assert(open>start&&end>open,'Unterminated CSS rule: '+selector);
+  return source.slice(open+1,end);
 }
 function value(selector,property){
   const decl=rule(selector).split(';').map(x=>x.trim()).find(x=>x.startsWith(property+':'));
@@ -65,8 +68,9 @@ assert(rule(light+'.rp-exit,\n'+light+'.be-actual').includes('fill:'+amber),'Exe
 assert(rule(light+'.rp-legend i.exit,\n'+light+'.be-legend i.be-actual-dot').includes('background:'+amber),'Exit legends must share the amber color');
 assert(rule(light+'.perspective-focus-actions .btn:focus-visible,\n'+light+'.block-detail-head .btn:focus-visible').includes('outline:2px solid'),'Keyboard focus must remain visible');
 // Light-only changes: existing dark surfaces/semantic classes remain authored.
-assert(rule('.block-detail-head').includes('background:#0a182a'),'Dark Blocks header must remain unchanged');
-assert(rule('.block-detail-kpis>div').includes('background:#09111f'),'Dark Blocks metrics must remain unchanged');
-assert(rule('.perspective-focus-card').includes('#0b1220'),'Dark Perspective gradient must remain unchanged');
+const baseCss=css.slice(0,css.indexOf('/* ===== TR-UX-026'));
+assert(rule('.block-detail-head',baseCss).includes('background:#0a182a'),'Dark Blocks header must remain unchanged');
+assert(rule('.block-detail-kpis>div',baseCss).includes('background:#09111f'),'Dark Blocks metrics must remain unchanged');
+assert(rule('.perspective-focus-card',baseCss).includes('#0b1220'),'Dark Perspective gradient must remain unchanged');
 assert(css.includes('html[data-theme="light"] .positive')&&css.includes('html[data-theme="light"] .negative'),'Financial semantics must remain theme-aware');
 console.log('TR-UX-026 Light Theme · targeted contrast & invariants PASS');

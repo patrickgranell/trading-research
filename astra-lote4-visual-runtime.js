@@ -3,6 +3,19 @@
 (()=>{
 'use strict';
 const actions=window.TradingResearchActions||{};
+(function correctExistingMetricHelp(){
+ if(typeof CONTEXT_HELP==='undefined'||!Array.isArray(CONTEXT_HELP))return;
+ for(const item of CONTEXT_HELP){
+  if(item.id==='avgwin'&&Array.isArray(item.terms))item.terms=item.terms.filter(t=>t!=='máx. ganancia');
+  if(item.id==='avgloss'&&Array.isArray(item.terms))item.terms=item.terms.filter(t=>t!=='máx. pérdida');
+ }
+ const distinct=[
+  {id:'maxgain',terms:['máx. ganancia','ganancia máxima'],title:'Máxima ganancia',summary:'Mayor resultado individual positivo registrado.',body:'Es la operación ganadora de mayor magnitud dentro de la muestra y unidad elegidas. No es el promedio de ganancias.',use:'Consulta el extremo favorable de la distribución junto con la media y el tamaño de muestra.'},
+  {id:'maxloss',terms:['máx. pérdida','pérdida máxima'],title:'Máxima pérdida',summary:'Mayor pérdida individual registrada.',body:'Es la operación perdedora de mayor magnitud dentro de la muestra y unidad elegidas. No es la pérdida media ni el drawdown acumulado.',use:'Identifica el peor resultado por operación y compáralo con la pérdida media y el riesgo previsto.'}
+ ];
+ for(const entry of distinct)if(!CONTEXT_HELP.some(x=>x.id===entry.id))CONTEXT_HELP.push(entry);
+})();
+
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
 const view=()=>window.TradingResearchCurrentViewReadContract?.current?.()||'';
 const tab=()=>window.TradingResearchConfigTabStateContract?.current?.()||'';
@@ -103,6 +116,8 @@ function textFixes(root,current){
  // Only edit visible product copy; never change ID, value attributes or users' saved text.
  const substitutions=new Map([
   ['Limpiar dataset','Revisar calidad del dataset'],
+  ['Actualizar referencia','Actualizar referencia de comparación del TP'],
+  ['Limpiar historial','Borrar historial de cambios del TP'],
   ['Guardar plantilla','Guardar en biblioteca de plantillas'],
   ['Detalle + 20 operaciones','Abrir detalle del bloque'],
   ['Máx. ganancia / pérdida media','Máx. ganancia / pérdida']
@@ -148,7 +163,14 @@ function textFixes(root,current){
   const label=el.closest('.field,.filter-field')?.querySelector(':scope > span,:scope > label');
   if(label?.textContent?.trim())el.setAttribute('aria-label',label.textContent.trim().slice(0,110));
  });
- if(current==='config')emotionalConfig(root);
+ if(current==='config'){
+  if(root.querySelector('.cloud-layout')){
+   // Remove an unrelated Bruto/Neto help assignment; the sync panel already
+   // explains its own data scope. Do not erase any connection controls.
+   root.querySelectorAll('.cloud-layout .info-dot[data-help-id="basis"]').forEach(el=>el.remove());
+  }
+  emotionalConfig(root);
+ }
 }
 function decorate(current,markup){
  if(typeof markup!=='string'||typeof document==='undefined')return markup;

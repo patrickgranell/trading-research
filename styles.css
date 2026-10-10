@@ -1319,3 +1319,9 @@ html[data-theme="light"] .research-grid-table td strong{text-shadow:none;}
 }
 .tr4-spark-caption{display:flex;justify-content:space-between;margin:-4px 2px 9px;color:var(--muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;}
 /* ===== End Astra Lote 4 ===== */
+
+/* Lote 4 · unsaved operation note safeguard */
+.tr4-unsaved-confirmation{width:100%;flex:0 0 100%;border:1px solid color-mix(in srgb,var(--warn,#f4c66a) 45%,var(--border));border-radius:10px;padding:12px 14px;background:color-mix(in srgb,#f4c66a 10%,var(--panel));color:var(--text)}
+.tr4-unsaved-confirmation p{font-size:13px;line-height:1.55;margin:0 0 10px}
+.tr4-unsaved-buttons{display:flex;flex-wrap:wrap;gap:8px}
+html[data-theme="light"] .tr4-unsaved-confirmation{background:#fff8e8}

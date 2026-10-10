@@ -1403,4 +1403,15 @@ html[data-theme="light"] .tr5-compare-images .image-thumb-btn img{background:#e8
 @media(max-width:1150px){.tr5-quick-filters{grid-template-columns:repeat(3,minmax(0,1fr))}.tr5-quick-filters>.filter-field:first-child{grid-column:span 2}.tr5-compare-grid.tr5-compare-count-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:730px){.tr5-quick-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.tr5-quick-filters>.filter-field:first-child{grid-column:1/-1}.tr5-compare-grid.tr5-compare-count-2,.tr5-compare-grid.tr5-compare-count-3,.tr5-compare-grid.tr5-compare-count-4{grid-template-columns:1fr}.tr5-compare-backdrop{padding:8px}.tr5-compare-backdrop .modal{max-width:100%}.tr5-compare-images .tr5-primary-capture img{height:clamp(250px,42vh,540px)}}
 .tr5-filter-meaning{display:block;font-size:11px;line-height:1.45;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+/* Native details should be compact when closed even with grid child styling.
+   Existing global .filter-grid/.quick-row display rules must not reveal closed panels. */
+details.tr5-filter-details:not([open]) > .tr5-filter-detail-grid,
+details.tr5-module-settings:not([open]) > .quick-row{display:none!important}
+details.tr5-filter-details[open],
+details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
+.tr5-filter-details > summary,
+.tr5-module-settings > summary{user-select:none}
+.tr5-filter-details:not([open]) > summary,
+.tr5-module-settings:not([open]) > summary{min-height:38px}
+.tr5-filter-status .tr5-reset-filters{margin-left:auto}
 /* ===== End Astra Lote 5 ===== */

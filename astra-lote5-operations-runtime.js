@@ -11,6 +11,10 @@ const safe=s=>globalThis.TradingResearchContentEncodingContract?.html?.(String(s
 const encode=a=>encodeURIComponent(JSON.stringify(a));
 let opsTab='register';
 const expandedFilterGroups=new Set();
+function updateCollapseAction(root=document){
+ const button=root.querySelector('.tr5-collapse-advanced');
+ if(button)button.hidden=!root.querySelector('.tr5-advanced-sections details[open]');
+}
 document.addEventListener('toggle',event=>{
  const node=event.target;
  if(!(node instanceof HTMLDetailsElement)||!node.matches('.tr5-filter-details,.tr5-module-settings')||!node.isConnected)return;
@@ -18,6 +22,7 @@ document.addEventListener('toggle',event=>{
  if(!group)return;
  if(node.open)expandedFilterGroups.add(group);
  else expandedFilterGroups.delete(group);
+ updateCollapseAction(node.closest('.filter-hub')||document);
 },true);
 const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection','filterSource'];
 const advanced=[
@@ -165,6 +170,17 @@ function refreshSummary(root=document){
   nativeReset.classList.add('tr5-reset-filters');
   summary.append(nativeReset);
  }
+ const collapse=document.createElement('button');
+ collapse.type='button';collapse.className='btn small ghost tr5-collapse-advanced';
+ collapse.textContent='Plegar filtros avanzados';
+ collapse.hidden=true;
+ collapse.addEventListener('click',()=>{
+  for(const el of root.querySelectorAll('.tr5-advanced-sections details[open]'))el.open=false;
+  expandedFilterGroups.clear();
+  updateCollapseAction(root);
+ });
+ summary.append(collapse);
+ updateCollapseAction(root);
 }
 function compactFilters(root){
  const panel=root.querySelector('.filter-hub'),grid=panel?.querySelector('.filter-grid');
@@ -209,6 +225,7 @@ function compactFilters(root){
  panel.append(summary);
  syncedOptions(root);
  refreshSummary(root);
+ updateCollapseAction(root);
 }
 function tabs(){
  const nav=document.createElement('nav');nav.className='tr5-ops-tabs';
@@ -316,8 +333,11 @@ function operationFormIntent(dialog){
  explanatory.textContent='Las clasificaciones comienzan sin asignar. Elige únicamente las que hayas observado; podrás completarlas al editar el registro.';
  form.querySelector('.form-section:nth-child(3) h4')?.after(explanatory);
 }
+let lastRoute=null;
 function synchronizeRealView(){
  const view=globalThis.TradingResearchCurrentViewReadContract?.current?.();
+ if(view==='operations'&&lastRoute!=='operations')expandedFilterGroups.clear();
+ lastRoute=view;
  if(view==='operations'){
   const panel=document.querySelector('#view .filter-hub');
   // V31.13 partial rendering replaces #tr-ops-filter-region with an unmodified

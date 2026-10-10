@@ -1414,4 +1414,6 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 .tr5-filter-details:not([open]) > summary,
 .tr5-module-settings:not([open]) > summary{min-height:38px}
 .tr5-filter-status .tr5-reset-filters{margin-left:auto}
+.tr5-collapse-advanced[hidden]{display:none!important}
+.tr5-collapse-advanced:not([hidden]){margin-left:8px}
 /* ===== End Astra Lote 5 ===== */

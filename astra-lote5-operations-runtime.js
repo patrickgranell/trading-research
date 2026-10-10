@@ -34,7 +34,16 @@ function historicalOptions(select,items,currentValue){
  }
  if(currentValue!==undefined&&currentValue!==null&&String(currentValue)!==''){
   const requested=String(currentValue);
-  if([...select.options].some(o=>o.value===requested))select.value=requested;
+  if([...select.options].some(o=>o.value===requested)){
+   // The filter is rendered in a detached template and serialized to HTML.
+   // Set the selected ATTRIBUTE, not only the live DOM value (E65).
+   for(const option of select.options){
+    const on=option.value===requested;
+    option.selected=on;
+    if(on)option.setAttribute('selected','');
+    else option.removeAttribute('selected');
+   }
+  }
  }
 }
 function opsFilterState(){

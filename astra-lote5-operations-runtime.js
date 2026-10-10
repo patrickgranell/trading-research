@@ -88,6 +88,9 @@ function refreshSummary(root=document){
  const summary=root.querySelector('.tr5-filter-status');
  if(!summary)return;
  const chips=badgeSummary();
+ const signature=JSON.stringify(chips);
+ if(summary.dataset.tr5Signature===signature)return;
+ summary.dataset.tr5Signature=signature;
  summary.replaceChildren();
  const label=document.createElement('span');label.className='tr5-active-label';
  label.textContent=chips.length?chips.length+' filtros activos':'Sin filtros adicionales';
@@ -254,7 +257,7 @@ const watch=new MutationObserver(mutations=>{
 watch.observe(document.body,{childList:true,subtree:true});
 if(typeof trRenderViewHtml==='function'){
  const base=trRenderViewHtml;
- trRenderViewHtml=function(view){return renderView(view,base(view));};
+ trRenderViewHtml=function(view){const resolved=view??globalThis.TradingResearchCurrentViewReadContract?.current?.();return renderView(resolved,base(view));};
 }
 globalThis.TradingResearchAstraLote5Operations=Object.freeze({renderView,compactFilters,organizeAnalytics,operationFormIntent,syncedOptions,refreshSummary});
 })();

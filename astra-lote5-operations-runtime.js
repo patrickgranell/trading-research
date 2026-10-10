@@ -11,6 +11,14 @@ const safe=s=>globalThis.TradingResearchContentEncodingContract?.html?.(String(s
 const encode=a=>encodeURIComponent(JSON.stringify(a));
 let opsTab='register';
 const expandedFilterGroups=new Set();
+document.addEventListener('toggle',event=>{
+ const node=event.target;
+ if(!(node instanceof HTMLDetailsElement)||!node.matches('.tr5-filter-details,.tr5-module-settings')||!node.isConnected)return;
+ const group=node.dataset.tr5Group;
+ if(!group)return;
+ if(node.open)expandedFilterGroups.add(group);
+ else expandedFilterGroups.delete(group);
+},true);
 const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection','filterSource'];
 const advanced=[
  ['Clasificación y ámbito',['filterVD','filterNR','filterHypothesis','filterRisk','filterLayer']],
@@ -173,10 +181,6 @@ function compactFilters(root){
   const details=document.createElement('details');details.className='tr5-filter-details';
   details.dataset.tr5Group=title;
   details.open=expandedFilterGroups.has(title);
-  details.addEventListener('toggle',()=>{
-   if(details.open)expandedFilterGroups.add(title);
-   else expandedFilterGroups.delete(title);
-  });
   const sum=document.createElement('summary');sum.textContent=title;
   const body=document.createElement('div');body.className='tr5-filter-detail-grid';
   for(const id of ids){used.add(id);const el=map.get(id);if(el)body.append(el);}
@@ -187,10 +191,6 @@ function compactFilters(root){
   const details=document.createElement('details');details.className='tr5-filter-details';
   details.dataset.tr5Group='Otros filtros';
   details.open=expandedFilterGroups.has('Otros filtros');
-  details.addEventListener('toggle',()=>{
-   if(details.open)expandedFilterGroups.add('Otros filtros');
-   else expandedFilterGroups.delete('Otros filtros');
-  });
   const body=document.createElement('div');body.className='tr5-filter-detail-grid';
   for(const el of extra)body.append(el);
   const sum=document.createElement('summary');sum.textContent='Otros filtros';
@@ -203,10 +203,6 @@ function compactFilters(root){
   const details=document.createElement('details');details.className='tr5-module-settings';
   details.dataset.tr5Group='Periodos rápidos y módulos gráficos';
   details.open=expandedFilterGroups.has('Periodos rápidos y módulos gráficos');
-  details.addEventListener('toggle',()=>{
-   if(details.open)expandedFilterGroups.add('Periodos rápidos y módulos gráficos');
-   else expandedFilterGroups.delete('Periodos rápidos y módulos gráficos');
-  });
   const s=document.createElement('summary');s.textContent='Periodos rápidos y módulos gráficos';
   details.append(s,moduleRow);sections.append(details);
  }

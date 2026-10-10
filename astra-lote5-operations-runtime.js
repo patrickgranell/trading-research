@@ -79,18 +79,29 @@ function syncedOptions(root,lab=false){
  }
 }
 function badgeSummary(){
- const f=opsFilterState();if(!f)return [];
- const defs={q:'Texto',dateFrom:'Desde',dateTo:'Hasta',timeFrom:'Hora desde',timeTo:'Hora hasta',
-  setup:'Setup',vd:'VD',nr:'NR',direction:'Dirección',result:'Resultado',layer:'Entorno',
-  contract:'Contrato',hypothesis:'Hipótesis',risk:'Régimen',month:'Mes',year:'Año',block:'Bloque',
-  emotion:'Emoción',behavior:'Comportamiento',emotionStatus:'Diario',source:'Origen'};
+ const f=opsFilterState()||{};
+ const defs={q:['Texto','searchOps'],dateFrom:['Desde','filterDateFrom'],dateTo:['Hasta','filterDateTo'],
+  timeFrom:['Hora desde','filterTimeFrom'],timeTo:['Hora hasta','filterTimeTo'],
+  setup:['Setup','filterSetup'],vd:['VD','filterVD'],nr:['NR','filterNR'],
+  direction:['Dirección','filterDirection'],result:['Resultado','filterResult'],
+  layer:['Entorno','filterLayer'],contract:['Contrato','filterContract'],
+  hypothesis:['Hipótesis','filterHypothesis'],risk:['Régimen','filterRisk'],month:['Mes','filterMonth'],
+  year:['Año','filterYear'],block:['Bloque','filterBlock'],emotion:['Emoción','filterEmotion'],
+  behavior:['Comportamiento','filterBehavior'],emotionStatus:['Diario','filterEmotionStatus'],
+  source:['Origen','filterSource']};
  const out=[];
- for(const [id,label] of Object.entries(defs)){
-  const value=f[id];if(value===undefined||value===null||value==='')continue;
+ // Read what the user can actually SEE. The original state remains the source
+ // of analytics; this is purely the display summary and works after partial DOM replacement.
+ for(const [id,[label,inputId]] of Object.entries(defs)){
+  const input=document.getElementById(inputId);
+  const value=input?input.value:(f[id]??'');
+  if(value===undefined||value===null||value==='')continue;
   out.push([label,String(value)]);
  }
- if(f.days?.length)out.push(['Días',f.days.join(', ')]);
- if(f.riskPolicy==='plan')out.push(['Gestión','Reglas TP']);
+ const activeDays=[...document.querySelectorAll('#view [data-day-chip].active')].map(el=>el.textContent.trim());
+ if(activeDays.length)out.push(['Días',activeDays.join(', ')]);
+ else if(f.days?.length)out.push(['Días',f.days.join(', ')]);
+ if((document.getElementById('filterRiskPolicy')?.value||f.riskPolicy)==='plan')out.push(['Gestión','Reglas TP']);
  return out;
 }
 function refreshSummary(root=document){

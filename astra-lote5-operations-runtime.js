@@ -240,7 +240,12 @@ function operationFormIntent(dialog){
     placeholder.value='';placeholder.textContent='Sin clasificar';control.prepend(placeholder);
    }else blank.textContent='Sin clasificar';
    control.value='';
-  }else if(control.tagName==='INPUT'&&key==='h4Context')control.value='';
+   for(const option of control.options){
+    const initial=option.value==='';
+    option.selected=initial;option.defaultSelected=initial;
+    if(initial)option.setAttribute('selected','');else option.removeAttribute('selected');
+   }
+  }else if(control.tagName==='INPUT'&&key==='h4Context'){control.value='';control.defaultValue='';}
  }
  const risk=form.querySelector('#f-riskStrategyId');
  if(risk){
@@ -252,21 +257,45 @@ function operationFormIntent(dialog){
  explanatory.textContent='Las clasificaciones comienzan sin asignar. Elige únicamente las que hayas observado; podrás completarlas al editar el registro.';
  form.querySelector('.form-section:nth-child(3) h4')?.after(explanatory);
 }
-const watch=new MutationObserver(mutations=>{
+function synchronizeRealView(){
  const view=globalThis.TradingResearchCurrentViewReadContract?.current?.();
  if(view==='operations'){
+  const panel=document.querySelector('#view .filter-hub');
+  // V31.13 partial rendering replaces #tr-ops-filter-region with an unmodified
+  // filterPanel() after every same-view render. Rebuild progressive controls
+  // on the *new* DOM instead of relying exclusively on the initial HTML adapter.
+  if(panel&&!panel.classList.contains('tr5-progressive'))compactFilters(document);
   const area=document.getElementById('opsAnalyticsArea');
   if(area&&!area.querySelector('.tr5-ops-layout'))organizeAnalytics(document);
   if(document.querySelector('.tr5-filter-status'))refreshSummary(document);
+  const nav=document.querySelector('#view .tr5-ops-tabs');
+  if(!nav&&panel){panel.before(tabs());applyTab(document);}
  }
- const op=document.querySelector('.modal-backdrop:last-of-type .modal');
- if(op&&op.querySelector('#operationForm:not([data-tr5-intent])'))operationFormIntent(op);
- // Do not update the DOM when none of the observed edits affects this lot.
+ const modal=[...document.querySelectorAll('.modal-backdrop')].at(-1)?.querySelector('.modal');
+ if(modal?.querySelector('#operationForm:not([data-tr5-intent])'))operationFormIntent(modal);
+}
+let pending=false;
+const watch=new MutationObserver(()=>{
+ if(pending)return;
+ pending=true;
+ queueMicrotask(()=>{
+  pending=false;
+  try{synchronizeRealView();}catch(e){console.error('[Astra Lote 5 · partial render sync]',e);}
+ });
 });
 watch.observe(document.body,{childList:true,subtree:true});
+const originalOperationOpen=registry.openOperationModal;
+if(typeof originalOperationOpen==='function'){
+ registry.openOperationModal=function(...args){
+  const result=originalOperationOpen.apply(this,args);
+  const modal=[...document.querySelectorAll('.modal-backdrop')].at(-1)?.querySelector('.modal');
+  if(modal?.querySelector('#operationForm:not([data-tr5-intent])'))operationFormIntent(modal);
+  return result;
+ };
+}
 if(typeof trRenderViewHtml==='function'){
  const base=trRenderViewHtml;
  trRenderViewHtml=function(view){const resolved=view??globalThis.TradingResearchCurrentViewReadContract?.current?.();return renderView(resolved,base(view));};
 }
-globalThis.TradingResearchAstraLote5Operations=Object.freeze({renderView,compactFilters,organizeAnalytics,operationFormIntent,syncedOptions,refreshSummary});
+globalThis.TradingResearchAstraLote5Operations=Object.freeze({renderView,compactFilters,organizeAnalytics,operationFormIntent,syncedOptions,refreshSummary,synchronizeRealView});
 })();

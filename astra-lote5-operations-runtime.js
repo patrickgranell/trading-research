@@ -10,9 +10,9 @@ const readOps=()=>globalThis.TradingResearchOperationsReadContract?.current?.()|
 const safe=s=>globalThis.TradingResearchContentEncodingContract?.html?.(String(s??''))??String(s??'');
 const encode=a=>encodeURIComponent(JSON.stringify(a));
 let opsTab='register';
-const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection'];
+const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection','filterSource'];
 const advanced=[
- ['Clasificación',['filterVD','filterNR','filterHypothesis','filterRisk','filterLayer','filterSource']],
+ ['Clasificación y ámbito',['filterVD','filterNR','filterHypothesis','filterRisk','filterLayer']],
  ['Contexto y seguimiento',['filterContract','filterBlock','filterEmotion','filterBehavior','filterEmotionStatus','filterRiskPolicy']],
  ['Tiempo y calendario',['filterTimeFrom','filterTimeTo','filterMonth','filterYear']]
 ];
@@ -77,6 +77,36 @@ function syncedOptions(root,lab=false){
    control.value=applied;
   }
  }
+}
+function clarifyFilterSemantics(root){
+ const set=(id,label,options,explanation)=>{
+  const select=root.querySelector('#'+id);
+  if(!select)return;
+  const field=select.closest('label');
+  const title=field?.querySelector('span');
+  if(title&&title.textContent!==label)title.textContent=label;
+  for(const [value,description] of Object.entries(options)){
+   const option=[...select.options].find(o=>o.value===value);
+   if(option&&option.textContent!==description)option.textContent=description;
+  }
+  if(explanation&&field&&!field.querySelector('.tr5-filter-meaning')){
+   const note=document.createElement('small');
+   note.className='tr5-filter-meaning';note.textContent=explanation;
+   field.append(note);
+  }
+ };
+ set('filterLayer','Ámbito de ejecución',{
+  pending:'Pendiente de vinculación NT',
+  unclassified:'Sin entorno clasificado'
+ },'Pendiente NT = operación preparada para conciliar con fills. No indica un resultado pendiente.');
+ set('filterResult','Resultado',{
+  pending:'Pendiente de resultado'
+ },'Busca aquí operaciones sin resultado confirmado.');
+ set('filterSource','Origen del registro',{
+  manual:'Manual',
+  ankora:'Ankora',
+  ninjatrader:'NinjaTrader'
+ },'Manual = creada en Trading Research, no importada; no es un entorno operativo.');
 }
 function badgeSummary(){
  const f=opsFilterState()||{};
@@ -152,6 +182,7 @@ function compactFilters(root){
   details.append(sum,body);sections.append(details);
  }
  grid.replaceChildren(common,sections);
+ clarifyFilterSemantics(root);
  const moduleRow=panel.querySelector('.quick-row');
  if(moduleRow){
   const details=document.createElement('details');details.className='tr5-module-settings';

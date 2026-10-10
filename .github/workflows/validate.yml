@@ -56,5 +56,8 @@ jobs:
       - name: Astra Lote 4 · Keyboard and visual regressions
         run: node verify-astra-lote4-browser.mjs
 
+      - name: Astra Lote 5 · Daily operations and visual comparisons
+        run: node verify-astra-lote5-browser.mjs
+
       - name: UX-104 operations register Chromium smoke
         run: node verify-ux104-operations-register-browser.mjs

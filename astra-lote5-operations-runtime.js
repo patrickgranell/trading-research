@@ -10,6 +10,7 @@ const readOps=()=>globalThis.TradingResearchOperationsReadContract?.current?.()|
 const safe=s=>globalThis.TradingResearchContentEncodingContract?.html?.(String(s??''))??String(s??'');
 const encode=a=>encodeURIComponent(JSON.stringify(a));
 let opsTab='register';
+const expandedFilterGroups=new Set();
 const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection','filterSource'];
 const advanced=[
  ['Clasificación y ámbito',['filterVD','filterNR','filterHypothesis','filterRisk','filterLayer']],
@@ -141,6 +142,7 @@ function refreshSummary(root=document){
  const signature=JSON.stringify(chips);
  if(summary.dataset.tr5Signature===signature)return;
  summary.dataset.tr5Signature=signature;
+ const nativeReset=root.querySelector('.reset-filter');
  summary.replaceChildren();
  const label=document.createElement('span');label.className='tr5-active-label';
  label.textContent=chips.length?chips.length+' filtros activos':'Sin filtros adicionales';
@@ -149,11 +151,12 @@ function refreshSummary(root=document){
   const chip=document.createElement('span');chip.className='tr5-active-filter';
   chip.textContent=key+': '+val;summary.append(chip);
  }
- const reset=document.createElement('button');reset.type='button';reset.className='btn small ghost';
- reset.textContent='Restablecer filtros';
- reset.disabled=!chips.length;
- reset.addEventListener('click',()=>registry.resetOpsFilters?.());
- summary.append(reset);
+ // Reuse the original event-dispatched reset. No duplicate or inert controls.
+ if(nativeReset){
+  nativeReset.textContent='Restablecer filtros';
+  nativeReset.classList.add('tr5-reset-filters');
+  summary.append(nativeReset);
+ }
 }
 function compactFilters(root){
  const panel=root.querySelector('.filter-hub'),grid=panel?.querySelector('.filter-grid');
@@ -168,6 +171,12 @@ function compactFilters(root){
  const used=new Set(quick);
  for(const [title,ids] of advanced){
   const details=document.createElement('details');details.className='tr5-filter-details';
+  details.dataset.tr5Group=title;
+  details.open=expandedFilterGroups.has(title);
+  details.addEventListener('toggle',()=>{
+   if(details.open)expandedFilterGroups.add(title);
+   else expandedFilterGroups.delete(title);
+  });
   const sum=document.createElement('summary');sum.textContent=title;
   const body=document.createElement('div');body.className='tr5-filter-detail-grid';
   for(const id of ids){used.add(id);const el=map.get(id);if(el)body.append(el);}
@@ -176,6 +185,12 @@ function compactFilters(root){
  const extra=[...grid.children].filter(el=>!used.has(el.querySelector('input,select')?.id));
  if(extra.length){
   const details=document.createElement('details');details.className='tr5-filter-details';
+  details.dataset.tr5Group='Otros filtros';
+  details.open=expandedFilterGroups.has('Otros filtros');
+  details.addEventListener('toggle',()=>{
+   if(details.open)expandedFilterGroups.add('Otros filtros');
+   else expandedFilterGroups.delete('Otros filtros');
+  });
   const body=document.createElement('div');body.className='tr5-filter-detail-grid';
   for(const el of extra)body.append(el);
   const sum=document.createElement('summary');sum.textContent='Otros filtros';
@@ -186,6 +201,12 @@ function compactFilters(root){
  const moduleRow=panel.querySelector('.quick-row');
  if(moduleRow){
   const details=document.createElement('details');details.className='tr5-module-settings';
+  details.dataset.tr5Group='Periodos rápidos y módulos gráficos';
+  details.open=expandedFilterGroups.has('Periodos rápidos y módulos gráficos');
+  details.addEventListener('toggle',()=>{
+   if(details.open)expandedFilterGroups.add('Periodos rápidos y módulos gráficos');
+   else expandedFilterGroups.delete('Periodos rápidos y módulos gráficos');
+  });
   const s=document.createElement('summary');s.textContent='Periodos rápidos y módulos gráficos';
   details.append(s,moduleRow);sections.append(details);
  }

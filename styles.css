@@ -1215,3 +1215,113 @@ html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last
 .sidebar .nav-organized>.tr3-main-destination[hidden]{display:none!important}
 .sidebar .nav-organized .tr3-execution-destination .nav-child-label{font-weight:700}
 html[data-theme="light"] .sidebar .nav-organized>.tr3-main-destination.active{background:#e1ecfa;color:#153661}
+
+
+/* ===== Astra Lote 4 · Visual primitives, reading scale & local editors ===== */
+:root{
+ --tr4-reading-size:13px;
+ --tr4-reading-line:1.6;
+ --tr4-control-min:28px;
+ --tr4-panel-gap:14px;
+}
+.info-dot,.table th .info-dot{
+ min-width:var(--tr4-control-min);width:var(--tr4-control-min);
+ min-height:var(--tr4-control-min);height:var(--tr4-control-min);
+ font-size:12px;cursor:pointer;white-space:nowrap;
+}
+.info-dot:focus-visible,.seg-btn:focus-visible,.tr4-perspective-row:focus-visible,.glossary-list button:focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px;
+}
+.glossary-list span,.context-help-popover p,
+.context-help-modal p,.glossary-list button{
+ font-size:var(--tr4-reading-size);line-height:var(--tr4-reading-line);
+}
+.glossary-list strong{font-size:14px;}
+.context-help-modal span{font-size:12px;}
+.glossary-search{display:grid;gap:7px;}
+.tr4-field-label,.tr4-limit-hint{
+ font-size:12px;line-height:1.45;color:var(--muted);
+}
+.glossary-detail-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
+.glossary-detail-head h4{margin:0;font-size:17px;line-height:1.45;}
+.modal [role="dialog"],.modal{min-width:0;}
+.modal:focus{outline:none;}
+.modal :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.metric-switch,.block-switch{flex-wrap:wrap;min-width:0;}
+.metric-switch .seg-btn,.block-switch .seg-btn,.tr4-emotional-tabs .seg-btn{white-space:nowrap;min-width:max-content;}
+.filter-hub-top .metric-switch{max-width:100%;}
+.heat-table td strong,.heat-table td small,
+.research-grid-table td strong,.research-grid-table td small{
+ font-size:12px;line-height:1.4;
+ text-shadow:0 1px 2px rgba(0,0,0,.45);
+}
+.block-dates{font-size:11px;line-height:1.4;}
+.block-detail-head span{font-size:12px;line-height:1.4;}
+.tr4-emotional-tabs{
+ display:flex;gap:8px;flex-wrap:wrap;
+ padding:8px;margin:0 0 16px;border:1px solid var(--border);
+ border-radius:12px;background:var(--panel2);
+}
+.tr4-emotional-tabs .seg-btn{
+ min-height:36px;font-size:13px;line-height:1.4;padding:8px 12px;
+}
+.tr4-question-selector{
+ display:flex;gap:8px;flex-wrap:wrap;padding:0 0 14px;
+ margin-bottom:14px;border-bottom:1px solid var(--border);
+}
+.tr4-question-selector .btn{white-space:normal;text-align:left;font-size:12px;}
+.tr4-perspective-filters{
+ display:grid;grid-template-columns:minmax(240px,2fr) minmax(140px,1fr);
+ gap:12px;margin:12px 0 18px;
+}
+.tr4-perspective-filters .field>span{
+ font-size:12px;color:var(--muted);
+}
+.tr4-perspective-workspace{
+ display:grid;grid-template-columns:minmax(220px,.8fr) minmax(0,1.8fr);
+ gap:16px;align-items:start;
+}
+.tr4-perspective-items{
+ display:grid;gap:7px;max-height:550px;overflow-y:auto;
+ padding:3px 6px 3px 2px;scrollbar-gutter:stable;
+}
+.tr4-perspective-row{
+ display:grid;gap:5px;text-align:left;width:100%;padding:11px 12px;
+ border:1px solid var(--border);border-radius:10px;
+ background:var(--panel2);color:var(--text);cursor:pointer;
+}
+.tr4-perspective-row strong{font-size:13px;line-height:1.45;}
+.tr4-perspective-row span{font-size:12px;line-height:1.5;color:var(--muted);}
+.tr4-perspective-row small{font-size:11px;color:var(--muted);}
+.tr4-perspective-row:hover,.tr4-perspective-row.active{
+ border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--panel));
+}
+.tr4-perspective-detail .perspective-config-card{
+ padding:20px 22px;margin:0;
+}
+.tr4-perspective-detail .perspective-config-card strong{font-size:14px;}
+.tr4-perspective-detail .perspective-config-card blockquote{
+ font-size:16px;line-height:1.65;background:var(--panel);
+}
+.tr4-perspective-detail .perspective-config-card>p{
+ font-size:13px;line-height:1.65;
+}
+.tr4-perspective-detail .perspective-config-meta strong{font-size:12px;}
+.tr4-perspective-detail .perspective-config-meta span{font-size:11px;}
+html[data-theme="light"] .tr4-perspective-detail .perspective-config-card blockquote{background:#f3f6fb;}
+html[data-theme="light"] .tr4-perspective-row.active{background:#eaf2ff;}
+html[data-theme="light"] .heat-table td strong,
+html[data-theme="light"] .research-grid-table td strong{text-shadow:none;}
+@media(max-width:850px){
+ .tr4-perspective-workspace,.tr4-perspective-filters{grid-template-columns:1fr;}
+ .tr4-perspective-items{max-height:260px;}
+ .tr4-perspective-detail .perspective-config-card{padding:15px;}
+}
+.tr4-spark-caption{display:flex;justify-content:space-between;margin:-4px 2px 9px;color:var(--muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;}
+/* ===== End Astra Lote 4 ===== */
+
+/* Lote 4 · unsaved operation note safeguard */
+.tr4-unsaved-confirmation{width:100%;flex:0 0 100%;border:1px solid color-mix(in srgb,var(--warn,#f4c66a) 45%,var(--border));border-radius:10px;padding:12px 14px;background:color-mix(in srgb,#f4c66a 10%,var(--panel));color:var(--text)}
+.tr4-unsaved-confirmation p{font-size:13px;line-height:1.55;margin:0 0 10px}
+.tr4-unsaved-buttons{display:flex;flex-wrap:wrap;gap:8px}
+html[data-theme="light"] .tr4-unsaved-confirmation{background:#fff8e8}

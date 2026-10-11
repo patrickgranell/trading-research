@@ -26,19 +26,19 @@ const check=String.raw`(async()=>{
   await change('backtest');
   results.blocksMoved=count('blocks')===1&&menuGroup('blocks')==='operativa';
   results.blocksNotInControl=!nav().querySelector('[data-nav-group="control"] [data-view="blocks"]');
-  results.marketHiddenBacktest=count('market')===0;
+  results.marketHiddenBacktest=count('market')===0||nav().querySelector('[data-view="market"]')?.hidden===true;
   results.dataGroupNonEmpty=!!nav().querySelector('[data-nav-group="data"] [data-view="quality"]');
   const checkAllowed=[];
   for(const env of ['live','sim','replay','unclassified']){
    await change(env);
-   checkAllowed.push(count('market')===1&&menuGroup('market')==='data'&&count('blocks')===1);
+   checkAllowed.push(count('market')===1&&nav().querySelector('[data-view="market"]')?.hidden!==true&&menuGroup('market')==='data'&&count('blocks')===1);
   }
   results.marketVisibleOtherEnvironments=checkAllowed.every(Boolean);
   await change('replay');
   TradingResearchActions.navigate('market');await sleep(100);
   results.marketReachable=route()==='market';
   await change('backtest');
-  results.marketRedirectOnSwitch=route()==='quality'&&count('market')===0;
+  results.marketRedirectOnSwitch=route()==='quality'&&(count('market')===0||nav().querySelector('[data-view="market"]')?.hidden===true);
   TradingResearchActions.navigate('market');await sleep(100);
   results.marketRouteGuard=route()==='quality';
   TradingResearchActions.navigate('blocks');await sleep(100);

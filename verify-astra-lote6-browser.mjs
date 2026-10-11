@@ -31,7 +31,7 @@ const check=String.raw`(async()=>{
   if(pid){reportsViewState.compareA=pid;reportsViewState.compareB=pid;reportsViewState.tab='compare';TradingResearchActions.navigate('reports');await wait(70);
    out.samePlanExplained=!!document.querySelector('.tr6-compare-unavailable')&&document.querySelector('.tr6-compare-unavailable').textContent.includes('Comparación idéntica');
    out.noFakeZeros=!document.querySelector('.compare-main .compare-table');
-   out.comparisonEligibleCountExplained=/\\d+ elegibles de \\d+ registros/.test(document.querySelector('.tr6-compare-universes')?.textContent||'');
+   out.comparisonEligibleCountExplained=(document.querySelector('.tr6-compare-universes')?.textContent||'').includes(' elegibles de ')&&(document.querySelector('.tr6-compare-universes')?.textContent||'').includes(' registros');
   }else{out.samePlanExplained=false;out.noFakeZeros=false;out.comparisonEligibleCountExplained=false;}
   TradingResearchActions.navigate('market');await wait(70);
   out.marketNavigation=document.querySelectorAll('.tr6-market-tabs [role="tab"]').length===4;

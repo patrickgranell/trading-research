@@ -10,14 +10,14 @@ const check=String.raw`(async()=>{
  try{
   const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   await wait(120);
-  out.adapter=!!globalThis.TradingResearchAstraLote6;
-  currentView='lab';render();await wait(90);
-  out.tabs=document.querySelectorAll('.tr6-task-tabs [role="tab"]').length===5;
+  out.adapter=!!globalThis.TradingResearchAstraLote6;out.initialRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();
+  TradingResearchActions.navigate('lab');await wait(90);
+  out.tabs=document.querySelectorAll('.tr6-task-tabs [role="tab"]').length===5;out.labRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();out.labHtml=document.querySelector('#view')?.textContent?.slice(0,100);
   out.studiesInSummary=!!document.querySelector('[data-tr6-group="summary"] .saved-studies-panel');
   const originalFilters=JSON.stringify(labState),count=labFilteredOps().length;
   TradingResearchActions.tr6LabGroup('validation');await wait(70);
   out.oosInValidation=!!document.querySelector('[data-tr6-group="validation"] .forward-panel');
-  out.validationVisible=!document.querySelector('[data-tr6-group="validation"]').hidden;
+  out.validationVisible=document.querySelector('[data-tr6-group="validation"]')?.hidden===false;
   TradingResearchActions.tr6LabGroup('segmentation');await wait(70);
   out.filtersPreserved=JSON.stringify(labState)===originalFilters&&labFilteredOps().length===count;
   const fake={id:'_tr6',entryDate:'2026-10-01T17:00:00',exitDate:'2026-10-01T17:05:00',setup:'Setup test',h4Context:'Contexto test',direction:'LONG',result:'win',rMultiple:2,resultTicks:40,pnlGross:40,pnlNet:38,commission:2};
@@ -28,11 +28,11 @@ const check=String.raw`(async()=>{
   out.gridAccessible=!!button?.getAttribute('aria-label')?.includes('n=1');
   if(button){document.body.append(button);button.focus();out.keyboardFocus=document.activeElement===button;button.remove();}
   const pid=getCurrentPlan()?.id;
-  if(pid){reportsViewState.compareA=pid;reportsViewState.compareB=pid;reportsViewState.tab='compare';currentView='reports';render();await wait(70);
+  if(pid){reportsViewState.compareA=pid;reportsViewState.compareB=pid;reportsViewState.tab='compare';TradingResearchActions.navigate('reports');await wait(70);
    out.samePlanExplained=!!document.querySelector('.tr6-compare-unavailable')&&document.querySelector('.tr6-compare-unavailable').textContent.includes('Comparación idéntica');
    out.noFakeZeros=!document.querySelector('.compare-main .compare-table');
   }else{out.samePlanExplained=false;out.noFakeZeros=false;}
-  currentView='market';render();await wait(70);
+  TradingResearchActions.navigate('market');await wait(70);
   out.marketNavigation=document.querySelectorAll('.tr6-market-tabs [role="tab"]').length===4;
   out.marketContext=!!document.querySelector('.tr6-market-context');
   out.marketNoNumericSteps=![...document.querySelectorAll('.tr6-market-tabs strong')].some(x=>/^\\d+/.test(x.textContent));

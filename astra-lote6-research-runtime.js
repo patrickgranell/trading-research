@@ -88,7 +88,7 @@ analyticsLab=function(){
  const sections=new Map(groups.map(([id])=>[id,document.createElement('div')]));
  for(const [id,el] of sections){el.className='lab-grid tr6-lab-panels';el.dataset.tr6Group=id;el.setAttribute('role','tabpanel');el.id='tr6-lab-'+id;el.hidden=id!==labGroup;}
  for(const item of [...grid.children])sections.get(groupFor(item)).append(item);
- const studies=root.querySelector('.saved-studies-panel'),oos=root.querySelector('.forward-validation-panel, .forward-oos-panel');
+ const studies=root.querySelector('.saved-studies-panel'),oos=root.querySelector('.forward-panel, .forward-validation-panel, .forward-oos-panel');
  if(studies)sections.get('summary').prepend(studies);
  if(oos)sections.get('validation').prepend(oos);
  grid.className='tr6-lab-group-container';

@@ -11,8 +11,8 @@ for(const required of [
  "const originalCompare=v313CompareView","const originalMarket=v316MarketDataView"
 ])assert(script.includes(required),'Lote 6 contract missing: '+required);
 assert(html.includes('TradingResearchAstraLote6'),'Lote 6 adapter is missing from final bundle');
-assert(!/<script[^>]+src=["']astra-lote6-research-runtime\\.js/.test(html),'Lote 6 must be within original CSP hashed script');
+assert(!/<script[^>]+src=["']astra-lote6-research-runtime\.js/.test(html),'Lote 6 must be within original CSP hashed script');
 assert.equal(csp.scriptHashes.length,19,'CSP script hash count changed');
-assert(!/state\\.operations\\s*=|state\\.tradingPlans\\s*=|savedStudies\\s*=/.test(script),'Lote 6 adapter mutates records or studies');
-assert(!/v316ApplyLink\\(|v314RecalculateExec\\(|v314DeleteMarket\\(|v314DeleteExec\\(/.test(script),'Lote 6 adapter must not modify market data or links');
+assert(!/state\.operations\s*=|state\.tradingPlans\s*=|savedStudies\s*=/.test(script),'Lote 6 adapter mutates records or studies');
+assert(!/v316ApplyLink\(|v314RecalculateExec\(|v314DeleteMarket\(|v314DeleteExec\(/.test(script),'Lote 6 adapter must not modify market data or links');
 console.log('Astra Lote 6 bundle PASS: four isolated adapters, intact records, CSP 19 hashes');

@@ -168,6 +168,19 @@ function tr6DecorateMarket(html){
  const linked=meta&&set?.marketDatasetId?String(set.marketDatasetId)===String(meta.id):false;
  const hasMarket=!!meta,hasGrid=!!set,calibrated=!!set?.results?.length;
  const current=v316Ui.tab;
+ // The canonical render may use its original dataset-card builder. Enrich
+ // the final calibration DOM as well, rather than relying on function overrides.
+ const lists=[...tpl.content.querySelectorAll('.md-source-grid .md-dataset-list')];
+ for(const [index,sources,selectedId] of [[0,v314MarketUi.metas,v314MarketUi.activeMarketId],[1,v314MarketUi.execSets,v314MarketUi.activeExecId]]){
+  const cards=[...((lists[index]&&lists[index].querySelectorAll('.md-dataset'))||[])];
+  for(let i=0;i<cards.length;i++){
+   const source=sources[i],card=cards[i];if(!source||card.querySelector('.tr6-source-detail'))continue;
+   const button=card.querySelector('.md-dataset-main');if(!button)continue;
+   const detail=document.createElement('small');detail.className='tr6-source-detail';
+   detail.textContent=`ID ${String(source.id).slice(-8)} · ${source.sourceFile||'Origen no informado'} · Importado ${stamp(source.createdAt||source.importedAt)} · ${String(source.id)===String(selectedId)?'Seleccionado':'Disponible'}`;
+   button.append(detail);
+  }
+ }
  const info=document.createElement('section');info.className='card panel tr6-market-context';
  info.innerHTML=`<h3>Fuente y requisitos · ${safe(({calibration:'Calibración',running:'Recorrido',reconcile:'Vinculación',bestexit:'Best Exit'})[current]||current)}</h3>
  <p>Calibración y Vinculación son herramientas distintas. Recorrido y Best Exit necesitan un Grid con ejecuciones calibradas y su histórico Tick; Best Exit requiere además Bid/Ask utilizable para cierres marketables.</p>

@@ -206,7 +206,32 @@ if(typeof trRenderViewHtml==='function'){
   return html;
  };
 }
+// The canonical router and the Market Data internal tab renderer do not share
+// the same HTML publication path. Restore presentation after partial/internal
+// renders, without altering canonical state, sources, or calculations.
+function tr6SynchronizeActualView(){
+ const route=globalThis.TradingResearchCurrentViewReadContract?.current?.();
+ const root=document.querySelector('#view');if(!root)return;
+ if(route==='lab'&&root.querySelector('.lab-grid')&&!root.querySelector('.tr6-lab-navigation')){
+  root.innerHTML=tr6DecorateLab(root.innerHTML);
+ }else if(route==='reports'&&reportsViewState.tab==='compare'&&root.querySelector('.compare-controls')&&!root.querySelector('.tr6-compare-context')){
+  root.innerHTML=tr6DecorateCompare(root.innerHTML);
+ }else if(route==='market'&&root.querySelector('.md-phase-tabs')&&!root.querySelector('.tr6-market-context')){
+  root.innerHTML=tr6DecorateMarket(root.innerHTML);
+ }
+}
+let tr6SyncPending=false;
+const tr6Observer=new MutationObserver(()=>{
+ if(tr6SyncPending)return;
+ tr6SyncPending=true;
+ queueMicrotask(()=>{
+  tr6SyncPending=false;
+  try{tr6SynchronizeActualView();}catch(e){console.error('[Astra Lote 6 · render synchronization]',e);}
+ });
+});
+tr6Observer.observe(document.body,{childList:true,subtree:true});
 queueMicrotask(()=>{try{window.render?.();}catch(e){console.error('[Astra Lote 6]',e);}});
+
 Object.assign(registry,{tr6LabGroup:registry.tr6LabGroup,tr6MarketTab:registry.tr6MarketTab});
 globalThis.TradingResearchAstraLote6=Object.freeze({version:'1.0',groups:groups.map(g=>g[0]),diagnostics:()=>({labGroup,comparisonsGuarded:true,marketSourcesOnly:true,gridKeyboard:true})});
 })();

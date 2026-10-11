@@ -76,7 +76,7 @@ const replacements=[
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
   ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],
   ['blob-lifecycle-runtime.js','data-tr-blob-lifecycle-runtime',bundledSource('blob-lifecycle-runtime.js')],
-  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')+'\n'+bundledScript('astra-lote4-accessibility-runtime.js')+'\n'+bundledScript('astra-lote4-unsaved-operation-runtime.js')],
+  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')+'\n'+bundledScript('astra-lote4-accessibility-runtime.js')+'\n'+bundledScript('astra-lote4-unsaved-operation-runtime.js')+'\n'+bundledScript('astra-lote5-operations-runtime.js')+'\n'+bundledScript('astra-lote5-visual-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
 const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];
@@ -108,7 +108,10 @@ for(const [file,attr,src] of replacements){
   const re=new RegExp(`<script\\s+src=["']${escaped}["']\\s*><\\/script>`,'i');
   h=h.replace(re,()=>`<script ${attr}="${v}">${src}</script>`);
 }
-// Unsaved-operation confirmation is also bundled in this CSP-hashed script.
+// Lote 5 presentation adapters stay within the existing CSP-hashed runtime.
+ h=h.replace(/<script\s+src=["']astra-lote5-operations-runtime\.js["']\s*><\/script>/i,'');
+ h=h.replace(/<script\s+src=["']astra-lote5-visual-runtime\.js["']\s*><\/script>/i,'');
+ // Unsaved-operation confirmation is also bundled in this CSP-hashed script.
  h=h.replace(/<script\s+src=["']astra-lote4-unsaved-operation-runtime\.js["']\s*><\/script>/i,'');
  // Astra Lote 4 focus/keyboard runtime lives in the final CSP-hashed script.
  h=h.replace(/<script\s+src=["']astra-lote4-accessibility-runtime\.js["']\s*><\/script>/i,'');

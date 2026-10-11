@@ -272,7 +272,9 @@ function trTaxOpenLegacyFicha(type,key=''){
 function trTaxOperationSelect(tax,o,p){
   const selected=api.resolveOperationValueId(o||{},tax),values=api.selectionOptions(p,tax),current=selected?api.operationValue(tax,o||{}):null;
   const choices=[...values];if(current&&!choices.some(v=>String(v.id)===String(current.id)))choices.unshift({...current,status:current.status==='archived'?'archived':'historical'});
-  const defaultValue=selected||(tax.kind==='core'?values[0]?.id:'')||'';
+  // A new operation (and an unclassified historic operation) must not inherit
+  // the first available core-taxonomy value. Only a saved selection is selected.
+  const defaultValue=selected||'';
   const options=[`<option value="">Sin clasificar</option>`,...choices.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(v.id)===String(defaultValue)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':v.status==='historical'?' · histórico':''}</option>`)].join('');
   return `<label class="field"><span>${trTaxEsc(tax.name)}</span><select id="f-tx_${trTaxEsc(tax.id)}" name="tx_${trTaxEsc(tax.id)}" class="select">${options}</select></label>`;
 }
@@ -295,6 +297,15 @@ function trTaxFilterFields(p,ops,current={},target='ops'){
 }
 if(typeof opsViewState!=='undefined')opsViewState.taxonomyFilters=opsViewState.taxonomyFilters&&typeof opsViewState.taxonomyFilters==='object'?opsViewState.taxonomyFilters:{};
 if(typeof labState!=='undefined')labState.taxonomyFilters=labState.taxonomyFilters&&typeof labState.taxonomyFilters==='object'?labState.taxonomyFilters:{};
+// Read-only filter selection bridge for independently bundled presentation adapters.
+// Does not alter the taxonomy schema, persisted study or operation records.
+if(!globalThis.TradingResearchTaxonomyFilterReadContract){
+ Object.defineProperty(globalThis,'TradingResearchTaxonomyFilterReadContract',{
+  value:Object.freeze({operations:()=>typeof opsViewState!=='undefined'?{...(opsViewState.taxonomyFilters||{})}:{}}),
+  writable:false,configurable:false,enumerable:false
+ });
+}
+
 const trTaxReadOpsFiltersBase=typeof readOpsFilters==='function'?readOpsFilters:null;if(trTaxReadOpsFiltersBase)readOpsFilters=function(){trTaxReadOpsFiltersBase();opsViewState.taxonomyFilters=trTaxCollectFilterMap('[data-tax-filter-ops]');};
 const trTaxBaseFilteredOpsBase=typeof baseFilteredOps==='function'?baseFilteredOps:null;if(trTaxBaseFilteredOpsBase)baseFilteredOps=function(f=opsViewState,ops=currentOps(),blockMap=opBlockMap()){const base=trTaxBaseFilteredOpsBase(f,ops,blockMap),filters=f?.taxonomyFilters||{};return base.filter(o=>api.matchesFilters(o,typeof getPlan==='function'?getPlan(o.tradingPlanId):trTaxCurrentPlan(),filters));};
 const trTaxOperationsFilterPanelBase=typeof operationsFilterPanel==='function'?operationsFilterPanel:null;if(trTaxOperationsFilterPanelBase)operationsFilterPanel=function(){const p=trTaxCurrentPlan(),ops=currentOps();let html=trTaxOperationsFilterPanelBase();html=trTaxStripLegacyFilters(html,['filterSetup','filterVD','filterNR','filterHypothesis']);const dynamic=trTaxFilterFields(p,ops,opsViewState.taxonomyFilters,'ops');return html.replace('</div><div class="day-filter-row">',`${dynamic}</div><div class="day-filter-row">`);};

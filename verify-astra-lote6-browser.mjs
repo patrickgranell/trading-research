@@ -31,7 +31,8 @@ const check=String.raw`(async()=>{
   if(pid){reportsViewState.compareA=pid;reportsViewState.compareB=pid;reportsViewState.tab='compare';TradingResearchActions.navigate('reports');await wait(70);
    out.samePlanExplained=!!document.querySelector('.tr6-compare-unavailable')&&document.querySelector('.tr6-compare-unavailable').textContent.includes('Comparación idéntica');
    out.noFakeZeros=!document.querySelector('.compare-main .compare-table');
-  }else{out.samePlanExplained=false;out.noFakeZeros=false;}
+   out.comparisonEligibleCountExplained=/\\d+ elegibles de \\d+ registros/.test(document.querySelector('.tr6-compare-universes')?.textContent||'');
+  }else{out.samePlanExplained=false;out.noFakeZeros=false;out.comparisonEligibleCountExplained=false;}
   TradingResearchActions.navigate('market');await wait(70);
   out.marketNavigation=document.querySelectorAll('.tr6-market-tabs [role="tab"]').length===4;
   out.marketContext=!!document.querySelector('.tr6-market-context');
@@ -57,6 +58,6 @@ try{
  assert(match,'Chromium missing Lote 6 diagnostic: '+run.stderr?.slice(-900));
  const result=JSON.parse(decodeURIComponent(match[1]));
  console.log('Lote 6 Chromium diagnostics:',JSON.stringify(result));
- for(const field of ['adapter','tabs','studiesInSummary','oosInValidation','validationVisible','filtersPreserved','gridNativeButton','gridAccessible','keyboardFocus','samePlanExplained','noFakeZeros','marketNavigation','marketContext','marketNoNumericSteps','marketTabActive','marketMissingGuidance','lightContrastCss'])assert(result[field],field+' FAIL: '+JSON.stringify(result));
+ for(const field of ['adapter','tabs','studiesInSummary','oosInValidation','validationVisible','filtersPreserved','gridNativeButton','gridAccessible','keyboardFocus','samePlanExplained','noFakeZeros','comparisonEligibleCountExplained','marketNavigation','marketContext','marketNoNumericSteps','marketTabActive','marketMissingGuidance','lightContrastCss'])assert(result[field],field+' FAIL: '+JSON.stringify(result));
  console.log('Astra Lote 6 Chromium PASS: tasks, OOS, context, grid keyboard and comparison/Market Data'); 
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

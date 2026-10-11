@@ -33,9 +33,9 @@ function groupFor(node){
  if(/riesgo|risk.*stress|simulador.*reglas/i.test(title))return 'risk';
  return 'summary';
 }
-const originalGrid=researchGridModule;
-researchGridModule=function(ops){
- const tpl=fragment(originalGrid(ops));
+function tr6DecorateResearchGrid(html,ops){
+ const tpl=fragment(html);
+ if(tpl.content.querySelector('.tr6-grid-button'))return html;
  const cells=[...tpl.content.querySelectorAll('.research-grid-table tbody tr')];
  const rowDim=researchGridState.rowDim,colDim=researchGridState.colDim;
  const rows=researchCategoryCounts(ops,rowDim),cols=researchCategoryCounts(ops,colDim);
@@ -70,7 +70,9 @@ researchGridModule=function(ops){
   if(wrap){const status=document.createElement('p');status.className='tr6-grid-access-note';status.textContent='Tab: recorrer combinaciones. Enter o Espacio: filtrar. Restablecer selección: recuperar el universo anterior.';wrap.after(status);}
  }
  return tpl.innerHTML;
-};
+}
+const originalGrid=researchGridModule;
+researchGridModule=function(ops){return tr6DecorateResearchGrid(originalGrid(ops),ops);};
 registry.tr6SelectResearchCell=function(rowDim,rowVal,colDim,colVal){
  const count=labFilteredOps().length;
  researchApplyCell(rowDim,rowVal,colDim,colVal);
@@ -80,10 +82,11 @@ const originalClear=registry.researchClearSelection;
 if(typeof originalClear==='function')registry.researchClearSelection=function(...v){const out=originalClear(...v);announce(`Selección retirada. ${labFilteredOps().length} operaciones en el estudio.`);return out;};
 registry.tr6EdgePreset=function(){Object.assign(researchGridState,{rowDim:'setup',colDim:'context',metric:'expectancy',minN:1,maxCats:8});render();announce('Research Grid: vista compacta Setup por Contexto. La Matriz de Edge sigue disponible.');};
 registry.tr6LabGroup=function(value){if(!groups.some(x=>x[0]===value))return;labGroup=value;render();};
-const originalLab=analyticsLab;
-analyticsLab=function(){
- const tpl=fragment(originalLab()),root=tpl.content,grid=root.querySelector('.lab-grid'),p=getCurrentPlan();
- if(!grid)return tpl.innerHTML;
+function tr6DecorateLab(html){
+ const tpl=fragment(html),root=tpl.content,grid=root.querySelector('.lab-grid'),p=getCurrentPlan();
+ if(root.querySelector('.tr6-lab-navigation')||!grid)return html;
+ const currentGrid=root.querySelector('.research-grid-module');
+ if(currentGrid){const improved=fragment(tr6DecorateResearchGrid(currentGrid.outerHTML,labFilteredOps()));currentGrid.replaceWith(...improved.content.childNodes);}
  const ops=labFilteredOps();
  const sections=new Map(groups.map(([id])=>[id,document.createElement('div')]));
  for(const [id,el] of sections){el.className='lab-grid tr6-lab-panels';el.dataset.tr6Group=id;el.setAttribute('role','tabpanel');el.id='tr6-lab-'+id;el.hidden=id!==labGroup;}
@@ -99,11 +102,12 @@ analyticsLab=function(){
  toolbar.innerHTML=`<div class="tr6-context-line"><strong>${safe(planLabel(p))}</strong><span>${safe(environment(p))}</span><span>${ops.length} operaciones de ${currentOps().length}</span><span>${filterCount} filtros</span><span>${safe(metricUnitLabel(labState.unit))} · ${labState.basis==='net'?'Neto':'Bruto'}</span><span>${studyLabel}</span></div><div role="tablist" aria-label="Herramientas del Laboratorio" class="tr6-task-tabs">${groups.map(([id,label,desc])=>`<button type="button" role="tab" class="${labGroup===id?'active':''}" aria-selected="${labGroup===id}" aria-controls="tr6-lab-${id}" ${action('tr6LabGroup',[id])}><strong>${label}</strong><small>${desc}</small></button>`).join('')}</div>`;
  grid.before(toolbar);
  return tpl.innerHTML;
-};
+}
+const originalLab=analyticsLab;
+analyticsLab=function(){return tr6DecorateLab(originalLab());};
 function ownHistory(id){const p=getPlan(id),ops=v313PlanOps(id);return `<div class="tr6-history"><strong>${safe(planLabel(p))}</strong><span>${safe(environment(p))} · ${ops.length} operaciones · ${safe(v313DateRangeText(ops))}</span><button class="btn small" ${action('tr6OpenHistory',[id])}>Abrir registro propio</button></div>`;}
 registry.tr6OpenHistory=function(id){if(!getPlan(id))return;state.currentPlanId=id;if(typeof persist==='function')persist();navigate('operations');};
-const originalCompare=v313CompareView;
-v313CompareView=function(){
+function tr6DecorateCompare(html){
  const pa=getPlan(reportsViewState.compareA),pb=getPlan(reportsViewState.compareB);
  const a=v313PlanOps(pa?.id),b=v313PlanOps(pb?.id);
  const same=!!pa&&!!pb&&pa.id===pb.id;
@@ -111,7 +115,8 @@ v313CompareView=function(){
  const noCommon=!same&&!win;
  const periodUnavailable=reportsViewState.compareWindow==='overlap'&&noCommon;
  const empty=!a.length||!b.length;
- const tpl=fragment(originalCompare());
+ const tpl=fragment(html);
+ if(tpl.content.querySelector('.tr6-compare-context'))return html;
  const panel=tpl.content.querySelector('.compare-main'),detail=tpl.content.querySelector('.compare-grid'),hero=tpl.content.querySelector('.compare-hero'),controls=tpl.content.querySelector('.compare-controls');
  if(!controls)return tpl.innerHTML;
  const mode=reportsViewState.compareWindow==='overlap'?'Periodo calendario común':'Histórico completo independiente';
@@ -130,7 +135,9 @@ v313CompareView=function(){
   context.after(notice);
  }
  return tpl.innerHTML;
-};
+}
+const originalCompare=v313CompareView;
+v313CompareView=function(){return tr6DecorateCompare(originalCompare());};
 const originalMarketTabs=v316MarketTabs;
 v316MarketTabs=function(){
  const defs=[['calibration','Calibración','Fuentes y calidad'],['running','Recorrido','Last y fills'],['reconcile','Vinculación','Journal y ejecución'],['bestexit','Best Exit','Bid/Ask y escenarios']];
@@ -152,9 +159,10 @@ v314ExecSetCard=function(s){
  if(target){const info=document.createElement('small');info.className='tr6-source-detail';info.textContent=`ID ${String(s.id).slice(-8)} · ${s.sourceFile||'Origen no informado'} · Importado ${stamp(s.createdAt||s.importedAt)} · ${s.id===v314MarketUi.activeExecId?'Seleccionado':'Disponible'}`;target.append(info);}
  return tpl.innerHTML;
 };
-const originalMarket=v316MarketDataView;
-v316MarketDataView=function(){
- const tpl=fragment(originalMarket()),tabs=tpl.content.querySelector('.md-phase-tabs');if(!tabs)return tpl.innerHTML;
+function tr6DecorateMarket(html){
+ const tpl=fragment(html);let tabs=tpl.content.querySelector('.md-phase-tabs');if(!tabs)return html;
+ if(!tabs.classList.contains('tr6-market-tabs')){const built=fragment(v316MarketTabs()).content.firstElementChild;tabs.replaceWith(built);tabs=built;}
+ if(tpl.content.querySelector('.tr6-market-context'))return tpl.innerHTML;
  const meta=v314MarketUi.metas.find(m=>m.id===v314MarketUi.activeMarketId)||null;
  const set=v314MarketUi.execSets.find(s=>s.id===v314MarketUi.activeExecId)||null;
  const linked=meta&&set?.marketDatasetId?String(set.marketDatasetId)===String(meta.id):false;
@@ -186,7 +194,19 @@ v316MarketDataView=function(){
   }
  }
  return tpl.innerHTML;
-};
+}
+const originalMarket=v316MarketDataView;
+v316MarketDataView=function(){return tr6DecorateMarket(originalMarket());};
+if(typeof trRenderViewHtml==='function'){
+ const previous=trRenderViewHtml;
+ trRenderViewHtml=function(view){const route=view??globalThis.TradingResearchCurrentViewReadContract?.current?.();const html=previous(view);
+  if(route==='lab')return tr6DecorateLab(html);
+  if(route==='reports'&&reportsViewState.tab==='compare')return tr6DecorateCompare(html);
+  if(route==='market')return tr6DecorateMarket(html);
+  return html;
+ };
+}
+queueMicrotask(()=>{try{window.render?.();}catch(e){console.error('[Astra Lote 6]',e);}});
 Object.assign(registry,{tr6LabGroup:registry.tr6LabGroup,tr6MarketTab:registry.tr6MarketTab});
 globalThis.TradingResearchAstraLote6=Object.freeze({version:'1.0',groups:groups.map(g=>g[0]),diagnostics:()=>({labGroup,comparisonsGuarded:true,marketSourcesOnly:true,gridKeyboard:true})});
 })();

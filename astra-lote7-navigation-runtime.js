@@ -33,6 +33,80 @@ shell=function(...args){
  if(isBacktest()&&currentView==='market')currentView='quality';
  return originalShell.apply(this,args);
 };
+// Some consolidated render paths publish a previously captured sidebar template.
+// Synchronize the *effective DOM* too, as in Lote 3; the source group IDs stay stable.
+const actions=globalThis.TradingResearchActions;
+const readView=()=>globalThis.TradingResearchCurrentViewReadContract?.current?.()||'dashboard';
+function tr7GoAllowed(){
+ if(isBacktest()&&readView()==='market'){
+  if(typeof actions?.navigate==='function')actions.navigate('quality');
+  return false;
+ }
+ return true;
+}
+if(typeof actions?.navigate==='function'){
+ const baseNavigate=actions.navigate;
+ actions.navigate=function(view,...args){return baseNavigate.call(this,view==='market'&&isBacktest()?'quality':view,...args);};
+}
+if(typeof actions?.switchPlan==='function'){
+ const baseSwitch=actions.switchPlan;
+ actions.switchPlan=function(id,...args){
+  const next=globalThis.TradingResearchPlanReadContract?.byId?.(id);
+  if(next&&contract.planEnvironment(next)==='backtest'&&readView()==='market'){
+   globalThis.TradingResearchCurrentViewNavigationWriteContract?.navigate?.('quality');
+  }
+  const value=baseSwitch.call(this,id,...args);
+  tr7ScheduleSidebarSync();
+  return value;
+ };
+}
+function tr7SyncSidebar(){
+ const nav=document.querySelector('.sidebar .nav-organized');if(!nav)return;
+ const op=nav.querySelector('.nav-group[data-nav-group="operativa"]');
+ const controlGroup=nav.querySelector('.nav-group[data-nav-group="control"]');
+ const block=nav.querySelector('[data-view="blocks"]');
+ const target=op?.querySelector(':scope > .nav-group-items');
+ if(block&&target&&block.parentElement!==target){
+  const calendar=target.querySelector(':scope > [data-view="calendar"]');
+  if(calendar)calendar.before(block);else target.append(block);
+ }
+ const market=nav.querySelector('[data-view="market"]');
+ if(market){
+  const hide=isBacktest();
+  if(market.hidden!==hide)market.hidden=hide;
+  if(market.disabled!==hide)market.disabled=hide;
+  if(hide){market.classList.remove('active');market.removeAttribute('aria-current');}
+ }
+ const active=readView()==='blocks';
+ if(block){
+  block.classList.toggle('active',active);
+  if(active)block.setAttribute('aria-current','page');else block.removeAttribute('aria-current');
+ }
+ if(active&&op){
+  op.classList.add('has-active','tr3-ancestor','open');
+  const toggle=op.querySelector(':scope > .nav-group-toggle');
+  toggle?.setAttribute('aria-expanded','true');
+  globalThis.TradingResearchNavigationRuntimeStateContract?.ensureGroupOpen?.('operativa');
+ }
+ if(controlGroup&&!controlGroup.querySelector('.nav-child.active')){
+  controlGroup.classList.remove('has-active','tr3-ancestor');
+  controlGroup.querySelector(':scope > .nav-group-toggle')?.removeAttribute('data-tr-parent-of-active');
+ }
+ tr7GoAllowed();
+}
+let tr7Scheduled=false;
+function tr7ScheduleSidebarSync(){
+ if(tr7Scheduled)return;
+ tr7Scheduled=true;
+ queueMicrotask(()=>{
+  tr7Scheduled=false;
+  try{tr7SyncSidebar();}catch(e){console.error('[Astra Lote 7 · sidebar]',e);}
+ });
+}
+const tr7Observer=new MutationObserver(tr7ScheduleSidebarSync);
+tr7Observer.observe(document.body,{childList:true,subtree:true});
+tr7ScheduleSidebarSync();
+
 globalThis.TradingResearchAstraLote7=Object.freeze({
  version:'1.0',environment,visibility:view=>view!=='market'||!isBacktest(),
  groups:()=>V318_NAV_GROUPS.map(g=>({id:g.id,items:g.items.map(i=>i[0])})),

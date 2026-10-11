@@ -111,7 +111,7 @@ for(const [file,attr,src] of replacements){
 // Lote 5 presentation adapters stay within the existing CSP-hashed runtime.
  h=h.replace(/<script\s+src=["']astra-lote5-operations-runtime\.js["']\s*><\/script>/i,'');
  h=h.replace(/<script\s+src=["']astra-lote5-visual-runtime\.js["']\s*><\/script>/i,'');
- h=h.replace(/<script\\s+src=[\"']astra-lote6-research-runtime\\.js[\"']\\s*><\\/script>/i,'');
+ h=h.replace(/<script\s+src=["']astra-lote6-research-runtime\.js["']\s*><\/script>/i,'');
  // Unsaved-operation confirmation is also bundled in this CSP-hashed script.
  h=h.replace(/<script\s+src=["']astra-lote4-unsaved-operation-runtime\.js["']\s*><\/script>/i,'');
  // Astra Lote 4 focus/keyboard runtime lives in the final CSP-hashed script.

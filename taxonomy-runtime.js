@@ -272,7 +272,9 @@ function trTaxOpenLegacyFicha(type,key=''){
 function trTaxOperationSelect(tax,o,p){
   const selected=api.resolveOperationValueId(o||{},tax),values=api.selectionOptions(p,tax),current=selected?api.operationValue(tax,o||{}):null;
   const choices=[...values];if(current&&!choices.some(v=>String(v.id)===String(current.id)))choices.unshift({...current,status:current.status==='archived'?'archived':'historical'});
-  const defaultValue=selected||(tax.kind==='core'?values[0]?.id:'')||'';
+  // A new operation (and an unclassified historic operation) must not inherit
+  // the first available core-taxonomy value. Only a saved selection is selected.
+  const defaultValue=selected||'';
   const options=[`<option value="">Sin clasificar</option>`,...choices.map(v=>`<option value="${trTaxEsc(v.id)}" ${String(v.id)===String(defaultValue)?'selected':''}>${trTaxEsc(v.name)}${v.status==='archived'?' · archivado':v.status==='historical'?' · histórico':''}</option>`)].join('');
   return `<label class="field"><span>${trTaxEsc(tax.name)}</span><select id="f-tx_${trTaxEsc(tax.id)}" name="tx_${trTaxEsc(tax.id)}" class="select">${options}</select></label>`;
 }

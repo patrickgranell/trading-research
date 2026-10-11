@@ -191,7 +191,7 @@ function ensureCanonicalTaxonomyFilters(grid){
    const caption=document.createElement('span');caption.textContent=tax.name;
    const select=document.createElement('select');
    select.className='select';select.id=id;select.dataset.taxonomyId=tax.id;
-   select.dataset.taxFilterOps='1';select.setAttribute('data-tr-onchange','filterOperations()');
+   select.dataset.taxFilterOps='1';select.setAttribute('data-tr-action-change','filterOperations');
    const all=document.createElement('option');all.value='';all.textContent='Todos';select.append(all);
    const values=api.selectionOptions(p,tax)||[];
    const included=new Set(values.map(v=>String(v.id)));
@@ -249,6 +249,15 @@ function compactFilters(root){
  const panel=root.querySelector('.filter-hub'),grid=panel?.querySelector('.filter-grid');
  if(!panel||!grid||panel.classList.contains('tr5-progressive'))return;
  const taxonomyControls=ensureCanonicalTaxonomyFilters(grid);
+ // The V31.24 event runtime only dispatches data-tr-action-* handlers.
+ // Controls built through DOM APIs or restored by partial renders do not pass
+ // through the compile-time legacy-handler transform. Wire those explicitly.
+ // Preserve any already compiled action and its encoded arguments.
+ for(const control of grid.querySelectorAll('input[id],select[id]')){
+  const type=control.id==='searchOps'?'input':'change';
+  if(!control.hasAttribute('data-tr-action-'+type))control.setAttribute('data-tr-action-'+type,'filterOperations');
+  control.removeAttribute('data-tr-on'+type);
+ }
  const originalChildren=[...grid.children];
  const idsBefore=new Set([...grid.querySelectorAll('select[id],input[id]')].map(el=>el.id));
  // Each original field is kept, including unrecognized extensions and historical taxonomy selectors.

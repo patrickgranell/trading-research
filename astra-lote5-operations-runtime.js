@@ -429,8 +429,10 @@ function operationFormIntent(dialog){
  const heading=dialog.querySelector('.modal-head h3')?.textContent?.trim()||'';
  if(!/^Nueva operación$/i.test(heading)){form.dataset.tr5Intent='editing';return;}
  form.dataset.tr5Intent='new';
- for(const key of filterFields){
-  const control=form.querySelector('#f-'+key);if(!control)continue;
+ // V31.26 taxonomy fields use f-tx_* rather than the old f-setup/f-vd IDs.
+ // Reset both control families for NEW operations only; never touch editing.
+ const fields=[...new Set([...filterFields.map(key=>form.querySelector('#f-'+key)),...form.querySelectorAll('select[id^="f-tx_"]')])].filter(Boolean);
+ for(const control of fields){
   if(control.tagName==='SELECT'){
    const blank=[...control.options].find(x=>x.value==='');
    if(!blank){

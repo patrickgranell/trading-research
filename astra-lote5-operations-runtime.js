@@ -11,18 +11,11 @@ const safe=s=>globalThis.TradingResearchContentEncodingContract?.html?.(String(s
 const encode=a=>encodeURIComponent(JSON.stringify(a));
 let opsTab='register';
 const expandedFilterGroups=new Set();
-function updateCollapseAction(root=document){
- const button=root.querySelector('.tr5-collapse-advanced');
- if(button)button.hidden=!root.querySelector('.tr5-advanced-sections details[open]');
-}
 document.addEventListener('toggle',event=>{
- const node=event.target;
- if(!(node instanceof HTMLDetailsElement)||!node.matches('.tr5-filter-details,.tr5-module-settings')||!node.isConnected)return;
- const group=node.dataset.tr5Group;
- if(!group)return;
- if(node.open)expandedFilterGroups.add(group);
- else expandedFilterGroups.delete(group);
- updateCollapseAction(node.closest('.filter-hub')||document);
+ const details=event.target;
+ if(!(details instanceof HTMLDetailsElement)||!details.matches('.tr5-advanced-panel')||!details.isConnected)return;
+ if(details.open)expandedFilterGroups.add('Filtros avanzados');
+ else expandedFilterGroups.delete('Filtros avanzados');
 },true);
 const quick=['searchOps','filterDateFrom','filterDateTo','filterResult','filterSetup','filterDirection','filterSource'];
 const advanced=[
@@ -103,10 +96,12 @@ function clarifyFilterSemantics(root){
    const option=[...select.options].find(o=>o.value===value);
    if(option&&option.textContent!==description)option.textContent=description;
   }
-  if(explanation&&field&&!field.querySelector('.tr5-filter-meaning')){
-   const note=document.createElement('small');
-   note.className='tr5-filter-meaning';note.textContent=explanation;
-   field.append(note);
+  // Help is available on the accessible control, never below one field:
+  // explanatory paragraphs caused misaligned Result/Origin/Regime controls.
+  if(explanation){
+   select.setAttribute('aria-description',explanation);
+   select.title=explanation;
+   field?.querySelector('.tr5-filter-meaning')?.remove();
   }
  };
  set('filterLayer','Ámbito de ejecución',{
@@ -170,62 +165,98 @@ function refreshSummary(root=document){
   nativeReset.classList.add('tr5-reset-filters');
   summary.append(nativeReset);
  }
- const collapse=document.createElement('button');
- collapse.type='button';collapse.className='btn small ghost tr5-collapse-advanced';
- collapse.textContent='Plegar filtros avanzados';
- collapse.hidden=true;
- collapse.addEventListener('click',()=>{
-  for(const el of root.querySelectorAll('.tr5-advanced-sections details[open]'))el.open=false;
-  expandedFilterGroups.clear();
-  updateCollapseAction(root);
- });
- summary.append(collapse);
- updateCollapseAction(root);
+
 }
 function compactFilters(root){
  const panel=root.querySelector('.filter-hub'),grid=panel?.querySelector('.filter-grid');
  if(!panel||!grid||panel.classList.contains('tr5-progressive'))return;
- panel.classList.add('tr5-progressive');
- const summary=document.createElement('div');summary.className='tr5-filter-status';
- summary.setAttribute('aria-live','polite');
- const common=document.createElement('div');common.className='tr5-quick-filters';
- const sections=document.createElement('div');sections.className='tr5-advanced-sections';
- const map=new Map([...grid.children].map(node=>[node.querySelector('input,select')?.id,node]));
- for(const id of quick){const el=map.get(id);if(el)common.append(el);}
- const used=new Set(quick);
- for(const [title,ids] of advanced){
-  const details=document.createElement('details');details.className='tr5-filter-details';
-  details.dataset.tr5Group=title;
-  details.open=expandedFilterGroups.has(title);
-  const sum=document.createElement('summary');sum.textContent=title;
-  const body=document.createElement('div');body.className='tr5-filter-detail-grid';
-  for(const id of ids){used.add(id);const el=map.get(id);if(el)body.append(el);}
-  details.append(sum,body);sections.append(details);
+ const originalChildren=[...grid.children];
+ const idsBefore=new Set([...grid.querySelectorAll('select[id],input[id]')].map(el=>el.id));
+ // Each original field is kept, including unrecognized extensions and historical taxonomy selectors.
+ // Duplicate controls with the SAME ID and action are consolidated, preserving their option universe.
+ const fields=new Map(),anonymous=[];
+ const fieldId=node=>node.querySelector('input[id],select[id]')?.id||'';
+ for(const node of originalChildren){
+  const id=fieldId(node);
+  if(!id){anonymous.push(node);continue;}
+  const first=fields.get(id);
+  if(!first){fields.set(id,node);continue;}
+  const primary=first.querySelector('select'),duplicate=node.querySelector('select');
+  if(primary&&duplicate){
+   const known=new Set([...primary.options].map(o=>o.value));
+   for(const option of [...duplicate.options]){
+    if(known.has(option.value))continue;
+    primary.append(option.cloneNode(true));known.add(option.value);
+   }
+   if(!primary.value&&duplicate.value)primary.value=duplicate.value;
+  }else if(!primary&&!duplicate){
+   const a=first.querySelector('input'),b=node.querySelector('input');
+   if(a&&b&&!a.value&&b.value)a.value=b.value;
+  }
+  // The same ID is dispatched as one filter in the original model: no duplicate widget.
  }
- const extra=[...grid.children].filter(el=>!used.has(el.querySelector('input,select')?.id));
- if(extra.length){
-  const details=document.createElement('details');details.className='tr5-filter-details';
-  details.dataset.tr5Group='Otros filtros';
-  details.open=expandedFilterGroups.has('Otros filtros');
-  const body=document.createElement('div');body.className='tr5-filter-detail-grid';
-  for(const el of extra)body.append(el);
-  const sum=document.createElement('summary');sum.textContent='Otros filtros';
-  details.append(sum,body);sections.append(details);
+ const quickRow=document.createElement('div');quickRow.className='tr5-quick-filters';
+ const consumed=new Set();
+ for(const id of quick){
+  const node=fields.get(id);
+  if(node){quickRow.append(node);consumed.add(id);}
  }
- grid.replaceChildren(common,sections);
- clarifyFilterSemantics(root);
+ const more=document.createElement('details');
+ more.className='tr5-advanced-panel';
+ more.dataset.tr5Group='Filtros avanzados';
+ more.open=expandedFilterGroups.has('Filtros avanzados');
+ const summary=document.createElement('summary');summary.className='tr5-advanced-summary';
+ const advancedContent=document.createElement('div');advancedContent.className='tr5-advanced-content';
+ const sections=[
+  ['Clasificación', ['filterVD','filterNR','filterHypothesis','filterRisk','filterLayer']],
+  ['Contexto y seguimiento', ['filterContract','filterBlock','filterEmotion','filterBehavior','filterEmotionStatus','filterRiskPolicy']],
+  ['Tiempo y calendario', ['filterTimeFrom','filterTimeTo','filterMonth','filterYear']]
+ ];
+ const group=(heading,nodes)=>{
+  if(!nodes.length)return;
+  const section=document.createElement('section');section.className='tr5-filter-group';
+  const title=document.createElement('h4');title.textContent=heading;
+  const body=document.createElement('div');body.className='tr5-filter-detail-grid';
+  for(const node of nodes)body.append(node);
+  section.append(title,body);advancedContent.append(section);
+ };
+ for(const [heading,ids] of sections){
+  const nodes=[];
+  for(const id of ids){
+   const node=fields.get(id);
+   if(node&&!consumed.has(id)){nodes.push(node);consumed.add(id);}
+  }
+  group(heading,nodes);
+ }
+ const unassigned=[];
+ for(const [id,node] of fields)if(!consumed.has(id)){unassigned.push(node);consumed.add(id);}
+ unassigned.push(...anonymous);
+ group('Otros filtros originales',unassigned);
  const moduleRow=panel.querySelector('.quick-row');
  if(moduleRow){
-  const details=document.createElement('details');details.className='tr5-module-settings';
-  details.dataset.tr5Group='Periodos rápidos y módulos gráficos';
-  details.open=expandedFilterGroups.has('Periodos rápidos y módulos gráficos');
-  const s=document.createElement('summary');s.textContent='Periodos rápidos y módulos gráficos';
-  details.append(s,moduleRow);sections.append(details);
+  const section=document.createElement('section');section.className='tr5-filter-group tr5-period-controls';
+  const title=document.createElement('h4');title.textContent='Periodos rápidos y módulos gráficos';
+  section.append(title,moduleRow);advancedContent.append(section);
  }
- panel.append(summary);
+ summary.textContent='Filtros avanzados · '+(fields.size-[...quick].filter(id=>fields.has(id)).length+anonymous.length)+' adicionales';
+ more.append(summary,advancedContent);
+ grid.replaceChildren(quickRow,more);
+ panel.classList.add('tr5-progressive');
+ // Contract: all distinct source controls must remain addressable exactly once,
+ // even if future versions add fields unknown to this adapter.
+ const after=[...grid.querySelectorAll('select[id],input[id]')].map(el=>el.id);
+ const idsAfter=new Set(after);
+ if(idsAfter.size!==idsBefore.size||after.length!==idsAfter.size||[...idsBefore].some(id=>!idsAfter.has(id))){
+  console.error('[Astra Lote 5] Filter parity violation; original panel restored', [...idsBefore],after);
+  grid.replaceChildren(...originalChildren);
+  panel.classList.remove('tr5-progressive');
+  return;
+ }
+ const filterStatus=document.createElement('div');filterStatus.className='tr5-filter-status';
+ filterStatus.setAttribute('aria-live','polite');panel.append(filterStatus);
+ clarifyFilterSemantics(root);
  syncedOptions(root);
  refreshSummary(root);
- updateCollapseAction(root);
 }
 function tabs(){
  const nav=document.createElement('nav');nav.className='tr5-ops-tabs';

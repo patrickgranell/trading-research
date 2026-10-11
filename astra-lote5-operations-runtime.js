@@ -320,7 +320,7 @@ function compactFilters(root){
   const title=document.createElement('h4');title.textContent='Periodos rápidos y módulos gráficos';
   section.append(title,moduleRow);advancedContent.append(section);
  }
- summary.textContent='Filtros avanzados · '+(fields.size-consumed.size+anonymous.length)+' adicionales';
+ summary.textContent='Filtros avanzados · '+(fields.size-quickRow.children.length+anonymous.length)+' adicionales';
  more.append(summary,advancedContent);
  grid.replaceChildren(quickRow,more);
  panel.classList.add('tr5-progressive');

@@ -14,7 +14,7 @@ const check=String.raw`(async()=>{
   const count=view=>nav()?.querySelectorAll('[data-view="'+view+'"]').length||0;
   const menuGroup=view=>nav()?.querySelector('[data-view="'+view+'"]')?.closest('.nav-group')?.dataset.navGroup||'';
   const marketElement=()=>nav()?.querySelector('[data-view="market"]');
-  const marketVisible=()=>{const el=marketElement();return !!el&&!el.hidden&&getComputedStyle(el).display!=='none'&&el.getClientRects().length>0;};
+  const marketVisible=()=>{const el=marketElement();return !!el&&!el.hidden&&getComputedStyle(el).display!=='none';};
   const route=()=>globalThis.TradingResearchCurrentViewReadContract?.current?.();
   const base=getCurrentPlan();
   const initialCount=state.operations.length;

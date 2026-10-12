@@ -68,5 +68,8 @@ jobs:
       - name: Astra Lote 7 · Navigation by Trading Plan environment
         run: node verify-astra-lote7-browser.mjs
 
+      - name: Astra Lote 8 · Info controls and weekday Chromium visual/accessibility
+        run: node verify-astra-lote8-browser.mjs
+
       - name: UX-104 operations register Chromium smoke
         run: node verify-ux104-operations-register-browser.mjs

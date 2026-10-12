@@ -73,6 +73,17 @@ const check=String.raw`(async()=>{
   }
   out.themesDiffer=Object.values(out.themeWidth).every(x=>x.active!==x.inactive);
   fixture.remove();
+  TradingResearchActions.navigate('operations');await sleep(150);
+  const opsWeek=document.querySelector('#view .day-filter-row .tr8-week-selector');
+  out.operationsWeek=!!opsWeek&&opsWeek.querySelectorAll('button[data-day-chip]').length===7;
+  out.operationsOrder=[...(opsWeek?.querySelectorAll('button[data-day-chip]')||[])].map(b=>b.dataset.dayChip).join(',')==='1,2,3,4,5,6,0';
+  const opsMonday=opsWeek?.querySelector('button[data-day-chip="1"]');
+  out.operationsOriginalAction=!!opsMonday&&(!!opsMonday.dataset.trActionClick||!!opsMonday.dataset.trOnclick);
+  opsMonday?.click();await sleep(80);
+  out.operationsPressed=opsMonday?.getAttribute('aria-pressed')==='true'&&opsMonday?.classList.contains('active');
+  opsMonday?.click();await sleep(80);
+  out.operationsDeselected=opsMonday?.getAttribute('aria-pressed')==='false'&&!opsMonday?.classList.contains('active');
+
  }catch(e){out.error=String(e?.stack||e);}
  document.body.setAttribute('data-tr8-results',encodeURIComponent(JSON.stringify(out)));
 })();`;
@@ -92,7 +103,7 @@ try{
   assert(match,'Missing Chromium Lote 8 output: '+run.stderr?.slice(-1000));
   const out=JSON.parse(decodeURIComponent(match[1]));
   console.log('Lote 8 Chromium',width,JSON.stringify(out));
-  for(const key of ['installed','week','order','names','unselected','originalAction','equalSizes','minimumDayWidth','firstSelected','multiSelected','deselected','focus','hitTargets','weekOverflow','dayDataUntouched','iconExamples','iconTarget','typographicHierarchy','noLargeTextWrap','accessibleNames','iconFocus','tooltipContent','themesDiffer']){
+  for(const key of ['installed','week','order','names','unselected','originalAction','equalSizes','minimumDayWidth','firstSelected','multiSelected','deselected','focus','hitTargets','weekOverflow','dayDataUntouched','iconExamples','iconTarget','typographicHierarchy','noLargeTextWrap','accessibleNames','iconFocus','tooltipContent','themesDiffer','operationsWeek','operationsOrder','operationsOriginalAction','operationsPressed','operationsDeselected']){
    assert.equal(out[key],true,key+' FAIL: '+JSON.stringify(out));
   }
   assert.equal(out.iconScale.length,4);

@@ -28,6 +28,8 @@ const check=String.raw`(async()=>{
   out.unselected=buttons().every(b=>b.getAttribute('aria-pressed')==='false');
   out.originalAction=buttons().every(b=>b.dataset.trActionClick==='tpBuilderToggleDay');
   out.equalSizes=buttons().every(b=>Math.abs(b.getBoundingClientRect().width-buttons()[0].getBoundingClientRect().width)<2);
+  out.minimumDayWidth=buttons().every(b=>b.getBoundingClientRect().width>=32);
+  out.responsiveColumns=getComputedStyle(group()).gridTemplateColumns.split(' ').length;
   const buttonDay=d=>root().querySelector('.tr8-week-day[data-day="'+d+'"]');
   const resultCount=()=>{const s=root()?.querySelector('.topbar .btn.primary')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
   out.before=resultCount();
@@ -90,7 +92,7 @@ try{
   assert(match,'Missing Chromium Lote 8 output: '+run.stderr?.slice(-1000));
   const out=JSON.parse(decodeURIComponent(match[1]));
   console.log('Lote 8 Chromium',width,JSON.stringify(out));
-  for(const key of ['installed','week','order','names','unselected','originalAction','equalSizes','firstSelected','multiSelected','deselected','focus','hitTargets','weekOverflow','dayDataUntouched','iconExamples','iconTarget','typographicHierarchy','noLargeTextWrap','accessibleNames','iconFocus','tooltipContent','themesDiffer']){
+  for(const key of ['installed','week','order','names','unselected','originalAction','equalSizes','minimumDayWidth','firstSelected','multiSelected','deselected','focus','hitTargets','weekOverflow','dayDataUntouched','iconExamples','iconTarget','typographicHierarchy','noLargeTextWrap','accessibleNames','iconFocus','tooltipContent','themesDiffer']){
    assert.equal(out[key],true,key+' FAIL: '+JSON.stringify(out));
   }
   assert.equal(out.iconScale.length,4);

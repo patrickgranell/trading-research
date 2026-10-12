@@ -1597,5 +1597,8 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 }
 @media(max-width:560px){
  .tr8-week-row{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
- .tr8-week-selector{inline-size:100%}
+ .tr8-week-selector{inline-size:100%;grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:390px){
+ .tr8-week-selector{grid-template-columns:repeat(3,minmax(0,1fr))}
 }

@@ -29,15 +29,15 @@ if(!supabaseSdk.test(html)){
   throw new Error('Pinned Supabase SDK tag was not found in the built HTML; desktop offline transform must be reviewed.');
 }
 html=html.replace(supabaseSdk,'\n');
-html=html.replace('</head>','  <meta name="trading-research-desktop-channel" content="0.7.0" />\n</head>');
+html=html.replace('</head>','  <meta name="trading-research-desktop-channel" content="0.8.0" />\n</head>');
 
 const runtime=fs.readFileSync('desktop-native-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
 const imageRuntime=fs.readFileSync('desktop-native-images-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
 const marketRuntime=fs.readFileSync('desktop-native-market-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
 const portableRuntime=fs.readFileSync('desktop-portable-recovery-runtime.js','utf8').replace(/<\/script/gi,'<\\/script');
-html=html.replace('</body>',()=>'<script data-tr-desktop-native-storage="0.7.0">'+runtime+'</script>\n<script data-tr-desktop-native-images="batch77-staging">'+imageRuntime+'</script>\n<script data-tr-desktop-native-marketdata="batch78">'+marketRuntime+'</script>\n<script data-tr-desktop-portable-recovery="batch79">'+portableRuntime+'</script>\n</body>');
+html=html.replace('</body>',()=>'<script data-tr-desktop-native-storage="0.8.0">'+runtime+'</script>\n<script data-tr-desktop-native-images="batch77-staging">'+imageRuntime+'</script>\n<script data-tr-desktop-native-marketdata="batch78">'+marketRuntime+'</script>\n<script data-tr-desktop-portable-recovery="batch79">'+portableRuntime+'</script>\n</body>');
 
 fs.writeFileSync(indexPath,html);
 fs.rmSync(desktopDir+'/_headers',{force:true});
 
-console.log('Prepared offline Desktop 0.7.0 staging artifact with native recovery + native images + native Market Data + Batch 79 portable recovery -> desktop-dist/');
+console.log('Prepared offline Desktop 0.8.0 staging artifact with native recovery + native images + native Market Data + Batch 79 portable recovery -> desktop-dist/');

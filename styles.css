@@ -1555,6 +1555,8 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 .tr8-week-row>.mini-label{
  flex:0 0 auto;margin:0;font-size:11px;line-height:1.4;color:var(--muted);
 }
+.tr8-week-row>strong{font-size:11px;line-height:1.4;white-space:nowrap;color:var(--muted)}
+.tr8-week-row>.reset-filter{flex:0 0 auto}
 .tr8-week-selector{
  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
  gap:3px;align-items:center;inline-size:min(100%,378px);

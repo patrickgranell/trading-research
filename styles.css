@@ -1511,3 +1511,91 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 /* Lote 7: a hidden Market Data destination must also be visually absent.
    Sidebar .nav-child display rules override the UA [hidden] default. */
 .sidebar .nav-organized .nav-child[data-view="market"][hidden]{display:none!important}
+
+
+/* Astra Lote 8 · one global visual scale for information buttons.
+   The circle is typography-sized; the existing 28px pointer/keyboard target remains. */
+.info-dot,.table th .info-dot{
+ --tr8-info-circle:14px;
+ position:relative;isolation:isolate;
+ box-sizing:border-box;inline-size:28px;block-size:28px;
+ min-inline-size:28px;min-block-size:28px;
+ padding:0;margin:-6px -5px -6px 0;
+ border:0;border-radius:50%;background:transparent;
+ font-size:9px;font-weight:800;line-height:1;vertical-align:middle;
+ flex:0 0 28px;color:var(--muted);white-space:nowrap;cursor:help;
+}
+.info-dot::before{
+ content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+ inline-size:var(--tr8-info-circle);block-size:var(--tr8-info-circle);
+ box-sizing:border-box;border:1px solid color-mix(in srgb,var(--muted) 54%,transparent);
+ border-radius:50%;background:color-mix(in srgb,var(--panel) 78%,transparent);
+ pointer-events:none;transition:border-color .15s ease,background .15s ease;
+}
+.info-dot:hover,.info-dot:focus{border:0;background:transparent;color:var(--text)}
+.info-dot:hover::before,.info-dot:focus::before{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--panel))}
+.info-dot:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+.page-title h2 .info-dot,.topbar h2 .info-dot{--tr8-info-circle:17px;font-size:11px}
+.panel-title h3 .info-dot,.topbar h3 .info-dot,.card h3 .info-dot{--tr8-info-circle:15px;font-size:10px}
+.table th .info-dot,.kpi .label .info-dot,.block-core-grid span .info-dot,
+.block-detail-kpis span .info-dot,.calendar-month-kpis span .info-dot,
+.calendar-detail-kpis span .info-dot,.dashboard-mini-stats span .info-dot,
+.confidence-stats span .info-dot,.goal-values span .info-dot{
+ --tr8-info-circle:12px;font-size:8px;
+}
+@media(max-width:760px){
+ .info-dot,.table th .info-dot{inline-size:28px;block-size:28px;min-inline-size:28px;min-block-size:28px}
+}
+
+/* Shared segmented multi-select pattern for weekday controls. */
+.tr8-week-row{
+ display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+ min-inline-size:0;margin-block:13px;
+}
+.tr8-week-row>.mini-label{
+ flex:0 0 auto;margin:0;font-size:11px;line-height:1.4;color:var(--muted);
+}
+.tr8-week-selector{
+ display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+ gap:3px;align-items:center;inline-size:min(100%,378px);
+ min-inline-size:0;max-inline-size:100%;
+ padding:4px;border:1px solid var(--border);border-radius:11px;
+ background:var(--panel2);
+}
+.tr8-week-selector>.tr8-week-day{
+ appearance:none;box-sizing:border-box;position:relative;
+ min-inline-size:0;inline-size:100%;block-size:36px;min-block-size:36px;
+ margin:0;padding:0 3px;
+ display:inline-flex;justify-content:center;align-items:center;
+ border:1px solid transparent;border-radius:7px;
+ background:transparent;color:var(--muted);
+ font-family:inherit;font-size:11px;font-weight:700;line-height:1.2;letter-spacing:0;text-align:center;
+ cursor:pointer;white-space:nowrap;
+ transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.tr8-week-selector>.tr8-week-day:hover:not(:disabled){
+ border-color:color-mix(in srgb,var(--accent) 45%,var(--border));
+ background:color-mix(in srgb,var(--accent) 9%,var(--panel));
+ color:var(--text);
+}
+.tr8-week-selector>.tr8-week-day.active,
+.tr8-week-selector>.tr8-week-day[aria-pressed="true"]{
+ border-color:color-mix(in srgb,var(--accent) 65%,var(--border));
+ background:color-mix(in srgb,var(--accent) 19%,var(--panel));
+ color:var(--text);
+ box-shadow:inset 0 -2px 0 var(--accent);
+}
+.tr8-week-selector>.tr8-week-day[aria-pressed="true"]::after{
+ content:"✓";position:absolute;top:0;right:2px;
+ font-size:9px;line-height:1;font-weight:900;color:var(--accent);
+}
+.tr8-week-selector>.tr8-week-day:focus-visible{
+ outline:2px solid var(--accent);outline-offset:1px;z-index:1;
+}
+.tr8-week-selector>.tr8-week-day:disabled{
+ cursor:not-allowed;opacity:.45;filter:grayscale(.4);
+}
+@media(max-width:560px){
+ .tr8-week-row{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+ .tr8-week-selector{inline-size:100%}
+}

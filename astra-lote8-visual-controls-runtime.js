@@ -6,22 +6,38 @@ if(!actions||typeof document==='undefined')return;
 const DAY_NAMES=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 function decorateWeekdays(root){
  const scope=root?.querySelectorAll?root:document;
- for(const row of scope.querySelectorAll('#tp-builder-view .chip-row')){
+ for(const row of scope.querySelectorAll('#tp-builder-view .chip-row, .day-filter-row')){
   if(row.querySelector('.tr8-week-selector'))continue;
-  const buttons=[...row.querySelectorAll(':scope > button[data-day][data-tr-action-click="tpBuilderToggleDay"]')];
-  if(buttons.length!==7||buttons.some((b,i)=>Number(b.dataset.day)!==i))continue;
+  const builder=!!row.closest('#tp-builder-view');
+  const selector=builder?':scope > button[data-day][data-tr-action-click="tpBuilderToggleDay"]':':scope > button[data-day-chip]';
+  const buttons=[...row.querySelectorAll(selector)];
+  const order=builder?[0,1,2,3,4,5,6]:[1,2,3,4,5,6,0];
+  if(buttons.length!==7||buttons.some((b,i)=>Number(builder?b.dataset.day:b.dataset.dayChip)!==order[i]))continue;
   const group=document.createElement('div');
   group.className='tr8-week-selector';
   group.setAttribute('role','group');
   group.setAttribute('aria-label','Días de la semana');
   for(const button of buttons){
-   const index=Number(button.dataset.day);
+   const index=Number(builder?button.dataset.day:button.dataset.dayChip);
    button.classList.add('tr8-week-day');
    button.setAttribute('aria-label',DAY_NAMES[index]);
    button.setAttribute('aria-pressed',button.classList.contains('active')?'true':'false');
    group.append(button);
   }
-  row.append(group);
+  // The operations filter updates its button classes without re-rendering.
+  // Reflect only the accessibility state, never its filter values.
+  if(!builder){
+   const sync=new MutationObserver(records=>{
+    for(const change of records){
+     const b=change.target;
+     const pressed=b.classList.contains('active')?'true':'false';
+     if(b.getAttribute('aria-pressed')!==pressed)b.setAttribute('aria-pressed',pressed);
+    }
+   });
+   sync.observe(group,{attributes:true,attributeFilter:['class'],subtree:true});
+  }
+  const reset=builder?null:row.querySelector(':scope > .reset-filter');
+  if(reset)reset.before(group);else row.append(group);
   row.classList.add('tr8-week-row');
  }
 }

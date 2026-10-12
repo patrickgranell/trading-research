@@ -1507,3 +1507,7 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 @media(max-width:1150px){.tr6-task-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:780px){.tr6-task-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.tr6-lab-panels{grid-template-columns:1fr}}
 @media(max-width:480px){.tr6-task-tabs{grid-template-columns:1fr}}
+
+/* Lote 7: a hidden Market Data destination must also be visually absent.
+   Sidebar .nav-child display rules override the UA [hidden] default. */
+.sidebar .nav-organized .nav-child[data-view="market"][hidden]{display:none!important}

@@ -44,11 +44,13 @@ const check=String.raw`(async()=>{
   focus?.focus();await sleep(15);
   out.focus=focus===document.activeElement&&getComputedStyle(focus).outlineStyle!=='none';
   out.hitTargets=buttons().every(b=>b.getBoundingClientRect().height>=32);
-  out.weekOverflow=group().scrollWidth<=group().clientWidth+2&&root().scrollWidth<=root().clientWidth+2;
+  out.weekMeasurements={groupScroll:group().scrollWidth,groupClient:group().clientWidth,rowScroll:group().parentElement.scrollWidth,rowClient:group().parentElement.clientWidth};
+  out.weekOverflow=group().scrollWidth<=group().clientWidth+2&&group().parentElement.scrollWidth<=group().parentElement.clientWidth+2;
   out.dayDataUntouched=state.operations.length===opsBefore+2;
   const fixture=document.createElement('section');
-  fixture.innerHTML='<div class="page-title"><h2>Título '+helpButtonHtml('equity')+'</h2></div><div class="panel-title"><h3>Panel '+helpButtonHtml('confidence')+'</h3></div><div class="block-core-grid"><span>Métrica '+helpButtonHtml('mfe')+'</span></div><table class="table"><thead><tr><th>Columna '+helpButtonHtml('mae')+'</th></tr></thead></table>';
+  fixture.innerHTML='<div class="page-title"><h2>Curva de Equity</h2></div><div class="panel-title"><h3>Confianza estadística</h3></div><div class="block-core-grid"><span>MFE medio</span></div><table class="table"><thead><tr><th>MAE medio</th></tr></thead></table>';
   document.body.append(fixture);
+  globalThis.TradingResearchContextHelpPresentationContract.apply();
   const icons=[...fixture.querySelectorAll('.info-dot')];
   out.iconExamples=icons.length===4;
   out.iconTarget=icons.every(el=>Math.round(el.getBoundingClientRect().width)>=28&&Math.round(el.getBoundingClientRect().height)>=28);

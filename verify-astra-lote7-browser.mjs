@@ -26,6 +26,8 @@ const check=String.raw`(async()=>{
   }
   const change=async env=>{TradingResearchActions.switchPlan(plans[env]);await sleep(120);};
   await change('backtest');
+  // Replicate the reported UI: Datos y ejecución is expanded.
+  nav().querySelector('[data-nav-group="data"]')?.classList.add('open');
   results.blocksMoved=count('blocks')===1&&menuGroup('blocks')==='operativa';
   results.blocksNotInControl=!nav().querySelector('[data-nav-group="control"] [data-view="blocks"]');
   results.marketHiddenBacktest=!marketVisible()&&(count('market')===0||(marketElement()?.hidden===true&&getComputedStyle(marketElement()).display==='none'));

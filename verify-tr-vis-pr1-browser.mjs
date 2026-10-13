@@ -15,8 +15,14 @@ window.TradingResearchCurrentViewReadContract={current:()=>current};
 window.TradingResearchPlanReadContract={current:()=>plan};
 window.TradingResearchOperationSemanticsContract={planEnvironment:()=> 'live'};
 window.TradingResearchContentEncodingContract={html:value=>String(value)};
+const actionButtons='<div class="actions"><button class="btn primary" data-tr-onclick="openOperationModal()">+ Nueva operación</button><button class="btn" data-tr-onclick="openImportModal()">Importar Ankora</button><button class="btn">Personalizar</button></div>';
 function trRenderViewHtml(view){
- if(view==='dashboard')return '<div class="topbar"><div class="page-title"><h2>Dashboard</h2></div></div><div class="chart-wrap"><svg class="equity-svg dashboard-equity-svg" viewBox="0 0 760 250" preserveAspectRatio="none"><text class="dashboard-axis-text" x="10" y="20">0 R</text></svg></div>';
+ if(view==='dashboard')return '<div class="topbar"><div class="page-title"><h2>Dashboard</h2></div>'+actionButtons+'</div><div class="chart-wrap"><svg class="equity-svg dashboard-equity-svg" viewBox="0 0 760 250" preserveAspectRatio="none"><text class="dashboard-axis-text" x="10" y="20">0 R</text></svg></div>';
+ if(view==='operations')return '<div class="topbar"><h2>Operaciones</h2>'+actionButtons+'</div><span>Registro</span>';
+ if(view==='plans')return '<div class="topbar"><h2>Planes</h2>'+actionButtons+'</div>';
+ if(view==='gallery')return '<div class="topbar"><h2>Biblioteca</h2>'+actionButtons+'</div>';
+ if(view==='blocks')return '<div class="topbar"><h2>Bloques</h2>'+actionButtons+'</div>';
+ if(view==='market')return '<section class="md-source-grid"><div class="md-dataset"><button class="md-dataset-main"><strong>Grid de ejemplo</strong><span>Datos</span></button></div></section><section class="md-calibration"><div class="md-cal-controls"><div><span>Histórico activo</span><strong>139.143 ticks</strong></div><label><span>Ajuste manual</span><strong>2h</strong></label></div></section>';
  if(view==='decision')return '<div class="topbar"><div class="page-title"><h2>Research Decision Center</h2></div></div><section class="card panel decision-hero high"><div><h2>Prioridades críticas</h2><p>Alertas</p></div><div class="decision-hero-kpis"><div><strong>0/100</strong></div></div></section><section class="decision-section"><div class="decision-section-head"><span>2 altas</span></div><div class="decision-priority-grid"><article>0/0 checklist</article></div></section>';
  return '<div></div>';
 }
@@ -35,6 +41,26 @@ out.darkIntratrade=getComputedStyle(box).backgroundColor;
 document.documentElement.dataset.theme='light';
 out.lightAxis=getComputedStyle(axis).fill;
 out.lightIntratrade=getComputedStyle(box).backgroundColor;
+// Centralized CTAs: no creation/import outside Operaciones; keep other actions.
+function countActions(){
+ const labels=[...document.querySelectorAll('#view button')].map(b=>b.textContent.trim());
+ return {newTrade:labels.filter(x=>x.includes('Nueva operación')).length,import:labels.filter(x=>x.includes('Importar Ankora')).length,personalizar:labels.includes('Personalizar')};
+}
+out.dashboardButtons=countActions();
+for(const route of ['plans','gallery','blocks']){
+ current=route;window.render();out[route+'Buttons']=countActions();
+}
+current='operations';window.render();out.operationsButtons=countActions();
+current='market';window.render();
+const dataset=document.querySelector('#view .md-dataset');
+const control=document.querySelector('#view .md-cal-controls>div');
+document.documentElement.dataset.theme='dark';
+out.darkDataset=getComputedStyle(dataset).backgroundColor;
+out.darkControls=getComputedStyle(control).backgroundColor;
+out.darkDatasetText=getComputedStyle(dataset.querySelector('strong')).color;
+document.documentElement.dataset.theme='light';
+out.lightDataset=getComputedStyle(dataset).backgroundColor;
+out.lightControls=getComputedStyle(control).backgroundColor;
 current='decision';window.render();
 out.emptyTitle=document.querySelector('.decision-hero h2')?.textContent;
 out.emptyPriority=document.querySelector('.decision-priority-grid')?.textContent;
@@ -66,6 +92,18 @@ try{
  assert.equal(v.lightAxis,'rgb(90, 104, 125)');
  assert.equal(v.darkIntratrade,'rgb(11, 18, 32)');
  assert.equal(v.lightIntratrade,'rgb(255, 255, 255)');
+ for(const key of ['dashboardButtons','plansButtons','galleryButtons','blocksButtons']){
+  assert.equal(v[key].newTrade,0,key+' unexpected New trade button');
+  assert.equal(v[key].import,0,key+' unexpected Ankora import button');
+  assert.equal(v[key].personalizar,true,key+' other action must remain');
+ }
+ assert.equal(v.operationsButtons.newTrade,1,'Operations keeps New trade');
+ assert.equal(v.operationsButtons.import,1,'Operations keeps Ankora import');
+ assert.equal(v.darkDataset,'rgb(17, 26, 46)');
+ assert.equal(v.darkControls,'rgb(17, 26, 46)');
+ assert.equal(v.darkDatasetText,'rgb(237, 242, 255)');
+ assert.equal(v.lightDataset,'rgb(255, 255, 255)');
+ assert.equal(v.lightControls,'rgb(255, 255, 255)');
  assert.equal(v.emptyTitle,'Sin muestra operativa');
  assert.equal(v.emptyStatus,'Sin evaluación');
  assert.equal(v.emptyQuality,'—');
@@ -74,5 +112,5 @@ try{
  assert(v.populatedPriority.includes('0/0 checklist'),'Only a real zero sample may be neutralized');
  assert.equal(v.navOverflow,'auto');
  assert(v.navScrollable&&v.planVisible,'Sidebar destinations must scroll independently under a stable TP header');
- console.log('TR-VIS PR1 Chromium PASS: SVG geometry, axis colours in both themes, dark intratrade, neutral empty, scrollable navigation');
+ console.log('TR-VIS PR1 Chromium PASS: SVG geometry, axis colours in both themes, dark intratrade/Market Data, centralized CRUD/import, neutral empty, scrollable navigation');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

@@ -22,6 +22,43 @@ function editingOperation(){
 const lotsOf=risk=>Array.isArray(risk?.lots)?risk.lots:[];
 function inputRows(form){return [...form.querySelectorAll('.tr-lot-execution-row')];}
 function modeOf(form){return form?.querySelector('.tr-lots-mode')?.value==='lots'?'lots':'aggregated';}
+/* Global exit reflects the final actual lot exit, not a manually guessed timestamp.
+ * An open lot has no final trade exit. Older lot records without timestamps
+ * retain the former manual exit input so historical edits are not destroyed. */
+function lotExitInfo(form){
+ if(modeOf(form)!=='lots')return {mode:'aggregated',exitDate:null};
+ const rows=inputRows(form);
+ if(!rows.length)return {mode:'lots',exitDate:null};
+ const completed=rows.every(row=>{
+  const input=row.querySelector('.tr-lot-result');
+  return input?.value.trim()!==''&&!input?.validity.badInput&&Number.isFinite(Number(input.value));
+ });
+ if(!completed)return {mode:'lots',exitDate:'',reason:'open'};
+ const exits=rows.map(row=>row.querySelector('.tr-lot-exit-date')?.value||'');
+ if(exits.some(x=>!x))return {mode:'lots',exitDate:null,reason:'undated'};
+ // datetime-local values sort chronologically as ISO local timestamps.
+ return {mode:'lots',exitDate:exits.sort().at(-1),reason:'last-lot'};
+}
+function syncOperationExit(form){
+ const field=form?.querySelector('#f-exitDate');
+ const info=lotExitInfo(form);
+ if(!field)return info;
+ const lock=field.dataset.trLotExitLock==='1';
+ if(info.mode==='lots'&&info.exitDate!==null){
+  if(!lock)field.dataset.trLotExitBefore=field.value;
+  field.value=info.exitDate;
+  field.readOnly=true;field.setAttribute('aria-readonly','true');
+  field.title=info.reason==='last-lot'?'Salida del último lote cerrado':'Pendiente: todavía hay lotes abiertos';
+  field.dataset.trLotExitLock='1';
+ }else{
+  if(lock)field.value=field.dataset.trLotExitBefore||'';
+  field.readOnly=false;field.removeAttribute('aria-readonly');
+  field.removeAttribute('title');
+  delete field.dataset.trLotExitLock;
+  delete field.dataset.trLotExitBefore;
+ }
+ return info;
+}
 function refreshSummary(form){
  if(!form)return;
  const totalInput=form.querySelector('#f-resultTicks');
@@ -56,6 +93,10 @@ function refreshSummary(form){
       :closed+'/'+rows.length+' lotes cerrados · operación pendiente hasta cerrar todos los lotes';
    }
   }
+ }
+ const exitInfo=syncOperationExit(form);
+ if(summary&&!manual&&exitInfo.reason==='last-lot'){
+  summary.textContent+=' · Cierre general: salida del último lote ('+exitInfo.exitDate.replace('T',' ')+')';
  }
  form.querySelector('.tr-lot-editor')?.classList.toggle('tr-lots-aggregated',manual);
  if(manual&&summary)summary.textContent='Registro agregado: indica los ticks-contrato totales de la operación en «Ticks resultado agregados».';
@@ -145,7 +186,9 @@ function prepareForSave(risk){
   });
  }
  const isComplete=closed===planned.length;
- return {mode:'lots',lots:saved,resultTicksString:isComplete?format(sum):'',closedLots:closed,totalLots:planned.length};
+ const exitInfo=syncOperationExit(form);
+ return {mode:'lots',lots:saved,resultTicksString:isComplete?format(sum):'',
+  exitDate:exitInfo.exitDate,closedLots:closed,totalLots:planned.length};
 }
 function detailHtml(op){
  if(!Array.isArray(op?.executionLots)||!op.executionLots.length)return '';
@@ -188,6 +231,6 @@ const mutation=new MutationObserver(changes=>{
  }
 });
 mutation.observe(document.body,{childList:true,subtree:true});
-globalThis.TradingResearchLotExecution=Object.freeze({prepareForSave,detailHtml,drawEditor,refreshSummary,version:'1'});
+globalThis.TradingResearchLotExecution=Object.freeze({prepareForSave,detailHtml,drawEditor,refreshSummary,lotExitInfo,version:'2'});
 for(const form of document.querySelectorAll('.modal-backdrop #operationForm'))drawEditor(form);
 })();

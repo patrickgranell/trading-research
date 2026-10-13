@@ -1681,3 +1681,36 @@ html:not([data-theme="light"]) .rp-level-label{
 html[data-theme="light"] .rp-level-label{
  stroke:#ffffff;
 }
+
+/* TR-VIS PR1 · Market Data: dataset rows and calibration surfaces must honor
+   dark mode. The original --card2 fallback is #fff and makes white cards
+   with nearly invisible light text; light mode keeps its own white surfaces. */
+html:not([data-theme="light"]) #view .md-dataset,
+html:not([data-theme="light"]) #view .md-cal-controls>div,
+html:not([data-theme="light"]) #view .md-cal-controls>label{
+ background:#111a2e;
+ border-color:var(--border);
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main{
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main strong,
+html:not([data-theme="light"]) #view .md-cal-controls strong{
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main span,
+html:not([data-theme="light"]) #view .md-dataset-main small,
+html:not([data-theme="light"]) #view .md-cal-controls span,
+html:not([data-theme="light"]) #view .md-cal-controls small{
+ color:var(--muted);
+}
+html:not([data-theme="light"]) #view .md-dataset.active{
+ border-color:var(--accent);
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 32%,transparent);
+}
+#view .md-dataset-main:focus-visible{
+ outline:2px solid var(--accent);
+ outline-offset:2px;
+ border-radius:6px;
+}

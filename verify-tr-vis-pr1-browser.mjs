@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 const css=fs.readFileSync('styles.css','utf8');
 const adapter=fs.readFileSync('astra-lote3-navigation-runtime.js','utf8');
-const setup=String.raw\`
+const setup=String.raw`
 let current='dashboard',ops=[];
 const plan={id:'fixture-tp'};
 function currentOps(){return ops;}
@@ -21,8 +21,8 @@ function trRenderViewHtml(view){
  return '<div></div>';
 }
 window.render=function(){document.querySelector('#view').innerHTML=trRenderViewHtml(current);};
-\`;
-const inspect=String.raw\`
+`;
+const inspect=String.raw`
 const out={};window.render();
 const svg=document.querySelector('.dashboard-equity-svg');
 out.ratio=svg.getAttribute('preserveAspectRatio');
@@ -48,7 +48,7 @@ out.navOverflow=getComputedStyle(nav).overflowY;
 out.navScrollable=nav.scrollHeight>nav.clientHeight+2;
 out.planVisible=document.querySelector('.plan-switch').getBoundingClientRect().top>=0;
 document.body.dataset.trVisResult=encodeURIComponent(JSON.stringify(out));
-\`;
+`;
 const many=Array.from({length:45},(_,i)=>'<button class="nav-child">Destino '+i+'</button>').join('');
 const page='<!doctype html><html lang="es" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'</style></head><body><div class="shell"><aside class="sidebar"><div class="brand"><h1>Trading Research</h1></div><div class="plan-switch"><label>Trading Plan</label><select class="select"><option>Fixture</option></select></div><nav class="nav nav-organized">'+many+'</nav><div class="side-bottom">Modo</div></aside><main class="main"><div id="view"></div></main></div><script>'+setup+'</script><script>'+adapter+'</script><script>'+inspect+'</script></body></html>';
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'tr-vis-'));

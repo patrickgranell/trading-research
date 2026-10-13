@@ -150,12 +150,14 @@ function lotRowsHtml(risk,previous){
   const qty=Number(lot.quantity)||1;
   const tick=prior?.resultTicks===null||prior?.resultTicks===undefined?'':String(prior.resultTicks);
   const at=prior?.exitDate||'';
+  const day=prior?.exitDay||at.slice(0,10);
+  const inferred=prior?.exitDaySource==='inferred';
   const target=lot.targetType==='discretionary'?lot.targetRule||'Discrecional':String(lot.targetTicks??0)+'t';
   return '<div class="tr-lot-execution-row" data-lot-id="'+escapeText(id)+'" data-quantity="'+qty+'">'+
    '<div class="tr-lot-description"><strong>Lote '+(i+1)+'</strong><span>'+qty+' contrato'+(qty===1?'':'s')+' · SL '+escapeText(lot.stopTicks)+'t · TP previsto '+escapeText(target)+'</span></div>'+
    '<label>Resultado real (ticks/contrato)<input class="input tr-lot-result" type="number" step="any" placeholder="Pendiente" value="'+escapeText(tick)+'" aria-label="Resultado real en ticks del lote '+(i+1)+'"></label>'+
    '<div class="tr-lot-exit-fields"><span>Salida del lote (opcional)</span><div class="tr-lot-date-time">'+
-    '<input class="input tr-lot-exit-day" type="date" value="'+escapeText(at.slice(0,10))+'" aria-label="Fecha real de salida del lote '+(i+1)+'">'+
+    '<input class="input tr-lot-exit-day" type="date" value="'+escapeText(day)+'" '+(inferred?'data-tr-inferred="1" ':'')+'aria-label="Fecha de salida del lote '+(i+1)+'">'+
     '<input class="input tr-lot-exit-clock" type="time" value="'+escapeText(at.slice(11,16))+'" aria-label="Hora real de salida del lote '+(i+1)+'">'+
     '<input type="hidden" class="tr-lot-exit-date" value="'+escapeText(at)+'"></div><small class="tr-lot-range"></small></div>'+
    '</div>';
@@ -212,7 +214,7 @@ function prepareForSave(risk){
  for(let i=0;i<planned.length;i++){
   const plan=planned[i],row=rows[i];
   if(String(row.dataset.lotId)!==String(plan.id||''))return {mode:'lots',error:'La distribución de lotes ha cambiado. Revisa la operación.'};
-  const qty=Number(plan.quantity),field=row.querySelector('.tr-lot-result'),raw=field.value.trim(),exit=row.querySelector('.tr-lot-exit-date')?.value||'';
+  const qty=Number(plan.quantity),field=row.querySelector('.tr-lot-result'),raw=field.value.trim(),exit=row.querySelector('.tr-lot-exit-date')?.value||'',exitDay=row.querySelector('.tr-lot-exit-day')?.value||'';
   if(!Number.isInteger(qty)||qty<=0)return {mode:'lots',error:'La cantidad de contratos del lote '+(i+1)+' no es válida.'};
   if(field.validity.badInput||raw!==''&&!Number.isFinite(Number(raw)))return {mode:'lots',error:'El resultado del lote '+(i+1)+' no es válido.'};
   if(raw===''&&exit)return {mode:'lots',error:'El lote '+(i+1)+' tiene fecha de salida, pero no resultado en ticks.'};
@@ -225,7 +227,7 @@ function prepareForSave(risk){
    targetTicks:plan.targetType==='discretionary'?null:Number(plan.targetTicks)||0,
    targetRule:String(plan.targetRule||''),
    resultTicks:value,totalTicks:hasResult?Number((value*qty).toFixed(5)):null,
-   exitDate:exit||null,status:hasResult?'closed':'open'
+   exitDate:exit||null,exitDay:exitDay||null,exitDaySource:exitDay?(row.querySelector('.tr-lot-exit-day')?.dataset.trInferred==='1'?'inferred':'manual'):null,status:hasResult?'closed':'open'
   });
  }
  const isComplete=closed===planned.length;
@@ -243,7 +245,7 @@ function detailHtml(op){
    escapeText(lot.targetType==='discretionary'?lot.targetRule:lot.targetTicks+' ticks')+'</td><td>'+
    (value?escapeText(format(Number(lot.resultTicks)))+'t / contrato':'Pendiente')+'</td><td>'+
    (value?escapeText(format(Number(lot.totalTicks)))+' ticks-contrato':'—')+'</td><td>'+
-   escapeText(lot.exitDate||'—')+'</td></tr>';
+   escapeText(lot.exitDate|| (lot.exitDay?lot.exitDay+' · hora sin registrar'+(lot.exitDaySource==='inferred'?' (fecha deducida)':''):'—'))+'</td></tr>';
  }).join('');
  return '<section class="form-section tr-lot-detail"><div class="panel-title"><div><h3>Ejecución real por lotes</h3>'+
  '<small>Una operación, '+op.executionLots.length+' lotes. Cada resultado conserva su cantidad y salida real.</small></div></div>'+

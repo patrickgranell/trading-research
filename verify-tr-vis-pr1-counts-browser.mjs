@@ -11,7 +11,6 @@ const script=String.raw`(async()=>{
  try{
   await wait(200);
   const plan=getCurrentPlan();if(!plan)throw Error('Missing fixture Trading Plan');
-  const before=state.operations.length;
   state.operations=state.operations.filter(o=>o.tradingPlanId!==plan.id);
   const day='2026-07-13';
   for(let i=0;i<10;i++){
@@ -26,13 +25,7 @@ const script=String.raw`(async()=>{
    });
   }
   out.source=currentOps().length;
-  out.sourceIds=currentOps().map(o=>o.id).sort();
   window.TradingResearchActions.navigate('dashboard');await wait(180);
-  out.dashboard=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim().startsWith('Operaciones'))?.querySelector('.value')?.textContent?.trim()||'';
-  out.wins=document.querySelector('.dashboard-widget-kpis[data-dashboard-widget="avgWin"] .kpi .sub')?.textContent?.trim()||'';
-  out.dashboardHTML=document.querySelector('#view')?.innerHTML.includes('TR_VIS_COUNT_')||false;
-  out.dashboardDebug=(document.querySelector('#view')?.outerHTML||'missing').slice(0,1900);
-  out.currentRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();
   const widget=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim().startsWith('Operaciones'));
   out.widgetLabel=widget?.querySelector('.label')?.firstChild?.textContent?.trim()||'';
   out.widgetCount=Number(widget?.querySelector('.value')?.textContent?.trim());
@@ -41,7 +34,6 @@ const script=String.raw`(async()=>{
   out.filtered=typeof filteredOps==='function'?filteredOps().length:null;
   out.tableRows=document.querySelectorAll('#view .analytics-table tbody tr').length;
   out.rawSourceAfter=state.operations.length;
-  out.removedBase=before;
  }catch(e){out.error=String(e?.stack||e);}
  document.body.dataset.trVisCounts=encodeURIComponent(JSON.stringify(out));
 })();`;
@@ -51,7 +43,7 @@ try{
  const file=path.join(folder,'index.html');fs.writeFileSync(file,src);
  const chrome=[process.env.CHROME_BIN,'google-chrome','chromium','chromium-browser'].filter(Boolean).find(bin=>spawnSync(bin,['--version'],{encoding:'utf8'}).status===0);
  assert(chrome,'Chromium required');
- const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1440,900','--virtual-time-budget=4000','--dump-dom','file://'+file],{encoding:'utf8',timeout:45000,maxBuffer:9500000});
+ const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--window-size=1440,900','--user-data-dir='+path.join(folder,'chrome-profile'),'--virtual-time-budget=4000','--dump-dom','file://'+file],{encoding:'utf8',timeout:45000,maxBuffer:9500000});
  assert.equal(run.status,0,run.stderr?.slice(-2000));
  const encoded=run.stdout.match(/data-tr-vis-counts="([^"]+)"/)?.[1];assert(encoded,'Missing count fixture output: '+run.stderr?.slice(-1500));
  const out=JSON.parse(decodeURIComponent(encoded));console.log('TR-VIS count fixture',JSON.stringify(out));

@@ -1604,3 +1604,213 @@ details.tr5-module-settings[open]{flex-basis:min(390px,100%)}
 @media(max-width:390px){
  .tr8-week-selector{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+/* TR-VIS PR1 · visual roles and readibility; scoped overrides, no data/logic changes.
+   Pilot roles: page 24/32, panel 16/24, control 14/20, axis/metadata 12px.
+   Existing Lote 8 information-icon sizes and weekday control design stay intact. */
+:root{
+  --tr-vis-page-size:24px;
+  --tr-vis-panel-size:16px;
+  --tr-vis-control-size:14px;
+  --tr-vis-meta-size:12px;
+  --tr-vis-axis-text:#93a7c3;
+}
+html[data-theme="light"]{
+  --tr-vis-axis-text:#5a687d;
+}
+.main .page-title h2{font-size:var(--tr-vis-page-size);line-height:32px;letter-spacing:-.015em}
+.main .page-title p{font-size:13px;line-height:20px;max-width:90ch}
+.main .panel-title h3{font-size:var(--tr-vis-panel-size);line-height:24px}
+.main .panel-title>span{font-size:var(--tr-vis-meta-size);line-height:18px}
+.main .kpis>.kpi .value{font-size:27px;line-height:34px;font-variant-numeric:tabular-nums}
+.main .kpis>.kpi .label{font-size:var(--tr-vis-meta-size);line-height:18px}
+.main .field>label{font-size:12px;line-height:18px}
+.sidebar .nav-organized>.nav-group>.nav-group-toggle{font-size:12px;line-height:16px}
+.sidebar .nav-organized .nav-child,
+.sidebar .nav-organized>.tr3-main-destination,
+.sidebar .nav-organized>button:not(.nav-group-toggle){font-size:var(--tr-vis-control-size);line-height:20px}
+.main .topbar .btn{min-height:36px}
+.main button:focus-visible,.sidebar button:focus-visible,
+.main .btn:focus-visible,.main .input:focus-visible,
+.main .select:focus-visible,.main .textarea:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px;
+}
+/* Axes remain readable on the *actual* surface in both themes.
+   The light-theme candidate yields >5:1 on #edf2f8 and white. */
+.dashboard-equity-svg .dashboard-axis-text,
+.lab-scatter-svg .axis-text,
+.lab-scatter-svg .chart-label{fill:var(--tr-vis-axis-text);font-size:12px}
+html[data-theme="light"] .dashboard-equity-svg .dashboard-axis-text,
+html[data-theme="light"] .lab-scatter-svg .axis-text,
+html[data-theme="light"] .lab-scatter-svg .chart-label{fill:#5a687d}
+/* SVG viewBox scaling is corrected in the existing presentation adapter;
+   keep intrinsic strokes and labels crisp instead of stretching the axes. */
+.dashboard-equity-svg{shape-rendering:geometricPrecision}
+
+/* Stable TP header and a scrollable destinations region.
+   At narrow widths the established mobile navigation takes precedence. */
+@media(min-width:761px){
+ .sidebar{overflow-x:hidden;overflow-y:hidden;display:flex;flex-direction:column}
+ .sidebar .brand,.sidebar .plan-switch,.sidebar .tr3-appearance,.sidebar .side-bottom{flex-shrink:0}
+ .sidebar .nav-organized{
+  flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:contain;scrollbar-gutter:stable;
+ }
+}
+.tr-vis-neutral{border-color:var(--border)!important;background:var(--panel)!important}
+.tr-vis-neutral h2{color:var(--text)}
+.tr-vis-zero-sample{padding:16px;min-height:72px;display:grid;gap:5px}
+.tr-vis-zero-sample strong{font-size:14px;color:var(--text)}
+.tr-vis-zero-sample p{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+@media(max-width:1024px){
+ .main .topbar{gap:12px}
+ .main .panel-title{gap:12px;flex-wrap:wrap}
+ .main .kpis>.kpi .value{font-size:26px}
+}
+
+/* Intratrade evidence: the legacy --card2 fallback is #fff even in dark mode.
+   Keep chart, grid, labels and MFE/MAE/entry/exit marks on one coherent surface. */
+html:not([data-theme="light"]) .rp-chart-wrap{
+ background:#0b1220;
+ color:var(--text);
+}
+.rp-chart .rp-axis-label{fill:var(--tr-vis-axis-text);font-size:12px}
+html:not([data-theme="light"]) .rp-level-label{
+ stroke:#0b1220;
+}
+html[data-theme="light"] .rp-level-label{
+ stroke:#ffffff;
+}
+
+/* TR-VIS PR1 · Market Data: dataset rows and calibration surfaces must honor
+   dark mode. The original --card2 fallback is #fff and makes white cards
+   with nearly invisible light text; light mode keeps its own white surfaces. */
+html:not([data-theme="light"]) #view .md-dataset,
+html:not([data-theme="light"]) #view .md-cal-controls>div,
+html:not([data-theme="light"]) #view .md-cal-controls>label{
+ background:#111a2e;
+ border-color:var(--border);
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main{
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main strong,
+html:not([data-theme="light"]) #view .md-cal-controls strong{
+ color:var(--text);
+}
+html:not([data-theme="light"]) #view .md-dataset-main span,
+html:not([data-theme="light"]) #view .md-dataset-main small,
+html:not([data-theme="light"]) #view .md-cal-controls span,
+html:not([data-theme="light"]) #view .md-cal-controls small{
+ color:var(--muted);
+}
+html:not([data-theme="light"]) #view .md-dataset.active{
+ border-color:var(--accent);
+ box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 32%,transparent);
+}
+#view .md-dataset-main:focus-visible{
+ outline:2px solid var(--accent);
+ outline-offset:2px;
+ border-radius:6px;
+}
+
+/* TR-VIS PR1 · Dashboard customizer control alignment.
+   At ~220px per grid column a checkbox+name+width+two arrows cannot occupy
+   one row. Give labels a full line and the sizing/reorder controls their own
+   stable track, without changing their existing event handlers or IDs. */
+.modal .dashboard-config-grid>section{min-width:0}
+.modal .dashboard-config-row{
+ display:grid;grid-template-columns:minmax(0,1fr);row-gap:5px;
+ align-items:stretch;min-width:0;padding:7px 9px;
+}
+.modal .dashboard-config-row>label{
+ display:flex;align-items:center;gap:8px;
+ min-width:0;min-height:21px;line-height:1.35;
+}
+.modal .dashboard-config-row>label input[type="checkbox"]{
+ box-sizing:border-box;appearance:auto;
+ margin:0;inline-size:15px;block-size:15px;flex:0 0 15px;
+ accent-color:var(--accent);vertical-align:middle;
+}
+.modal .dashboard-config-row>label>span{
+ display:block;min-width:0;flex:1;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.modal .dashboard-config-order{
+ display:flex;align-items:center;justify-content:flex-end;
+ gap:5px;min-width:0;min-height:27px;
+}
+.modal .dashboard-config-order .dashboard-size-select{
+ box-sizing:border-box;flex:0 1 94px;
+ min-width:76px;max-width:110px;min-height:27px;height:27px;
+ padding:3px 21px 3px 6px;line-height:1.2;
+}
+.modal .dashboard-config-order>.btn.tiny{
+ box-sizing:border-box;display:inline-grid;place-items:center;
+ inline-size:27px;block-size:27px;min-inline-size:27px;min-block-size:27px;
+ padding:0;margin:0;flex:0 0 27px;
+ font-size:14px;line-height:1;
+}
+.modal .dashboard-config-order>.btn.tiny:disabled{
+ cursor:not-allowed;opacity:.42;
+}
+.modal .dashboard-config-order>span{
+ font-size:11px;line-height:27px;
+}
+@media(max-width:520px){
+ .modal .dashboard-config-row{row-gap:6px}
+ .modal .dashboard-config-order .dashboard-size-select{flex-basis:100px}
+}
+
+/* TR-FEAT-OPS-01 · Configurable columns in Operaciones register. */
+#view .tr-colprefs{position:relative;margin:0 0 11px;z-index:3}
+#view .tr-colprefs-top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+#view .tr-colprefs-top>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#view .tr-colprefs-top small{font-size:11px;color:var(--muted);line-height:1.45}
+#view .tr-colprefs-toggle{white-space:nowrap;color:var(--text);background:var(--panel2)}
+#view .tr-colprefs-toggle span{color:var(--muted);font-weight:600}
+#view .tr-colprefs-panel{
+ background:var(--panel2);color:var(--text);border:1px solid var(--border);
+ border-radius:12px;box-shadow:var(--shadow);padding:12px;
+ margin-top:8px;width:min(100%,560px);max-height:min(60vh,450px);
+ overflow-y:auto;overscroll-behavior:contain
+}
+#view .tr-colprefs-panel[hidden]{display:none!important}
+#view .tr-colprefs-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#view .tr-colprefs-item{
+ display:flex;justify-content:space-between;gap:6px;align-items:center;
+ min-width:0;padding:6px 8px;border:1px solid var(--border);border-radius:8px;
+ background:var(--panel)
+}
+#view .tr-colprefs-item label{
+ display:flex;align-items:center;gap:7px;min-width:0;flex:1;
+ color:var(--text);font-size:12px;cursor:pointer
+}
+#view .tr-colprefs-item label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view .tr-colprefs-item input[type="checkbox"]{margin:0;flex:0 0 15px;width:15px;height:15px;accent-color:var(--accent)}
+#view .tr-colprefs-order{display:flex;gap:3px;flex-shrink:0}
+#view .tr-colprefs-order>.btn{
+ display:grid;place-items:center;width:26px;height:26px;min-width:26px;min-height:26px;
+ margin:0;padding:0;line-height:1;color:var(--text)
+}
+#view .tr-colprefs-order>.btn:disabled{opacity:.35;cursor:default}
+#view .tr-colprefs-footer{
+ margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
+ display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+#view .tr-colprefs-footer small{color:var(--muted);font-size:11px}
+#view .tr-cols-hidden{display:none!important}
+#view .tr-ops-entry-exit thead th[data-tr-cols-key]:not([data-tr-cols-key="actions"]){
+ cursor:grab;user-select:none
+}
+#view .tr-ops-entry-exit thead th.tr-cols-dragging{opacity:.36}
+#view .tr-ops-entry-exit thead th[data-tr-cols-key]:hover{color:var(--accent)}
+#view .tr-colprefs-panel button:focus-visible,
+#view .tr-colprefs-toggle:focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px
+}
+@media(max-width:650px){
+ #view .tr-colprefs-list{grid-template-columns:minmax(0,1fr)}
+ #view .tr-colprefs-footer{align-items:flex-start;flex-direction:column}
+}

@@ -79,7 +79,7 @@ try{
  for(const target of ['decision','changes','review'])assert.deepEqual(v[target].active,[target],target+' duplicate active route');
  assert.deepEqual(v.mistakes.active,['compliance'],'Análisis de errores belongs to Revisión de ejecución');
  assert.deepEqual(v.compliance.active,['compliance']);
- assert.equal(v.decision.heading,'Centro de investigación');
+ assert.equal(v.decision.heading,'Estado del plan');
  assert.equal(v.changes.heading,'Cambios y alertas');
  assert.equal(v.review.heading,'Hallazgos y decisiones');
  assert.equal(v.mistakes.heading,'Análisis de errores');

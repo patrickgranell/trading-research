@@ -7,7 +7,7 @@ const tabs=[
  ['journalstreaks','Rachas'],['journaldrift','Deriva'],['journalreflections','Perspectiva'],['journalweekly','Revisión semanal']
 ];
 const canonical=Object.freeze({
- dashboard:'Dashboard',decision:'Centro de investigación',changes:'Cambios y alertas',review:'Hallazgos y decisiones',
+ dashboard:'Dashboard',decision:'Estado del plan',changes:'Cambios y alertas',review:'Hallazgos y decisiones',
  mistakes:'Análisis de errores',compliance:'Cumplimiento',journaldashboard:'Diario emocional · Resumen',
  journal:'Diario emocional · Sesiones',journalops:'Diario emocional · Registro emocional',
  journalconfidence:'Diario emocional · Confianza',journalstreaks:'Diario emocional · Rachas',
@@ -116,6 +116,94 @@ function decorate(view,html){
  const template=document.createElement('template');template.innerHTML=html;
  caption(view,template.content);
  resultLabels(template.content);
+ // TR-VIS PR1: entry and Ankora import are workflow actions, not dashboard
+ // shortcuts. Keep their existing handlers exclusively in Operaciones.
+ // Remove only the two exact CTA labels from other page fragments; this also
+ // handles source markup and build-time CSP action-token transformation.
+ if(view!=='operations'){
+  for(const button of template.content.querySelectorAll('button')){
+   const label=button.textContent.trim().replace(/^\+\s*/, '').trim().toLocaleLowerCase('es');
+   if(label==='nueva operación'||label==='importar ankora')button.remove();
+  }
+ }
+ // TR-VIS-001: equity axes must not be stretched along one direction.
+ // Constrain to the Dashboard's SVG; no change to its points, values or range.
+ if(view==='dashboard'){
+  // TR-VIS-PR1-02: distinguish all plan records from the metric-eligible sample.
+  const all=globalThis.TradingResearchOperationsReadContract?.current?.();
+  if(Array.isArray(all)){
+   const cards=[...template.content.querySelectorAll('.dashboard-kpis-custom .kpi')];
+   const cardFor=name=>cards.find(card=>card.querySelector('.label')?.textContent?.trim().startsWith(name));
+   const total=all.length;
+   const countCard=cardFor('Operaciones');
+   if(countCard){
+    const val=countCard.querySelector('.value'),sub=countCard.querySelector('.sub');
+    if(val)val.textContent=String(total);
+    if(sub)sub.textContent='total del Trading Plan';
+   }
+   const active=template.content.querySelector('.dashboard-unit-switch .seg-btn.active')?.textContent?.trim()||'';
+   const unit=active==='Ticks'?'ticks':active.startsWith('US')?'usd':'r';
+   const unitName=unit==='ticks'?'ticks':unit==='usd'?'dólares':'R';
+   let stats=null;
+   try{if(typeof calcMetricStats==='function')stats=calcMetricStats(all,unit,'gross');}catch(_){}
+   if(stats&&Number.isFinite(stats.n)){
+    if(countCard&&stats.n!==total){
+     const sub=countCard.querySelector('.sub');
+     if(sub)sub.textContent='total del TP · '+stats.n+'/'+total+' evaluables en '+unitName;
+    }
+    const win=cardFor('Win rate');
+    if(win){
+     const val=win.querySelector('.value'),sub=win.querySelector('.sub');
+     if(val)val.textContent=stats.n?stats.winRate.toFixed(1)+'%':'—';
+     if(sub)sub.textContent=stats.n+'/'+total+' evaluables en '+unitName;
+    }
+   }
+   const blocks=cardFor('Bloques');
+   if(blocks){const val=blocks.querySelector('.value');if(val)val.textContent=String(Math.ceil(total/20));}
+   for(const secondary of template.content.querySelectorAll('.dashboard-secondary-card')){
+    if(secondary.querySelector('.panel-title h3')?.textContent?.trim()==='Bloque actual'){
+     const val=secondary.querySelector('.kpi.value');
+     if(val)val.textContent=String(Math.ceil(total/20));
+    }
+   }
+  }
+  for(const svg of template.content.querySelectorAll('svg.dashboard-equity-svg[viewBox]')){
+   if(svg.getAttribute('preserveAspectRatio')==='none'){
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    svg.setAttribute('role','img');
+    svg.setAttribute('aria-label','Curva de equity del plan seleccionado');
+   }
+  }
+ }
+ // TR-VIS-015: an empty plan is NOT a failed plan. This adaptation only
+ // changes the visible empty-state copy. The underlying audit stays untouched.
+ if(view==='decision'&&typeof currentOps==='function'){
+  let operations=null;
+  try{operations=currentOps();}catch(_){}
+  if(Array.isArray(operations)&&operations.length===0){
+   const hero=template.content.querySelector('.decision-hero');
+   if(hero){
+    hero.classList.remove('high','medium','good');
+    hero.classList.add('tr-vis-neutral');
+    const title=hero.querySelector('h2'),summary=hero.querySelector('p');
+    if(title)title.textContent='Sin muestra operativa';
+    if(summary)summary.textContent='Todavía no hay operaciones para evaluar el resultado del plan. La ausencia de muestra no constituye un incumplimiento.';
+    const quality=hero.querySelector('.decision-hero-kpis >div:first-child >strong');
+    if(quality)quality.textContent='—';
+   }
+   const status=template.content.querySelector('.decision-section-head >span');
+   if(status)status.textContent='Sin evaluación';
+   const priorities=template.content.querySelector('.decision-priority-grid');
+   if(priorities){
+    const neutral=document.createElement('div');
+    neutral.className='tr-vis-zero-sample';
+    const title=document.createElement('strong');title.textContent='Sin prioridades estadísticas';
+    const copy=document.createElement('p');
+    copy.textContent='Las prioridades basadas en cobertura y resultados aparecerán cuando exista una muestra evaluable. Puedes configurar el plan y consultar su calidad de datos mientras tanto.';
+    neutral.append(title,copy);priorities.replaceChildren(neutral);
+   }
+  }
+ }
  if(emotional.includes(view))journalNavigation(view,template.content);
  if(view==='compliance'||view==='mistakes')executionNavigation(view,template.content);
  if(view==='plans')returnLink(view,template.content);

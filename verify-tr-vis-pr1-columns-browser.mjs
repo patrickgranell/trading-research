@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 const css=fs.readFileSync('styles.css','utf8');
 const runtime=fs.readFileSync('operations-register-presentation-runtime.js','utf8');
-const setup=String.raw\`
+const setup=String.raw`
 let plan={id:'replay-plan'},route='operations';
 window.TradingResearchPlanReadContract={current:()=>plan};
 window.TradingResearchCurrentViewReadContract={current:()=>route};
@@ -17,8 +17,8 @@ window.opsTable=function(ops){
  ops.map((op,i)=>'<tr>'+original.map((t,j)=>'<td>'+(j===17?'Ver Editar':j===0?'13/7/2026':j===1?'18:23':j===2?'Lun':j===3?'B01':j===4?'MCL':t)+'</td>').join('')+'</tr>').join('')+
  '</tbody></table></div>';
 };
-\`;
-const probe=String.raw\`
+`;
+const probe=String.raw`
 const ops=[{id:'1',entryDate:'2026-07-13T18:23:00',exitDate:'2026-07-13T18:28:00',result:'win'},{id:'2',entryDate:'2026-07-13T18:24:00',exitDate:'2026-07-13T18:29:00',result:'loss'}];
 const root=document.querySelector('#view');
 const mount=()=>{root.innerHTML=window.opsTable(ops);};
@@ -68,7 +68,7 @@ root.querySelector('[data-tr-cols-reset]').click();
 result.reset=!hidden().length&&keys().indexOf('symbol')===5;
 result.actionsIntact=[...root.querySelectorAll('tbody tr')].every(row=>row.lastElementChild.dataset.trColsKey==='actions'&&row.lastElementChild.textContent.includes('Ver Editar'));
 document.body.dataset.trColumnsResults=encodeURIComponent(JSON.stringify(result));
-\`;
+`;
 const html='<!doctype html><html lang="es" data-theme="dark"><head><meta charset="utf-8"><style>'+css+'</style></head><body><main id="view"></main><script>'+setup+'</script><script>'+runtime+'</script><script>'+probe+'</script></body></html>';
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'tr-cols-'));
 try{

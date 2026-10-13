@@ -105,9 +105,13 @@ function tr2ResizeEquityChart(){
  const svg=wrap.querySelector('svg.dashboard-equity-svg');
  if(!svg)return; // Empty plans retain their authored empty-state message.
  const unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r';
+ // Do not trust only the cached wrapper dimensions: the application's
+ // render pipeline can replace the inner SVG without replacing the wrapper.
  if(wrap.dataset.tr2EquityWidth===String(width)&&
     wrap.dataset.tr2EquityHeight===String(height)&&
-    wrap.dataset.tr2EquityUnit===unit)return;
+    wrap.dataset.tr2EquityUnit===unit&&
+    Math.abs((svg.viewBox?.baseVal?.width||0)-width)<2&&
+    Math.abs((svg.viewBox?.baseVal?.height||0)-height)<2)return;
  if(typeof dashboardEquitySvgV114!=='function'||
     typeof calcMetricStats!=='function'||typeof currentOps!=='function'||
     typeof v3194EquityFromZero!=='function')return;
@@ -139,7 +143,11 @@ function tr2QueueChartFit(){
 }
 function tr2ConnectEquityChart(){
  const next=document.querySelector('#view .tr2-equity-widget .chart-wrap');
- if(next===tr2EquityWrap)return;
+ if(next===tr2EquityWrap){
+  // Even same wrapper may contain a freshly rendered 760px SVG.
+  if(next)tr2ResizeEquityChart();
+  return;
+ }
  if(tr2EquityObserver)tr2EquityObserver.disconnect();
  tr2EquityWrap=next;
  if(!next)return;
@@ -150,6 +158,9 @@ function tr2ConnectEquityChart(){
   if(!tr2EquityObserver)tr2EquityObserver=new ResizeObserver(()=>tr2QueueChartFit());
   tr2EquityObserver.observe(next);
  }
+ // Immediately fit on route/size changes; a scheduled animation frame is
+ // a second safety net for post-layout adjustments and viewport resizes.
+ tr2ResizeEquityChart();
  tr2QueueChartFit();
 }
 function operations(root){

@@ -28,7 +28,8 @@ try{
  assert.equal(o.first.siblingClass,'dashboard-span-4');
  assert.equal(o.first.kpiClass,'dashboard-span-3');
  assert(o.first.equityWidth>o.first.siblingWidth*1.6,'2/3 width should exceed 1/3');
- assert.deepEqual(o.first.order,['equity','setupCount']);
+ assert.deepEqual(o.first.order.slice(0,2),['equity','setupCount']);
+ assert.equal(o.first.order.filter(x=>x.startsWith('comparison-')).length,6,'Standalone comparison cards must not displace Equity or setup');
  assert.equal(o.full.grid,true);
  assert.equal(o.full.equityClass,'dashboard-span-12');
  assert(o.full.equityWidth>o.first.equityWidth*1.3,'Full row must exceed 2/3');

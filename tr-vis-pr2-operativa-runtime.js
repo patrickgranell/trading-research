@@ -5,6 +5,7 @@
 'use strict';
 if(typeof document==='undefined'||globalThis.TradingResearchVisualPR2)return;
 let compactRegister=false;
+let expandedEquity=false;
 const priorities=new Set(['result','expectancy','pf','drawdown']);
 function dashboard(root){
  const widgets=[...root.querySelectorAll('.dashboard-kpis-custom [data-dashboard-widget]')];
@@ -25,7 +26,22 @@ function dashboard(root){
    // Respect all user-defined widget widths and order. Offer visual prominence
    // without rewriting their custom grid spans.
    grid.classList.add('tr2-dashboard-panels');
-   if(others.length===1)grid.classList.add('tr2-two-panel-dashboard');
+   if(others.length===1){
+    grid.classList.add('tr2-two-panel-dashboard');
+    const sibling=others[0];
+    if(equity.classList.contains('dashboard-span-6')&&sibling.classList.contains('dashboard-span-6')){
+     if(expandedEquity)grid.classList.add('tr2-equity-expanded');
+     const header=equity.querySelector('.dashboard-equity-title');
+     if(header){
+      const expand=document.createElement('button');
+      expand.type='button';expand.className='btn small ghost tr2-equity-expand';
+      expand.dataset.tr2EquityExpand='1';expand.setAttribute('aria-pressed',String(expandedEquity));
+      expand.textContent=expandedEquity?'Usar proporción guardada':'Ampliar curva a 2/3';
+      expand.title='Vista temporal: no modifica el tamaño del widget guardado en Personalizar';
+      header.append(expand);
+     }
+    }
+   }
   }
  }
  const unit=root.querySelector('.dashboard-unit-switch');
@@ -55,6 +71,16 @@ function operations(root){
      cell.title=cell.textContent.trim()+' · fecha y hora de ejecución';
     }
    });
+  }
+  // In compact mode show timestamp next to its date rather than discarding it.
+  // Original cell text, source values, column preferences and events stay intact.
+  for(const row of table.tBodies?.[0]?.rows||[]){
+   for(const type of ['entry','exit']){
+    const date=row.querySelector('[data-tr-cols-key="'+type+'Date"]');
+    const time=row.querySelector('[data-tr-cols-key="'+type+'Time"]');
+    const text=time?.textContent?.trim();
+    if(date&&text&&text!=='—')date.dataset.tr2Time=text;
+   }
   }
  }
  const helper=panel.querySelector('.tr-colprefs-top small');
@@ -122,12 +148,28 @@ function calendar(root){
    day.classList.add('tr2-calendar-empty');
    day.setAttribute('aria-label','Día sin actividad');
    value.textContent='Sin actividad';
-  }else if(value.textContent.trim()==='—'){
-   day.classList.add('tr2-calendar-unevaluated');
+  }else{
+   // The calendar renderer sometimes displays numerical zero even when there
+   // are no eligible closed operations. Reuse canonical eligibility checks.
+   let lackingEvidence=false;
+   try{
+    if(typeof calendarState!=='undefined'&&typeof calendarMonthOps==='function'&&
+       typeof calendarDayOps==='function'&&typeof calcMetricStats==='function'){
+     const d=Number(heading?.querySelector('strong')?.textContent);
+     const dateKey=[calendarState.year,String(calendarState.month+1).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
+     const trades=calendarDayOps(calendarMonthOps(),dateKey);
+     if(calendarState.metric==='discipline'&&typeof calendarDisciplinePct==='function'){
+      lackingEvidence=calendarDisciplinePct(trades)===null;
+     }else lackingEvidence=calcMetricStats(trades,calendarState.unit,calendarState.basis).n===0;
+    }
+   }catch(_){}
+   if(lackingEvidence||value.textContent.trim()==='—'){
+    day.classList.add('tr2-calendar-unevaluated');
    value.textContent='No evaluado';
-  }else if(day.classList.contains('flat-day')){
-   day.classList.add('tr2-calendar-zero');
-   // Zero stays visible as a legitimate 0. An undefined metric stays '—'.
+   }else if(day.classList.contains('flat-day')){
+    day.classList.add('tr2-calendar-zero');
+    // Zero is valid only with an eligible measurement.
+   }
   }
   const ancillary=day.querySelector('.calendar-day-meta');
   if(ancillary)ancillary.classList.add('tr2-calendar-secondary');
@@ -166,6 +208,15 @@ if(typeof trRenderViewHtml==='function'){
  trRenderViewHtml=function(view){return decorate(view,base(view));};
 }
 document.addEventListener('click',event=>{
+ const expand=event.target?.closest?.('#view [data-tr2-equity-expand]');
+ if(expand){
+  expandedEquity=!expandedEquity;
+  const grid=expand.closest('.dashboard-panel-grid');
+  grid?.classList.toggle('tr2-equity-expanded',expandedEquity);
+  expand.setAttribute('aria-pressed',String(expandedEquity));
+  expand.textContent=expandedEquity?'Usar proporción guardada':'Ampliar curva a 2/3';
+  return;
+ }
  const button=event.target?.closest?.('#view [data-tr2-compact-switch]');
  if(!button)return;
  compactRegister=!compactRegister;

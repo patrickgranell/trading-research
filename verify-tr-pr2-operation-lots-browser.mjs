@@ -22,7 +22,9 @@ try{
  assert.equal(o.defaultMode,'lots');
  assert.equal(o.initialRows,2);
  assert(o.planned[0].includes('20t')&&o.planned[1].includes('40t'));
- assert.equal(o.totalPreview,'60');\n assert.equal(o.latestPreview,'2026-07-13T10:22');\n assert.equal(o.latestReadonly,true);
+ assert.equal(o.totalPreview,'60');
+ assert.equal(o.latestPreview,'2026-07-13T10:22');
+ assert.equal(o.latestReadonly,true);
  assert.equal(o.readOnly,true);
  assert.equal(Number(o.grossPreview),o.expectedGross);
  assert.equal(Number(o.commissionPreview),o.expectedCommission);
@@ -32,7 +34,8 @@ try{
  assert.equal(o.saved.lots.length,2);
  assert.deepEqual(o.saved.lots.map(x=>x.resultTicks),[20,40]);
  assert.deepEqual(o.saved.lots.map(x=>x.status),['closed','closed']);
- assert.equal(o.saved.resultTicks,60);\n assert.equal(o.saved.exitDate,'2026-07-13T10:22');
+ assert.equal(o.saved.resultTicks,60);
+ assert.equal(o.saved.exitDate,'2026-07-13T10:22');
  assert.equal(o.saved.gross,o.expectedGross);
  assert.equal(o.saved.commission,o.expectedCommission);
  assert.equal(o.saved.net,o.expectedGross-o.expectedCommission);
@@ -43,15 +46,20 @@ try{
  assert.deepEqual(o.editValues,['20','40']);
  assert.equal(o.editTotal,'10');
  assert.equal(o.edited.lot2,-10);
- assert.equal(o.edited.aggregate,10);\n assert.equal(o.latestEditedPreview,'2026-07-13T10:45');\n assert.equal(o.edited.exitDate,'2026-07-13T10:45');
+ assert.equal(o.edited.aggregate,10);
+ assert.equal(o.latestEditedPreview,'2026-07-13T10:45');
+ assert.equal(o.edited.exitDate,'2026-07-13T10:45');
  assert.equal(o.edited.count,1);
  assert.equal(o.aggregatedEditable,true);
  assert.deepEqual(o.aggregated,{mode:'aggregated',lots:0,ticks:15});
- assert.equal(o.partialPreview,'');\n assert.equal(o.partialExitPreview,'');
+ assert.equal(o.partialPreview,'');
+ assert.equal(o.partialExitPreview,'');
  assert.deepEqual(o.pending,{mode:'lots',lots:['closed','open'],resultTicks:null,gross:null,r:null,outcome:'pending',exitDate:''});
  assert.equal(o.totalAdded,2,'Partial lots must not create duplicate trade rows');
  assert.equal(o.changeStrategy.riskId,'PR2_SINGLE');
  assert.equal(o.changeStrategy.rows,1);
- assert.equal(o.changeStrategy.totalContracts,'1');\n assert.equal(o.singleExitPreview,'2026-07-15T21:30');\n assert.equal(o.singleLocked,true);
+ assert.equal(o.changeStrategy.totalContracts,'1');
+ assert.equal(o.singleExitPreview,'2026-07-15T21:30');
+ assert.equal(o.singleLocked,true);
  console.log('TR-VIS PR2 Lots PASS: aggregate 1+1, actual exits, edit, study, legacy mode, open lot, strategy switch.');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

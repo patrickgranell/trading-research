@@ -66,7 +66,7 @@ function lotGroups(){
    if(!Number.isInteger(qty)||qty<1||!Number.isFinite(ticks))continue;
    const value=Number.isFinite(Number(lot.totalTicks))&&lot.totalTicks!==null?Number(lot.totalTicks):qty*ticks;
    if(metrics?.outcome?.(op,value)==='pending')continue;
-   const key='Lote '+(i+1);
+   const key=String(op.riskStrategyName||op.strategyPlanSnapshot?.name||'Sin gestión')+' · Lote '+(i+1);
    if(!buckets.has(key))buckets.set(key,[]);
    buckets.get(key).push(value);
   }
@@ -116,7 +116,9 @@ function mountComparisons(root){
   '<div class="trcomp-tabs" role="group" aria-label="Dimensión de la comparación">'+
   Object.entries(names).map(([key,label])=>'<button type="button" class="btn small trcomp-tab" data-trcomp-tab="'+key+'">'+label+'</button>').join('')+
   '</div><p class="trcomp-unit">Resultado expresado en <strong data-trcomp-unit-label></strong></p><div data-trcomp-body></div>';
- root.append(section);section.querySelector('[data-trcomp-unit]').value=unit;
+ const after=root.querySelector('.dashboard-panel-grid');
+ if(after)after.after(section);else root.append(section);
+ section.querySelector('[data-trcomp-unit]').value=unit;
  section.querySelector('[data-trcomp-basis]').value=basis;
  section.querySelectorAll('[data-trcomp-tab]').forEach(b=>{const selected=b.dataset.trcompTab===active;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));});
  readTable(section);

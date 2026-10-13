@@ -83,3 +83,6 @@ jobs:
       - name: TR-VIS PR1 · Customizable register columns
         run: node verify-tr-vis-pr1-columns-browser.mjs
 
+      - name: TR-VIS PR2 · Operational presentation Chromium
+        run: node verify-tr-vis-pr2-browser.mjs
+

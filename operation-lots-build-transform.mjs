@@ -19,6 +19,10 @@ export function injectOperationLots(source){
   "if(lotSave?.error)return alert(lotSave.error);if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');",
   'lot errors fail before write');
  out=once(out,
+  "entryDate:get('entryDate'),exitDate:get('exitDate'),",
+  "entryDate:get('entryDate'),exitDate:lotSave?.mode==='lots'&&lotSave.exitDate!==null?lotSave.exitDate:get('exitDate'),",
+  'latest completed lot exit persistence');
+ out=once(out,
   "strategyPlanSnapshot:strategySnapshot(risk),instrumentId:",
   "strategyPlanSnapshot:strategySnapshot(risk),executionMode:lotSave?.mode||previous?.executionMode||'aggregated',executionLots:lotSave?.mode==='lots'?lotSave.lots:lotSave?.mode==='aggregated'?[]:clone(previous?.executionLots||[]),instrumentId:",
   'atomic lot data persistence');
@@ -43,6 +47,10 @@ export function injectTaxonomyOperationLots(source){
   "if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');",
   "if(lotSave?.error)return alert(lotSave.error);if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');",
   'active taxonomy save validation');
+ out=once(out,
+  "entryDate:get('entryDate'),exitDate:get('exitDate'),",
+  "entryDate:get('entryDate'),exitDate:lotSave?.mode==='lots'&&lotSave.exitDate!==null?lotSave.exitDate:get('exitDate'),",
+  'latest completed lot exit persistence');
  out=once(out,
   "strategyPlanSnapshot:strategySnapshot(risk),instrumentId:",
   "strategyPlanSnapshot:strategySnapshot(risk),executionMode:lotSave?.mode||previous?.executionMode||'aggregated',executionLots:lotSave?.mode==='lots'?lotSave.lots:lotSave?.mode==='aggregated'?[]:trTaxCopy(previous?.executionLots||[]),instrumentId:",

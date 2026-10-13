@@ -44,8 +44,8 @@ const probe=[
  'const records=[...table.tBodies[0].rows].map(row=>[...row.cells].map(c=>c.textContent.trim()));',
  'const testStyles=theme=>{document.documentElement.dataset.theme=theme;',
  ' const p=table.tBodies[0].rows[1];const w=table.tBodies[0].rows[0];',
- ' return {mark:getComputedStyle(p.cells[0],"::after").content,amber:getComputedStyle(p.querySelector("td:nth-last-child(6)>.badge")).color,',
- '         markerColor:getComputedStyle(p.cells[0],"::after").color,winner:getComputedStyle(w.querySelector("td:nth-last-child(6)>.badge")).color};',
+ ' return {mark:getComputedStyle(p.cells[0],"::after").content,amber:getComputedStyle(p.querySelector("td[data-tr-cols-key=result]>.badge")).color,',
+ '         markerColor:getComputedStyle(p.cells[0],"::after").color,winner:getComputedStyle(w.querySelector("td[data-tr-cols-key=result]>.badge")).color};',
  '};',
  'const dark=testStyles("dark"),light=testStyles("light");',
  'view="lab";const lab=window.opsTable(samples);',
@@ -71,7 +71,7 @@ try{
  const v=JSON.parse(decodeURIComponent(attr));
  assert.deepEqual(v.headings.slice(0,5),['Fecha entrada','Hora entrada','Fecha salida','Hora salida','Día']);
  assert(!v.headings.includes('Bloque'),'Obsolete block column must be absent');
- assert.equal(v.headings.length,19,'Expected 18 original columns +2 exit −1 block');
+ assert.equal(v.headings.length,21,'Expected the normalized register plus Contracts and lot summary');
  assert.equal(v.records[0][2],'15/8/2026','Overnight exit date incorrect');
  assert.equal(v.records[0][3],'01:22','Overnight exit time incorrect');
  assert.equal(v.records[1][2],'—');

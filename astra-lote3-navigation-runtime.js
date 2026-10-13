@@ -116,6 +116,16 @@ function decorate(view,html){
  const template=document.createElement('template');template.innerHTML=html;
  caption(view,template.content);
  resultLabels(template.content);
+ // TR-VIS PR1: entry and Ankora import are workflow actions, not dashboard
+ // shortcuts. Keep their existing handlers exclusively in Operaciones.
+ // Remove only the two exact CTA labels from other page fragments; this also
+ // handles source markup and build-time CSP action-token transformation.
+ if(view!=='operations'){
+  for(const button of template.content.querySelectorAll('button')){
+   const label=button.textContent.trim().replace(/^\\+\\s*/, '').trim().toLocaleLowerCase('es');
+   if(label==='nueva operación'||label==='importar ankora')button.remove();
+  }
+ }
  // TR-VIS-001: equity axes must not be stretched along one direction.
  // Constrain to the Dashboard's SVG; no change to its points, values or range.
  if(view==='dashboard'){

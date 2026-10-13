@@ -20,7 +20,7 @@ window.opsTable=function(ops){
 `;
 const probe=String.raw`
 try{
-const ops=[{id:'1',entryDate:'2026-07-13T18:23:00',exitDate:'2026-07-13T18:28:00',result:'win'},{id:'2',entryDate:'2026-07-13T18:24:00',exitDate:'2026-07-13T18:29:00',result:'loss'}];
+let ops=[{id:'1',entryDate:'2026-07-13T18:23:00',exitDate:'2026-07-13T18:28:00',result:'win'},{id:'2',entryDate:'2026-07-13T18:24:00',exitDate:'2026-07-13T18:29:00',result:'loss'}];
 const root=document.querySelector('#view');
 const mount=()=>{root.innerHTML=window.opsTable(ops);};
 const keys=()=>[...root.querySelectorAll('.analytics-table thead th')].map(th=>th.dataset.trColsKey);
@@ -84,6 +84,35 @@ root.querySelector('[data-tr-cols-toggle]').click();
 root.querySelector('[data-tr-cols-reset]').click();
 result.reset=!hidden().length&&keys().indexOf('symbol')===5;
 result.actionsIntact=[...root.querySelectorAll('tbody tr')].every(row=>row.lastElementChild.dataset.trColsKey==='actions'&&row.lastElementChild.textContent.includes('Ver Editar'));
+// PR2: contracts are shown; executed lot results are exposed as independent opt-in columns.
+// No separate operations, no invented lot history for aggregated records.
+plan={id:'lots-plan',riskStrategies:[{id:'risk-a',lots:[{id:'a'},{id:'b'}]}]};
+ops=[
+ {id:'lot-a',tradingPlanId:plan.id,contracts:2,executionMode:'lots',
+  executionLots:[{id:'a',quantity:1,resultTicks:20,status:'closed'},{id:'b',quantity:1,resultTicks:40,status:'closed'}]},
+ {id:'lot-b',tradingPlanId:plan.id,contracts:3,executionMode:'lots',
+  executionLots:[{id:'a',quantity:2,resultTicks:-10,status:'closed'},{id:'b',quantity:1,resultTicks:null,status:'open'}]},
+ {id:'aggregated',tradingPlanId:plan.id,contracts:1,executionMode:'aggregated',resultTicks:15}
+];
+mount();
+result.dynamicKeys=keys().filter(x=>x==='contracts'||x==='lots'||/^lot[1-9]/.test(x));
+result.lotsDefaultHidden=hidden().includes('lot1')&&hidden().includes('lot2')&&!hidden().includes('contracts')&&!hidden().includes('lots');
+result.contractAmounts=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="contracts"]')?.textContent);
+result.lotSummary=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="lots"]')?.textContent);
+result.lotCount=keys().length;
+result.lotActionFixed=[...root.querySelectorAll('tbody tr')].every(r=>r.cells.length===23&&r.lastElementChild.dataset.trColsKey==='actions');
+root.querySelector('[data-tr-cols-toggle]').click();
+for(const name of ['lot1','lot2']){
+ const control=root.querySelector('[data-tr-cols-visible="'+name+'"]');
+ control.checked=true;control.dispatchEvent(new Event('change',{bubbles:true}));
+}
+result.lotsEnabled=!hidden().includes('lot1')&&!hidden().includes('lot2');
+result.lot1=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="lot1"]')?.textContent);
+result.lot2=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="lot2"]')?.textContent);
+mount();
+result.lotsPersisted=!hidden().includes('lot1')&&!hidden().includes('lot2')&&keys().at(-1)==='actions';
+result.oldPlanLayoutPreserved=window.TradingResearchOperationColumns.read().order.includes('lot1');
+
 document.body.dataset.trColumnsResults=encodeURIComponent(JSON.stringify(result));
 }catch(e){
  document.body.dataset.trColumnsResults=encodeURIComponent(JSON.stringify({error:String(e?.stack||e)}));
@@ -100,11 +129,21 @@ try{
  const encoded=run.stdout.match(/data-tr-columns-results="([^"]+)"/)?.[1];assert(encoded,'No column fixture result: '+run.stderr?.slice(-1300));
  const result=JSON.parse(decodeURIComponent(encoded));
  console.log('Columns Chromium',JSON.stringify(result));
- assert.equal(result.total,19);
+ assert.equal(result.total,21);
  for(const key of ['actionsPinnned','fixedOriginalActions','panelOpen','hiddenTime','moved','dragReordered','persisted','reopenedPreserved','otherPlanDefault','samePlanRestored','labHasConfigurator','labIndependentDefault','labActionsFixed','labEdited','opsUnchangedByLab','labPersisted','labOtherPlanDefault','reset','actionsIntact']){
   assert.equal(result[key],true,key+' failed');
  }
- assert.deepEqual(result.rowCounts,[19,19]);
+ assert.deepEqual(result.rowCounts,[21,21]);
  assert.notEqual(result.lightDark.dark,result.lightDark.light);
- console.log('TR-FEAT-OPS-01 PASS: 19 fields, reorder by arrows/drag, hide, independent Laboratorio and Operaciones layouts per TP, fixed actions and light/dark.');
+ assert.deepEqual(result.dynamicKeys,['contracts','lots','lot1','lot2']);
+ assert.equal(result.lotCount,23);
+ assert.equal(result.lotsDefaultHidden,true);
+ assert.deepEqual(result.contractAmounts,['2','3','1']);
+ assert.deepEqual(result.lotSummary,['L1 +20t/ct ×1 · L2 +40t/ct ×1','L1 -10t/ct ×2 · L2 Pend.','Agregado']);
+ assert.equal(result.lotActionFixed,true);
+ assert.equal(result.lotsEnabled,true);
+ assert.deepEqual(result.lot1,['+20t/ct ×1','-10t/ct ×2','—']);
+ assert.deepEqual(result.lot2,['+40t/ct ×1','Pend.','—']);
+ assert.equal(result.lotsPersisted,true);
+ console.log('TR-FEAT-OPS-01 / TR-VIS PR2 PASS: 21 base columns + dynamically configured executed lots, contracts, pending and aggregated, persisted preferences, fixed actions.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

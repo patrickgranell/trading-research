@@ -56,8 +56,24 @@ result.otherPlanDefault=!hidden().length&&keys().indexOf('symbol')===5;
 plan={id:'replay-plan'};
 mount();
 result.samePlanRestored=keys().join(',')===original&&hidden().includes('entryTime');
-route='lab';const lab=window.opsTable(ops);
-result.labNotModified=!lab.includes('tr-colprefs')&&!lab.includes('tr-ops-entry-exit');
+// Laboratorio shares exactly the same capabilities but not Operaciones' saved layout.
+route='lab';mount();
+result.labHasConfigurator=!!root.querySelector('[data-tr-cols-toggle]')&&root.querySelector('table.tr-ops-entry-exit')!==null;
+result.labIndependentDefault=!hidden().length&&keys().indexOf('symbol')===5;
+result.labActionsFixed=keys().at(-1)==='actions'&&[...root.querySelectorAll('tbody tr')].every(row=>row.cells.at(-1).textContent.includes('Ver Editar'));
+root.querySelector('[data-tr-cols-toggle]').click();
+const labHide=root.querySelector('[data-tr-cols-visible="entryDate"]');
+labHide.checked=false;labHide.dispatchEvent(new Event('change',{bubbles:true}));
+root.querySelector('[data-tr-cols-move="setup"][data-tr-cols-delta="-1"]').click();
+result.labEdited=hidden().includes('entryDate')&&keys().indexOf('setup')===6;
+const labOrder=keys().join(',');
+route='operations';mount();
+result.opsUnchangedByLab=!hidden().includes('entryDate')&&hidden().includes('entryTime')&&keys().join(',')===original;
+route='lab';mount();
+result.labPersisted=hidden().includes('entryDate')&&keys().join(',')===labOrder;
+plan={id:'other-tp'};mount();
+result.labOtherPlanDefault=!hidden().length&&keys().indexOf('setup')===7;
+plan={id:'replay-plan'};
 route='operations';mount();
 result.lightDark={};
 for(const theme of ['dark','light']){
@@ -85,10 +101,10 @@ try{
  const result=JSON.parse(decodeURIComponent(encoded));
  console.log('Columns Chromium',JSON.stringify(result));
  assert.equal(result.total,19);
- for(const key of ['actionsPinnned','fixedOriginalActions','panelOpen','hiddenTime','moved','dragReordered','persisted','reopenedPreserved','otherPlanDefault','samePlanRestored','labNotModified','reset','actionsIntact']){
+ for(const key of ['actionsPinnned','fixedOriginalActions','panelOpen','hiddenTime','moved','dragReordered','persisted','reopenedPreserved','otherPlanDefault','samePlanRestored','labHasConfigurator','labIndependentDefault','labActionsFixed','labEdited','opsUnchangedByLab','labPersisted','labOtherPlanDefault','reset','actionsIntact']){
   assert.equal(result[key],true,key+' failed');
  }
  assert.deepEqual(result.rowCounts,[19,19]);
  assert.notEqual(result.lightDark.dark,result.lightDark.light);
- console.log('TR-FEAT-OPS-01 PASS: 19 fields, reorder by arrows/drag, hide, persistence per TP, fixed actions and light/dark.');
+ console.log('TR-FEAT-OPS-01 PASS: 19 fields, reorder by arrows/drag, hide, independent Laboratorio and Operaciones layouts per TP, fixed actions and light/dark.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

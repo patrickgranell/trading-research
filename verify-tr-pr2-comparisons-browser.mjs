@@ -31,7 +31,7 @@ const probe=String.raw`(async()=>{
   o.managementRows=root.querySelectorAll('.trcomp-table tbody tr').length;
   for(const kind of ['lots','hour','weekday','month','year']){
    root.querySelector('[data-trcomp-tab="'+kind+'"]').click();
-   o[kind]={rows:root.querySelectorAll('.trcomp-table tbody tr').length,text:root.querySelector('[data-trcomp-body]').textContent.slice(0,600)};
+   o[kind]={rows:root.querySelectorAll('.trcomp-table tbody tr').length,unit:root.querySelector('[data-trcomp-unit-label]').textContent,text:root.querySelector('[data-trcomp-body]').textContent.slice(0,600)};
   }
   root.querySelector('[data-trcomp-tab="management"]').click();
   const unit=root.querySelector('[data-trcomp-unit]');unit.value='r';unit.dispatchEvent(new Event('change',{bubbles:true}));
@@ -58,8 +58,9 @@ try{
  assert.deepEqual(o.initialTabs,['Gestión','Lotes','Horas','Días','Meses','Años']);
  assert.equal(o.managementRows,2);
  assert(o.management.includes('Gestión A')&&o.management.includes('Gestión B'));
- assert.equal(o.lots.rows,2);
- assert(o.lots.text.includes('ticks-contrato'));
+ assert.equal(o.lots.rows,4);
+ assert.equal(o.lots.unit,'ticks-contrato reales (por lote)');
+ assert(o.lots.text.includes('Gestión A')&&o.lots.text.includes('Gestión B'));
  assert.equal(o.hour.rows,2);
  assert(o.weekday.rows>=2);
  assert(o.month.rows,3);

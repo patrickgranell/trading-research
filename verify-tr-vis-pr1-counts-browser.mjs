@@ -19,9 +19,9 @@ const script=String.raw`(async()=>{
     id:'TR_VIS_COUNT_'+i,tradingPlanId:plan.id,entryDate:time.toISOString(),
     exitDate:new Date(time.valueOf()+300000).toISOString(),
     contract:'MCL 08-26',direction:i<5?'LONG':'SHORT',setup:i%2?'Continuación':'Estructura',
-    result:i<3?'win':'loss',rMultiple:i<3?2:-1,commission:1.6,
+    result:i<3?'win':'loss',rMultiple:i<3?(i===0?2:-1):null,commission:1.6,
     resultTicks:i<3?20:-10,pnlGross:i<3?20:-10,pnlNet:i<3?18.4:-11.6,
-    recordClass:'backtest',executionIntent:'backtest'
+    recordClass:'replay',executionIntent:'replay'
    });
   }
   out.source=currentOps().length;
@@ -29,6 +29,10 @@ const script=String.raw`(async()=>{
   const widget=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim().startsWith('Operaciones'));
   out.widgetLabel=widget?.querySelector('.label')?.firstChild?.textContent?.trim()||'';
   out.widgetCount=Number(widget?.querySelector('.value')?.textContent?.trim());
+  out.widgetSub=widget?.querySelector('.sub')?.textContent?.trim()||'';
+  const rate=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim().startsWith('Win rate'));
+  out.winRate=rate?.querySelector('.value')?.textContent?.trim()||'';
+  out.winSub=rate?.querySelector('.sub')?.textContent?.trim()||'';
   window.TradingResearchActions.navigate('operations');await wait(220);
   try{resetOpsFilters();await wait(120);}catch(e){out.resetIssue=String(e);}
   out.filtered=typeof filteredOps==='function'?filteredOps().length:null;
@@ -51,7 +55,9 @@ try{
  assert.equal(out.source,10);
  assert.equal(out.widgetLabel,'Operaciones');
  assert.equal(out.widgetCount,10,'Dashboard count must equal all operations in current Trading Plan');
+ assert.equal(out.winRate,'30.0%','Tick win rate must use its 10 eligible operations, not 3 with R');
+ assert(out.widgetSub.includes('total del')&&out.winSub.includes('10/10'), 'Sample coverage must be visible');
  assert.equal(out.filtered,10,'Unfiltered Register must share Dashboard source');
  assert.equal(out.tableRows,10,'Visible Register must contain the same 10 rows');
- console.log('TR-VIS PR1 count parity PASS: 10 source trades, Dashboard KPI 10, Register 10.');
+ console.log('TR-VIS PR1 count parity PASS: 10 Replay source trades, only 3 R-eligible, Dashboard total 10, tick win rate 30%, Register 10.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

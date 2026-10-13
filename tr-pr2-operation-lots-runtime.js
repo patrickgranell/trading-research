@@ -35,9 +35,9 @@ function lotExitInfo(form){
  });
  if(!completed)return {mode:'lots',exitDate:'',reason:'open'};
  const exits=rows.map(row=>row.querySelector('.tr-lot-exit-date')?.value||'');
- if(exits.some(x=>!x))return {mode:'lots',exitDate:null,reason:'undated'};
- // datetime-local values sort chronologically as ISO local timestamps.
- return {mode:'lots',exitDate:exits.sort().at(-1),reason:'last-lot'};
+ const recorded=exits.filter(Boolean).sort();
+ if(!recorded.length)return {mode:'lots',exitDate:null,reason:'undated'};
+ return {mode:'lots',exitDate:recorded.at(-1),reason:recorded.length===rows.length?'last-lot':'partial-dated',undated:rows.length-recorded.length};
 }
 function syncOperationExit(form){
  const field=form?.querySelector('#f-exitDate');
@@ -48,7 +48,7 @@ function syncOperationExit(form){
   if(!lock)field.dataset.trLotExitBefore=field.value;
   field.value=info.exitDate;
   field.readOnly=true;field.setAttribute('aria-readonly','true');
-  field.title=info.reason==='last-lot'?'Salida del último lote cerrado':'Pendiente: todavía hay lotes abiertos';
+  field.title=info.reason==='partial-dated'?'Última salida registrada: faltan fechas de otros lotes':info.reason==='last-lot'?'Salida del último lote cerrado':'Pendiente: todavía hay lotes abiertos';
   field.dataset.trLotExitLock='1';
  }else{
   if(lock)field.value=field.dataset.trLotExitBefore||'';
@@ -95,8 +95,8 @@ function refreshSummary(form){
   }
  }
  const exitInfo=syncOperationExit(form);
- if(summary&&!manual&&exitInfo.reason==='last-lot'){
-  summary.textContent+=' · Cierre general: salida del último lote ('+exitInfo.exitDate.replace('T',' ')+')';
+ if(summary&&!manual&&['last-lot','partial-dated'].includes(exitInfo.reason)){
+  summary.textContent+=' · Cierre general: '+exitInfo.exitDate.replace('T',' ')+(exitInfo.reason==='partial-dated'?' (última salida registrada: faltan '+exitInfo.undated+' fecha(s) de lotes)':' (último lote)');
  }
  form.querySelector('.tr-lot-editor')?.classList.toggle('tr-lots-aggregated',manual);
  if(manual&&summary)summary.textContent='Registro agregado: indica los ticks-contrato totales de la operación en «Ticks resultado agregados».';
@@ -133,7 +133,8 @@ function drawEditor(form,force=false){
    '<div class="tr-lot-header"><div><h4>Resultado por lotes</h4><small>Los objetivos de Gestión son previstos; aquí se registran las salidas reales.</small></div>'+
    '<label>Modalidad de registro<select class="select tr-lots-mode" aria-label="Modalidad de registro de lotes">'+
    '<option value="lots">Por lotes</option><option value="aggregated">Agregado</option></select></label></div>'+
-   '<div class="tr-lot-row-list"></div><div class="tr-lots-summary" role="status" aria-live="polite"></div>';
+   '<div class="tr-lot-row-list"></div><div class="tr-lots-summary" role="status" aria-live="polite"></div>'+
+   '<small class="tr-lots-chronology-note">La salida general utiliza la última hora registrada. Las salidas anteriores se introducen cuando se conocen: la aplicación no inventa horas reales.</small>';
   group.insertAdjacentElement('afterend',editor);
   const op=editingOperation();
   const mode=op?((op.executionMode==='lots'&&Array.isArray(op.executionLots))?'lots':'aggregated'):
@@ -186,6 +187,8 @@ function prepareForSave(risk){
   });
  }
  const isComplete=closed===planned.length;
+ const entry=form.querySelector('#f-entryDate')?.value||'';
+ for(let i=0;i<saved.length;i++)if(saved[i].exitDate&&entry&&saved[i].exitDate<entry)return {mode:'lots',error:'La salida del lote '+(i+1)+' no puede preceder la entrada.'};
  const exitInfo=syncOperationExit(form);
  return {mode:'lots',lots:saved,resultTicksString:isComplete?format(sum):'',
   exitDate:exitInfo.exitDate,closedLots:closed,totalLots:planned.length};

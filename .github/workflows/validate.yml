@@ -80,3 +80,6 @@ jobs:
       - name: TR-VIS PR1 · Dashboard/Register same-plan count parity
         run: node verify-tr-vis-pr1-counts-browser.mjs
 
+      - name: TR-VIS PR1 · Customizable register columns
+        run: node verify-tr-vis-pr1-columns-browser.mjs
+

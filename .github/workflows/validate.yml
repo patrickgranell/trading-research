@@ -86,3 +86,6 @@ jobs:
       - name: TR-VIS PR2 · Operational presentation Chromium
         run: node verify-tr-vis-pr2-browser.mjs
 
+      - name: TR-VIS PR2 · Real Dashboard profile size controls
+        run: node verify-tr-vis-pr2-dashboard-sizes-browser.mjs
+

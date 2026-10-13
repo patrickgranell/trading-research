@@ -129,21 +129,45 @@ function decorate(view,html){
  // TR-VIS-001: equity axes must not be stretched along one direction.
  // Constrain to the Dashboard's SVG; no change to its points, values or range.
  if(view==='dashboard'){
-  // TR-VIS-PR1-02 · Total is ALL records in the active plan, never the
-  // R-eligible subset. The canonical engine still exclusively determines
-  // financial metric eligibility; label its denominator explicitly.
+  // TR-VIS-PR1-02: distinguish all plan records from the metric-eligible sample.
   const all=globalThis.TradingResearchOperationsReadContract?.current?.();
   if(Array.isArray(all)){
    const cards=[...template.content.querySelectorAll('.dashboard-kpis-custom .kpi')];
-   const cardFor=label=>cards.find(card=>card.querySelector('.label')?.textContent?.trim().startsWith(label));
-   const total=all.length,operationsCard=cardFor('Operaciones');
-   if(operationsCard){
-    const value=operationsCard.querySelector('.value'),sub=operationsCard.querySelector('.sub');
-    if(value)value.textContent=String(total);
+   const cardFor=name=>cards.find(card=>card.querySelector('.label')?.textContent?.trim().startsWith(name));
+   const total=all.length;
+   const countCard=cardFor('Operaciones');
+   if(countCard){
+    const val=countCard.querySelector('.value'),sub=countCard.querySelector('.sub');
+    if(val)val.textContent=String(total);
     if(sub)sub.textContent='total del Trading Plan';
    }
-   const activeUnit=template.content.querySelector('.dashboard-unit-switch .seg-btn.active')?.textContent?.trim();
-   const unit=activeUnit==='Ticks'?'ticks':activeUnit==='US
+   const active=template.content.querySelector('.dashboard-unit-switch .seg-btn.active')?.textContent?.trim()||'';
+   const unit=active==='Ticks'?'ticks':active.startsWith('US')?'usd':'r';
+   const unitName=unit==='ticks'?'ticks':unit==='usd'?'dólares':'R';
+   let stats=null;
+   try{if(typeof calcMetricStats==='function')stats=calcMetricStats(all,unit,'gross');}catch(_){}
+   if(stats&&Number.isFinite(stats.n)){
+    if(countCard&&stats.n!==total){
+     const sub=countCard.querySelector('.sub');
+     if(sub)sub.textContent='total del TP · '+stats.n+'/'+total+' evaluables en '+unitName;
+    }
+    const win=cardFor('Win rate');
+    if(win){
+     const val=win.querySelector('.value'),sub=win.querySelector('.sub');
+     if(val)val.textContent=stats.n?stats.winRate.toFixed(1)+'%':'—';
+     if(sub)sub.textContent=stats.n+'/'+total+' evaluables en '+unitName;
+    }
+   }
+   const blocks=cardFor('Bloques');
+   if(blocks){const val=blocks.querySelector('.value');if(val)val.textContent=String(Math.ceil(total/20));}
+   for(const secondary of template.content.querySelectorAll('.dashboard-secondary-card')){
+    if(secondary.querySelector('.panel-title h3')?.textContent?.trim()==='Bloque actual'){
+     const val=secondary.querySelector('.kpi.value');
+     if(val)val.textContent=String(Math.ceil(total/20));
+    }
+   }
+  }
+  for(const svg of template.content.querySelectorAll('svg.dashboard-equity-svg[viewBox]')){
    if(svg.getAttribute('preserveAspectRatio')==='none'){
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');
     svg.setAttribute('role','img');

@@ -1667,3 +1667,17 @@ html[data-theme="light"] .lab-scatter-svg .chart-label{fill:#5a687d}
  .main .panel-title{gap:12px;flex-wrap:wrap}
  .main .kpis>.kpi .value{font-size:26px}
 }
+
+/* Intratrade evidence: the legacy --card2 fallback is #fff even in dark mode.
+   Keep chart, grid, labels and MFE/MAE/entry/exit marks on one coherent surface. */
+html:not([data-theme="light"]) .rp-chart-wrap{
+ background:#0b1220;
+ color:var(--text);
+}
+.rp-chart .rp-axis-label{fill:var(--tr-vis-axis-text);font-size:12px}
+html:not([data-theme="light"]) .rp-level-label{
+ stroke:#0b1220;
+}
+html[data-theme="light"] .rp-level-label{
+ stroke:#ffffff;
+}

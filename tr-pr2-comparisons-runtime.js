@@ -15,7 +15,7 @@ function setVisible(v){try{localStorage.setItem(keyOf(),v?'show':'hide');}catch(
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const num=v=>Number.isFinite(v)?Number(v).toLocaleString('es-ES',{maximumFractionDigits:2}):v===Infinity?'∞':'—';
 const signed=v=>(v>0?'+':'')+num(v);
-let active='management',unit='ticks',basis='gross';
+let unit='ticks',basis='gross';
 const planRead=()=>globalThis.TradingResearchPlanReadContract?.current?.()||null;
 function operations(){
  const plan=planRead();
@@ -77,62 +77,90 @@ function lotGroups(){
  }).filter(Boolean);
 }
 function rowsFor(kind){return kind==='lots'?lotGroups():canonicalGroups(kind);}
-function readTable(root){
- const body=root.querySelector('[data-trcomp-body]');if(!body)return;
- const lots=active==='lots',rows=rowsFor(active);
- const title=lots?'ticks-contrato reales (por lote)':
+
+/* Each comparison is a standalone Dashboard widget, aligned with the
+   existing setup/expectancy panels. Detailed tabular exploration remains
+   available in the operational/laboratory analysis screens, not here. */
+const titles={
+ management:'Resultado por gestión',
+ lots:'Resultados por lotes',
+ hour:'Resultado por hora de entrada',
+ weekday:'Resultado por día de la semana',
+ month:'Resultado por mes',
+ year:'Resultado por año'
+};
+const keys=Object.keys(titles);
+const spans=[4,6,8,12];
+function preferences(){
+ let stored={};
+ try{stored=JSON.parse(localStorage.getItem(keyOf()+':widgets')||'{}')||{};}catch(_){}
+ const legacy=visible();
+ return {show:Object.fromEntries(keys.map(k=>[k,stored.show?.[k]!==undefined?!!stored.show[k]:legacy])),
+  size:Object.fromEntries(keys.map(k=>[k,spans.includes(Number(stored.size?.[k]))?Number(stored.size[k]):6]))};
+}
+function persistPrefs(p){
+ try{localStorage.setItem(keyOf()+':widgets',JSON.stringify(p));}catch(_){}
+}
+function metricLabel(kind){
+ return kind==='lots'?'ticks-contrato':
   unit==='r'?'R':unit==='usd'?'USD '+(basis==='net'?'netos':'brutos'):'ticks '+(basis==='net'?'netos':'brutos');
- root.querySelector('[data-trcomp-unit-label]').textContent=title;
- const unitSelect=root.querySelector('[data-trcomp-unit]');
- const basisSelect=root.querySelector('[data-trcomp-basis]');
- if(unitSelect)unitSelect.disabled=lots;
- if(basisSelect)basisSelect.disabled=lots||unit==='r';
- const max=Math.max(1,...rows.map(x=>Math.abs(x.sum)));
+}
+function renderCard(widget,kind){
+ const rows=rowsFor(kind),body=widget.querySelector('[data-trcomp-body]');
+ if(!body)return;
+ const header=widget.querySelector('[data-trcomp-unit-label]');
+ if(header)header.textContent=metricLabel(kind);
+ const max=Math.max(1,...rows.map(r=>Math.abs(r.sum)));
+ const shown=widget.dataset.trcompExpanded==='1'?rows:rows.slice(0,8);
  if(!rows.length){
-  body.innerHTML='<div class="trcomp-empty">No hay operaciones cerradas elegibles para esta comparación. Los registros pendientes no se contabilizan.</div>';
+  body.innerHTML='<div class="trcomp-empty">Todavía no hay operaciones cerradas elegibles en este segmento.</div>';
   return;
  }
- body.innerHTML='<div class="trcomp-table-scroll"><table class="trcomp-table"><thead><tr>'+
-  '<th>Segmento</th><th>Ops</th><th>Resultado</th><th>Expectancy</th><th>WR</th><th>PF</th><th>Comparativa</th></tr></thead><tbody>'+
-  rows.map(row=>{
-   const w=Math.round(Math.abs(row.sum)/max*100);
-   const polarity=row.sum<0?'negative':row.sum>0?'positive':'neutral';
-   return '<tr><th scope="row">'+esc(row.name)+'</th><td>'+row.n+'</td>'+
-    '<td class="'+polarity+'">'+signed(row.sum)+'</td><td>'+signed(row.expectancy)+'</td>'+
-    '<td>'+num(row.winRate)+'%</td><td>'+num(row.pf)+'</td>'+
-    '<td><progress class="trcomp-meter '+polarity+'" value="'+w+'" max="100" aria-label="'+esc(row.name)+' '+w+' por ciento del máximo absoluto"></progress></td></tr>';
-  }).join('')+'</tbody></table></div>'+
-  '<p class="trcomp-footnote">Ops = operaciones cerradas elegibles · WR = porcentaje positivo · PF = factor de beneficio. La comparación por lotes es descriptiva: sus aportaciones no equivalen a operaciones independientes.</p>';
+ body.innerHTML=shown.map(r=>{
+  const width=Math.max(r.sum===0?0:2,Math.round(100*Math.abs(r.sum)/max));
+  const tone=r.sum<0?'negative':r.sum>0?'positive':'neutral';
+  return '<div class="trcomp-bar-row" title="'+esc('Expectancy '+num(r.expectancy)+' · WR '+num(r.winRate)+'% · PF '+num(r.pf))+'">'+
+   '<div class="trcomp-row-name"><strong>'+esc(r.name)+'</strong><small>n='+r.n+' · WR '+num(r.winRate)+'%</small></div>'+
+   '<div class="trcomp-track"><div class="trcomp-fill '+tone+'" style="width:'+width+'%"></div></div>'+
+   '<strong class="trcomp-value '+tone+'">'+signed(r.sum)+'</strong></div>';
+ }).join('')+
+ '<div class="trcomp-card-footer"><small>'+rows.length+' segmentos · '+rows.reduce((a,r)=>a+r.n,0)+' muestras'+(kind==='lots'?' de lotes':' de operaciones')+'</small>'+
+ (rows.length>8?'<button type="button" class="btn tiny ghost" data-trcomp-expand>'+ (widget.dataset.trcompExpanded==='1'?'Ver menos':'Ver '+(rows.length-8)+' más')+'</button>':'')+'</div>';
+}
+function makeWidget(kind,size){
+ const widget=document.createElement('div');
+ widget.className='dashboard-widget dashboard-widget-panels dashboard-span-'+size+' trcomp-widget';
+ widget.dataset.dashboardWidget='comparison-'+kind;
+ widget.dataset.trcompWidget=kind;
+ const card=document.createElement('section');card.className='card panel dashboard-custom-panel trcomp-card';
+ card.innerHTML='<div class="panel-title trcomp-card-head"><div><h3>'+esc(titles[kind])+'</h3>'+
+  '<small>'+ (kind==='lots'?'Aportación real por estrategia y lote (no operaciones independientes)':'Operaciones cerradas · agrupadas por '+esc(names[kind]).toLowerCase())+
+  '</small></div><small data-trcomp-unit-label></small></div><div data-trcomp-body class="trcomp-card-body"></div>';
+ widget.append(card);renderCard(widget,kind);return widget;
 }
 function mountComparisons(root){
- if(!visible()||root.querySelector('[data-trcomp-root]'))return;
- // Do not add an artificial component when no active plan is selected.
- if(!planRead())return;
- const section=document.createElement('section');
- section.className='card panel trcomp-panel';section.dataset.trcompRoot='1';
- section.innerHTML='<div class="trcomp-top"><div><h3>Análisis comparativo</h3><small>Operaciones del Trading Plan activo; sin alterar la configuración ni los resultados.</small></div>'+
-  '<div class="trcomp-controls"><label>Unidad <select data-trcomp-unit aria-label="Unidad comparativa"><option value="ticks">Ticks</option><option value="r">R</option><option value="usd">USD</option></select></label>'+
-  '<label>Base <select data-trcomp-basis aria-label="Base comparativa"><option value="gross">Bruto</option><option value="net">Neto</option></select></label></div></div>'+
-  '<div class="trcomp-tabs" role="group" aria-label="Dimensión de la comparación">'+
-  Object.entries(names).map(([key,label])=>'<button type="button" class="btn small trcomp-tab" data-trcomp-tab="'+key+'">'+label+'</button>').join('')+
-  '</div><p class="trcomp-unit">Resultado expresado en <strong data-trcomp-unit-label></strong></p><div data-trcomp-body></div>';
- const after=root.querySelector('.dashboard-panel-grid');
- if(after)after.after(section);else root.append(section);
- section.querySelector('[data-trcomp-unit]').value=unit;
- section.querySelector('[data-trcomp-basis]').value=basis;
- section.querySelectorAll('[data-trcomp-tab]').forEach(b=>{const selected=b.dataset.trcompTab===active;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));});
- readTable(section);
+ const grid=root.querySelector('.dashboard-panel-grid');
+ if(!grid||grid.querySelector('[data-trcomp-widget]')||!planRead())return;
+ const p=preferences();
+ for(const kind of keys){
+  if(p.show[kind])grid.append(makeWidget(kind,p.size[kind]));
+ }
 }
 function enhancer(){
  for(const modal of document.querySelectorAll('.modal-backdrop .modal')){
   const heading=modal.querySelector('.modal-head')?.textContent||'';
   if(!/Personalizar/.test(heading)||modal.querySelector('[data-trcomp-config]'))continue;
   const host=modal.querySelector('.modal-body');if(!host)continue;
+  const prefs=preferences();
   const section=document.createElement('section');
   section.className='trcomp-config';section.dataset.trcompConfig='1';
-  section.innerHTML='<label><input type="checkbox" data-trcomp-enabled> Mostrar panel de análisis comparativo</label>'+
-   '<small>Incluye Gestión, Lotes, Horas, Días, Meses y Años. Guarda con «Guardar Dashboard».</small>';
-  section.querySelector('[data-trcomp-enabled]').checked=visible();
+  section.innerHTML='<div class="trcomp-config-heading"><strong>Comparativas</strong><small>Paneles independientes; visibilidad y anchura para este perfil. Se guardan con el Dashboard.</small></div>'+
+    keys.map(key=>'<div class="trcomp-config-item" data-trcomp-config-item="'+key+'">'+
+      '<label><input type="checkbox" data-trcomp-enabled="'+key+'" '+(prefs.show[key]?'checked':'')+'>'+esc(titles[key])+'</label>'+
+      '<select aria-label="Anchura de '+esc(titles[key])+'" data-trcomp-size="'+key+'">'+
+      spans.map(span=>'<option value="'+span+'" '+(prefs.size[key]===span?'selected':'')+'>'+
+        (span===4?'1/3':span===6?'1/2':span===8?'2/3':'Fila completa')+'</option>').join('')+
+      '</select></div>').join('');
   host.append(section);
  }
 }
@@ -141,29 +169,37 @@ if(base)trRenderViewHtml=function(view){
  const html=base.apply(this,arguments);
  if(view!=='dashboard'||typeof html!=='string')return html;
  const tpl=document.createElement('template');tpl.innerHTML=html;
- mountComparisons(tpl.content);return tpl.innerHTML;
+ mountComparisons(tpl.content);
+ return tpl.innerHTML;
 };
 document.addEventListener('click',ev=>{
- const tab=ev.target?.closest?.('#view [data-trcomp-tab]');
- if(tab){
-  active=tab.dataset.trcompTab;
-  const root=tab.closest('[data-trcomp-root]');
-  root?.querySelectorAll('[data-trcomp-tab]').forEach(b=>{const selected=b.dataset.trcompTab===active;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));});
-  if(root)readTable(root);return;
+ const expand=ev.target?.closest?.('#view [data-trcomp-expand]');
+ if(expand){
+  const widget=expand.closest('[data-trcomp-widget]');
+  if(widget){widget.dataset.trcompExpanded=widget.dataset.trcompExpanded==='1'?'0':'1';renderCard(widget,widget.dataset.trcompWidget);}
+  return;
  }
  const save=ev.target?.closest?.('.modal-backdrop .modal-foot button');
  if(save&&/Guardar Dashboard/i.test(save.textContent||'')){
-  const cb=save.closest('.modal')?.querySelector('[data-trcomp-enabled]');
-  if(cb)setVisible(cb.checked);
+  const modal=save.closest('.modal');
+  if(!modal?.querySelector('[data-trcomp-config]'))return;
+  const next={show:{},size:{}};
+  for(const key of keys){
+   next.show[key]=!!modal.querySelector('[data-trcomp-enabled="'+key+'"]')?.checked;
+   next.size[key]=Number(modal.querySelector('[data-trcomp-size="'+key+'"]')?.value)||6;
+  }
+  persistPrefs(next);
  }
 },true);
 document.addEventListener('change',ev=>{
- const el=ev.target,root=el?.closest?.('#view [data-trcomp-root]');
- if(!root)return;
- if(el.matches('[data-trcomp-unit]'))unit=el.value;
- else if(el.matches('[data-trcomp-basis]'))basis=el.value;
- else return;
- readTable(root);
+ // Source unit/base is driven from the main Dashboard and acts on every card.
+ const target=ev.target;
+ if(!target?.closest?.('#view'))return;
+ if(target.matches('.dashboard-unit-switch input,.dashboard-unit-switch select')){
+  const value=target.value;
+  if(['ticks','r','usd'].includes(value))unit=value;
+  document.querySelectorAll('#view [data-trcomp-widget]').forEach(w=>renderCard(w,w.dataset.trcompWidget));
+ }
 },true);
 const observer=new MutationObserver(records=>{
  if(records.some(r=>r.addedNodes.length))enhancer();

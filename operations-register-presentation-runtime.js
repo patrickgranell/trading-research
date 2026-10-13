@@ -143,6 +143,16 @@ function trColumnNormalize(config){
  const explicitOrder=Array.isArray(config?.order)?config.order.filter(x=>TR_COL_EDITABLE.includes(x)):[];
  const order=explicitOrder;
  const unique=[...new Set(order),...TR_COL_EDITABLE.filter(x=>!order.includes(x))];
+ // Place the two immediately useful fields beside identity and results on old
+ // and fresh layouts; never move columns the user has deliberately arranged.
+ const after=(key,anchor)=>{
+  if(explicitOrder.includes(key)||!unique.includes(key)||!unique.includes(anchor))return;
+  unique.splice(unique.indexOf(key),1);
+  unique.splice(unique.indexOf(anchor)+1,0,key);
+ };
+ after('contracts','symbol');
+ after('lots','ticks');
+ for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)).reverse())after(key,'lots');
  const hidden=Array.isArray(config?.hidden)?[...new Set(config.hidden.filter(x=>TR_COL_EDITABLE.includes(x)))]:[];
  // Per-lot columns are opt-in; old saved layouts keep their original visibility.
  for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))){
@@ -252,7 +262,7 @@ document.addEventListener('click',event=>{
   return;
  }
  if(control.matches('[data-tr-cols-reset]')){
-  trColumnSave({order:TR_COL_EDITABLE,hidden:TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))});
+  trColumnSave({order:[],hidden:TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))});
   trColumnUpdate(control);
   return;
  }

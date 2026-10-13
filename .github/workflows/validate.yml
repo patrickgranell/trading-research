@@ -89,3 +89,6 @@ jobs:
       - name: TR-VIS PR2 · Real Dashboard profile size controls
         run: node verify-tr-vis-pr2-dashboard-sizes-browser.mjs
 
+      - name: TR-VIS PR2 · Real execution results by lot
+        run: node verify-tr-pr2-operation-lots-browser.mjs
+

@@ -73,6 +73,24 @@ const nav=document.querySelector('.sidebar .nav-organized');
 out.navOverflow=getComputedStyle(nav).overflowY;
 out.navScrollable=nav.scrollHeight>nav.clientHeight+2;
 out.planVisible=document.querySelector('.plan-switch').getBoundingClientRect().top>=0;
+
+// Reproduce the actual three-column Dashboard customizer on a 760px dialog.
+const customizer='<div class="modal-backdrop"><div class="modal" style="width:760px"><div class="modal-body"><div class="dashboard-config-grid">'+
+Array.from({length:3},(_,i)=>'<section><h4>'+['Métricas superiores','Gráficos y paneles','Tarjetas secundarias'][i]+'</h4><div class="dashboard-config-list">'+
+ Array.from({length:4},(_,j)=>'<div class="dashboard-config-row enabled"><label><input type="checkbox" checked><span>Ejemplo de indicador '+j+'</span></label><div class="dashboard-config-order"><select class="select dashboard-size-select"><option>Compacta</option></select><button class="btn tiny ghost">↑</button><button class="btn tiny ghost">↓</button></div></div>').join('')+'</div></section>').join('')+'</div></div></div></div>';
+document.body.insertAdjacentHTML('beforeend',customizer);
+out.customizer=[...document.querySelectorAll('.dashboard-config-row')].map(row=>{
+ const a=row.getBoundingClientRect(),label=row.querySelector('label').getBoundingClientRect(),check=row.querySelector('input').getBoundingClientRect();
+ const controls=row.querySelector('.dashboard-config-order').getBoundingClientRect();
+ const select=row.querySelector('select').getBoundingClientRect();
+ const buttons=[...row.querySelectorAll('.dashboard-config-order button')].map(b=>b.getBoundingClientRect());
+ return {
+  allInside:check.left>=a.left-1&&check.right<=a.right+1&&label.left>=a.left-1&&label.right<=a.right+1&&select.right<=a.right+1&&buttons.every(b=>b.right<=a.right+1),
+  labelAbove:label.bottom<=controls.top+1,
+  aligned:buttons.every(b=>Math.abs(b.top-select.top)<2&&Math.abs(b.height-select.height)<2),
+  selectable:check.width>=14&&check.height>=14
+ };
+});
 document.body.dataset.trVisResult=encodeURIComponent(JSON.stringify(out));
 `;
 const many=Array.from({length:45},(_,i)=>'<button class="nav-child">Destino '+i+'</button>').join('');
@@ -110,7 +128,10 @@ try{
  assert(v.emptyPriority.includes('Sin prioridades estadísticas')&&!v.emptyPriority.includes('0/0'));
  assert.equal(v.populatedTitle,'Prioridades críticas');
  assert(v.populatedPriority.includes('0/0 checklist'),'Only a real zero sample may be neutralized');
+ assert.equal(v.customizer.length,12);
+ assert(v.customizer.every(x=>x.allInside&&x.labelAbove&&x.aligned&&x.selectable),
+ 'Dashboard customizer controls must not overlap or overflow in three narrow columns');
  assert.equal(v.navOverflow,'auto');
  assert(v.navScrollable&&v.planVisible,'Sidebar destinations must scroll independently under a stable TP header');
- console.log('TR-VIS PR1 Chromium PASS: SVG geometry, axis colours in both themes, dark intratrade/Market Data, centralized CRUD/import, neutral empty, scrollable navigation');
+ console.log('TR-VIS PR1 Chromium PASS: SVG geometry, axis colours in both themes, dark intratrade/Market Data, centralized CRUD/import, customizer control geometry, neutral empty, scrollable navigation');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

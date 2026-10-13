@@ -241,7 +241,7 @@ document.addEventListener('drop',event=>{
  if(from<0||to<0||from===to)return;
  pref.order.splice(from,1);pref.order.splice(to,0,fromKey);
  trColumnSave(pref);
- const bar=cell.closest('.table-module')?.querySelector('.tr-colprefs');
+ const bar=cell.closest('.table-module')?.querySelector('.tr-colprefs')||cell.closest('#view')?.querySelector('.tr-colprefs');
  if(bar)trColumnUpdate(bar.querySelector('[data-tr-cols-toggle]'));
 });
 document.addEventListener('dragend',()=>{

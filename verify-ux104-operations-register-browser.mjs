@@ -49,7 +49,9 @@ const probe=[
  '};',
  'const dark=testStyles("dark"),light=testStyles("light");',
  'view="lab";const lab=window.opsTable(samples);',
- 'document.body.setAttribute("data-tr-ux104",encodeURIComponent(JSON.stringify({headings,records,dark,light,labContainsBlock:lab.includes("<th>Bloque</th>"),unchanged:JSON.stringify(samples)===unchanged})));'
+ 'const labFrame=document.createElement("div");labFrame.innerHTML=lab;',
+ 'const labHeadings=[...labFrame.querySelectorAll(".analytics-table thead th")].map(th=>th.textContent.trim());',
+ 'document.body.setAttribute("data-tr-ux104",encodeURIComponent(JSON.stringify({headings,records,dark,light,labContainsBlock:lab.includes("<th>Bloque</th>"),labHeadings,labConfigurator:!!labFrame.querySelector("[data-tr-cols-toggle]"),unchanged:JSON.stringify(samples)===unchanged})));'
 ].join('\n');
 const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+
  '<script>'+setup+'\n'+base+'\n'+later+'\n'+runtime+'\n'+probe+'</script></body></html>';
@@ -77,10 +79,12 @@ try{
  assert.equal(v.records[2][2],'15/8/2026','Evidence exit timestamp missing');
  assert.equal(v.records[2][3],'02:10');
  assert(v.unchanged,'Source records were mutated by presentation');
- assert(v.labContainsBlock,'Other views must keep their old operations table');
+ assert(!v.labContainsBlock,'Laboratorio now shares the normalized entry/exit register');
+ assert.deepEqual(v.labHeadings.slice(0,5),['Fecha entrada','Hora entrada','Fecha salida','Hora salida','Día']);
+ assert(v.labConfigurator,'Laboratorio must also have configurable columns');
  assert(v.dark.mark.includes('Pendiente')&&v.light.mark.includes('Pendiente'));
  assert.equal(v.dark.amber,'rgb(255, 209, 106)');
  assert.equal(v.light.amber,'rgb(117, 71, 0)');
  assert.notEqual(v.dark.winner,v.dark.amber,'Closed winner must keep semantic color');
- console.log('UX-104 Chromium PASS: overnight exit, pending null, evidence fallback, scoped Bloque removal and light/dark pending');
+ console.log('UX-104 Chromium PASS: overnight exit, pending null, evidence fallback, Bloque removal for both registers, configurable Lab columns and light/dark pending');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

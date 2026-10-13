@@ -1762,3 +1762,55 @@ html:not([data-theme="light"]) #view .md-dataset.active{
  .modal .dashboard-config-row{row-gap:6px}
  .modal .dashboard-config-order .dashboard-size-select{flex-basis:100px}
 }
+
+/* TR-FEAT-OPS-01 · Configurable columns in Operaciones register. */
+#view .tr-colprefs{position:relative;margin:0 0 11px;z-index:3}
+#view .tr-colprefs-top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+#view .tr-colprefs-top>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#view .tr-colprefs-top small{font-size:11px;color:var(--muted);line-height:1.45}
+#view .tr-colprefs-toggle{white-space:nowrap;color:var(--text);background:var(--panel2)}
+#view .tr-colprefs-toggle span{color:var(--muted);font-weight:600}
+#view .tr-colprefs-panel{
+ background:var(--panel2);color:var(--text);border:1px solid var(--border);
+ border-radius:12px;box-shadow:var(--shadow);padding:12px;
+ margin-top:8px;width:min(100%,560px);max-height:min(60vh,450px);
+ overflow-y:auto;overscroll-behavior:contain
+}
+#view .tr-colprefs-panel[hidden]{display:none!important}
+#view .tr-colprefs-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#view .tr-colprefs-item{
+ display:flex;justify-content:space-between;gap:6px;align-items:center;
+ min-width:0;padding:6px 8px;border:1px solid var(--border);border-radius:8px;
+ background:var(--panel)
+}
+#view .tr-colprefs-item label{
+ display:flex;align-items:center;gap:7px;min-width:0;flex:1;
+ color:var(--text);font-size:12px;cursor:pointer
+}
+#view .tr-colprefs-item label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view .tr-colprefs-item input[type="checkbox"]{margin:0;flex:0 0 15px;width:15px;height:15px;accent-color:var(--accent)}
+#view .tr-colprefs-order{display:flex;gap:3px;flex-shrink:0}
+#view .tr-colprefs-order>.btn{
+ display:grid;place-items:center;width:26px;height:26px;min-width:26px;min-height:26px;
+ margin:0;padding:0;line-height:1;color:var(--text)
+}
+#view .tr-colprefs-order>.btn:disabled{opacity:.35;cursor:default}
+#view .tr-colprefs-footer{
+ margin-top:10px;padding-top:9px;border-top:1px solid var(--border);
+ display:flex;align-items:center;justify-content:space-between;gap:12px
+}
+#view .tr-colprefs-footer small{color:var(--muted);font-size:11px}
+#view .tr-cols-hidden{display:none!important}
+#view .tr-ops-entry-exit thead th[data-tr-cols-key]:not([data-tr-cols-key="actions"]){
+ cursor:grab;user-select:none
+}
+#view .tr-ops-entry-exit thead th.tr-cols-dragging{opacity:.36}
+#view .tr-ops-entry-exit thead th[data-tr-cols-key]:hover{color:var(--accent)}
+#view .tr-colprefs-panel button:focus-visible,
+#view .tr-colprefs-toggle:focus-visible{
+ outline:2px solid var(--accent);outline-offset:2px
+}
+@media(max-width:650px){
+ #view .tr-colprefs-list{grid-template-columns:minmax(0,1fr)}
+ #view .tr-colprefs-footer{align-items:flex-start;flex-direction:column}
+}

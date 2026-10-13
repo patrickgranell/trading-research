@@ -6,8 +6,48 @@
 if(typeof document==='undefined'||globalThis.TradingResearchVisualPR2)return;
 let compactRegister=false;
 let expandedEquity=false;
+/* V31.9.4 preserved the V31.1 size selectors and saved profiles, but its
+ * later Dashboard renderer returns bare KPI/panel/secondary elements.
+ * Reconnect those existing elements to the original 12-column layout. */
+const dashboardGroupDefs={
+ kpis:['operations','winRate','expectancy','pf','drawdown','blocks'],
+ panels:['equity','setupCount'],
+ secondary:['mfe','mae','currentBlock']
+};
+function restoreDashboardProfileGrid(root){
+ const plan=globalThis.TradingResearchPlanReadContract?.current?.();
+ const profiles=Array.isArray(plan?.dashboardProfiles)?plan.dashboardProfiles:[];
+ const profile=profiles.find(p=>p.id===plan?.activeDashboardProfileId)||profiles[0]||null;
+ const config=profile?.config||plan?.dashboardConfig||{};
+ const sizes=profile?.sizes||{};
+ const sets=[
+  ['kpis','.dashboard-kpis-custom','.kpi',[2,3,4,6],2],
+  ['panels','.dashboard-panel-grid','.dashboard-custom-panel',[4,6,8,12],6],
+  ['secondary','.dashboard-secondary-grid','.dashboard-secondary-card',[4,6,8,12],4]
+ ];
+ for(const [group,selector,childSelector,allowed,fallback] of sets){
+  const grid=root.querySelector(selector);
+  if(!grid||grid.querySelector(':scope > .dashboard-widget'))continue;
+  const original=[...grid.children];
+  if(!original.length||original.some(el=>!el.matches(childSelector)))continue;
+  const configured=Array.isArray(config[group])?config[group]:dashboardGroupDefs[group];
+  // Never attach a possibly incorrect saved size to a different metric.
+  if(configured.length!==original.length)continue;
+  for(let i=0;i<original.length;i++){
+   const id=configured[i];
+   const requested=Number(sizes?.[group]?.[id]);
+   const span=allowed.includes(requested)?requested:fallback;
+   const wrapper=document.createElement('div');
+   wrapper.className='dashboard-widget dashboard-widget-'+group+' dashboard-span-'+span;
+   wrapper.dataset.dashboardWidget=id;
+   const el=original[i];el.replaceWith(wrapper);wrapper.append(el);
+  }
+  grid.classList.add('dashboard-flex-grid');
+ }
+}
 const priorities=new Set(['result','expectancy','pf','drawdown']);
 function dashboard(root){
+ restoreDashboardProfileGrid(root);
  const widgets=[...root.querySelectorAll('.dashboard-kpis-custom [data-dashboard-widget]')];
  if(!widgets.length)return;
  for(const widget of widgets){

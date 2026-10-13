@@ -31,6 +31,8 @@ const script=String.raw`(async()=>{
   out.dashboard=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim()==='Operaciones')?.querySelector('.value')?.textContent?.trim()||'';
   out.wins=document.querySelector('.dashboard-widget-kpis[data-dashboard-widget="avgWin"] .kpi .sub')?.textContent?.trim()||'';
   out.dashboardHTML=document.querySelector('#view')?.innerHTML.includes('TR_VIS_COUNT_')||false;
+  out.dashboardDebug=(document.querySelector('#view')?.outerHTML||'missing').slice(0,1900);
+  out.currentRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();
   const widget=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim()==='Operaciones');
   out.widgetLabel=widget?.querySelector('.kpi .label')?.textContent?.trim()||'';
   out.widgetCount=Number(widget?.querySelector('.kpi .value')?.textContent?.trim());

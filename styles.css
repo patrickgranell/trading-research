@@ -1714,3 +1714,51 @@ html:not([data-theme="light"]) #view .md-dataset.active{
  outline-offset:2px;
  border-radius:6px;
 }
+
+/* TR-VIS PR1 · Dashboard customizer control alignment.
+   At ~220px per grid column a checkbox+name+width+two arrows cannot occupy
+   one row. Give labels a full line and the sizing/reorder controls their own
+   stable track, without changing their existing event handlers or IDs. */
+.modal .dashboard-config-grid>section{min-width:0}
+.modal .dashboard-config-row{
+ display:grid;grid-template-columns:minmax(0,1fr);row-gap:5px;
+ align-items:stretch;min-width:0;padding:7px 9px;
+}
+.modal .dashboard-config-row>label{
+ display:flex;align-items:center;gap:8px;
+ min-width:0;min-height:21px;line-height:1.35;
+}
+.modal .dashboard-config-row>label input[type="checkbox"]{
+ box-sizing:border-box;appearance:auto;
+ margin:0;inline-size:15px;block-size:15px;flex:0 0 15px;
+ accent-color:var(--accent);vertical-align:middle;
+}
+.modal .dashboard-config-row>label>span{
+ display:block;min-width:0;flex:1;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.modal .dashboard-config-order{
+ display:flex;align-items:center;justify-content:flex-end;
+ gap:5px;min-width:0;min-height:27px;
+}
+.modal .dashboard-config-order .dashboard-size-select{
+ box-sizing:border-box;flex:0 1 94px;
+ min-width:76px;max-width:110px;min-height:27px;height:27px;
+ padding:3px 21px 3px 6px;line-height:1.2;
+}
+.modal .dashboard-config-order>.btn.tiny{
+ box-sizing:border-box;display:inline-grid;place-items:center;
+ inline-size:27px;block-size:27px;min-inline-size:27px;min-block-size:27px;
+ padding:0;margin:0;flex:0 0 27px;
+ font-size:14px;line-height:1;
+}
+.modal .dashboard-config-order>.btn.tiny:disabled{
+ cursor:not-allowed;opacity:.42;
+}
+.modal .dashboard-config-order>span{
+ font-size:11px;line-height:27px;
+}
+@media(max-width:520px){
+ .modal .dashboard-config-row{row-gap:6px}
+ .modal .dashboard-config-order .dashboard-size-select{flex-basis:100px}
+}

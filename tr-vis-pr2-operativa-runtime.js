@@ -87,6 +87,71 @@ function dashboard(root){
  const unit=root.querySelector('.dashboard-unit-switch');
  if(unit)unit.setAttribute('aria-label','Unidad de visualización de las métricas del Dashboard');
 }
+/* TR-VIS PR2 · Fit the EQUITY PLOT, not only its outer widget.
+ * Original viewBox is fixed at 760×250; the PR1 aspect-ratio safeguard
+ * correctly prevents distortion but letterboxes the drawing on wide cards.
+ * Regenerate the very same canonical series at the rendered chart width and
+ * height. Axes/labels/points are recomputed by the existing SVG helper;
+ * no result formula or source dataset is changed. */
+let tr2EquityWrap=null;
+let tr2EquityObserver=null;
+let tr2ChartFrame=null;
+function tr2ResizeEquityChart(){
+ const wrap=tr2EquityWrap;
+ if(!wrap||!wrap.isConnected)return;
+ const rect=wrap.getBoundingClientRect();
+ const width=Math.max(0,Math.round(rect.width)),height=Math.max(0,Math.round(rect.height));
+ if(width<120||height<100)return;
+ const svg=wrap.querySelector('svg.dashboard-equity-svg');
+ if(!svg)return; // Empty plans retain their authored empty-state message.
+ const unit=['r','ticks','usd'].includes(window.__trDashboardUnit)?window.__trDashboardUnit:'r';
+ if(wrap.dataset.tr2EquityWidth===String(width)&&
+    wrap.dataset.tr2EquityHeight===String(height)&&
+    wrap.dataset.tr2EquityUnit===unit)return;
+ if(typeof dashboardEquitySvgV114!=='function'||
+    typeof calcMetricStats!=='function'||typeof currentOps!=='function'||
+    typeof v3194EquityFromZero!=='function')return;
+ try{
+  const stats=calcMetricStats(currentOps(),unit,'gross');
+  const values=v3194EquityFromZero(stats.equity);
+  if(!values.length)return;
+  const template=document.createElement('template');
+  template.innerHTML=dashboardEquitySvgV114(values,unit,width,height);
+  const fitted=template.content.querySelector('svg.dashboard-equity-svg');
+  if(!fitted)return;
+  // viewBox and actual geometry share an aspect ratio: no letterboxing and
+  // no non-uniform stretch of text or line strokes.
+  fitted.setAttribute('preserveAspectRatio','xMinYMin meet');
+  fitted.setAttribute('role','img');
+  fitted.setAttribute('aria-label','Curva de equity del plan seleccionado');
+  svg.replaceWith(fitted);
+  wrap.dataset.tr2EquityWidth=String(width);
+  wrap.dataset.tr2EquityHeight=String(height);
+  wrap.dataset.tr2EquityUnit=unit;
+ }catch(error){console.warn('[Trading Research] Equity responsive sizing',error);}
+}
+function tr2QueueChartFit(){
+ if(tr2ChartFrame!==null)return;
+ tr2ChartFrame=requestAnimationFrame(()=>{
+  tr2ChartFrame=null;
+  tr2ResizeEquityChart();
+ });
+}
+function tr2ConnectEquityChart(){
+ const next=document.querySelector('#view .tr2-equity-widget .chart-wrap');
+ if(next===tr2EquityWrap)return;
+ if(tr2EquityObserver)tr2EquityObserver.disconnect();
+ tr2EquityWrap=next;
+ if(!next)return;
+ delete next.dataset.tr2EquityWidth;
+ delete next.dataset.tr2EquityHeight;
+ delete next.dataset.tr2EquityUnit;
+ if(typeof ResizeObserver==='function'){
+  if(!tr2EquityObserver)tr2EquityObserver=new ResizeObserver(()=>tr2QueueChartFit());
+  tr2EquityObserver.observe(next);
+ }
+ tr2QueueChartFit();
+}
 function operations(root){
  const panel=root.querySelector('.tr5-ops-register .table-module')||
   root.querySelector('#opsAnalyticsArea .table-module');
@@ -277,9 +342,14 @@ function enhanceOperationModal(){
  }
 }
 const observer=new MutationObserver(records=>{
- if(records.some(record=>record.addedNodes?.length))enhanceOperationModal();
+ if(records.some(record=>record.addedNodes?.length)){
+  enhanceOperationModal();
+  tr2ConnectEquityChart();
+ }
 });
 observer.observe(document.body,{subtree:true,childList:true});
+window.addEventListener('resize',tr2QueueChartFit,{passive:true});
 enhanceOperationModal();
+tr2ConnectEquityChart();
 globalThis.TradingResearchVisualPR2=Object.freeze({version:'1',decorate,enhanceOperationModal});
 })();

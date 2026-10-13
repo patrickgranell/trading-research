@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-source-transform.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
+import {injectOperationLots} from './operation-lots-build-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
 import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
@@ -42,7 +43,7 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
 const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
-preEventSources['app.js']=residualMirrorClosure.source;
+preEventSources['app.js']=injectOperationLots(residualMirrorClosure.source).source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
 const trEventBuildFingerprint=crypto.createHash('sha256')
   .update(Object.entries(preEventSources).map(([name,source])=>name+'\0'+source).join('\0')+'\0structured-event-transform.mjs\0'+rawScript('structured-event-transform.mjs'),'utf8')

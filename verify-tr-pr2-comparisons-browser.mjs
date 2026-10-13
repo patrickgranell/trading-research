@@ -25,20 +25,19 @@ const probe=String.raw`(async()=>{
   }
   const before=JSON.stringify(state.operations);
   window.TradingResearchActions.navigate('dashboard');await sleep(400);
-  const root=document.querySelector('#view [data-trcomp-root]');if(!root)throw Error('Comparative panel absent');
-  o.initialTabs=[...root.querySelectorAll('[data-trcomp-tab]')].map(b=>b.textContent);
-  o.management=root.querySelector('[data-trcomp-body]').textContent;
-  o.managementRows=root.querySelectorAll('.trcomp-table tbody tr').length;
+  const widgets=[...document.querySelectorAll('#view [data-trcomp-widget]')];
+  o.widgetKeys=widgets.map(w=>w.dataset.trcompWidget);
+  o.gridParents=widgets.every(w=>w.parentElement.matches('.dashboard-panel-grid'));
+  o.management=document.querySelector('[data-trcomp-widget="management"] [data-trcomp-body]')?.textContent;
+  o.managementRows=document.querySelectorAll('[data-trcomp-widget="management"] .trcomp-bar-row').length;
   for(const kind of ['lots','hour','weekday','month','year']){
-   root.querySelector('[data-trcomp-tab="'+kind+'"]').click();
-   o[kind]={rows:root.querySelectorAll('.trcomp-table tbody tr').length,unit:root.querySelector('[data-trcomp-unit-label]').textContent,text:root.querySelector('[data-trcomp-body]').textContent.slice(0,600)};
+   const w=document.querySelector('[data-trcomp-widget="'+kind+'"]');
+   o[kind]={rows:w?.querySelectorAll('.trcomp-bar-row').length,unit:w?.querySelector('[data-trcomp-unit-label]')?.textContent,text:w?.querySelector('[data-trcomp-body]')?.textContent};
   }
-  root.querySelector('[data-trcomp-tab="management"]').click();
-  const unit=root.querySelector('[data-trcomp-unit]');unit.value='r';unit.dispatchEvent(new Event('change',{bubbles:true}));
-  o.unitR=root.querySelector('[data-trcomp-unit-label]').textContent;
   o.dataIntact=JSON.stringify(state.operations)===before;
   openDashboardCustomizer();await sleep(170);
-  o.customizerToggle=!!document.querySelector('.modal [data-trcomp-enabled]');
+  o.customizerToggle=document.querySelectorAll('.modal [data-trcomp-enabled]').length;
+  o.customizerSizing=document.querySelectorAll('.modal [data-trcomp-size]').length;
   closeModal();
  }catch(e){o.error=String(e?.stack||e);}
  document.body.dataset.trCompProbe=encodeURIComponent(JSON.stringify(o));
@@ -55,18 +54,19 @@ try{
  assert(encoded,'Missing dashboard comparison result: '+r.stderr?.slice(-1200));
  const o=JSON.parse(decodeURIComponent(encoded));console.log('PR2 comparative Dashboard',JSON.stringify(o));
  assert(!o.error,o.error);
- assert.deepEqual(o.initialTabs,['Gestión','Lotes','Horas','Días','Meses','Años']);
+ assert.deepEqual(o.widgetKeys,['management','lots','hour','weekday','month','year']);
+ assert.equal(o.gridParents,true);
  assert.equal(o.managementRows,2);
  assert(o.management.includes('Gestión A')&&o.management.includes('Gestión B'));
  assert.equal(o.lots.rows,4);
- assert.equal(o.lots.unit,'ticks-contrato reales (por lote)');
+ assert.equal(o.lots.unit,'ticks-contrato');
  assert(o.lots.text.includes('Gestión A')&&o.lots.text.includes('Gestión B'));
  assert.equal(o.hour.rows,2);
  assert(o.weekday.rows>=2);
  assert(o.month.rows,3);
  assert.equal(o.year.rows,2);
- assert.equal(o.unitR,'R');
  assert.equal(o.dataIntact,true);
- assert.equal(o.customizerToggle,true);
+ assert.equal(o.customizerToggle,6);
+ assert.equal(o.customizerSizing,6);
  console.log('TR-VIS PR2 Dashboard comparisons PASS: management, lots, entry hours, weekdays, months, years, canonical unit and no data writes.');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}

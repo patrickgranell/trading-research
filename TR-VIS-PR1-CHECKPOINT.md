@@ -59,3 +59,11 @@ No hay autorización de merge ni despliegue a producción. Mantener el mismo PR 
 - Comprobación visual humana en la preview y organización del menú del PR 1 siguen pendientes.
 
 No hay autorización de merge ni despliegue en producción. Preview de rama se mantiene en la URL comunicada por Cloudflare; verificar el SHA realmente desplegado antes de dar una nueva prueba al usuario.
+
+## Seguimiento 13/10/2026 · TR-VIS-PR1-01 / 02
+- **TR-VIS-PR1-01 — Personalizador desalineado:** CSS scoped en `styles.css` para cada `.modal .dashboard-config-row`. El nombre y checkbox ocupan una línea, y select y flechas comparten otra con altura, ancho y alineación definidos. Comprobación Chromium de doce filas y tres columnas de 760px, sin solapes/desbordamientos, PASS. Pendiente verificación visual del usuario en la preview.
+- **TR-VIS-PR1-02 — 3 vs 10 operaciones:** el modelo actual alimenta Dashboard desde `currentOps()` y Operaciones desde `filteredOps()`, derivado de `currentOps()`. Se añadió `verify-tr-vis-pr1-counts-browser.mjs` ejecutado en Chromium sobre `dist/index.html` con aislamiento de perfil: se crean diez operaciones para el mismo Trading Plan (3 ganancias y 7 pérdidas), y se valida Dashboard KPI **10** / win rate **30%** / Registro sin filtros **10 filas**. Prueba PASS. **La discrepancia concreta de la captura (3 vs 10) NO ha sido reproducida ni explicada** con los datos de sesión del usuario; no se alteraron cálculos ni base de datos. Conservar como incidencia abierta hasta revalidar en su preview con los datos reales.
+- Cambio correctivo incorporado en mismo PR, sin otros PR/merges. `Market Data` dark/theme y botones de registro exclusivos de Operaciones corregidos previamente. Columnas movibles/visibles: backlog.
+- **CI completo PASS** en commit `100eaf244991a7d3b0053543443f72807343b6b3`: https://github.com/patrickgranell/trading-research/actions/runs/38417706330
+- **Cloudflare confirmó despliegue de la rama a ese commit** (comentario en PR #118): https://tr-vis-pr1-sistema-visual-20261013-trading-research.tradingresearch.workers.dev
+- PR sigue en borrador, sin merge. No se considera certificado hasta revisión visual, aclaración de la discrepancia del usuario y cierre conjunto del menú.

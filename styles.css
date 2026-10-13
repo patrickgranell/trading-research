@@ -1814,3 +1814,104 @@ html:not([data-theme="light"]) #view .md-dataset.active{
  #view .tr-colprefs-list{grid-template-columns:minmax(0,1fr)}
  #view .tr-colprefs-footer{align-items:flex-start;flex-direction:column}
 }
+
+
+/* TR-VIS PR 2 — Executive/operational reading, all themes, source metrics intact. */
+#view .dashboard-kpis-custom .tr2-primary-kpi .kpi{
+ border-top:2px solid var(--accent);padding-top:13px;
+}
+#view .dashboard-kpis-custom .tr2-primary-kpi .kpi .value{
+ font-size:clamp(21px,1.55vw,28px);line-height:1.3;
+ font-variant-numeric:tabular-nums;
+}
+#view .dashboard-kpis-custom .tr2-secondary-kpi .kpi .value{
+ font-size:clamp(18px,1.25vw,23px);line-height:1.32;
+}
+#view .tr2-dashboard-panels .tr2-equity-widget .dashboard-custom-panel{
+ min-height:320px;
+}
+#view .tr2-equity-widget .chart-wrap{min-height:245px;display:grid;align-items:center}
+#view .tr2-equity-widget .dashboard-equity-svg{max-height:275px;width:100%;height:auto}
+#view .tr2-dashboard-panels .dashboard-widget{min-width:0}
+#view .tr2-operaciones-register .panel-title{flex-wrap:wrap}
+#view .tr2-compact-switch{font-size:12px;white-space:nowrap;min-height:31px}
+#view .tr2-operaciones-table th[data-tr-cols-key="result"],
+#view .tr2-operaciones-table td[data-tr-cols-key="result"]{
+ white-space:nowrap;
+}
+#view .tr2-operaciones-table td[data-tr-cols-key="metric"],
+#view .tr2-operaciones-table td[data-tr-cols-key="ticks"],
+#view .tr2-operaciones-table td[data-tr-cols-key="netPnl"],
+#view .tr2-operaciones-table td[data-tr-cols-key="commission"]{
+ text-align:right;font-variant-numeric:tabular-nums;
+}
+#view .tr2-operaciones-register.tr2-compact table .tr-cols-hidden{display:none!important}
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="entryTime"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="exitTime"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="vd"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="nr"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="hypothesis"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="regime"]{
+ display:none!important;
+}
+/* Original cells remain in the DOM and are recoverable in Vista completa. */
+#view .tr2-operaciones-register.tr2-compact .tr2-operaciones-table{min-width:850px}
+#view .tr2-block-card{display:flex;flex-direction:column;gap:8px}
+#view .tr2-block-card .block-top{flex-wrap:wrap;margin-bottom:0}
+#view .tr2-block-card .block-spark{order:1;margin-top:3px}
+#view .tr2-block-card .tr2-block-scale{order:2;display:block;font-size:10px;line-height:1.35;color:var(--muted)}
+#view .tr2-block-card>.block-core-grid{order:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#view .tr2-block-card>.block-core-grid>div{min-width:0}
+#view .tr2-block-card>.block-core-grid strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#view .tr2-block-card>.tr2-block-more{order:4}
+#view .tr2-block-card>.block-actions{order:5;margin-top:auto;padding-top:6px}
+#view .tr2-block-incomplete{
+ display:inline-flex;align-items:center;padding:5px 8px;
+ border:1px solid color-mix(in srgb,var(--warning) 47%,var(--border));
+ background:color-mix(in srgb,var(--warning) 9%,var(--panel));
+ border-radius:8px;font-size:10px;color:var(--warning);
+}
+#view .tr2-block-more summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--accent);padding:5px 0}
+#view .tr2-block-more summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#view .tr2-block-more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:5px 0}
+#view .tr2-block-comparison{margin-top:18px}
+#view .tr2-calendar-panel .calendar-day-head strong{font-size:15px}
+#view .tr2-calendar-panel .calendar-day-result{font-size:clamp(16px,1.3vw,21px);line-height:1.25;overflow-wrap:anywhere}
+#view .tr2-calendar-panel .calendar-day-head span{font-size:11px;font-weight:650}
+#view .tr2-calendar-panel .tr2-calendar-secondary{font-size:10px;opacity:.87}
+#view .tr2-calendar-panel .tr2-calendar-empty .calendar-day-result{font-size:11px;line-height:1.4;color:var(--muted);font-weight:500;letter-spacing:0}
+#view .tr2-calendar-panel .tr2-calendar-unevaluated .calendar-day-result{font-size:12px;line-height:1.4;color:var(--warning);font-weight:650}
+#view .tr2-calendar-panel .tr2-calendar-month-primary{
+ border-top:2px solid var(--accent);
+}
+#view .tr2-calendar-panel .tr2-calendar-month-primary strong{font-size:18px;line-height:1.35;font-variant-numeric:tabular-nums}
+#view .tr2-calendar-panel .tr2-calendar-month-secondary strong{font-variant-numeric:tabular-nums}
+#view .tr2-calendar-panel .tr2-calendar-key{font-size:11px;color:var(--muted)}
+.tr2-operation-modal .modal-head{padding-block:12px}
+.tr2-operation-modal .modal-body{padding:14px 18px}
+.tr2-operation-modal #operationForm .form-section{margin-bottom:12px;padding:14px}
+.tr2-operation-modal #operationForm .form-section:first-child{
+ padding:9px 14px;
+}
+.tr2-operation-modal #operationForm .form-section:first-child h4{margin-bottom:7px}
+.tr2-operation-modal #operationForm .plan-readonly{padding:8px 11px;min-height:unset}
+.tr2-operation-modal #operationForm .form-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tr2-operation-modal #operationForm .field{min-width:0}
+.tr2-operation-modal #operationForm .field>.input,
+.tr2-operation-modal #operationForm .field>.select,
+.tr2-operation-modal #operationForm .field>.textarea{width:100%}
+.tr2-operation-modal .modal-foot{
+ position:sticky;bottom:0;z-index:2;
+ background:var(--panel);box-shadow:0 -8px 24px rgba(0,0,0,.15);
+ padding:12px 18px;
+}
+@media(max-width:1120px){
+ #view .tr2-block-card>.block-core-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .tr2-operation-modal #operationForm .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:680px){
+ .tr2-operation-modal #operationForm .form-grid{grid-template-columns:minmax(0,1fr)}
+ .tr2-operation-modal #operationForm .field.full,
+ .tr2-operation-modal #operationForm .field.span2{grid-column:1/-1}
+ #view .tr2-calendar-panel .calendar-day-result{font-size:16px}
+}

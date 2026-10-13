@@ -2004,3 +2004,33 @@ html:not([data-theme="light"]) #view .md-dataset.active{
  #operationForm .tr-lot-execution-row{grid-template-columns:minmax(0,1fr)}
  #operationForm .tr-lot-description{grid-column:1}
 }
+
+
+/* TR-VIS PR2 comparative research — display only, dark and light theme tokens */
+#view .trcomp-panel{margin-top:14px;padding:16px;min-width:0}
+#view .trcomp-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+#view .trcomp-top h3{font-size:15px;margin:0 0 5px;font-weight:750}
+#view .trcomp-top small,#view .trcomp-footnote,#view .trcomp-unit{font-size:11px;color:var(--muted)}
+#view .trcomp-controls{display:flex;gap:8px;flex-wrap:wrap}
+#view .trcomp-controls label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+#view .trcomp-controls select{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:6px 7px;border-radius:7px;font-size:12px}
+#view .trcomp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:13px 0 9px}
+#view .trcomp-tab.active{background:var(--accent);color:var(--bg);font-weight:700}
+#view .trcomp-unit{margin:0 0 8px}
+#view .trcomp-unit strong{color:var(--text)}
+#view .trcomp-table-scroll{overflow:auto;max-height:450px}
+#view .trcomp-table{border-collapse:collapse;width:100%;min-width:580px;font-size:12px}
+#view .trcomp-table th,#view .trcomp-table td{text-align:right;border-bottom:1px solid var(--border);padding:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#view .trcomp-table th:first-child,#view .trcomp-table td:first-child{text-align:left}
+#view .trcomp-table thead th{font-size:10px;color:var(--muted);font-weight:750}
+#view .trcomp-table .positive{color:var(--good,#32cda4);font-weight:700}
+#view .trcomp-table .negative{color:var(--bad,#f56b75);font-weight:700}
+#view .trcomp-meter{display:block;width:100%;min-width:80px;max-width:180px;height:9px;accent-color:var(--accent)}
+#view .trcomp-meter.negative{accent-color:#b9777f}
+#view .trcomp-empty{padding:20px;text-align:center;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:12px}
+#view .trcomp-footnote{margin:11px 0 0;line-height:1.5}
+.modal .trcomp-config{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
+.modal .trcomp-config label{display:flex;gap:8px;align-items:center;font-weight:700;font-size:12px}
+.modal .trcomp-config small{color:var(--muted);font-size:11px;display:block;margin-top:5px}
+#operationForm .tr-lots-chronology-note{display:block;margin-top:6px;font-size:11px;color:var(--muted);line-height:1.5}
+@media(max-width:800px){#view .trcomp-panel{padding:10px}#view .trcomp-tabs{flex-wrap:nowrap;overflow-x:auto}#view .trcomp-tab{flex:0 0 auto}}

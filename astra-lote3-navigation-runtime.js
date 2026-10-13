@@ -129,6 +129,323 @@ function decorate(view,html){
  // TR-VIS-001: equity axes must not be stretched along one direction.
  // Constrain to the Dashboard's SVG; no change to its points, values or range.
  if(view==='dashboard'){
+  // TR-VIS-PR1-02 · Total is ALL records in the active plan, never the
+  // R-eligible subset. The canonical engine still exclusively determines
+  // financial metric eligibility; label its denominator explicitly.
+  const all=globalThis.TradingResearchOperationsReadContract?.current?.();
+  if(Array.isArray(all)){
+   const cards=[...template.content.querySelectorAll('.dashboard-kpis-custom .kpi')];
+   const cardFor=label=>cards.find(card=>card.querySelector('.label')?.textContent?.trim().startsWith(label));
+   const total=all.length,operationsCard=cardFor('Operaciones');
+   if(operationsCard){
+    const value=operationsCard.querySelector('.value'),sub=operationsCard.querySelector('.sub');
+    if(value)value.textContent=String(total);
+    if(sub)sub.textContent='total del Trading Plan';
+   }
+   const activeUnit=template.content.querySelector('.dashboard-unit-switch .seg-btn.active')?.textContent?.trim();
+   const unit=activeUnit==='Ticks'?'ticks':activeUnit==='US
+   if(svg.getAttribute('preserveAspectRatio')==='none'){
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    svg.setAttribute('role','img');
+    svg.setAttribute('aria-label','Curva de equity del plan seleccionado');
+   }
+  }
+ }
+ // TR-VIS-015: an empty plan is NOT a failed plan. This adaptation only
+ // changes the visible empty-state copy. The underlying audit stays untouched.
+ if(view==='decision'&&typeof currentOps==='function'){
+  let operations=null;
+  try{operations=currentOps();}catch(_){}
+  if(Array.isArray(operations)&&operations.length===0){
+   const hero=template.content.querySelector('.decision-hero');
+   if(hero){
+    hero.classList.remove('high','medium','good');
+    hero.classList.add('tr-vis-neutral');
+    const title=hero.querySelector('h2'),summary=hero.querySelector('p');
+    if(title)title.textContent='Sin muestra operativa';
+    if(summary)summary.textContent='Todavía no hay operaciones para evaluar el resultado del plan. La ausencia de muestra no constituye un incumplimiento.';
+    const quality=hero.querySelector('.decision-hero-kpis >div:first-child >strong');
+    if(quality)quality.textContent='—';
+   }
+   const status=template.content.querySelector('.decision-section-head >span');
+   if(status)status.textContent='Sin evaluación';
+   const priorities=template.content.querySelector('.decision-priority-grid');
+   if(priorities){
+    const neutral=document.createElement('div');
+    neutral.className='tr-vis-zero-sample';
+    const title=document.createElement('strong');title.textContent='Sin prioridades estadísticas';
+    const copy=document.createElement('p');
+    copy.textContent='Las prioridades basadas en cobertura y resultados aparecerán cuando exista una muestra evaluable. Puedes configurar el plan y consultar su calidad de datos mientras tanto.';
+    neutral.append(title,copy);priorities.replaceChildren(neutral);
+   }
+  }
+ }
+ if(emotional.includes(view))journalNavigation(view,template.content);
+ if(view==='compliance'||view==='mistakes')executionNavigation(view,template.content);
+ if(view==='plans')returnLink(view,template.content);
+ return template.innerHTML;
+}
+/*
+ * Sidebar owns modules; horizontal navigation owns pages inside a module.
+ * Replace only the redundant source-shell buttons, never the underlying
+ * routes/handlers or their persisted view IDs.
+ */
+function ensureModuleEntries(nav){
+ const oldJournal=nav.querySelector(':scope > .nav-group[data-nav-group="emotional"]');
+ if(oldJournal){
+  const main=document.createElement('button');
+  main.type='button';main.className='tr3-main-destination';
+  main.dataset.view='journaldashboard';
+  main.dataset.trActionClick='trAstraL3Go';
+  main.dataset.trArgsClick=arg(['journaldashboard']);
+  main.innerHTML='<span class="icon" aria-hidden="true">♡</span><span class="tr3-main-label">Diario emocional</span>';
+  oldJournal.replaceWith(main);
+ }
+ const control=nav.querySelector(':scope > .nav-group[data-nav-group="control"]');
+ if(control){
+  const container=control.querySelector(':scope > .nav-group-items');
+  const existing=container?[...container.querySelectorAll(':scope > .nav-child[data-view]')].filter(x=>x.dataset.view==='compliance'||x.dataset.view==='mistakes'):[];
+  // Replace both only when the pair is complete; never lose a destination
+  // if some unrelated runtime changes the source sidebar later.
+  if(existing.length===2&&!container.querySelector('.tr3-execution-destination')){
+   const entry=document.createElement('button');
+   entry.type='button';entry.className='nav-child tr3-execution-destination';
+   entry.dataset.view='compliance';
+   entry.dataset.trActionClick='trAstraL3Go';
+   entry.dataset.trArgsClick=arg(['compliance']);
+   entry.innerHTML='<span class="icon" aria-hidden="true">✓</span><span class="nav-child-label">Revisión de ejecución</span>';
+   existing[0].before(entry);
+   for(const old of existing)old.remove();
+  }
+ }
+}
+function syncSidebar(){
+ const nav=document.querySelector('.sidebar .nav-organized');
+ if(!nav)return;
+ const current=read();
+ ensureModuleEntries(nav);
+ // The persistent shell did not previously clear Dashboard's "active" class.
+ const direct=nav.querySelector(':scope > button');
+ if(direct){
+  direct.dataset.view='dashboard';
+  direct.classList.toggle('active',current==='dashboard');
+  direct.setAttribute('aria-current',current==='dashboard'?'page':'false');
+ }
+ nav.querySelectorAll('.nav-child[data-view]').forEach(item=>{
+   const active=item.dataset.view===current;
+   item.classList.toggle('active',active);
+   if(active)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
+   const label=item.querySelector('.nav-child-label');
+   if(label&&compactName[item.dataset.view])label.textContent=compactName[item.dataset.view];
+ });
+ const journalEntry=nav.querySelector(':scope > .tr3-main-destination');
+ if(journalEntry){
+   const eligible=env(plan())!=='backtest';
+   journalEntry.hidden=!eligible;
+   const active=eligible&&emotional.includes(current);
+   journalEntry.classList.toggle('active',active);
+   if(active)journalEntry.setAttribute('aria-current','location');
+   else journalEntry.removeAttribute('aria-current');
+ }
+ const reviewEntry=nav.querySelector('.tr3-execution-destination');
+ if(reviewEntry){
+   const active=current==='compliance'||current==='mistakes';
+   reviewEntry.classList.toggle('active',active);
+   if(active)reviewEntry.setAttribute('aria-current','location');
+   else reviewEntry.removeAttribute('aria-current');
+ }
+ nav.querySelectorAll('.nav-group').forEach(g=>{
+   const active=(g.dataset.navGroup==='emotional'&&emotional.includes(current))||[...g.querySelectorAll('.nav-child')].some(b=>b.dataset.view===current);
+   g.classList.toggle('tr3-ancestor',active);
+   const toggle=g.querySelector(':scope > .nav-group-toggle');
+   if(toggle){if(active)toggle.setAttribute('data-tr-parent-of-active','');else toggle.removeAttribute('data-tr-parent-of-active');}
+ });
+ // Keep appearance available without leaving a permanent tall settings card.
+ const sidebar=document.querySelector('.sidebar');
+ const appearance=sidebar?.querySelector(':scope > .theme-switch');
+ if(appearance&&!sidebar.querySelector(':scope > .tr3-appearance')){
+  const details=document.createElement('details');details.className='tr3-appearance';
+  const summary=document.createElement('summary');summary.textContent='Apariencia';
+  appearance.before(details);details.append(summary,appearance);
+ }
+}
+// Wrap the established structural presentation boundary rather than replacing
+// router or navigation state; all plan/sample/study state is left untouched.
+if(typeof trRenderViewHtml==='function'){
+ const base=trRenderViewHtml;
+ trRenderViewHtml=function(view){return decorate(view??read(),base(view));};
+}
+if(typeof trRenderSyncSidebar==='function'){
+ const base=trRenderSyncSidebar;
+ trRenderSyncSidebar=function(){base();syncSidebar();};
+}
+window.TradingResearchAstraLote3=Object.freeze({names:canonical,decorate,syncSidebar,emotionalViews:emotional.slice(),getReturn:()=>returnFromPrereq});
+queueMicrotask(()=>{try{if(window.TradingResearchCurrentViewReadContract?.current?.())window.render?.();}catch(e){console.error('[Astra Lote 3]',e);}});
+})();?'usd':'r';
+   const label=unit==='ticks'?'ticks':unit==='usd'?'US
+   if(svg.getAttribute('preserveAspectRatio')==='none'){
+    svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+    svg.setAttribute('role','img');
+    svg.setAttribute('aria-label','Curva de equity del plan seleccionado');
+   }
+  }
+ }
+ // TR-VIS-015: an empty plan is NOT a failed plan. This adaptation only
+ // changes the visible empty-state copy. The underlying audit stays untouched.
+ if(view==='decision'&&typeof currentOps==='function'){
+  let operations=null;
+  try{operations=currentOps();}catch(_){}
+  if(Array.isArray(operations)&&operations.length===0){
+   const hero=template.content.querySelector('.decision-hero');
+   if(hero){
+    hero.classList.remove('high','medium','good');
+    hero.classList.add('tr-vis-neutral');
+    const title=hero.querySelector('h2'),summary=hero.querySelector('p');
+    if(title)title.textContent='Sin muestra operativa';
+    if(summary)summary.textContent='Todavía no hay operaciones para evaluar el resultado del plan. La ausencia de muestra no constituye un incumplimiento.';
+    const quality=hero.querySelector('.decision-hero-kpis >div:first-child >strong');
+    if(quality)quality.textContent='—';
+   }
+   const status=template.content.querySelector('.decision-section-head >span');
+   if(status)status.textContent='Sin evaluación';
+   const priorities=template.content.querySelector('.decision-priority-grid');
+   if(priorities){
+    const neutral=document.createElement('div');
+    neutral.className='tr-vis-zero-sample';
+    const title=document.createElement('strong');title.textContent='Sin prioridades estadísticas';
+    const copy=document.createElement('p');
+    copy.textContent='Las prioridades basadas en cobertura y resultados aparecerán cuando exista una muestra evaluable. Puedes configurar el plan y consultar su calidad de datos mientras tanto.';
+    neutral.append(title,copy);priorities.replaceChildren(neutral);
+   }
+  }
+ }
+ if(emotional.includes(view))journalNavigation(view,template.content);
+ if(view==='compliance'||view==='mistakes')executionNavigation(view,template.content);
+ if(view==='plans')returnLink(view,template.content);
+ return template.innerHTML;
+}
+/*
+ * Sidebar owns modules; horizontal navigation owns pages inside a module.
+ * Replace only the redundant source-shell buttons, never the underlying
+ * routes/handlers or their persisted view IDs.
+ */
+function ensureModuleEntries(nav){
+ const oldJournal=nav.querySelector(':scope > .nav-group[data-nav-group="emotional"]');
+ if(oldJournal){
+  const main=document.createElement('button');
+  main.type='button';main.className='tr3-main-destination';
+  main.dataset.view='journaldashboard';
+  main.dataset.trActionClick='trAstraL3Go';
+  main.dataset.trArgsClick=arg(['journaldashboard']);
+  main.innerHTML='<span class="icon" aria-hidden="true">♡</span><span class="tr3-main-label">Diario emocional</span>';
+  oldJournal.replaceWith(main);
+ }
+ const control=nav.querySelector(':scope > .nav-group[data-nav-group="control"]');
+ if(control){
+  const container=control.querySelector(':scope > .nav-group-items');
+  const existing=container?[...container.querySelectorAll(':scope > .nav-child[data-view]')].filter(x=>x.dataset.view==='compliance'||x.dataset.view==='mistakes'):[];
+  // Replace both only when the pair is complete; never lose a destination
+  // if some unrelated runtime changes the source sidebar later.
+  if(existing.length===2&&!container.querySelector('.tr3-execution-destination')){
+   const entry=document.createElement('button');
+   entry.type='button';entry.className='nav-child tr3-execution-destination';
+   entry.dataset.view='compliance';
+   entry.dataset.trActionClick='trAstraL3Go';
+   entry.dataset.trArgsClick=arg(['compliance']);
+   entry.innerHTML='<span class="icon" aria-hidden="true">✓</span><span class="nav-child-label">Revisión de ejecución</span>';
+   existing[0].before(entry);
+   for(const old of existing)old.remove();
+  }
+ }
+}
+function syncSidebar(){
+ const nav=document.querySelector('.sidebar .nav-organized');
+ if(!nav)return;
+ const current=read();
+ ensureModuleEntries(nav);
+ // The persistent shell did not previously clear Dashboard's "active" class.
+ const direct=nav.querySelector(':scope > button');
+ if(direct){
+  direct.dataset.view='dashboard';
+  direct.classList.toggle('active',current==='dashboard');
+  direct.setAttribute('aria-current',current==='dashboard'?'page':'false');
+ }
+ nav.querySelectorAll('.nav-child[data-view]').forEach(item=>{
+   const active=item.dataset.view===current;
+   item.classList.toggle('active',active);
+   if(active)item.setAttribute('aria-current','page');else item.removeAttribute('aria-current');
+   const label=item.querySelector('.nav-child-label');
+   if(label&&compactName[item.dataset.view])label.textContent=compactName[item.dataset.view];
+ });
+ const journalEntry=nav.querySelector(':scope > .tr3-main-destination');
+ if(journalEntry){
+   const eligible=env(plan())!=='backtest';
+   journalEntry.hidden=!eligible;
+   const active=eligible&&emotional.includes(current);
+   journalEntry.classList.toggle('active',active);
+   if(active)journalEntry.setAttribute('aria-current','location');
+   else journalEntry.removeAttribute('aria-current');
+ }
+ const reviewEntry=nav.querySelector('.tr3-execution-destination');
+ if(reviewEntry){
+   const active=current==='compliance'||current==='mistakes';
+   reviewEntry.classList.toggle('active',active);
+   if(active)reviewEntry.setAttribute('aria-current','location');
+   else reviewEntry.removeAttribute('aria-current');
+ }
+ nav.querySelectorAll('.nav-group').forEach(g=>{
+   const active=(g.dataset.navGroup==='emotional'&&emotional.includes(current))||[...g.querySelectorAll('.nav-child')].some(b=>b.dataset.view===current);
+   g.classList.toggle('tr3-ancestor',active);
+   const toggle=g.querySelector(':scope > .nav-group-toggle');
+   if(toggle){if(active)toggle.setAttribute('data-tr-parent-of-active','');else toggle.removeAttribute('data-tr-parent-of-active');}
+ });
+ // Keep appearance available without leaving a permanent tall settings card.
+ const sidebar=document.querySelector('.sidebar');
+ const appearance=sidebar?.querySelector(':scope > .theme-switch');
+ if(appearance&&!sidebar.querySelector(':scope > .tr3-appearance')){
+  const details=document.createElement('details');details.className='tr3-appearance';
+  const summary=document.createElement('summary');summary.textContent='Apariencia';
+  appearance.before(details);details.append(summary,appearance);
+ }
+}
+// Wrap the established structural presentation boundary rather than replacing
+// router or navigation state; all plan/sample/study state is left untouched.
+if(typeof trRenderViewHtml==='function'){
+ const base=trRenderViewHtml;
+ trRenderViewHtml=function(view){return decorate(view??read(),base(view));};
+}
+if(typeof trRenderSyncSidebar==='function'){
+ const base=trRenderSyncSidebar;
+ trRenderSyncSidebar=function(){base();syncSidebar();};
+}
+window.TradingResearchAstraLote3=Object.freeze({names:canonical,decorate,syncSidebar,emotionalViews:emotional.slice(),getReturn:()=>returnFromPrereq});
+queueMicrotask(()=>{try{if(window.TradingResearchCurrentViewReadContract?.current?.())window.render?.();}catch(e){console.error('[Astra Lote 3]',e);}});
+})();:'R';
+   let stats=null;
+   try{if(typeof calcMetricStats==='function')stats=calcMetricStats(all,unit,'gross');}catch(_){}
+   if(stats&&Number.isFinite(stats.n)){
+    if(operationsCard&&stats.n!==total){
+     const sub=operationsCard.querySelector('.sub');
+     if(sub)sub.textContent='total del TP · '+stats.n+'/'+total+' evaluables en '+label;
+    }
+    const win=cardFor('Win rate');
+    if(win){
+     const value=win.querySelector('.value'),sub=win.querySelector('.sub');
+     if(value)value.textContent=stats.n?stats.winRate.toFixed(1)+'%':'—';
+     if(sub)sub.textContent=stats.n+'/'+total+' evaluables en '+label;
+    }
+   }
+   const blocks=cardFor('Bloques');
+   if(blocks){
+    const value=blocks.querySelector('.value');
+    if(value)value.textContent=String(Math.ceil(total/20));
+   }
+   for(const section of template.content.querySelectorAll('.dashboard-secondary-card')){
+    if(section.querySelector('.panel-title h3')?.textContent?.trim()!=='Bloque actual')continue;
+    const number=section.querySelector('.kpi.value');
+    if(number)number.textContent=String(Math.ceil(total/20));
+   }
+  }
   for(const svg of template.content.querySelectorAll('svg.dashboard-equity-svg[viewBox]')){
    if(svg.getAttribute('preserveAspectRatio')==='none'){
     svg.setAttribute('preserveAspectRatio','xMidYMid meet');

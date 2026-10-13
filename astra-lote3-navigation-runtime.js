@@ -122,7 +122,7 @@ function decorate(view,html){
  // handles source markup and build-time CSP action-token transformation.
  if(view!=='operations'){
   for(const button of template.content.querySelectorAll('button')){
-   const label=button.textContent.trim().replace(/^\\+\\s*/, '').trim().toLocaleLowerCase('es');
+   const label=button.textContent.trim().replace(/^\+\s*/, '').trim().toLocaleLowerCase('es');
    if(label==='nueva operación'||label==='importar ankora')button.remove();
   }
  }

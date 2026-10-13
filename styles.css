@@ -1958,3 +1958,49 @@ html:not([data-theme="light"]) #view .md-dataset.active{
 @media(max-width:900px){
  #view .tr2-equity-widget .chart-wrap{height:245px}
 }
+
+/* TR-VIS PR2 · Real execution per configured lot, not only target planning. */
+#operationForm .tr-lot-editor{
+ margin:12px 0 0;padding:13px 14px;border:1px solid var(--border);
+ border-radius:10px;background:var(--panel2);color:var(--text);
+}
+#operationForm .tr-lot-header{
+ display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px;
+}
+#operationForm .tr-lot-header h4{font-size:13px;margin:0 0 4px;font-weight:750}
+#operationForm .tr-lot-header small{font-size:11px;color:var(--muted);line-height:1.4}
+#operationForm .tr-lot-header>label{min-width:160px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
+#operationForm .tr-lot-header .tr-lots-mode{min-height:32px;color:var(--text);background:var(--panel)}
+#operationForm .tr-lot-row-list{display:grid;gap:8px}
+#operationForm .tr-lot-row-list[hidden]{display:none!important}
+#operationForm .tr-lot-execution-row{
+ display:grid;grid-template-columns:minmax(165px,1.25fr) minmax(130px,1fr) minmax(145px,1fr);
+ align-items:end;gap:10px;padding:10px 12px;border:1px solid var(--border);
+ border-radius:9px;background:var(--panel);min-width:0;
+}
+#operationForm .tr-lot-description{display:flex;flex-direction:column;gap:5px;min-width:0;align-self:center}
+#operationForm .tr-lot-description strong{font-size:12px}
+#operationForm .tr-lot-description span{font-size:11px;line-height:1.4;color:var(--muted)}
+#operationForm .tr-lot-execution-row label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);min-width:0}
+#operationForm .tr-lot-execution-row label input{
+ width:100%;min-width:0;box-sizing:border-box;background:var(--panel2);color:var(--text);
+}
+#operationForm .tr-lots-summary{
+ margin-top:10px;padding:8px 11px;border-radius:8px;
+ border:1px solid var(--border);color:var(--text);font-size:11px;line-height:1.55;
+}
+#operationForm .tr-lots-aggregated .tr-lots-summary{color:var(--muted)}
+#operationForm #f-resultTicks[readonly]{
+ color:var(--text);background:var(--panel2);
+}
+.tr-lot-detail .table-wrap{overflow-x:auto}
+.tr-lot-detail .table{min-width:620px}
+.tr-lot-detail td,.tr-lot-detail th{font-size:12px;white-space:nowrap}
+@media(max-width:790px){
+ #operationForm .tr-lot-execution-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #operationForm .tr-lot-description{grid-column:1/-1}
+}
+@media(max-width:520px){
+ #operationForm .tr-lot-execution-row{grid-template-columns:minmax(0,1fr)}
+ #operationForm .tr-lot-description{grid-column:1}
+}

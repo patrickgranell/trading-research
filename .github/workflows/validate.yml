@@ -53,6 +53,9 @@ jobs:
       - name: Astra Lote 3 · UI navigation scenarios in Chromium
         run: node verify-astra-lote3-browser.mjs
 
+      - name: TR-VIS PR1 · Chromium layout, intratrade and empty-state regression
+        run: node verify-tr-vis-pr1-browser.mjs
+
       - name: Astra Lote 4 · Keyboard and visual regressions
         run: node verify-astra-lote4-browser.mjs
 

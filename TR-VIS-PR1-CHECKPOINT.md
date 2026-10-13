@@ -45,3 +45,17 @@ Mantener Diario emocional como módulo vertical único, con pestañas propias, y
 
 ## Autorización
 No hay autorización de merge ni despliegue a producción. Mantener el mismo PR en borrador. Tras la decisión visual conjunta, continuar sobre la misma rama y repetir únicamente las regresiones afectadas además del build.
+
+## Incidencias visuales aportadas durante la revisión — actualización del PR 1
+- Captura de Market Data (tema oscuro): históricos y Grid de calibración se veían blancos. Causa confirmada en `styles.css`: `.md-dataset` y `.md-cal-controls` heredaban `var(--card2,#fff)` sin token `--card2` definido. Corrección scoped para modo oscuro en `styles.css`; conserva blanco en tema claro, acciones, datos y estados de selección.
+- Se solicita que «+ Nueva operación» e «Importar Ankora» estén **solo en Operaciones**. Se centralizan en la presentación de rutas en `astra-lote3-navigation-runtime.js` sin eliminar los handlers ni crear CTA alternativos. Se preservan botones de Personalizar y otras acciones. Se aplica a Dashboard, Bloques, Biblioteca y cualquier otro destino no-Operaciones; se conservan los originales en Operaciones.
+- Regresiones añadidas a `verify-tr-vis-pr1.mjs` y `verify-tr-vis-pr1-browser.mjs`, con comprobación real de estilos calculados en Chromium para superficies de Market Data dark/light y presencia/ausencia de CTA por ruta.
+- Commit con validación web PASS: `df0c7b2cfa8e3b8be3ca7808c9811e71a2b68f07`; https://github.com/patrickgranell/trading-research/actions/runs/38415029879
+
+### Pendientes informados anteriormente y aún NO cerrados
+- Personalizador Dashboard: alineación de flechas y cuadrados/checkboxes; todavía sin corrección ni revisión visual humana.
+- «3 Operaciones» en Dashboard frente a «10 visibles» en Registro: requiere investigar alcance/universo efectivo en datos de prueba; no alterar fórmula ni contar de otra forma por extrapolación.
+- Columnas configurables (orden, mostrar/ocultar) en listado de operaciones: petición funcional a especificar e incluir en PR 2 si procede; no introducida silenciosamente en el PR 1.
+- Comprobación visual humana en la preview y organización del menú del PR 1 siguen pendientes.
+
+No hay autorización de merge ni despliegue en producción. Preview de rama se mantiene en la URL comunicada por Cloudflare; verificar el SHA realmente desplegado antes de dar una nueva prueba al usuario.

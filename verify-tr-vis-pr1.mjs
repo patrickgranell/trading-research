@@ -20,6 +20,8 @@ assert.match(css,/--tr-vis-control-size:14px/);
 assert.match(css,/--tr-vis-meta-size:12px/);
 assert.match(css,/\.sidebar \.nav-organized\{[\s\S]*?overflow-y:auto/);
 assert.match(css,/\.dashboard-equity-svg \.dashboard-axis-text/);
+assert.match(css,/html:not\(\[data-theme="light"\]\) \.rp-chart-wrap/);
+assert.match(css,/\.rp-chart \.rp-axis-label/);
 assert.ok(contrast('#5a687d','#ffffff')>=4.5,'Axis on light white');
 assert.ok(contrast('#5a687d','#edf2f8')>=4.5,'Axis on light panel');
 assert.ok(contrast('#93a7c3','#0d1424')>=4.5,'Axis on dark panel');

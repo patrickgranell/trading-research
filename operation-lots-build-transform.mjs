@@ -26,5 +26,5 @@ export function injectOperationLots(source){
   '</section><section class="form-section"><div class="panel-title"><div><h3>Capturas de la operación</h3>',
   '</section>\${globalThis.TradingResearchLotExecution?.detailHtml?.(o)||\'\'}<section class="form-section"><div class="panel-title"><div><h3>Capturas de la operación</h3>',
   'lot executions visible in operation detail');
- return {source:out+'\\n/* TR_PR2_COMPILED_LOT_RESULT */\\n'};
+ return {source:out+'\n/* TR_PR2_COMPILED_LOT_RESULT */\n'};
 }

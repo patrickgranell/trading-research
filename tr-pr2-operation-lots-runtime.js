@@ -59,6 +59,44 @@ function syncOperationExit(form){
  }
  return info;
 }
+
+/* Fill a deducible DATE only when entry and latest recorded exit are
+   on the same day. Never invent the precise exit time of an earlier lot. */
+function lotDateInputChanged(el){
+ const row=el.closest('.tr-lot-execution-row');
+ const day=row?.querySelector('.tr-lot-exit-day'),clock=row?.querySelector('.tr-lot-exit-clock'),combined=row?.querySelector('.tr-lot-exit-date');
+ if(!day||!clock||!combined)return;
+ if(el.matches('.tr-lot-exit-date')){
+  day.value=combined.value.slice(0,10);clock.value=combined.value.slice(11,16);
+  delete day.dataset.trInferred;
+ }else{
+  if(el.matches('.tr-lot-exit-day'))delete day.dataset.trInferred;
+  combined.value=day.value&&clock.value?day.value+'T'+clock.value:'';
+ }
+}
+function synchronizeLotDates(form){
+ const rows=inputRows(form),entry=form.querySelector('#f-entryDate')?.value||'';
+ const known=rows.map(r=>r.querySelector('.tr-lot-exit-date')?.value||'').filter(Boolean).sort();
+ const last=known.at(-1)||'',sameDay=entry&&last&&entry.slice(0,10)===last.slice(0,10);
+ for(const row of rows){
+  const date=row.querySelector('.tr-lot-exit-day'),time=row.querySelector('.tr-lot-exit-clock');
+  const combined=row.querySelector('.tr-lot-exit-date'),note=row.querySelector('.tr-lot-range');
+  if(!date||!time||!combined)continue;
+  const hasResult=row.querySelector('.tr-lot-result')?.value.trim()!=='';
+  const inferred=date.dataset.trInferred==='1';
+  if(!combined.value&&!time.value){
+   if(sameDay&&hasResult&&(!date.value||inferred)){
+    date.value=entry.slice(0,10);date.dataset.trInferred='1';
+   }else if(inferred&&(!sameDay||!hasResult)){
+    date.value='';delete date.dataset.trInferred;
+   }
+  }
+  if(note)note.textContent=combined.value?'Salida real registrada':
+   hasResult&&last?'Salida anterior sin hora · Ventana: '+entry.replace('T',' ')+' → '+last.replace('T',' ')+
+    (date.dataset.trInferred==='1'?' · Fecha rellenada automáticamente':''):
+   hasResult?'Hora de salida pendiente':'';
+ }
+}
 function refreshSummary(form){
  if(!form)return;
  const totalInput=form.querySelector('#f-resultTicks');
@@ -94,6 +132,7 @@ function refreshSummary(form){
    }
   }
  }
+ synchronizeLotDates(form);
  const exitInfo=syncOperationExit(form);
  if(summary&&!manual&&['last-lot','partial-dated'].includes(exitInfo.reason)){
   summary.textContent+=' · Cierre general: '+exitInfo.exitDate.replace('T',' ')+(exitInfo.reason==='partial-dated'?' (última salida registrada: faltan '+exitInfo.undated+' fecha(s) de lotes)':' (último lote)');
@@ -115,7 +154,10 @@ function lotRowsHtml(risk,previous){
   return '<div class="tr-lot-execution-row" data-lot-id="'+escapeText(id)+'" data-quantity="'+qty+'">'+
    '<div class="tr-lot-description"><strong>Lote '+(i+1)+'</strong><span>'+qty+' contrato'+(qty===1?'':'s')+' · SL '+escapeText(lot.stopTicks)+'t · TP previsto '+escapeText(target)+'</span></div>'+
    '<label>Resultado real (ticks/contrato)<input class="input tr-lot-result" type="number" step="any" placeholder="Pendiente" value="'+escapeText(tick)+'" aria-label="Resultado real en ticks del lote '+(i+1)+'"></label>'+
-   '<label>Salida del lote (opcional)<input class="input tr-lot-exit-date" type="datetime-local" value="'+escapeText(at)+'" aria-label="Fecha y hora de salida del lote '+(i+1)+'"></label>'+
+   '<div class="tr-lot-exit-fields"><span>Salida del lote (opcional)</span><div class="tr-lot-date-time">'+
+    '<input class="input tr-lot-exit-day" type="date" value="'+escapeText(at.slice(0,10))+'" aria-label="Fecha real de salida del lote '+(i+1)+'">'+
+    '<input class="input tr-lot-exit-clock" type="time" value="'+escapeText(at.slice(11,16))+'" aria-label="Hora real de salida del lote '+(i+1)+'">'+
+    '<input type="hidden" class="tr-lot-exit-date" value="'+escapeText(at)+'"></div><small class="tr-lot-range"></small></div>'+
    '</div>';
  }).join('');
 }
@@ -217,7 +259,9 @@ document.addEventListener('change',ev=>{
   requestAnimationFrame(()=>drawEditor(form));
  }else if(field.matches('.tr-lots-mode')){
   refreshSummary(form);
- }else if(field.matches('.tr-lot-result,.tr-lot-exit-date')){
+ }else if(field.matches('.tr-lot-exit-day,.tr-lot-exit-clock,.tr-lot-exit-date')){
+  lotDateInputChanged(field);refreshSummary(form);
+ }else if(field.matches('.tr-lot-result')){
   refreshSummary(form);
  }
 },true);
@@ -234,6 +278,6 @@ const mutation=new MutationObserver(changes=>{
  }
 });
 mutation.observe(document.body,{childList:true,subtree:true});
-globalThis.TradingResearchLotExecution=Object.freeze({prepareForSave,detailHtml,drawEditor,refreshSummary,lotExitInfo,version:'2'});
+globalThis.TradingResearchLotExecution=Object.freeze({prepareForSave,detailHtml,drawEditor,refreshSummary,lotExitInfo,version:'3'});
 for(const form of document.querySelectorAll('.modal-backdrop #operationForm'))drawEditor(form);
 })();

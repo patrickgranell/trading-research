@@ -28,3 +28,24 @@ export function injectOperationLots(source){
   'lot executions visible in operation detail');
  return {source:out+'\n/* TR_PR2_COMPILED_LOT_RESULT */\n'};
 }
+
+
+/* The V31 taxonomy runtime owns the effective manual operation form/save,
+   overriding the old app.js handler. Patch that active implementation too. */
+export function injectTaxonomyOperationLots(source){
+ let out=String(source);
+ if(out.includes('TR_PR2_TAXONOMY_LOT_RESULT'))throw Error('TR PR2 Taxonomy Lot transform already applied');
+ out=once(out,
+  "inst=c.inst,resultTicksRaw=String(get('resultTicks')??'').trim(),hasResult=resultTicksRaw!==''",
+  "inst=c.inst,lotSave=globalThis.TradingResearchLotExecution?.prepareForSave?.(risk),resultTicksRaw=lotSave?.mode==='lots'?lotSave.resultTicksString:String(get('resultTicks')??'').trim(),hasResult=resultTicksRaw!==''",
+  'active taxonomy save weighted result');
+ out=once(out,
+  "if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');",
+  "if(lotSave?.error)return alert(lotSave.error);if(hasResult&&!Number.isFinite(ticks))return alert('El resultado en ticks no es un número válido.');",
+  'active taxonomy save validation');
+ out=once(out,
+  "strategyPlanSnapshot:strategySnapshot(risk),instrumentId:",
+  "strategyPlanSnapshot:strategySnapshot(risk),executionMode:lotSave?.mode||previous?.executionMode||'aggregated',executionLots:lotSave?.mode==='lots'?lotSave.lots:lotSave?.mode==='aggregated'?[]:trTaxCopy(previous?.executionLots||[]),instrumentId:",
+  'active taxonomy save lot metadata');
+ return {source:out+'\n/* TR_PR2_TAXONOMY_LOT_RESULT */\n'};
+}

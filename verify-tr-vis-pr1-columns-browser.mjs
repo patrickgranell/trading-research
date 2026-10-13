@@ -19,6 +19,7 @@ window.opsTable=function(ops){
 };
 `;
 const probe=String.raw`
+try{
 const ops=[{id:'1',entryDate:'2026-07-13T18:23:00',exitDate:'2026-07-13T18:28:00',result:'win'},{id:'2',entryDate:'2026-07-13T18:24:00',exitDate:'2026-07-13T18:29:00',result:'loss'}];
 const root=document.querySelector('#view');
 const mount=()=>{root.innerHTML=window.opsTable(ops);};
@@ -68,6 +69,9 @@ root.querySelector('[data-tr-cols-reset]').click();
 result.reset=!hidden().length&&keys().indexOf('symbol')===5;
 result.actionsIntact=[...root.querySelectorAll('tbody tr')].every(row=>row.lastElementChild.dataset.trColsKey==='actions'&&row.lastElementChild.textContent.includes('Ver Editar'));
 document.body.dataset.trColumnsResults=encodeURIComponent(JSON.stringify(result));
+}catch(e){
+ document.body.dataset.trColumnsResults=encodeURIComponent(JSON.stringify({error:String(e?.stack||e)}));
+}
 `;
 const html='<!doctype html><html lang="es" data-theme="dark"><head><meta charset="utf-8"><style>'+css+'</style></head><body><main id="view"></main><script>'+setup+'</script><script>'+runtime+'</script><script>'+probe+'</script></body></html>';
 const folder=fs.mkdtempSync(path.join(os.tmpdir(),'tr-cols-'));

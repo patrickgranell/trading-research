@@ -268,12 +268,14 @@ function calendar(root){
    // The calendar renderer sometimes displays numerical zero even when there
    // are no eligible closed operations. Reuse canonical eligibility checks.
    let lackingEvidence=false;
+   let awaitingClosure=false;
    try{
     if(typeof calendarState!=='undefined'&&typeof calendarMonthOps==='function'&&
        typeof calendarDayOps==='function'&&typeof calcMetricStats==='function'){
      const d=Number(heading?.querySelector('strong')?.textContent);
      const dateKey=[calendarState.year,String(calendarState.month+1).padStart(2,'0'),String(d).padStart(2,'0')].join('-');
      const trades=calendarDayOps(calendarMonthOps(),dateKey);
+     awaitingClosure=Array.isArray(trades)&&trades.length>0&&trades.every(op=>!op.exitDate);
      if(calendarState.metric==='discipline'&&typeof calendarDisciplinePct==='function'){
       lackingEvidence=calendarDisciplinePct(trades)===null;
      }else lackingEvidence=calcMetricStats(trades,calendarState.unit,calendarState.basis).n===0;
@@ -281,7 +283,8 @@ function calendar(root){
    }catch(_){}
    if(lackingEvidence||value.textContent.trim()==='—'){
     day.classList.add('tr2-calendar-unevaluated');
-   value.textContent='No evaluado';
+   if(awaitingClosure){day.classList.add('tr2-calendar-awaiting-closure');value.textContent='Pendiente de cierre';}
+   else value.textContent='No evaluado';
    }else if(day.classList.contains('flat-day')){
     day.classList.add('tr2-calendar-zero');
     // Zero is valid only with an eligible measurement.
@@ -295,7 +298,7 @@ function calendar(root){
   const old=[...legend.querySelectorAll('span')].find(span=>span.textContent.includes('neutro / sin muestra'));
   if(old)old.lastChild.textContent=' cero o neutro';
   const text=document.createElement('span');text.className='tr2-calendar-key';
-  text.textContent='Sin actividad: sin operaciones · No evaluado: métrica sin evidencia';
+  text.textContent='Sin actividad: sin operaciones · Pendiente de cierre: ninguna salida registrada · No evaluado: sin datos elegibles para la métrica';
   legend.append(text);
  }
  const totals=panel.querySelector('.calendar-month-kpis');

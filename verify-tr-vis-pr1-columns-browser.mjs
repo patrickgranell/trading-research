@@ -60,7 +60,7 @@ result.samePlanRestored=keys().join(',')===original&&hidden().includes('entryTim
 route='lab';mount();
 result.labHasConfigurator=!!root.querySelector('[data-tr-cols-toggle]')&&root.querySelector('table.tr-ops-entry-exit')!==null;
 result.labIndependentDefault=!hidden().length&&keys().indexOf('symbol')===5;
-result.labActionsFixed=keys().at(-1)==='actions'&&[...root.querySelectorAll('tbody tr')].every(row=>row.cells.at(-1).textContent.includes('Ver Editar'));
+result.labActionsFixed=keys().at(-1)==='actions'&&[...root.querySelectorAll('tbody tr')].every(row=>row.cells[row.cells.length-1].textContent.includes('Ver Editar'));
 root.querySelector('[data-tr-cols-toggle]').click();
 const labHide=root.querySelector('[data-tr-cols-visible="entryDate"]');
 labHide.checked=false;labHide.dispatchEvent(new Event('change',{bubbles:true}));

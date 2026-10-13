@@ -30,7 +30,8 @@ function transformRegister(html,ops){
   const table=fragment.content.querySelector('table.analytics-table');
   const heading=table?.tHead?.rows?.[0],rows=table?.tBodies?.[0]?.rows;
   if(!heading||!rows||rows.length!==ops.length)return html;
-  // Both classic and V31.9 renderers place Bloque in column 4.
+  // Both classic and V31.9 renderers place Bloque in column 4; 
+ // normalize both Operaciones and Laboratorio to the same register schema.
   if(heading.cells.length<6||heading.cells[0].textContent.trim()!=='Fecha'||
     heading.cells[1].textContent.trim()!=='Hora'||
     heading.cells[3].textContent.trim()!=='Bloque')return html;
@@ -56,14 +57,14 @@ function transformRegister(html,ops){
 }
 window.opsTable=function(...args){
   const html=base.apply(this,args);
-  if(globalThis.TradingResearchCurrentViewReadContract?.current?.()!=='operations')return html;
+  if(!['operations','lab'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.()))return html;
   return transformRegister(html,args[0]);
 };
 
-/* TR-FEAT-OPS-01 · User-configurable operation register columns.
+/* TR-FEAT-OPS-01 · User-configurable columns for Operaciones and Laboratorio.
  * The pre-existing register table is the single source of cell contents and
  * actions. Only reorders/hides existing DOM cells; no domain or filter edits.
- * Browser-local preferences scoped per Trading Plan (not sent to cloud). */
+ * Browser-local preferences scoped per Trading Plan and screen (not sent to cloud). */
 const TR_COLUMNS=[
  ['entryDate','Fecha entrada'],['entryTime','Hora entrada'],
  ['exitDate','Fecha salida'],['exitTime','Hora salida'],
@@ -80,7 +81,9 @@ const trColLabel=Object.fromEntries(TR_COLUMNS);
 let trDraggedColumn='';
 function trColumnPlanId(){
  const plan=globalThis.TradingResearchPlanReadContract?.current?.();
- return String(plan?.id||'none');
+ const view=globalThis.TradingResearchCurrentViewReadContract?.current?.();
+ // Preserve existing Operaciones keys; Laboratorio owns a separate layout.
+ return String(plan?.id||'none')+(view==='lab'?':lab':'');
 }
 function trColumnReadStore(){
  try{
@@ -182,7 +185,7 @@ function trColumnUpdate(root){
 const trColumnBase=window.opsTable;
 window.opsTable=function(...args){
  const html=trColumnBase.apply(this,args);
- if(globalThis.TradingResearchCurrentViewReadContract?.current?.()!=='operations')return html;
+ if(!['operations','lab'].includes(globalThis.TradingResearchCurrentViewReadContract?.current?.()))return html;
  return trColumnRender(html);
 };
 // Only our namespaced controls are handled here; existing native table

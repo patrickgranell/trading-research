@@ -24,9 +24,17 @@ function decorateLab(html){
  const label=document.createElement('span');label.className='trvis3-lab-filter-name';label.textContent='Filtros de investigación';
  const count=document.createElement('span');count.className='trvis3-lab-filter-count';count.textContent=filterCount;
  const caption=document.createElement('small');caption.textContent='Abrir todos los filtros, incluidos los personalizados';
- const active=Object.entries(typeof labState==='object'?labState:{})
-  .filter(([key,value])=>['q','dateFrom','dateTo','timeFrom','timeTo','setup','vd','nr','hypothesis','context','direction','risk','source','result','contract','block','focus','stress','behavior','emotion','month','year','rMin','rMax','days'].includes(key)&&value!==''&&value!=null&&(!Array.isArray(value)||value.length));
- if(active.length){const chip=document.createElement('small');chip.className='trvis3-active-filter-summary';chip.textContent='Aplicados: '+active.map(([key,value])=>key+' '+(Array.isArray(value)?value.join(', '):String(value))).join(' · ');summary.append(chip);}
+ const active=[...filter.querySelectorAll('input[id],select[id],textarea[id]')]
+  .filter(el=>!!String(el.value||'').trim()&&!el.closest('.metric-switch'))
+  .map(el=>[el.closest('label')?.querySelector('span')?.textContent?.trim()||el.id,
+    el.tagName==='SELECT'?el.selectedOptions[0]?.textContent?.trim()||el.value:el.value]);
+ const days=[...filter.querySelectorAll('button[data-day].active,button[data-day-chip].active')];
+ if(days.length)active.push(['Días',days.map(b=>b.textContent.trim()).join(', ')]);
+ count.textContent=active.length+' filtros activos';
+ if(active.length){const chip=document.createElement('small');chip.className='trvis3-active-filter-summary';
+  chip.textContent='Aplicados: '+active.map(([key,value])=>key+': '+value).join(' · ');
+  summary.append(chip);
+ }
  summary.append(label,count,caption);
  const panel=document.createElement('div');panel.className='trvis3-filter-panel';
  // Keep unit/base controls visible: they are not optional filters.
@@ -61,10 +69,10 @@ function elevateResearchEvidence(root){
  if(grid){
   for(const td of grid.querySelectorAll('td.research-cell')){
    const n=Number((td.querySelector('small')?.textContent||'').match(/n\s*=\s*(\d+)/)?.[1]);
-   if(Number.isFinite(n)&&n<10&&!td.classList.contains('empty-cell')){
+   if(Number.isFinite(n)&&n<=Math.max(1,Number(researchGridState?.minN)||1)&&!td.classList.contains('empty-cell')){
     td.classList.add('trvis3-low-sample');td.dataset.trvis3LowSample=String(n);
     const button=td.querySelector('button');
-    if(button)button.title=(button.title?button.title+' · ':'')+'Muestra insuficiente para conclusiones estables (n='+n+')';
+    if(button)button.title=(button.title?button.title+' · ':'')+'Celda en el mínimo de muestra configurado (n='+n+')';
    }
   }
  }

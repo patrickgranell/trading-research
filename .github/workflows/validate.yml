@@ -101,3 +101,6 @@ jobs:
       - name: TR-VIS PR3 · Independent derived TP Chromium
         run: node verify-tr-vis-pr3-derived-browser.mjs
 
+      - name: TR-VIS PR3 · Final OOS, fullscreen evidence and Builder columns
+        run: node verify-tr-vis-pr3-review-browser.mjs
+

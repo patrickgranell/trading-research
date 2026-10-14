@@ -63,6 +63,28 @@ const probe=String.raw`(async()=>{
    state.operations.splice(state.operations.findIndex(x=>x.id===examples[0].id),examples.length);
   }
   nav('market');await wait(110);root=document.querySelector('#view');
+
+  const initialPlan=getCurrentPlan();
+  if(initialPlan&&typeof viewOperation==='function'){
+   const planId=state.currentPlanId;
+   const simPlan={...initialPlan,id:'_TRVIS3_SIM_PLAN',environment:'sim',executionEnvironment:'sim',executionIntent:'sim'};
+   const linked={id:'_TRVIS3_LINKED_OP',tradingPlanId:simPlan.id,contract:'MCL',
+    entryDate:'2026-10-10T18:00:00',exitDate:'2026-10-10T18:12:00',
+    direction:'LONG',result:'win',rMultiple:2,executionEvidence:{executionKey:'_TRVIS3_SET:_TRVIS3_TRADE',environment:'sim'}};
+   const set={id:'_TRVIS3_SET',results:[{id:'_TRVIS3_TRADE',instrument:'MCL',direction:'LONG',entryPrice:50,exitPrice:51}]};
+   state.tradingPlans.push(simPlan);state.currentPlanId=simPlan.id;
+   state.operations.push(linked);v314MarketUi.execSets.push(set);
+   viewOperation(linked.id);await wait(40);
+   const link=document.querySelector('.modal-backdrop .trvis3-open-run');
+   out.linkedShortcut=!!link;
+   if(link){link.click();await wait(100);}
+   out.linkedDestination=globalThis.TradingResearchCurrentViewReadContract?.current?.();
+   out.linkedIndex=v315RunningUi.tradeIndex;
+   state.currentPlanId=planId;
+   state.operations.splice(state.operations.findIndex(o=>o.id===linked.id),1);
+   state.tradingPlans.splice(state.tradingPlans.findIndex(p=>p.id===simPlan.id),1);
+   v314MarketUi.execSets.splice(v314MarketUi.execSets.findIndex(x=>x.id===set.id),1);
+  }
   out.market={tabs:root.querySelectorAll('.tr6-market-tabs [role="tab"]').length,
    source:!!root.querySelector('.trvis3-market-sources'),
    introMoved:!!root.querySelector('.trvis3-market-source-content .notice'),
@@ -96,5 +118,8 @@ try{
   assert.equal(o['compare'+n]?.images,n,'image count '+n);
  }
  assert.equal(o.market.tabs,4);assert(o.market.source&&o.market.preserved);
+ assert.equal(o.linkedShortcut,true,'Linked SIM operation must offer its own Market Data execution');
+ assert.equal(o.linkedDestination,'market');
+ assert.equal(o.linkedIndex,0);
  console.log('TR-VIS PR3 PASS — 3A Lab, 3B builder, 3C gallery comparison 2/3/4, Market Data');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

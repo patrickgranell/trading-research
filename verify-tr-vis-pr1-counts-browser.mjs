@@ -9,7 +9,7 @@ const script=String.raw`(async()=>{
  const out={};
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  try{
-  await wait(200);
+  await wait(470); // Allow asynchronous startup to finish before constructing the disposable fixture.
   const plan=getCurrentPlan();if(!plan)throw Error('Missing fixture Trading Plan');
   state.operations=state.operations.filter(o=>o.tradingPlanId!==plan.id);
   const day='2026-07-13';
@@ -24,6 +24,7 @@ const script=String.raw`(async()=>{
     recordClass:'replay',executionIntent:'replay'
    });
   }
+  if(typeof persist==='function')persist(); // Keep synthetic operations across rerenders in the isolated file:// profile.
   out.source=currentOps().length;
   window.TradingResearchActions.navigate('dashboard');await wait(180);
   const widget=[...document.querySelectorAll('#view .kpi')].find(card=>card.querySelector('.label')?.textContent.trim().startsWith('Operaciones'));

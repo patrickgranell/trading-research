@@ -8,7 +8,7 @@ const check=String.raw`(async()=>{
  const out={};
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  try{
-  await sleep(120);
+  await sleep(1500); // Headless startup may asynchronously reload initial state. Wait before adding disposable fixtures.
   out.installed=!!globalThis.TradingResearchAstraLote8;
   const plan=getCurrentPlan();
   const opsBefore=state.operations.length;
@@ -18,7 +18,11 @@ const check=String.raw`(async()=>{
     result:'win',resultTicks:20,rMultiple:2,pnlNet:35,pnlGross:40,commission:5,
     setup:'TR8 Setup',direction:'LONG',recordClass:'backtest',executionIntent:'backtest'});
   }
-  TradingResearchActions.navigate('tpbuilder');await sleep(130);
+  // The test runs under a unique file:// origin. Persisting fixtures here
+  // prevents late state-hydration from discarding them during visual rerenders.
+  if(typeof persist==='function')persist();
+  await sleep(160);
+  TradingResearchActions.navigate('tpbuilder');await sleep(220);
   const root=()=>document.querySelector('#tp-builder-view');
   const group=()=>root()?.querySelector('.tr8-week-selector');
   const buttons=()=>[...(group()?.querySelectorAll('button[data-day]')||[])];
@@ -31,7 +35,7 @@ const check=String.raw`(async()=>{
   out.minimumDayWidth=buttons().every(b=>b.getBoundingClientRect().width>=32);
   out.responsiveColumns=getComputedStyle(group()).gridTemplateColumns.split(' ').length;
   const buttonDay=d=>root().querySelector('.tr8-week-day[data-day="'+d+'"]');
-  const resultCount=()=>{const s=root()?.querySelector('.topbar .btn.primary')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
+  const resultCount=()=>{const s=root()?.querySelector('[data-tr-action-click="tpBuilderOpenCreate"]')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
   out.before=resultCount();
   buttonDay(1)?.click();await sleep(110);
   out.firstSelected=buttonDay(1)?.getAttribute('aria-pressed')==='true'&&buttonDay(1)?.classList.contains('active');
@@ -97,7 +101,7 @@ try{
  }
  assert(chrome,'Chromium required for Lote 8 visual certification');
  for(const width of [1280,500]){
-  const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--window-size=${width},920`,'--virtual-time-budget=4500','--dump-dom','file://'+source],{encoding:'utf8',timeout:45000,maxBuffer:8500000});
+  const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--window-size=${width},920`,'--virtual-time-budget=12000','--dump-dom','file://'+source],{encoding:'utf8',timeout:45000,maxBuffer:8500000});
   assert.equal(run.status,0,run.stderr?.slice(-1000));
   const match=run.stdout.match(/data-tr8-results="([^"]+)"/);
   assert(match,'Missing Chromium Lote 8 output: '+run.stderr?.slice(-1000));

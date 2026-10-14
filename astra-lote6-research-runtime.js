@@ -7,8 +7,9 @@ const groups=[
  ['summary','Resumen','Estudios y muestra'],
  ['segmentation','Segmentación','Grid, Edge y categorías'],
  ['exits','Salidas','Excursiones y escenarios'],
- ['validation','Validación','OOS, confianza y robustez'],
- ['risk','Riesgo','Límites y sensibilidad']
+ ['validation','Validación','Confianza y robustez'],
+ ['risk','Riesgo','Límites y sensibilidad'],
+ ['oos','OOS','Hipótesis congeladas']
 ];
 let labGroup='summary';
 const safe=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -93,7 +94,7 @@ function tr6DecorateLab(html){
  for(const item of [...grid.children])sections.get(groupFor(item)).append(item);
  const studies=root.querySelector('.saved-studies-panel'),oos=root.querySelector('.forward-panel, .forward-validation-panel, .forward-oos-panel');
  if(studies)sections.get('summary').prepend(studies);
- if(oos)sections.get('validation').prepend(oos);
+ if(oos)sections.get('oos').prepend(oos);
  grid.className='tr6-lab-group-container';
  for(const section of sections.values())grid.append(section);
  const toolbar=document.createElement('div');toolbar.className='tr6-lab-navigation';

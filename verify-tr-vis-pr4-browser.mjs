@@ -67,8 +67,11 @@ const probe=String.raw`(async()=>{
    source:!!perspectiveResult.querySelector('.trvis4-source-citation')};
   TradingResearchActions.navigate('plans');await wait(120);
   o.livePlans=document.querySelectorAll('#view .trvis4-plan-card').length;
-  const expansion=document.querySelector('#view .plan-card .trvis4-plan-primary-actions>.trvis4-details');
-  if(expansion){expansion.querySelector('summary').click();o.maintenanceOpened=expansion.open;}
+  const expansion=document.querySelector('#view .plan-card .plan-actions details');
+  o.liveActionCount=document.querySelectorAll('#view .plan-card .plan-actions button').length;
+  o.liveDetailsCount=document.querySelectorAll('#view .plan-card .plan-actions details').length;
+  o.maintenanceOpened=false;
+  if(expansion){expansion.querySelector('summary')?.click();o.maintenanceOpened=expansion.open;}
  }catch(e){o.error=String(e?.stack||e)}
  document.body.dataset.trvis4Probe=encodeURIComponent(JSON.stringify(o));
 })();`;

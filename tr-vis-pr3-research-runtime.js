@@ -24,12 +24,18 @@ function decorateLab(html){
  const label=document.createElement('span');label.className='trvis3-lab-filter-name';label.textContent='Filtros de investigación';
  const count=document.createElement('span');count.className='trvis3-lab-filter-count';count.textContent=filterCount;
  const caption=document.createElement('small');caption.textContent='Abrir todos los filtros, incluidos los personalizados';
+ const active=Object.entries(typeof labState==='object'?labState:{})
+  .filter(([key,value])=>['q','dateFrom','dateTo','timeFrom','timeTo','setup','vd','nr','hypothesis','context','direction','risk','source','result','contract','block','focus','stress','behavior','emotion','month','year','rMin','rMax','days'].includes(key)&&value!==''&&value!=null&&(!Array.isArray(value)||value.length));
+ if(active.length){const chip=document.createElement('small');chip.className='trvis3-active-filter-summary';chip.textContent='Aplicados: '+active.map(([key,value])=>key+' '+(Array.isArray(value)?value.join(', '):String(value))).join(' · ');summary.append(chip);}
  summary.append(label,count,caption);
  const panel=document.createElement('div');panel.className='trvis3-filter-panel';
+ // Keep unit/base controls visible: they are not optional filters.
+ const metricControl=filter.querySelector('.metric-switch');
  // Move the ORIGINAL filter panel — do not clone or fabricate replacements.
  filter.replaceWith(shell);panel.append(filter);shell.append(summary,panel);
  // The analysis task tabs and live sample context must precede the filters.
  shell.before(nav);
+ if(metricControl){const always=document.createElement('div');always.className='trvis3-lab-unitbar';always.append(metricControl);shell.before(always);}
  if(context){
   const hint=document.createElement('span');hint.className='trvis3-lab-sample';
   hint.textContent=sample?sample+' · Todos los filtros conservados':'Todos los filtros conservados';

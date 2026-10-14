@@ -8,7 +8,11 @@ const check=String.raw`(async()=>{
  try{
   await wait(400);
   TradingResearchActions.navigate('lab');await wait(95);
-  o.tabs=[...document.querySelectorAll('.tr6-task-tabs [role=tab]')].map(b=>b.getAttribute('aria-controls'));
+  const taskTabs=[...document.querySelectorAll('.tr6-task-tabs [role=tab]')];
+  o.tabs=taskTabs.map(b=>b.getAttribute('aria-controls'));
+  // Regression for the desktop 1440px viewport: OOS must not wrap.
+  o.desktopSingleRow=taskTabs.length===6&&taskTabs.every(b=>Math.abs(b.getBoundingClientRect().top-taskTabs[0].getBoundingClientRect().top)<2);
+  o.desktopColumnCount=getComputedStyle(document.querySelector('.tr6-task-tabs')).gridTemplateColumns.split(' ').length;
   TradingResearchActions.tr6LabGroup('validation');await wait(70);
   o.validationNoOos=!document.querySelector('[data-tr6-group=validation] .forward-panel');
   TradingResearchActions.tr6LabGroup('oos');await wait(70);
@@ -97,6 +101,8 @@ try{
  const o=JSON.parse(decodeURIComponent(encoded));console.log('PR3 review',JSON.stringify(o));
  assert(!o.error,o.error);
  assert.equal(o.tabs.length,6);assert.deepEqual(o.tabs.slice(-2),['tr6-lab-risk','tr6-lab-oos']);
+ assert.equal(o.desktopColumnCount,6,'Desktop Laboratorio must have six equal columns');
+ assert.equal(o.desktopSingleRow,true,'All six task tabs including OOS must occupy one row on desktop');
  assert(o.validationNoOos&&o.oosVisible&&o.oosIntro);
  assert(o.columnContract&&o.originalPreview&&o.columnCount>=25);
  assert(o.defaultColumns.length===7);

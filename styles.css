@@ -2267,3 +2267,25 @@ html[data-theme="light"] #view .trvis3-lab-filters,html[data-theme="light"] #vie
  #view .trvis4-report-document{margin:0;break-before:auto;break-inside:auto}
  #view .trvis4-report-document section{break-inside:avoid-page}
 }
+
+
+/* PR4 emotional writing: current V31.29 Journal uses dedicated subroutes. */
+#view .reflection-history{margin-top:12px}
+#view .reflection-feed{display:grid;gap:14px}
+#view .reflection-card{min-width:0;overflow-wrap:anywhere;padding:17px}
+#view .reflection-card .reflection-body{font-size:14px;line-height:1.65;max-width:100%}
+#view .reflection-card .reflection-body>p{font-size:14px;line-height:1.65;white-space:pre-wrap}
+#view .reflection-card .reflection-conclusion{margin-top:13px;padding:14px;border-left:3px solid var(--accent);border-radius:7px;background:var(--panel2)}
+#view .reflection-card .reflection-conclusion strong{display:block;font-size:14px;line-height:1.5;white-space:pre-wrap}
+#view .reflection-kpis{margin-top:16px;opacity:.9}
+#view .perspective-focus-card{padding:22px;max-width:100%;min-width:0}
+#view .perspective-focus-card blockquote{font-size:clamp(16px,1.5vw,21px);font-weight:550;line-height:1.7;max-width:85ch;overflow-wrap:anywhere}
+#view .trvis4-source-author{margin-top:15px;font-size:13px;font-weight:750;color:var(--text)}
+#view .trvis4-source-citation{font-size:12px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+#view .perspective-focus-actions{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+#view .perspective-focus-actions .btn{white-space:normal;min-height:34px}
+#view .trvis4-writing-priority{overflow-wrap:anywhere}
+@media(max-width:850px){
+ #view .perspective-focus-card{padding:14px}
+ #view .reflection-card{padding:12px}
+}

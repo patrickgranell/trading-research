@@ -51,11 +51,14 @@ function decorateLab(html){
 }
 
 function elevateResearchEvidence(root){
- const grid=root.querySelector('.research-grid-module');
- if(grid&&!grid.querySelector('.trvis3-grid-legend')){
+ const grid=root.querySelector('.research-grid-module'),segment=root.querySelector('[data-tr6-group="segmentation"]');
+ if(segment&&!segment.querySelector('.trvis3-grid-legend')){
   const note=document.createElement('p');note.className='trvis3-grid-legend';
-  note.textContent='Lectura: valor y n en cada celda. La intensidad del color es relativa a esta matriz; una muestra pequeña limita la evidencia, no cambia el resultado.';
-  grid.querySelector('.research-grid-wrap')?.before(note);
+  note.textContent='Lectura: valor y n en cada celda. La intensidad del color es relativa a cada matriz; una muestra pequeña limita la evidencia, no cambia el resultado.';
+  const anchor=grid?.querySelector('.research-grid-wrap')||segment.firstElementChild;
+  if(anchor)anchor.before(note);else segment.append(note);
+ }
+ if(grid){
   for(const td of grid.querySelectorAll('td.research-cell')){
    const n=Number((td.querySelector('small')?.textContent||'').match(/n\s*=\s*(\d+)/)?.[1]);
    if(Number.isFinite(n)&&n<10&&!td.classList.contains('empty-cell')){

@@ -47,6 +47,22 @@ const probe=String.raw`(async()=>{
      config:!!dest.querySelector('.trvis4-reports-config'),presets:!!dest.querySelector('.trvis4-reports-presets'),
      print:!!dest.querySelector('.trvis4-print-action')};
   }
+  const reflectionFixture='<div class="reflection-kpis"><button type="button" data-tr-action-click="noop">Indicadores</button></div>'+
+   '<section class="reflection-history"><div class="reflection-feed"><article class="reflection-card">'+
+   '<header>14 octubre 2026</header><div class="reflection-body"><p>Texto completo de una reflexión de prueba.</p></div>'+
+   '<footer><button type="button" data-tr-action-click="noop">Editar</button></footer></article></div></section>';
+  const reflectionBase=parse(reflectionFixture),reflectionResult=parse(adapter.decorate('journalreflections',reflectionFixture));
+  o.checks.reflections={history:!!reflectionResult.querySelector('.reflection-history'),
+   cards:!!reflectionResult.querySelector('.trvis4-writing-card'),
+   textBeforeKpi:!!(reflectionResult.querySelector('.reflection-history')?.compareDocumentPosition(reflectionResult.querySelector('.reflection-kpis'))&Node.DOCUMENT_POSITION_FOLLOWING),
+   actionsUnchanged:JSON.stringify(actions(reflectionBase))===JSON.stringify(actions(reflectionResult))};
+  const perspectiveFixture='<section class="perspective-focus-card"><blockquote>Perspectiva completa de prueba.</blockquote>'+
+   '<div class="perspective-focus-author">Autor</div><div class="perspective-focus-source">Fuente</div>'+
+   '<button type="button" data-tr-action-click="noop">Otra perspectiva</button></section>';
+  const perspectiveResult=parse(adapter.decorate('journalreflections',perspectiveFixture));
+  o.checks.perspectives={quote:!!perspectiveResult.querySelector('.trvis4-perspective-text'),
+   author:!!perspectiveResult.querySelector('.trvis4-source-author'),
+   source:!!perspectiveResult.querySelector('.trvis4-source-citation')};
   TradingResearchActions.navigate('plans');await wait(120);
   o.livePlans=document.querySelectorAll('#view .trvis4-plan-card').length;
   const expansion=document.querySelector('#view .plan-card .trvis4-plan-primary-actions>.trvis4-details');

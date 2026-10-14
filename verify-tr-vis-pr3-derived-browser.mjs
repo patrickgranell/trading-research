@@ -20,8 +20,8 @@ const probe=String.raw`(async()=>{
   const source=document.querySelector('#tpb-source');
   if(!source)throw Error('Source selector absent');
   source.value=p.id;source.dispatchEvent(new Event('change',{bubbles:true}));await wait(100);
-  const target=state.operations.filter(o=>fixture.some(f=>f.id===o.id)).map(o=>structuredClone(o));
-  const basePlan=structuredClone(p);
+  const target=state.operations.filter(o=>fixture.some(f=>f.id===o.id)).map(o=>JSON.parse(JSON.stringify(o)));
+  const basePlan=JSON.parse(JSON.stringify(p));
   out.sourceCount=target.length;
   out.cta=!!document.querySelector('.trvis3-builder-create-row [data-tr-action-click="tpBuilderOpenCreate"]');
   TradingResearchActions.tpBuilderOpenCreate();await wait(50);

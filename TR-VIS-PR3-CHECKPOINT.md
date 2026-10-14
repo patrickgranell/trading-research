@@ -41,3 +41,32 @@ No se reescribirán los motores Market Data; se conservarán sus cuatro tareas y
 - Inventario antes/después y despliegue: pendientes de fixture Chromium.
 - Autorización de merge: **pendiente**.
 - Siguiente acción: implementar reorganización no destructiva de Laboratorio, probar conservación de filtros y tab panels, luego seguir por Constructor/Validación, Biblioteca y Market Data.
+
+
+## Checkpoint 01 — Implementación de investigación y evidencia (14/10/2026)
+
+**Rama y PR:** `tr-vis-pr3-investigacion-evidencia-20261014`, [#120](https://github.com/patrickgranell/trading-research/pull/120), borrador. Base `main` tras merge `b9fb6a96`.
+
+### Cambios implementados y pendientes de revisión visual
+
+- **Laboratorio:** conserva cinco pestañas y los inputs originales; navegación/muestra visible antes de los filtros plegados. Unidad/base sigue visible cuando los filtros están cerrados. La sinopsis recoge controles activos incluidos taxonomías personalizadas, sin alterar el estado.
+- **Constructor:** fuente claramente etiquetada, etiquetas encima de los campos, retícula alineada; opciones raw traducidas solo para visualización. Comparación de muestras precede a la única acción canónica «Crear TP derivado», que conserva identificador y comportamiento original.
+- **Segmentación:** leyenda sobre escala local y n; aviso visual de celdas en el mínimo configurado por la matriz, independiente del signo. No se cambia la clasificación de rentabilidad ni la elegibilidad.
+- **Validación:** OOS, confianza, Walk-Forward y simulaciones en ancho útil, con explicación diferenciada entre evidencia nueva y simulación. No se generan bandas bootstrap si no existen cuantiles.
+- **Biblioteca:** filtros secundarios plegados, contadores compactos, capturas sin recorte (object-fit:contain) y comparador existente de 2–4 operaciones visible. Ninguna imagen se carga ni sobrescribe por este cambio.
+- **Market Data:** preserva Calibración, Vinculación, Recorrido y Best Exit. Fuentes/requisitos en details; las advertencias críticas permanecen desplegadas. Operaciones de entornos elegibles con ejecución efectivamente vinculada disponen de acceso directo al Grid y fila exacta de su recorrido; las de Backtesting no lo ofrecen.
+
+### Verificación y cobertura
+
+- `verify-tr-vis-pr3-browser.mjs` añadido a CI para comprobar inventarios de filtros en Laboratorio, cinco herramientas, muestra/plegado, retícula del Constructor, comparaciones de dos/tres/cuatro operaciones usando **fixtures del navegador**, contexto Market Data y enlace a ejecución vinculada SIM.
+- Suite histórica previa a los últimos retoques: [CI #38544644506](https://github.com/patrickgranell/trading-research/actions/runs/38544644506) **PASS**; revisión posterior del resumen de filtros y umbral visual de n pendiente de última CI.
+- Los fixtures 2/3/4 prueban cantidad, estructura y presencia de imágenes, pero **NO certifican el aspecto de capturas reales** porque sus píxeles están en IndexedDB de sesiones concretas. Queda prueba visual 3C con contenido real o fixture de imagen completo y documentado.
+- Sin cambios en motores de métricas, validación estadística, origen/derivación, operaciones, datos de mercado, persistencia y separación de entornos.
+- Están pendientes los recorridos 3A, 3B y 3C del usuario y cualquier corrección detectada.
+
+### Estado de continuidad
+
+- **Paquetes implementados:** Laboratorio, Constructor, Segmentación, Validación, Biblioteca, Market Data.
+- **Pendiente técnico:** última CI, comprobación de preview actualizado y revisión visual de capturas reales, temas y muestra vacía/poblada; auditoría de independencia de TP derivado sobre fixture controlado cuando aplique.
+- **Autorización de merge:** NO concedida. **No merge ni producción.**
+- **Siguiente acción:** confirmar CI de SHA `fa5a1e22`; entregar un solo preview y tres recorridos agrupados 3A/3B/3C. Si aparecen incidencias, resolverlas dentro de #120.

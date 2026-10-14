@@ -22,7 +22,7 @@ const probe=String.raw`(async()=>{
    unitVisible:!!root.querySelector('.trvis3-lab-unitbar .metric-switch'),
    sampleText:root.querySelector('.tr6-context-line')?.textContent||'',
    filterStatus:root.querySelector('.trvis3-lab-filter-summary')?.textContent||''};
-  wrap.open=true;await wait(70);
+  wrap.querySelector('summary')?.click();await wait(70);
   TradingResearchActions.tr6LabGroup('validation');await wait(100);
   root=document.querySelector('#view');
   out.validation={open:root.querySelector('.trvis3-lab-filters')?.open===true,
@@ -64,6 +64,10 @@ const probe=String.raw`(async()=>{
   }
   nav('market');await wait(110);root=document.querySelector('#view');
 
+  out.market={tabs:root.querySelectorAll('.tr6-market-tabs [role="tab"]').length,
+   source:!!root.querySelector('.trvis3-market-sources'),
+   introMoved:!!root.querySelector('.trvis3-market-source-content .notice'),
+   preserved:!!root.querySelector('.tr6-market-source-content,.tr6-market-context')};
   const initialPlan=getCurrentPlan();
   if(initialPlan&&typeof viewOperation==='function'){
    const planId=state.currentPlanId;
@@ -85,10 +89,7 @@ const probe=String.raw`(async()=>{
    state.tradingPlans.splice(state.tradingPlans.findIndex(p=>p.id===simPlan.id),1);
    v314MarketUi.execSets.splice(v314MarketUi.execSets.findIndex(x=>x.id===set.id),1);
   }
-  out.market={tabs:root.querySelectorAll('.tr6-market-tabs [role="tab"]').length,
-   source:!!root.querySelector('.trvis3-market-sources'),
-   introMoved:!!root.querySelector('.trvis3-market-source-content .notice'),
-   preserved:!!root.querySelector('.tr6-market-source-content,.tr6-market-context')};
+
  }catch(e){out.error=String(e?.stack||e)}
  document.body.setAttribute('data-trvis3-probe',encodeURIComponent(JSON.stringify(out)));
 })();`;

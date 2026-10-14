@@ -104,3 +104,6 @@ jobs:
       - name: TR-VIS PR3 · Final OOS, fullscreen evidence and Builder columns
         run: node verify-tr-vis-pr3-review-browser.mjs
 
+      - name: TR-VIS PR4 · Plans, writing and follow-up Chromium
+        run: node verify-tr-vis-pr4-browser.mjs
+

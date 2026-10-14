@@ -24,15 +24,19 @@ assert.equal(sha(uiWeb),sha(uiDesktop),'Desktop UI adapter bundle differs from a
 const mandatory={
  'PR1 navigation and columns':['TradingResearchOperationColumns','tr6-lab-navigation'],
  'PR2 lots and dashboard':['TradingResearchLotExecution','data-trcomp-widget'],
- 'PR3 builder and OOS':['TradingResearchVisualPR3','TradingResearchBuilderColumnContract','tr6-lab-oos'],
+ 'PR3 builder and OOS':['TradingResearchVisualPR3','TradingResearchBuilderColumnContract',"['oos','OOS','Hipótesis congeladas']"],
  'PR4 plans, writing and reports':['TradingResearchVisualPR4','trvis4-report-document']
 };
 for(const [name,tokens] of Object.entries(mandatory))
  for(const token of tokens)
   assert(uiWeb.includes(token)||cssWeb.includes(token),name+': missing '+token);
+const backupWeb=tagBody(web,'script','data-tr-backup-v2-runtime');
+const backupDesktop=tagBody(desktop,'script','data-tr-backup-v2-runtime');
+assert(backupWeb.includes('trBackupV2BuildPayload'),'Web Backup V2 builder missing');
+assert(backupDesktop.includes('trBackupV2BuildPayload'),'Desktop native Backup V2 builder missing');
 const webApp=tagBody(web,'script','data-tr-build');
 const desktopApp=tagBody(desktop,'script','data-tr-build');
-for(const token of ['trCoreBootstrap','trCorePersistNow','trBackupV2BuildPayload','v314StorePut','storeImageFile']){
+for(const token of ['trCoreBootstrap','trCorePersistNow','v314StorePut','storeImageFile']){
  assert(webApp.includes(token),'Missing Web application contract: '+token);
  assert(desktopApp.includes(token),'Native rewrite removed application contract: '+token);
 }

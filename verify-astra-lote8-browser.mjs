@@ -8,7 +8,7 @@ const check=String.raw`(async()=>{
  const out={};
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  try{
-  await sleep(120);
+  await sleep(480); // Wait for async state hydration before mutating the disposable fixture.
   out.installed=!!globalThis.TradingResearchAstraLote8;
   const plan=getCurrentPlan();
   const opsBefore=state.operations.length;
@@ -18,7 +18,10 @@ const check=String.raw`(async()=>{
     result:'win',resultTicks:20,rMultiple:2,pnlNet:35,pnlGross:40,commission:5,
     setup:'TR8 Setup',direction:'LONG',recordClass:'backtest',executionIntent:'backtest'});
   }
-  TradingResearchActions.navigate('tpbuilder');await sleep(130);
+  // The test runs under a unique file:// origin. Persisting fixtures here
+  // prevents late state-hydration from discarding them during visual rerenders.
+  if(typeof persist==='function')persist();
+  TradingResearchActions.navigate('tpbuilder');await sleep(180);
   const root=()=>document.querySelector('#tp-builder-view');
   const group=()=>root()?.querySelector('.tr8-week-selector');
   const buttons=()=>[...(group()?.querySelectorAll('button[data-day]')||[])];

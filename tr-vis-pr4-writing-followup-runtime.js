@@ -187,18 +187,18 @@ function changes(root){
 }
 function reports(root){
  if(root.querySelector('.reports-tabs .active')?.textContent?.includes('Comparar'))return;
- const document=root.querySelector('.report-document');
+ const reportDocument=root.querySelector('.report-document');
  const config=root.querySelector('.report-builder-toolbar'),presets=root.querySelector('.report-presets');
- if(!document||!config)return;
+ if(!reportDocument||!config)return;
  const print=config.querySelector('.report-actions button[data-tr-onclick*="v313PrintReport"]');
  const introduction=document.createElement('div');introduction.className='trvis4-report-reader-title';
  introduction.innerHTML='<div><h3>Vista previa del informe</h3><small>Lectura editorial con las secciones y métricas actuales de este Trading Plan.</small></div>';
  if(print){print.classList.add('trvis4-print-action');introduction.append(print);}
- document.before(introduction);
+ reportDocument.before(introduction);
  const configDetails=details(root,'reports-config','Configurar contenido, alcance y plantilla',[config],false);
- document.before(configDetails);
+ reportDocument.before(configDetails);
  if(presets)foldOriginal(presets,root,'reports-presets','Plantillas guardadas');
- document.classList.add('trvis4-report-document');
+ reportDocument.classList.add('trvis4-report-document');
 }
 function decorate(view,html){
  if(!viewIds.includes(view)||typeof html!=='string')return html;

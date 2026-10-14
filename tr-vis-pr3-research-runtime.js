@@ -79,8 +79,14 @@ function elevateResearchEvidence(root){
  const validation=root.querySelector('[data-tr6-group="validation"]');
  if(validation&&!validation.querySelector('.trvis3-validation-explanation')){
   const line=document.createElement('p');line.className='trvis3-validation-explanation';
-  line.innerHTML='<strong>Descubrimiento y validación son universos distintos.</strong> OOS real = solo operaciones futuras tras congelar. El intervalo de confianza describe incertidumbre de la muestra; Monte Carlo/Bootstrap simula escenarios, no constituye evidencia OOS.';
+  line.innerHTML='<strong>Interpretación estadística.</strong> Los intervalos de confianza describen incertidumbre de la muestra observada; Bootstrap y Monte Carlo simulan escenarios. Ninguno sustituye una prueba futura independiente.';
   validation.prepend(line);validation.classList.add('trvis3-validation-layout');
+ }
+ const oos=root.querySelector('[data-tr6-group="oos"]');
+ if(oos&&!oos.querySelector('.trvis3-oos-intro')){
+  const intro=document.createElement('p');intro.className='trvis3-oos-intro';
+  intro.innerHTML='<strong>Hipótesis congeladas y seguimiento futuro.</strong> Guarda los filtros de descubrimiento y contrasta después las operaciones nuevas, sin alterar la definición del estudio original. Este apartado se mantiene independiente de los análisis estadísticos.';
+  oos.prepend(intro);
  }
 }
 function decorateBuilder(html){

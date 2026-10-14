@@ -18,6 +18,13 @@ function details(documentRoot,name,label,content,initiallyOpen=false){
  for(const node of content){if(node)holder.append(node);}
  return el;
 }
+function foldOriginal(node,root,name,label,initiallyOpen=false){
+ const placeholder=document.createComment('trvis4-fold');
+ node.before(placeholder);
+ const panel=details(root,name,label,[node],initiallyOpen);
+ placeholder.replaceWith(panel);
+ return panel;
+}
 function moveBefore(target,node){if(target&&node&&target!==node)target.before(node);}
 function moveAfter(target,node){if(target&&node&&target!==node)target.after(node);}
 function plans(root){
@@ -64,13 +71,13 @@ function review(root){
  }
  const filter=root.querySelector('.review-filter'),list=root.querySelector('.review-list'),
   kpis=root.querySelector('.review-kpis');
- if(filter){filter.replaceWith(details(root,'review-filter','Buscar y filtrar hallazgos',[filter]));}
+ if(filter)foldOriginal(filter,root,'review-filter','Buscar y filtrar hallazgos');
  if(list&&kpis)moveAfter(list,kpis);
 }
 function journal(root){
  const filter=root.querySelector('.filter-hub'),list=root.querySelector('.journal-kpis'),
   operations=root.querySelector('.journal-charts'),table=root.querySelector('.card.panel:has(.journal-table),.card.panel:has(table)');
- if(filter)filter.replaceWith(details(root,'journal-filter','Filtrar diario emocional',[filter]));
+ if(filter)foldOriginal(filter,root,'journal-filter','Filtrar diario emocional');
  if(table&&operations)moveAfter(table,operations);
  if(operations&&list)moveAfter(operations,list);
  else if(table&&list)moveAfter(table,list);
@@ -143,7 +150,7 @@ function decision(root){
 }
 function goals(root){
  const list=root.querySelector('.goal-grid'),filter=root.querySelector('.filter-hub'),kpis=root.querySelector('.review-kpis');
- if(filter)filter.replaceWith(details(root,'goal-filter','Filtros de objetivos',[filter]));
+ if(filter)foldOriginal(filter,root,'goal-filter','Filtros de objetivos');
  if(list&&kpis)moveAfter(list,kpis);
  for(const card of root.querySelectorAll('.goal-card')){
   card.classList.add('trvis4-goal-card');
@@ -154,7 +161,7 @@ function compliance(root){
  const filters=root.querySelector('.compliance-filter'),kpis=root.querySelector('.compliance-kpis'),
  impact=root.querySelector('.compliance-impact');
  if(kpis)kpis.classList.add('trvis4-compliance-kpis');
- if(filters)filters.replaceWith(details(root,'compliance-filter','Filtros de cumplimiento',[filters]));
+ if(filters)foldOriginal(filters,root,'compliance-filter','Filtros de cumplimiento');
  if(impact&&kpis)moveAfter(kpis,impact);
  const coverage=kpis?.querySelector(':scope > :first-child');
  if(coverage)coverage.classList.add('trvis4-coverage-primary');
@@ -168,7 +175,7 @@ function mistakes(root){
 function changes(root){
  const timeline=root.querySelector('.research-timeline'),kpis=root.querySelector('.review-kpis'),
   filter=root.querySelector('.research-change-filters');
- if(filter)filter.replaceWith(details(root,'changes-filter','Filtrar cambios y alertas',[filter]));
+ if(filter)foldOriginal(filter,root,'changes-filter','Filtrar cambios y alertas');
  if(timeline&&kpis)moveAfter(timeline,kpis);
  timeline?.classList.add('trvis4-change-history');
  const buttons=[...root.querySelectorAll('.topbar .actions button,.page-head button,.page-header button')];
@@ -190,7 +197,7 @@ function reports(root){
  document.before(introduction);
  const configDetails=details(root,'reports-config','Configurar contenido, alcance y plantilla',[config],false);
  document.before(configDetails);
- if(presets)presets.replaceWith(details(root,'reports-presets','Plantillas guardadas',[presets],false));
+ if(presets)foldOriginal(presets,root,'reports-presets','Plantillas guardadas');
  document.classList.add('trvis4-report-document');
 }
 function decorate(view,html){

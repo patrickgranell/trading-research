@@ -2114,3 +2114,63 @@ html:not([data-theme="light"]) #view .md-dataset.active{
 #view .trvis3-market-hero svg{max-width:100%;height:auto}
 html[data-theme="light"] #view .trvis3-lab-filters,html[data-theme="light"] #view .trvis3-gallery-filters{background:#fff}
 @media(max-width:850px){#view .trvis3-lab-unitbar{justify-content:flex-start}#view .trvis3-builder-create-row{align-items:stretch;flex-direction:column}#view .trvis3-builder-create-row button{width:100%}}
+
+
+/* TR-VIS PR3 review refinements — isolated OOS, viewport-scale visual evidence, Builder columns */
+#view [data-tr6-group="oos"]{grid-template-columns:minmax(0,1fr)}
+#view [data-tr6-group="oos"]>.forward-panel{grid-column:1/-1;min-width:0}
+#view .trvis3-oos-intro{margin:0;padding:12px 14px;font-size:12px;line-height:1.55;color:var(--muted);background:var(--panel2);border-left:3px solid var(--accent);border-radius:7px}
+#view .trvis3-oos-intro strong{color:var(--text)}
+/* The image viewer and comparison dialog intentionally use almost all viewport.
+   Keep controls and close button accessible; preserve image aspect ratio. */
+.modal-backdrop:has(.lightbox-wrap),
+.modal-backdrop:has(.compare-grid .compare-trade){padding:1.2vh 1.2vw;align-items:stretch;justify-content:center;overflow:hidden}
+.modal-backdrop:has(.lightbox-wrap)>.modal,
+.modal-backdrop:has(.compare-grid .compare-trade)>.modal{
+ width:100%!important;max-width:calc(100vw - 2.4vw)!important;
+ height:97.6dvh;max-height:97.6dvh;min-height:0;min-width:0;
+ display:flex;flex-direction:column;border-radius:12px
+}
+.modal-backdrop:has(.lightbox-wrap)>.modal>.modal-head,
+.modal-backdrop:has(.compare-grid .compare-trade)>.modal>.modal-head{flex:0 0 auto;padding:10px 16px}
+.modal-backdrop:has(.lightbox-wrap)>.modal>.modal-foot,
+.modal-backdrop:has(.compare-grid .compare-trade)>.modal>.modal-foot{flex:0 0 auto;padding:9px 16px}
+.modal-backdrop:has(.lightbox-wrap)>.modal>.modal-body,
+.modal-backdrop:has(.compare-grid .compare-trade)>.modal>.modal-body{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 14px}
+.modal-backdrop:has(.lightbox-wrap) .lightbox-wrap{height:100%;min-height:0;width:100%;max-width:100%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.modal-backdrop:has(.lightbox-wrap) .lightbox-image{object-fit:contain;display:block;width:100%;height:100%;max-width:100%;max-height:100%;min-width:0;min-height:0}
+.modal-backdrop:has(.compare-grid .compare-trade) .compare-grid{display:grid;align-items:stretch;gap:12px;min-width:0;width:100%;height:auto;overflow:visible}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-grid.tr5-compare-count-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-grid.tr5-compare-count-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-grid.tr5-compare-count-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+.modal-backdrop:has(.compare-grid .compare-trade) .compare-trade{min-width:0;width:100%;box-sizing:border-box}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-primary-capture{flex:1 1 auto}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-primary-capture img{
+ width:100%;height:clamp(220px,63dvh,950px)!important;
+ max-height:63dvh!important;min-width:0;object-fit:contain!important
+}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-count-3 .tr5-primary-capture img{height:clamp(200px,58dvh,850px)!important;max-height:58dvh!important}
+.modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-count-4 .tr5-primary-capture img{height:clamp(180px,34dvh,540px)!important;max-height:34dvh!important}
+#view .trvis3-bc-root{display:grid;gap:9px;min-width:0}
+#view .trvis3-bc-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+#view .trvis3-bc-toolbar>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#view .trvis3-bc-toolbar small,#view .trvis3-bc-toolbar>span{font-size:11px;color:var(--muted)}
+#view .trvis3-bc-picker{padding:10px 12px;border:1px solid var(--border);background:var(--panel2);border-radius:10px;min-width:0}
+#view .trvis3-bc-picker[hidden]{display:none!important}
+#view .trvis3-bc-picker-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:5px 11px;max-height:320px;overflow-y:auto;margin-bottom:10px}
+#view .trvis3-bc-picker-item{display:flex;align-items:center;gap:8px;justify-content:space-between;border:1px solid var(--border);border-radius:7px;padding:5px 7px;min-width:0}
+#view .trvis3-bc-picker-item label{display:flex;align-items:center;gap:7px;min-width:0;font-size:11px;color:var(--text);line-height:1.4}
+#view .trvis3-bc-picker-item label span{overflow-wrap:anywhere}
+#view .trvis3-bc-sort{display:flex;align-items:center;gap:3px;flex-shrink:0}
+#view .trvis3-bc-sort button{padding:3px 6px}
+#view .trvis3-bc-scroll{width:100%;min-width:0;max-height:560px;overflow:auto}
+#view .trvis3-bc-table{width:max-content;min-width:100%;table-layout:auto;font-variant-numeric:tabular-nums}
+#view .trvis3-bc-table th{white-space:nowrap;cursor:grab;user-select:none}
+#view .trvis3-bc-table th:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#view .trvis3-bc-table td{white-space:nowrap}
+@media(max-width:780px){
+ .modal-backdrop:has(.lightbox-wrap),.modal-backdrop:has(.compare-grid .compare-trade){padding:1vh 1vw}
+ .modal-backdrop:has(.lightbox-wrap)>.modal,.modal-backdrop:has(.compare-grid .compare-trade)>.modal{width:98vw!important;max-width:98vw!important;height:98dvh;max-height:98dvh}
+ .modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-grid{grid-template-columns:1fr!important}
+ .modal-backdrop:has(.compare-grid .compare-trade) .tr5-primary-capture img{max-height:55dvh!important;height:55dvh!important}
+}

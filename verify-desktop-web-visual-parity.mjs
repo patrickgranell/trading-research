@@ -8,6 +8,8 @@ const web=read('dist/index.html'),desktop=read('desktop-dist/index.html');
 const config=JSON.parse(read('src-tauri/tauri.conf.json'));
 const cargo=read('src-tauri/Cargo.toml');
 const prep=read('desktop-prepare.mjs');
+const nativeUi=read('desktop-native-runtime.js');
+const nativeHost=read('src-tauri/src/main.rs');
 const sha=s=>crypto.createHash('sha256').update(s,'utf8').digest('hex');
 function tagBody(html,tag,attr){
  const pattern=new RegExp('<'+tag+'\\s+'+attr+'="[^"]+"[^>]*>([\\s\\S]*?)<\\/'+tag+'>','g');
@@ -50,6 +52,9 @@ for(const marker of [
 ])assert(desktop.includes(marker),'Missing Desktop version/authority marker '+marker);
 assert.equal(config.version,'0.8.0');
 assert.match(cargo,/^version\s*=\s*"0\.8\.0"/m);
+assert(nativeUi.includes("const VERSION='0.8.0'"),'Native desktop panel reports old version');
+assert(nativeHost.includes('"version": "0.8.0"'),'Native host status reports old version');
+assert.equal(config.identifier,'app.tradingresearch.desktop','Installation ID changed: existing AppLocalData must remain accessible');
 assert.equal(config.build.frontendDist,'../desktop-dist');
 assert.equal(config.app.withGlobalTauri,true);
 assert(config.bundle.targets.includes('nsis'),'Offline Windows installer must be NSIS.');

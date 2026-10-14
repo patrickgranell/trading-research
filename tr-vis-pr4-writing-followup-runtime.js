@@ -190,7 +190,8 @@ function reports(root){
  const reportDocument=root.querySelector('.report-document');
  const config=root.querySelector('.report-builder-toolbar'),presets=root.querySelector('.report-presets');
  if(!reportDocument||!config)return;
- const print=config.querySelector('.report-actions button[data-tr-onclick*="v313PrintReport"]');
+ const print=config.querySelector('.report-actions button[data-tr-onclick*="v313PrintReport"],.report-actions button[data-tr-action-click="v313PrintReport"]')||
+  [...config.querySelectorAll('.report-actions button')].find(button=>/Imprimir|PDF/i.test(button.textContent||''));
  const introduction=document.createElement('div');introduction.className='trvis4-report-reader-title';
  introduction.innerHTML='<div><h3>Vista previa del informe</h3><small>Lectura editorial con las secciones y métricas actuales de este Trading Plan.</small></div>';
  if(print){print.classList.add('trvis4-print-action');introduction.append(print);}

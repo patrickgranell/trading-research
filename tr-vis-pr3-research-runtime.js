@@ -234,6 +234,11 @@ if(registry&&typeof viewOperation==='function'){
  };
 }
 
+// Remember disclosure state at the user's click, before a canonical rerender.
+document.addEventListener('click',event=>{
+ const summary=event.target?.closest?.('.trvis3-lab-filter-summary');
+ if(summary)labFiltersOpen=!summary.closest('.trvis3-lab-filters')?.open;
+},true);
 document.addEventListener('toggle',event=>{
  const details=event.target;
  if(details?.matches?.('.trvis3-lab-filters')&&details.isConnected)labFiltersOpen=details.open;

@@ -95,3 +95,6 @@ jobs:
       - name: TR-VIS PR2 · Management and temporal comparisons Chromium
         run: node verify-tr-pr2-comparisons-browser.mjs
 
+      - name: TR-VIS PR3 · Research and evidence Chromium
+        run: node verify-tr-vis-pr3-browser.mjs
+

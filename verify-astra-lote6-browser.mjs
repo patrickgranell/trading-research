@@ -12,11 +12,15 @@ const check=String.raw`(async()=>{
   await wait(120);
   out.adapter=!!globalThis.TradingResearchAstraLote6;out.initialRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();
   TradingResearchActions.navigate('lab');await wait(90);
-  out.tabs=document.querySelectorAll('.tr6-task-tabs [role="tab"]').length===5;out.labRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();out.labHtml=document.querySelector('#view')?.textContent?.slice(0,100);
+  out.tabs=document.querySelectorAll('.tr6-task-tabs [role="tab"]').length===6;out.labRoute=globalThis.TradingResearchCurrentViewReadContract?.current?.();out.labHtml=document.querySelector('#view')?.textContent?.slice(0,100);
   out.studiesInSummary=!!document.querySelector('[data-tr6-group="summary"] .saved-studies-panel');
   const originalFilters=JSON.stringify(labState),count=labFilteredOps().length;
   TradingResearchActions.tr6LabGroup('validation');await wait(70);
-  out.oosInValidation=!!document.querySelector('[data-tr6-group="validation"] .forward-panel');
+  out.oosOutsideValidation=!document.querySelector('[data-tr6-group="validation"] .forward-panel');
+  out.oosAfterRisk=[...document.querySelectorAll('.tr6-task-tabs [role="tab"]')].map(b=>b.getAttribute('aria-controls')).slice(-2).join(',')==='tr6-lab-risk,tr6-lab-oos';
+  TradingResearchActions.tr6LabGroup('oos');await wait(70);
+  out.oosIndependent=!!document.querySelector('[data-tr6-group="oos"] .forward-panel')&&document.querySelector('[data-tr6-group="oos"]')?.hidden===false;
+  TradingResearchActions.tr6LabGroup('validation');await wait(70);
   out.validationVisible=document.querySelector('[data-tr6-group="validation"]')?.hidden===false;
   TradingResearchActions.tr6LabGroup('segmentation');await wait(70);
   out.filtersPreserved=JSON.stringify(labState)===originalFilters&&labFilteredOps().length===count;
@@ -58,6 +62,6 @@ try{
  assert(match,'Chromium missing Lote 6 diagnostic: '+run.stderr?.slice(-900));
  const result=JSON.parse(decodeURIComponent(match[1]));
  console.log('Lote 6 Chromium diagnostics:',JSON.stringify(result));
- for(const field of ['adapter','tabs','studiesInSummary','oosInValidation','validationVisible','filtersPreserved','gridNativeButton','gridAccessible','keyboardFocus','samePlanExplained','noFakeZeros','comparisonEligibleCountExplained','marketNavigation','marketContext','marketNoNumericSteps','marketTabActive','marketMissingGuidance','lightContrastCss'])assert(result[field],field+' FAIL: '+JSON.stringify(result));
- console.log('Astra Lote 6 Chromium PASS: tasks, OOS, context, grid keyboard and comparison/Market Data'); 
+ for(const field of ['adapter','tabs','studiesInSummary','oosOutsideValidation','oosAfterRisk','oosIndependent','validationVisible','filtersPreserved','gridNativeButton','gridAccessible','keyboardFocus','samePlanExplained','noFakeZeros','comparisonEligibleCountExplained','marketNavigation','marketContext','marketNoNumericSteps','marketTabActive','marketMissingGuidance','lightContrastCss'])assert(result[field],field+' FAIL: '+JSON.stringify(result));
+ console.log('Astra Lote 6 Chromium PASS: tasks, independent final OOS, context, grid keyboard and comparison/Market Data'); 
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

@@ -30,3 +30,18 @@ Bloque final del plan consolidado; TR-VIS-009/011/012, cierre de 015/016. No se 
 - Base y rama identificadas, diseño por alcance propuesto; todavía no existe implementación ni CI del bloque.
 - Verificado: `plansView`, `reviewView`, `journal`, `dataQualityView`, `researchDecisionCenter`, `goalsView`, `complianceView`, `mistakesView`, `researchChangesView`, `v313BuilderView` y `reportsView` existen en código base. Evitar reescribir sus motores.
 - Siguiente paso: crear adaptador de presentación, test de estructura y preservación de acciones, ejecutar CI.
+
+
+## Checkpoint de implementación 01 — 15/10/2026
+
+**PR:** [#121](https://github.com/patrickgranell/trading-research/pull/121), borrador, sin merge. Rama `tr-vis-pr4-planes-escritura-seguimiento-20261015`, base `main` con PR #120 integrado.
+
+**Paquetes abordados en código de presentación:** catálogo de TP (acciones y métricas secundarias plegadas), Review/Hallazgos (texto antes que KPIs), Diario (filtros) y Reflexiones/Perspectivas del nuevo módulo emocional V31.29 (texto/autor/fuente), Calidad (resumen → incidencias → cola → cobertura), Centro de decisiones (prioridades), Objetivos/Cumplimiento/Errores (progreso, cobertura y frecuencia), alertas (cronología y mantenimiento), Informes (documento editorial antes de plantillas/configuración). Se reutilizan nodos existentes y se comparan inventarios en tiempo de renderizado: ninguna acción ni campo puede desaparecer.
+
+**Estado sin datos detectado y corregido:** una vista heredada de Diario intentaba `.toFixed` sobre estadísticas emocionales nulas, y el agrupador por emoción intentaba formatear expectancy nula. La transformación de build sustituye solamente la representación por '—', no la fórmula; la interfaz nueva de Diario ya emplea su presentación actual.
+
+**Pruebas:** `verify-tr-vis-pr4-browser.mjs` (10 vistas e inventarios, más fixtures de Reflexiones y Perspectivas), `verify-tr-vis-pr4-print-browser.mjs` (imprimir informe de prueba de varias páginas a PDF con Chrome aislado). Se han corregido errores de reparentado detectados en CI. Los PR 1–3 mantuvieron PASS en las primeras ejecuciones. En una ejecución posterior, TR-UX-026 tuvo fallo transitorio del headless browser por ausencia de CSS computado; repetición de suite en curso.
+
+**Restricciones y pendientes:** todavía no hay CI verde para la última cabeza ni confirmación del despliegue del preview. Comprobar con fixture de TP sin operaciones, entornos Backtesting/SIM/Replay/Live, texto largo, archivos/derivados, tema claro/oscuro; impresión/PDF real. No declarar PASS visual definitivo sin esas pruebas. No modificar producción.
+
+**Siguiente acción:** esperar CI del commit `c63f8fe9` (o posterior), corregir cualquier test fallido dentro de #121, documentar casos y entregar preview único para recorridos 4A–4C. Autorización de merge: **NO**.

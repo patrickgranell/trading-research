@@ -4,6 +4,7 @@ import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-s
 import {transformStateActions} from './state-action-transform.mjs';
 import {injectOperationLots,injectTaxonomyOperationLots} from './operation-lots-build-transform.mjs';
 import {injectBuilderPreviewColumns} from './tr-vis-pr3-builder-columns-build-transform.mjs';
+import {guardEmptyJournalStats} from './tr-vis-pr4-display-guard-build-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
 import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
@@ -44,7 +45,7 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
 const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
-preEventSources['app.js']=injectBuilderPreviewColumns(injectOperationLots(residualMirrorClosure.source).source).source;
+preEventSources['app.js']=guardEmptyJournalStats(injectBuilderPreviewColumns(injectOperationLots(residualMirrorClosure.source).source).source).source;
 preEventSources['taxonomy-runtime.js']=injectTaxonomyOperationLots(preEventSources['taxonomy-runtime.js']).source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
 const trEventBuildFingerprint=crypto.createHash('sha256')

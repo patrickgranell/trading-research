@@ -31,7 +31,7 @@ const check=String.raw`(async()=>{
   out.minimumDayWidth=buttons().every(b=>b.getBoundingClientRect().width>=32);
   out.responsiveColumns=getComputedStyle(group()).gridTemplateColumns.split(' ').length;
   const buttonDay=d=>root().querySelector('.tr8-week-day[data-day="'+d+'"]');
-  const resultCount=()=>{const s=root()?.querySelector('.topbar .btn.primary')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
+  const resultCount=()=>{const s=root()?.querySelector('[data-tr-action-click="tpBuilderOpenCreate"]')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
   out.before=resultCount();
   buttonDay(1)?.click();await sleep(110);
   out.firstSelected=buttonDay(1)?.getAttribute('aria-pressed')==='true'&&buttonDay(1)?.classList.contains('active');

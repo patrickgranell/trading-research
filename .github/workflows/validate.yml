@@ -107,3 +107,6 @@ jobs:
       - name: TR-VIS PR4 · Plans, writing and follow-up Chromium
         run: node verify-tr-vis-pr4-browser.mjs
 
+      - name: TR-VIS PR4 · Multi-page Report Builder PDF Chromium
+        run: node verify-tr-vis-pr4-print-browser.mjs
+

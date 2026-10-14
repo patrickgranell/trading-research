@@ -87,3 +87,14 @@ Referenced image blobs are native, content-addressed by SHA-256 and catalogued i
 ## Desktop 0.7 portable recovery — Batch 79 DRAFT
 
 One complete Backup V2 is the portability boundary. A native source copy and rollback are fsync-confirmed before mutation; a SQLite journal blocks writes and records monotonic phases `prepared -> restored -> images-native -> market-native -> verified`. Restart resumes from the physical source backup. Final closure requires exact rebuilt Backup V2 domain hashes plus deep workspace/image/Market Data verification. See `DESKTOP-PORTABLE-RECOVERY.md`.
+
+
+## Desktop 0.8.0 — consolidated Web PR1–PR4 visual candidate (not yet certified)
+
+This is a **candidate Windows update**, not an already validated Desktop stable release. Version 0.8.0 repackages the same Web frontend from `main` after PR #121, preserving all its visual improvements without implementing a second Desktop UI.
+
+The packaging chain is `npm run build → dist/index.html → desktop-prepare.mjs → desktop-dist/index.html → native Desktop authority transforms → Tauri NSIS`. The new `verify-desktop-web-visual-parity.mjs` checks byte-identical CSS and shared UI adapters in Desktop vs Web as well as the presence of PR1–4, no remote UI assets, and unchanged native authority adapter markers.
+
+The global Web release remains V31.29.0. The Desktop-only version increments from 0.7.0 to 0.8.0, with the same application identifier and AppLocalData schema. This package must **not** initialize a blank workspace when the native SQLite authority is present, nor silently adopt stale IndexedDB. Referenced image binaries and Market Data remain under their certified native authorities; no database or file migration is requested for this visual release.
+
+Windows CI must pass `desktop:prepare`, `cargo test`, the existing native storage/image/Market Data/portable recovery suites and an actual NSIS build. Before merging or declaring stable, the user must perform the grouped D1–D4 test on Windows 11, covering offline upgrade of the current 0.7.0 profile, visual parity, native authorities, complete Backup V2 and safe restore. Test a destructive recovery only on a disposable profile, preserving a separately verified native rollback. See `DESKTOP-080-CHECKPOINT.md`.

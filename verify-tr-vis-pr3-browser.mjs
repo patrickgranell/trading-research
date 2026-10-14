@@ -27,9 +27,13 @@ const probe=String.raw`(async()=>{
   root=document.querySelector('#view');
   out.validation={open:root.querySelector('.trvis3-lab-filters')?.open===true,
    note:!!root.querySelector('.trvis3-validation-explanation'),
-   source:!!root.querySelector('[data-tr6-group="validation"] .forward-panel'),
+   source:!root.querySelector('[data-tr6-group="validation"] .forward-panel'),
    tabSelected:root.querySelector('.tr6-task-tabs [aria-selected="true"]')?.textContent||'',
    layout:root.querySelector('[data-tr6-group="validation"]')?.classList.contains('trvis3-validation-layout')};
+  TradingResearchActions.tr6LabGroup('oos');await wait(80);
+  out.oos={position:root.querySelector('.tr6-task-tabs [role="tab"]:last-child')?.getAttribute('aria-controls')==='tr6-lab-oos',
+    content:!!document.querySelector('[data-tr6-group="oos"] .forward-panel'),
+    visible:document.querySelector('[data-tr6-group="oos"]')?.hidden===false};
   TradingResearchActions.tr6LabGroup('segmentation');await wait(80);
   out.segment={legend:!!document.querySelector('#view .trvis3-grid-legend'),
    tabSelected:document.querySelector('#view .tr6-task-tabs [aria-selected="true"]')?.textContent||''};
@@ -107,9 +111,10 @@ try{
  assert(!o.error,o.error);
  assert(o.adapter);
  for(const field of ['wrap','closed','ahead','inputIdsEqual','unitVisible'])assert(o.lab[field],'lab.'+field);
- assert.equal(o.lab.tabs,5);
+ assert.equal(o.lab.tabs,6);
  assert(o.lab.sampleText.includes('operaciones'));
  assert(o.validation.open&&o.validation.note&&o.validation.source&&o.validation.layout);
+ assert(o.oos.position&&o.oos.content&&o.oos.visible);
  assert(o.segment.legend);
  for(const field of ['exists','source','filters','comparison','action','preservedRaw','noDuplicate'])assert(o.builder[field],'builder.'+field);
  for(const field of ['details','hidden','selection','controlsUnique'])assert(o.gallery[field],'gallery.'+field);

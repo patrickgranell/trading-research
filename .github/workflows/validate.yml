@@ -98,3 +98,6 @@ jobs:
       - name: TR-VIS PR3 · Research and evidence Chromium
         run: node verify-tr-vis-pr3-browser.mjs
 
+      - name: TR-VIS PR3 · Independent derived TP Chromium
+        run: node verify-tr-vis-pr3-derived-browser.mjs
+

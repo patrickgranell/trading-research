@@ -171,7 +171,7 @@ function changes(root){
  if(filter)filter.replaceWith(details(root,'changes-filter','Filtrar cambios y alertas',[filter]));
  if(timeline&&kpis)moveAfter(timeline,kpis);
  timeline?.classList.add('trvis4-change-history');
- const buttons=[...root.querySelectorAll('.page-head button,.page-header button')];
+ const buttons=[...root.querySelectorAll('.topbar .actions button,.page-head button,.page-header button')];
  const maintenance=buttons.filter(b=>/Actualizar referencia|Limpiar historial/.test(b.textContent||''));
  if(maintenance.length){
   const container=maintenance[0].parentElement;

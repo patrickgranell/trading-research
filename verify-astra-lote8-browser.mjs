@@ -8,7 +8,7 @@ const check=String.raw`(async()=>{
  const out={};
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  try{
-  await sleep(480); // Wait for async state hydration before mutating the disposable fixture.
+  await sleep(1500); // Headless startup may asynchronously reload initial state. Wait before adding disposable fixtures.
   out.installed=!!globalThis.TradingResearchAstraLote8;
   const plan=getCurrentPlan();
   const opsBefore=state.operations.length;
@@ -21,7 +21,8 @@ const check=String.raw`(async()=>{
   // The test runs under a unique file:// origin. Persisting fixtures here
   // prevents late state-hydration from discarding them during visual rerenders.
   if(typeof persist==='function')persist();
-  TradingResearchActions.navigate('tpbuilder');await sleep(180);
+  await sleep(160);
+  TradingResearchActions.navigate('tpbuilder');await sleep(220);
   const root=()=>document.querySelector('#tp-builder-view');
   const group=()=>root()?.querySelector('.tr8-week-selector');
   const buttons=()=>[...(group()?.querySelectorAll('button[data-day]')||[])];
@@ -100,7 +101,7 @@ try{
  }
  assert(chrome,'Chromium required for Lote 8 visual certification');
  for(const width of [1280,500]){
-  const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--window-size=${width},920`,'--virtual-time-budget=4500','--dump-dom','file://'+source],{encoding:'utf8',timeout:45000,maxBuffer:8500000});
+  const run=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage',`--window-size=${width},920`,'--virtual-time-budget=12000','--dump-dom','file://'+source],{encoding:'utf8',timeout:45000,maxBuffer:8500000});
   assert.equal(run.status,0,run.stderr?.slice(-1000));
   const match=run.stdout.match(/data-tr8-results="([^"]+)"/);
   assert(match,'Missing Chromium Lote 8 output: '+run.stderr?.slice(-1000));

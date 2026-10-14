@@ -5,7 +5,7 @@
 if(typeof document==='undefined'||globalThis.TradingResearchVisualPR4)return;
 const stateOf={};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-const viewIds=['plans','review','journal','quality','decision','goals','compliance','mistakes','changes','reports'];
+const viewIds=['plans','review','journal','journalops','journaldashboard','journalreflections','journalstatements','quality','decision','goals','compliance','mistakes','changes','reports'];
 function details(documentRoot,name,label,content,initiallyOpen=false){
  const el=document.createElement('details');
  el.className='trvis4-details trvis4-'+name;
@@ -75,6 +75,30 @@ function journal(root){
  if(operations&&list)moveAfter(operations,list);
  else if(table&&list)moveAfter(table,list);
  root.querySelector('.journal-kpis')?.classList.add('trvis4-secondary-metrics');
+}
+
+function journalSessions(root){
+ const cards=root.querySelector('.journal-kpis'),panel=root.querySelector('.journal-sessions-panel,.emotional-sessions-panel,.session-list,.journal-session-grid');
+ if(panel&&cards)moveAfter(panel,cards);
+ cards?.classList.add('trvis4-secondary-metrics');
+}
+function journalReflections(root){
+ const history=root.querySelector('.reflection-history');
+ const kpis=root.querySelector('.reflection-kpis');
+ if(history&&kpis)moveAfter(history,kpis);
+ const text=root.querySelector('.perspective-focus-card blockquote');
+ if(text)text.classList.add('trvis4-perspective-text');
+ for(const card of root.querySelectorAll('.reflection-card')){
+  card.classList.add('trvis4-writing-card');
+  card.querySelector('.reflection-body')?.classList.add('trvis4-reflection-body');
+ }
+ const author=root.querySelector('.perspective-focus-author'),source=root.querySelector('.perspective-focus-source');
+ author?.classList.add('trvis4-source-author');
+ source?.classList.add('trvis4-source-citation');
+}
+function journalDashboard(root){
+ const activity=root.querySelector('.emotional-dashboard-activity,.emotional-dashboard-activity-list,.emotional-dashboard-events,.emotional-dashboard-activity-panel');
+ activity?.classList.add('trvis4-writing-priority');
 }
 function quality(root){
  const hero=root.querySelector('.dq-hero'),issues=root.querySelector('.dq-anomalies'),
@@ -178,7 +202,11 @@ function decorate(view,html){
  switch(view){
   case 'plans':plans(root);break;
   case 'review':review(root);break;
-  case 'journal':journal(root);break;
+  case 'journal':journalSessions(root);break;
+  case 'journalops':journal(root);break;
+  case 'journaldashboard':journalDashboard(root);break;
+  case 'journalreflections':journalReflections(root);break;
+  case 'journalstatements':journalReflections(root);break;
   case 'quality':quality(root);break;
   case 'decision':decision(root);break;
   case 'goals':goals(root);break;

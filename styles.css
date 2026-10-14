@@ -2174,3 +2174,96 @@ html[data-theme="light"] #view .trvis3-lab-filters,html[data-theme="light"] #vie
  .modal-backdrop:has(.compare-grid .compare-trade) .tr5-compare-grid{grid-template-columns:1fr!important}
  .modal-backdrop:has(.compare-grid .compare-trade) .tr5-primary-capture img{max-height:55dvh!important;height:55dvh!important}
 }
+
+
+/* TR-VIS PR4 — visual composition, no changes to underlying metrics or saved data */
+#view .trvis4-details{border:1px solid var(--border);border-radius:10px;background:var(--panel);margin:8px 0;min-width:0}
+#view .trvis4-details>summary{padding:10px 13px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text);min-height:34px}
+#view .trvis4-details>summary:hover{background:var(--panel2)}
+#view .trvis4-details>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#view .trvis4-details-content{padding:3px 11px 12px;min-width:0}
+#view .trvis4-details-content>.card{box-shadow:none;margin:0}
+#view .trvis4-details-content>.filter-hub{margin:0}
+#view .trvis4-details-content :is(input,select,textarea,button){max-width:100%}
+/* Trading Plans: state, version, name, execution actions first. */
+#view .trvis4-plan-card{min-width:0;display:flex;flex-direction:column;gap:10px;padding:17px}
+#view .trvis4-plan-card .plan-card-head{align-items:flex-start;gap:10px;min-width:0}
+#view .trvis4-plan-title{font-size:16px;font-weight:750;line-height:1.45;white-space:normal;overflow-wrap:anywhere;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#view .trvis4-plan-title .badge{font-size:10px;font-weight:650}
+#view .trvis4-plan-context{font-size:11px;line-height:1.65;overflow-wrap:anywhere;color:var(--muted)}
+#view .trvis4-plan-description{font-size:12px;line-height:1.55;color:var(--text);margin:0}
+#view .trvis4-plan-sample{font-size:11px;color:var(--muted);margin-bottom:-5px}
+#view .trvis4-plan-card .plan-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0}
+#view .trvis4-plan-card .plan-metrics>div{min-width:0}
+#view .trvis4-plan-card .plan-metrics strong{font-size:18px}
+#view .trvis4-plan-primary-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:auto}
+#view .trvis4-plan-primary-actions>.btn.primary{order:0;min-width:82px}
+#view .trvis4-plan-primary-actions>.btn:not(.primary){order:1}
+#view .trvis4-plan-primary-actions>.trvis4-details{order:2;flex-basis:100%;margin:0;background:transparent}
+#view .trvis4-plan-primary-actions>.trvis4-details>summary{padding:8px 10px;font-size:11px;min-height:30px}
+#view .trvis4-plan-primary-actions>.trvis4-details .trvis4-details-content{display:flex;gap:6px;flex-wrap:wrap}
+#view .trvis4-plan-card>.trvis4-details{margin:0;background:transparent}
+#view .trvis4-plan-card>.trvis4-details .trvis4-details-content{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#view .trvis4-plan-card>.trvis4-details .trvis4-details-content>div{border:1px solid var(--border);border-radius:7px;padding:8px}
+/* Writing first: cards and complete text precede chart/meters. */
+#view .trvis4-writing-card{display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0}
+#view .trvis4-writing-card .review-card-head{align-items:flex-start;flex-wrap:wrap}
+#view .trvis4-writing-card .review-card-head h3{font-size:16px;line-height:1.45;margin:5px 0}
+#view .trvis4-writing-card .review-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#view .trvis4-writing-card .review-body section{padding:14px;min-width:0;overflow-wrap:anywhere;line-height:1.6}
+#view .trvis4-writing-card .review-body section>span{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.015em}
+#view .trvis4-writing-card .review-body section>p{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap}
+#view .trvis4-writing-card .review-metrics{opacity:.9}
+#view .trvis4-followup{border-top:1px solid var(--border);padding-top:12px}
+#view .review-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+#view .review-actions .trvis4-details{margin:0}
+#view .review-actions .trvis4-details>summary{min-height:30px;padding:6px 9px}
+#view .review-actions .trvis4-details-content{display:flex;gap:6px;flex-wrap:wrap}
+#view .trvis4-review-filter>.trvis4-details-content .filter-grid,
+#view .trvis4-journal-filter>.trvis4-details-content .filter-grid{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+#view .trvis4-secondary-metrics{margin-top:12px}
+/* Quality and plan status: issue/next action is above secondary coverage. */
+#view .trvis4-compact-status{padding:14px 16px;margin-bottom:12px}
+#view .trvis4-compact-status .dq-score strong{font-size:28px}
+#view .trvis4-compact-status .decision-hero-kpis strong{font-size:17px}
+#view .trvis4-quality-priorities{margin-top:10px}
+#view .trvis4-quality-priorities .dq-issue-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+#view .trvis4-quality-priorities .dq-issue-card{min-width:0;text-align:left}
+#view .trvis4-decision-priorities{margin:12px 0 17px}
+#view .trvis4-decision-priorities .decision-priority-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+#view .trvis4-decision-priorities .decision-priority{min-width:0;overflow-wrap:anywhere}
+#view .trvis4-no-sample{border-color:var(--border);background:var(--panel)}
+#view .trvis4-no-sample h2{font-size:19px;color:var(--text)}
+#view .trvis4-neutral-empty{padding:18px}
+/* Goals: target, current, n and horizon stay in one glance. */
+#view .trvis4-goal-card{min-width:0;overflow-wrap:anywhere}
+#view .trvis4-goal-card .goal-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+#view .trvis4-goal-card .goal-values strong{font-size:18px}
+#view .trvis4-goal-card .goal-progress{margin-top:12px}
+#view .trvis4-coverage-primary{border:1px solid var(--border);border-radius:8px}
+#view .trvis4-errors-main{margin-top:8px}
+#view .trvis4-errors-main .empty{padding:12px;min-height:0}
+#view .trvis4-change-history{display:grid;gap:10px;margin-top:12px}
+#view .trvis4-change-history .research-event{min-width:0;line-height:1.55}
+#view .trvis4-change-history .research-event h3{font-size:14px}
+#view .trvis4-change-history .research-event p{font-size:12px;color:var(--text)}
+/* Reports: editorial document remains the exact canonical print node. */
+#view .trvis4-report-reader-title{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin:15px 0 7px}
+#view .trvis4-report-reader-title h3{font-size:16px;margin:0 0 4px}
+#view .trvis4-report-reader-title small{font-size:11px;color:var(--muted)}
+#view .trvis4-report-document{margin-top:10px;min-width:0}
+#view .trvis4-reports-config .report-builder-toolbar{display:flex;flex-wrap:wrap;gap:15px}
+#view .trvis4-reports-presets .report-presets{background:transparent}
+#view .trvis4-reports-presets .compact-empty{min-height:0;padding:13px}
+#view .trvis4-print-action{min-height:36px}
+@media(max-width:850px){
+ #view .trvis4-writing-card .review-body{grid-template-columns:1fr}
+ #view .trvis4-plan-card .plan-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #view .trvis4-plan-card>.trvis4-details .trvis4-details-content{grid-template-columns:1fr}
+ #view .trvis4-compact-status .decision-hero-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media print{
+ #view .trvis4-details,#view .trvis4-report-reader-title{display:none!important}
+ #view .trvis4-report-document{margin:0;break-before:auto;break-inside:auto}
+ #view .trvis4-report-document section{break-inside:avoid-page}
+}

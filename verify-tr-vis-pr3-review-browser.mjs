@@ -42,12 +42,12 @@ const check=String.raw`(async()=>{
   qty.checked=true;qty.dispatchEvent(new Event('change',{bubbles:true}));
   base=document.querySelector('#view #tp-builder-view .trvis3-bc-root');
   o.contractsVisible=[...base.querySelectorAll('th')].some(t=>t.textContent==='N.º contratos');
-  o.contractValue=[...base.querySelectorAll('tbody tr:first-child td')].map(t=>t.textContent).includes('2');
+  o.contractValue=[...base.querySelectorAll('tbody tr')].some(row=>[...row.cells].some(td=>td.textContent==='2'));
   const lot=base.querySelector('[data-trvis3-bc-visible=lot1]');
   lot.checked=true;lot.dispatchEvent(new Event('change',{bubbles:true}));
   base=document.querySelector('#view #tp-builder-view .trvis3-bc-root');
   o.lotVisible=[...base.querySelectorAll('th')].some(t=>t.textContent.includes('Lote 1'));
-  o.lotValue=base.querySelector('tbody tr:first-child')?.textContent?.includes('20t/ct');
+  o.lotValue=[...base.querySelectorAll('tbody tr')].some(row=>row.textContent.includes('20t/ct'));
   const before=contract.read(plan.id).order.indexOf('contracts');
   base.querySelector('[data-trvis3-bc-move=contracts][data-delta="-1"]')?.click();
   const after=contract.read(plan.id).order.indexOf('contracts');

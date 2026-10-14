@@ -32,6 +32,8 @@ on:
       - 'verify-desktop-portable-recovery-behavior.mjs'
       - 'DESKTOP-PORTABLE-RECOVERY.md'
       - 'DESKTOP.md'
+      - 'verify-desktop-web-visual-parity.mjs'
+      - 'DESKTOP-080-CHECKPOINT.md'
       - '.github/workflows/desktop-build.yml'
 
 permissions:
@@ -64,6 +66,9 @@ jobs:
 
       - name: Prepare Desktop frontend for native tests
         run: npm run desktop:prepare
+
+      - name: Shared Web PR1-4 UI and CSS parity
+        run: node verify-desktop-web-visual-parity.mjs
 
       - name: Native SQLite authority tests
         run: cargo test --manifest-path src-tauri/Cargo.toml

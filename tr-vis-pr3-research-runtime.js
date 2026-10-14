@@ -182,6 +182,58 @@ if(typeof trRenderViewHtml==='function'){
   return html;
  };
 }
+
+/* Contextual running evidence: only a real, linked execution can open its
+   exact NinjaTrader Grid row. No linking, calculation or data mutation. */
+function linkedExecutionFor(op){
+ const key=String(op?.executionEvidence?.executionKey||'');
+ if(!key||typeof v314MarketUi==='undefined')return null;
+ for(const set of v314MarketUi.execSets||[]){
+  const idx=(set.results||[]).findIndex(trade=>String(set.id)+':'+String(trade.id)===key);
+  if(idx>=0)return {set,index:idx};
+ }
+ return null;
+}
+function addLinkedRunToDetail(id){
+ const op=state.operations.find(x=>x.id===id);
+ if(!op)return;
+ const plan=getPlan(op.tradingPlanId);
+ if(globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)==='backtest')return;
+ if(!linkedExecutionFor(op))return;
+ const modal=[...document.querySelectorAll('.modal-backdrop')].reverse().find(el=>el.querySelector('.trade-detail-hero'));
+ if(!modal||modal.querySelector('[data-trvis3-open-run]'))return;
+ const button=document.createElement('button');
+ button.type='button';button.className='btn small trvis3-open-run';button.textContent='Abrir recorrido de ejecución';
+ button.dataset.trvis3OpenRun='1';
+ button.dataset.trActionClick='trvis3OpenRunning';
+ button.dataset.trArgsClick=encodeURIComponent(JSON.stringify([String(id)]));
+ modal.querySelector('.trade-detail-hero')?.after(button);
+}
+const registry=globalThis.TradingResearchActions;
+if(registry&&typeof viewOperation==='function'){
+ const originalDetail=viewOperation;
+ viewOperation=function(id){
+  const ret=originalDetail(id);
+  addLinkedRunToDetail(id);
+  return ret;
+ };
+ window.viewOperation=viewOperation;
+ if(registry.viewOperation)registry.viewOperation=viewOperation;
+ registry.trvis3OpenRunning=function(id){
+  const op=state.operations.find(x=>x.id===id),plan=op?getPlan(op.tradingPlanId):null;
+  if(!op||globalThis.TradingResearchOperationSemanticsContract?.planEnvironment?.(plan)==='backtest')return;
+  const linked=linkedExecutionFor(op);
+  if(!linked||typeof v314MarketUi==='undefined'||typeof v316SetTab!=='function')return;
+  v314MarketUi.activeExecId=linked.set.id;
+  if(linked.set.marketDatasetId)v314MarketUi.activeMarketId=linked.set.marketDatasetId;
+  if(typeof v315ResetRunning==='function')v315ResetRunning();
+  v315RunningUi.tradeIndex=linked.index;
+  closeModal();
+  navigate('market');
+  v316SetTab('running');
+ };
+}
+
 document.addEventListener('toggle',event=>{
  const details=event.target;
  if(details?.matches?.('.trvis3-lab-filters')&&details.isConnected)labFiltersOpen=details.open;

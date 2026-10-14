@@ -52,7 +52,7 @@ try{
  assert(chrome,'Chromium required');
  const r=spawnSync(chrome,['--headless=new','--no-sandbox','--disable-gpu','--disable-dev-shm-usage','--virtual-time-budget=11500','--window-size=1366,900','--user-data-dir='+path.join(folder,'profile'),'--dump-dom','file://'+file],{encoding:'utf8',timeout:60000,maxBuffer:17000000});
  assert.equal(r.status,0,r.stderr?.slice(-1000));
- const encoded=r.stdout.match(/data-trvis3derived="([^"]+)"/i)?.[1];
+ const encoded=r.stdout.match(/data-trvis3-derived="([^"]+)"/i)?.[1];
  assert(encoded,'Missing derived fixture diagnostic: '+r.stderr?.slice(-1200));
  const o=JSON.parse(decodeURIComponent(encoded));console.log('TR-VIS PR3 derivation',JSON.stringify(o));
  assert(!o.error,o.error);

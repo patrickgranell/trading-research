@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {consolidateLegacyRenderAssignments,renderDebtInventory} from './render-source-transform.mjs';
 import {transformStateActions} from './state-action-transform.mjs';
+import {injectOperationLots,injectTaxonomyOperationLots} from './operation-lots-build-transform.mjs';
 import {pruneAppGlobalExports} from './app-global-prune-transform.mjs';
 import {pruneCandidateInventory} from './prune-candidate-inventory.mjs';
 import {remainingGlobalContractMap,prepareRemainingGlobalContractStage} from './remaining-global-contract-map.mjs';
@@ -42,7 +43,8 @@ const remainingContracts=remainingGlobalContractMap(residualMirrorClosure.source
  * Runtime receives static plan IDs plus URI-encoded JSON values. */
 const runtimeFiles=['style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','exit-lab-runtime.js','canonical-metrics-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js'];
 const preEventSources=Object.fromEntries(runtimeFiles.map(file=>[file,file==='state-runtime.js'?stateActionBridge.source:rawScript(file)]));
-preEventSources['app.js']=residualMirrorClosure.source;
+preEventSources['app.js']=injectOperationLots(residualMirrorClosure.source).source;
+preEventSources['taxonomy-runtime.js']=injectTaxonomyOperationLots(preEventSources['taxonomy-runtime.js']).source;
 const structuredEventTransform=transformStructuredEventSources(Object.entries(preEventSources).map(([name,source])=>({name,source})));
 const trEventBuildFingerprint=crypto.createHash('sha256')
   .update(Object.entries(preEventSources).map(([name,source])=>name+'\0'+source).join('\0')+'\0structured-event-transform.mjs\0'+rawScript('structured-event-transform.mjs'),'utf8')
@@ -76,7 +78,7 @@ const replacements=[
   ['style-runtime.js','data-tr-style-runtime',bundledSource('style-runtime.js')],
   ['operation-cleanup-runtime.js','data-tr-operation-cleanup-runtime',bundledSource('operation-cleanup-runtime.js')],
   ['blob-lifecycle-runtime.js','data-tr-blob-lifecycle-runtime',bundledSource('blob-lifecycle-runtime.js')],
-  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')+'\n'+bundledScript('astra-lote4-accessibility-runtime.js')+'\n'+bundledScript('astra-lote4-unsaved-operation-runtime.js')+'\n'+bundledScript('astra-lote5-operations-runtime.js')+'\n'+bundledScript('astra-lote5-visual-runtime.js')+'\n'+bundledScript('astra-lote6-research-runtime.js')+'\n'+bundledScript('astra-lote7-navigation-runtime.js')+'\n'+bundledScript('astra-lote8-visual-controls-runtime.js')],
+  ['render-closure-runtime.js','data-tr-render-closure-runtime',bundledSource('render-closure-runtime.js')+'\n'+bundledScript('astra-lote2-config-runtime.js')+'\n'+bundledScript('astra-lote3-navigation-runtime.js')+'\n'+bundledScript('operations-register-presentation-runtime.js')+'\n'+bundledScript('astra-lote4-accessibility-runtime.js')+'\n'+bundledScript('astra-lote4-unsaved-operation-runtime.js')+'\n'+bundledScript('astra-lote5-operations-runtime.js')+'\n'+bundledScript('astra-lote5-visual-runtime.js')+'\n'+bundledScript('astra-lote6-research-runtime.js')+'\n'+bundledScript('astra-lote7-navigation-runtime.js')+'\n'+bundledScript('astra-lote8-visual-controls-runtime.js')+'\n'+bundledScript('tr-vis-pr2-operativa-runtime.js')+'\n'+bundledScript('tr-pr2-operation-lots-runtime.js')+'\n'+bundledScript('tr-pr2-comparisons-runtime.js')],
 ];
 const sha256=s=>`'sha256-${crypto.createHash('sha256').update(s,'utf8').digest('base64')}'`;
 const styleSourceFiles=['app.js','style-attr-runtime.js','reports-purity-runtime.js','structural-runtime.js','state-runtime.js','taxonomy-runtime.js','emotional-journal-runtime.js','persistence-coalescing-runtime.js','backup-v2-runtime.js','security-runtime.js','event-runtime.js','cloud-v10-runtime.js','canonical-metrics-runtime.js','exit-lab-runtime.js','csp-runtime.js','style-runtime.js','operation-cleanup-runtime.js','blob-lifecycle-runtime.js','render-closure-runtime.js','index.html'];

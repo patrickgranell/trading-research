@@ -1198,11 +1198,11 @@ html[data-theme="light"] .tr3-journal-link.is-current,html[data-theme="light"] .
 .analytics-table.tr-ops-entry-exit th:nth-child(-n+4){white-space:nowrap}
 .analytics-table.tr-ops-entry-exit .tr-ops-exit-empty{color:var(--muted)}
 /* Lote 1: pending remains in the list, amber in both themes, without counting as a closed result. */
-.analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child{box-shadow:inset 3px 0 0 #d3a13c}
-.analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{content:"● Pendiente";display:block;width:max-content;margin-top:4px;color:#ffd16a;font-size:10px;font-weight:800;line-height:1.3;white-space:nowrap}
-.analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#ffd16a;background:rgba(255,198,65,.13);border-color:#ba8a30;font-weight:800}
-html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr:has(>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{color:#855300}
-html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td:nth-last-child(6)>.badge:not(.win):not(.loss):not(.flat){color:#754700;background:#fff2ce;border-color:#b47c15}
+.analytics-table.tr-ops-entry-exit tbody tr:has(>td[data-tr-cols-key="result"]>.badge:not(.win):not(.loss):not(.flat))>td:first-child{box-shadow:inset 3px 0 0 #d3a13c}
+.analytics-table.tr-ops-entry-exit tbody tr:has(>td[data-tr-cols-key="result"]>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{content:"● Pendiente";display:block;width:max-content;margin-top:4px;color:#ffd16a;font-size:10px;font-weight:800;line-height:1.3;white-space:nowrap}
+.analytics-table.tr-ops-entry-exit tbody tr>td[data-tr-cols-key="result"]>.badge:not(.win):not(.loss):not(.flat){color:#ffd16a;background:rgba(255,198,65,.13);border-color:#ba8a30;font-weight:800}
+html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr:has(>td[data-tr-cols-key="result"]>.badge:not(.win):not(.loss):not(.flat))>td:first-child::after{color:#855300}
+html[data-theme="light"] .analytics-table.tr-ops-entry-exit tbody tr>td[data-tr-cols-key="result"]>.badge:not(.win):not(.loss):not(.flat){color:#754700;background:#fff2ce;border-color:#b47c15}
 
 /* Lote 3 follow-up: vertical modules, horizontal internal pages.
    A single Diario emocional entry replaces its five duplicate sidebar pages;
@@ -1814,3 +1814,254 @@ html:not([data-theme="light"]) #view .md-dataset.active{
  #view .tr-colprefs-list{grid-template-columns:minmax(0,1fr)}
  #view .tr-colprefs-footer{align-items:flex-start;flex-direction:column}
 }
+
+
+/* TR-VIS PR 2 — Executive/operational reading, all themes, source metrics intact. */
+#view .dashboard-kpis-custom .tr2-primary-kpi .kpi{
+ border-top:2px solid var(--accent);padding-top:13px;
+}
+#view .dashboard-kpis-custom .tr2-primary-kpi .kpi .value{
+ font-size:clamp(21px,1.55vw,28px);line-height:1.3;
+ font-variant-numeric:tabular-nums;
+}
+#view .dashboard-kpis-custom .tr2-secondary-kpi .kpi .value{
+ font-size:clamp(18px,1.25vw,23px);line-height:1.32;
+}
+#view .tr2-dashboard-panels .tr2-equity-widget .dashboard-custom-panel{
+ min-height:320px;
+}
+#view .tr2-equity-widget .chart-wrap{min-height:245px;display:grid;align-items:center}
+#view .tr2-equity-widget .dashboard-equity-svg{max-height:275px;width:100%;height:auto}
+#view .tr2-dashboard-panels .dashboard-widget{min-width:0}
+#view .tr2-operaciones-register .panel-title{flex-wrap:wrap}
+#view .tr2-compact-switch{font-size:12px;white-space:nowrap;min-height:31px}
+#view .tr2-operaciones-table th[data-tr-cols-key="result"],
+#view .tr2-operaciones-table td[data-tr-cols-key="result"]{
+ white-space:nowrap;
+}
+#view .tr2-operaciones-table td[data-tr-cols-key="metric"],
+#view .tr2-operaciones-table td[data-tr-cols-key="ticks"],
+#view .tr2-operaciones-table td[data-tr-cols-key="netPnl"],
+#view .tr2-operaciones-table td[data-tr-cols-key="commission"]{
+ text-align:right;font-variant-numeric:tabular-nums;
+}
+#view .tr2-operaciones-register.tr2-compact table .tr-cols-hidden{display:none!important}
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="entryTime"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="exitTime"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="vd"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="nr"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="hypothesis"],
+#view .tr2-operaciones-register.tr2-compact [data-tr-cols-key="regime"]{
+ display:none!important;
+}
+/* Original cells remain in the DOM and are recoverable in Vista completa. */
+#view .tr2-operaciones-register.tr2-compact .tr2-operaciones-table{min-width:850px}
+#view .tr2-block-card{display:flex;flex-direction:column;gap:8px}
+#view .tr2-block-card .block-top{flex-wrap:wrap;margin-bottom:0}
+#view .tr2-block-card .block-spark{order:1;margin-top:3px}
+#view .tr2-block-card .tr2-block-scale{order:2;display:block;font-size:10px;line-height:1.35;color:var(--muted)}
+#view .tr2-block-card>.block-core-grid{order:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#view .tr2-block-card>.block-core-grid>div{min-width:0}
+#view .tr2-block-card>.block-core-grid strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#view .tr2-block-card>.tr2-block-more{order:4}
+#view .tr2-block-card>.block-actions{order:5;margin-top:auto;padding-top:6px}
+#view .tr2-block-incomplete{
+ display:inline-flex;align-items:center;padding:5px 8px;
+ border:1px solid color-mix(in srgb,var(--warning) 47%,var(--border));
+ background:color-mix(in srgb,var(--warning) 9%,var(--panel));
+ border-radius:8px;font-size:10px;color:var(--warning);
+}
+#view .tr2-block-more summary{cursor:pointer;font-size:11px;font-weight:600;color:var(--accent);padding:5px 0}
+#view .tr2-block-more summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#view .tr2-block-more-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:5px 0}
+#view .tr2-block-comparison{margin-top:18px}
+#view .tr2-calendar-panel .calendar-day-head strong{font-size:15px}
+#view .tr2-calendar-panel .calendar-day-result{font-size:clamp(16px,1.3vw,21px);line-height:1.25;overflow-wrap:anywhere}
+#view .tr2-calendar-panel .calendar-day-head span{font-size:11px;font-weight:650}
+#view .tr2-calendar-panel .tr2-calendar-secondary{font-size:10px;opacity:.87}
+#view .tr2-calendar-panel .tr2-calendar-empty .calendar-day-result{font-size:11px;line-height:1.4;color:var(--muted);font-weight:500;letter-spacing:0}
+#view .tr2-calendar-panel .tr2-calendar-unevaluated .calendar-day-result{font-size:12px;line-height:1.4;color:var(--warning);font-weight:650}
+#view .tr2-calendar-panel .tr2-calendar-month-primary{
+ border-top:2px solid var(--accent);
+}
+#view .tr2-calendar-panel .tr2-calendar-month-primary strong{font-size:18px;line-height:1.35;font-variant-numeric:tabular-nums}
+#view .tr2-calendar-panel .tr2-calendar-month-secondary strong{font-variant-numeric:tabular-nums}
+#view .tr2-calendar-panel .tr2-calendar-key{font-size:11px;color:var(--muted)}
+.tr2-operation-modal .modal-head{padding-block:12px}
+.tr2-operation-modal .modal-body{padding:14px 18px}
+.tr2-operation-modal #operationForm .form-section{margin-bottom:12px;padding:14px}
+.tr2-operation-modal #operationForm .form-section:first-child{
+ padding:9px 14px;
+}
+.tr2-operation-modal #operationForm .form-section:first-child h4{margin-bottom:7px}
+.tr2-operation-modal #operationForm .plan-readonly{padding:8px 11px;min-height:unset}
+.tr2-operation-modal #operationForm .form-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tr2-operation-modal #operationForm .field{min-width:0}
+.tr2-operation-modal #operationForm .field>.input,
+.tr2-operation-modal #operationForm .field>.select,
+.tr2-operation-modal #operationForm .field>.textarea{width:100%}
+.tr2-operation-modal .modal-foot{
+ position:sticky;bottom:0;z-index:2;
+ background:var(--panel);box-shadow:0 -8px 24px rgba(0,0,0,.15);
+ padding:12px 18px;
+}
+@media(max-width:1120px){
+ #view .tr2-block-card>.block-core-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .tr2-operation-modal #operationForm .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:680px){
+ .tr2-operation-modal #operationForm .form-grid{grid-template-columns:minmax(0,1fr)}
+ .tr2-operation-modal #operationForm .field.full,
+ .tr2-operation-modal #operationForm .field.span2{grid-column:1/-1}
+ #view .tr2-calendar-panel .calendar-day-result{font-size:16px}
+}
+
+/* Optional emphasis is deliberately a temporary reading mode: the saved
+   Dashboard profile keeps its own grid widths in Personalizar. */
+#view .tr2-equity-expand{margin-inline-start:auto;font-size:11px;line-height:1.3}
+@media(min-width:1121px){
+ #view .tr2-two-panel-dashboard.tr2-equity-expanded>.dashboard-widget[data-dashboard-widget="equity"]{
+  grid-column:span 8!important;
+ }
+ #view .tr2-two-panel-dashboard.tr2-equity-expanded>.dashboard-widget:not([data-dashboard-widget="equity"]){
+  grid-column:span 4!important;
+ }
+}
+#view .tr2-operaciones-register.tr2-compact td[data-tr-cols-key="entryDate"][data-tr2-time]::after,
+#view .tr2-operaciones-register.tr2-compact td[data-tr-cols-key="exitDate"][data-tr2-time]::after{
+ content:" · " attr(data-tr2-time);
+ color:var(--muted);font-size:11px;
+}
+@media(max-width:1120px){
+ #view .tr2-equity-expand{display:none}
+}
+
+/* TR-VIS PR2 · responsive Equity plot (inner drawing must match panel width).
+   Keep the chart at a readable fixed-height band while reprojecting the
+   canonical values/axes to its live width using ResizeObserver. */
+#view .tr2-equity-widget .chart-wrap{
+ display:block;
+ width:100%;
+ height:280px;
+ min-height:245px;
+ overflow:hidden;
+}
+#view .tr2-equity-widget .dashboard-equity-svg{
+ display:block;
+ box-sizing:border-box;
+ width:100%;
+ height:100%;
+ max-height:none;
+ max-width:none;
+ aspect-ratio:auto;
+}
+@media(max-width:900px){
+ #view .tr2-equity-widget .chart-wrap{height:245px}
+}
+
+/* TR-VIS PR2 · Real execution per configured lot, not only target planning. */
+#operationForm .tr-lot-editor{
+ margin:12px 0 0;padding:13px 14px;border:1px solid var(--border);
+ border-radius:10px;background:var(--panel2);color:var(--text);
+}
+#operationForm .tr-lot-header{
+ display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px;
+}
+#operationForm .tr-lot-header h4{font-size:13px;margin:0 0 4px;font-weight:750}
+#operationForm .tr-lot-header small{font-size:11px;color:var(--muted);line-height:1.4}
+#operationForm .tr-lot-header>label{min-width:160px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;gap:5px}
+#operationForm .tr-lot-header .tr-lots-mode{min-height:32px;color:var(--text);background:var(--panel)}
+#operationForm .tr-lot-row-list{display:grid;gap:8px}
+#operationForm .tr-lot-row-list[hidden]{display:none!important}
+#operationForm .tr-lot-execution-row{
+ display:grid;grid-template-columns:minmax(165px,1.25fr) minmax(130px,1fr) minmax(145px,1fr);
+ align-items:end;gap:10px;padding:10px 12px;border:1px solid var(--border);
+ border-radius:9px;background:var(--panel);min-width:0;
+}
+#operationForm .tr-lot-description{display:flex;flex-direction:column;gap:5px;min-width:0;align-self:center}
+#operationForm .tr-lot-description strong{font-size:12px}
+#operationForm .tr-lot-description span{font-size:11px;line-height:1.4;color:var(--muted)}
+#operationForm .tr-lot-execution-row label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);min-width:0}
+#operationForm .tr-lot-execution-row label input{
+ width:100%;min-width:0;box-sizing:border-box;background:var(--panel2);color:var(--text);
+}
+#operationForm .tr-lots-summary{
+ margin-top:10px;padding:8px 11px;border-radius:8px;
+ border:1px solid var(--border);color:var(--text);font-size:11px;line-height:1.55;
+}
+#operationForm .tr-lots-aggregated .tr-lots-summary{color:var(--muted)}
+#operationForm #f-resultTicks[readonly]{
+ color:var(--text);background:var(--panel2);
+}
+.tr-lot-detail .table-wrap{overflow-x:auto}
+.tr-lot-detail .table{min-width:620px}
+.tr-lot-detail td,.tr-lot-detail th{font-size:12px;white-space:nowrap}
+@media(max-width:790px){
+ #operationForm .tr-lot-execution-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #operationForm .tr-lot-description{grid-column:1/-1}
+}
+@media(max-width:520px){
+ #operationForm .tr-lot-execution-row{grid-template-columns:minmax(0,1fr)}
+ #operationForm .tr-lot-description{grid-column:1}
+}
+
+
+/* TR-VIS PR2 comparative research — display only, dark and light theme tokens */
+#view .trcomp-panel{margin-top:14px;padding:16px;min-width:0}
+#view .trcomp-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}
+#view .trcomp-top h3{font-size:15px;margin:0 0 5px;font-weight:750}
+#view .trcomp-top small,#view .trcomp-footnote,#view .trcomp-unit{font-size:11px;color:var(--muted)}
+#view .trcomp-controls{display:flex;gap:8px;flex-wrap:wrap}
+#view .trcomp-controls label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+#view .trcomp-controls select{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:6px 7px;border-radius:7px;font-size:12px}
+#view .trcomp-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:13px 0 9px}
+#view .trcomp-tab.active{background:var(--accent);color:var(--bg);font-weight:700}
+#view .trcomp-unit{margin:0 0 8px}
+#view .trcomp-unit strong{color:var(--text)}
+#view .trcomp-table-scroll{overflow:auto;max-height:450px}
+#view .trcomp-table{border-collapse:collapse;width:100%;min-width:580px;font-size:12px}
+#view .trcomp-table th,#view .trcomp-table td{text-align:right;border-bottom:1px solid var(--border);padding:8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+#view .trcomp-table th:first-child,#view .trcomp-table td:first-child{text-align:left}
+#view .trcomp-table thead th{font-size:10px;color:var(--muted);font-weight:750}
+#view .trcomp-table .positive{color:var(--good,#32cda4);font-weight:700}
+#view .trcomp-table .negative{color:var(--bad,#f56b75);font-weight:700}
+#view .trcomp-meter{display:block;width:100%;min-width:80px;max-width:180px;height:9px;accent-color:var(--accent)}
+#view .trcomp-meter.negative{accent-color:#b9777f}
+#view .trcomp-empty{padding:20px;text-align:center;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:12px}
+#view .trcomp-footnote{margin:11px 0 0;line-height:1.5}
+.modal .trcomp-config{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:9px;background:var(--panel)}
+.modal .trcomp-config label{display:flex;gap:8px;align-items:center;font-weight:700;font-size:12px}
+.modal .trcomp-config small{color:var(--muted);font-size:11px;display:block;margin-top:5px}
+#operationForm .tr-lots-chronology-note{display:block;margin-top:6px;font-size:11px;color:var(--muted);line-height:1.5}
+@media(max-width:800px){#view .trcomp-panel{padding:10px}#view .trcomp-tabs{flex-wrap:nowrap;overflow-x:auto}#view .trcomp-tab{flex:0 0 auto}}
+
+/* TR-VIS PR2 — autonomous Dashboard comparison widgets */
+#view .trcomp-widget{min-width:0}
+#view .trcomp-card{height:100%;min-height:185px;min-width:0;box-sizing:border-box;display:flex;flex-direction:column;gap:9px}
+#view .trcomp-card .trcomp-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:2px}
+#view .trcomp-card-head h3{font-size:13px;line-height:1.4}
+#view .trcomp-card-head small{font-size:10px;color:var(--muted);line-height:1.3}
+#view .trcomp-card-head [data-trcomp-unit-label]{white-space:nowrap}
+#view .trcomp-card-body{display:grid;gap:8px;min-width:0}
+#view .trcomp-bar-row{display:grid;grid-template-columns:minmax(92px,1.15fr) minmax(70px,2fr) minmax(50px,.55fr);align-items:center;gap:10px;min-width:0}
+#view .trcomp-row-name{display:flex;flex-direction:column;gap:3px;min-width:0}
+#view .trcomp-row-name strong{font-size:11px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view .trcomp-row-name small{font-size:10px;color:var(--muted)}
+#view .trcomp-track{width:100%;height:8px;background:var(--panel2);border-radius:10px;overflow:hidden}
+#view .trcomp-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#3963a6,#3bb99d)}
+#view .trcomp-fill.negative{background:linear-gradient(90deg,#a64b66,#e16c75)}
+#view .trcomp-fill.neutral{background:var(--muted)}
+#view .trcomp-value{text-align:right;font-size:11px;font-variant-numeric:tabular-nums}
+#view .trcomp-value.positive{color:var(--good,#45d7ab)}
+#view .trcomp-value.negative{color:var(--bad,#ff7884)}
+#view .trcomp-card-footer{display:flex;justify-content:space-between;gap:8px;align-items:center;border-top:1px solid var(--border);padding-top:9px;margin-top:4px}
+#view .trcomp-card-footer small{font-size:10px;color:var(--muted)}
+.modal .trcomp-config-heading{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.modal .trcomp-config-item{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--border)}
+.modal .trcomp-config-item label{font-size:11px;line-height:1.3}
+.modal .trcomp-config-item select{min-width:112px;padding:6px 8px;color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:7px}
+#operationForm .tr-lot-exit-fields{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:11px;color:var(--muted)}
+#operationForm .tr-lot-date-time{display:grid;grid-template-columns:minmax(105px,1.4fr) minmax(75px,1fr);gap:6px;min-width:0}
+#operationForm .tr-lot-date-time .input{width:100%;min-width:0;box-sizing:border-box;background:var(--panel2);color:var(--text);padding:7px 5px;font-size:11px;min-height:32px}
+#operationForm .tr-lot-range{font-size:10px;color:var(--muted);line-height:1.45}
+@media(max-width:700px){#view .trcomp-bar-row{grid-template-columns:minmax(90px,1fr) minmax(70px,1.4fr) minmax(46px,.6fr)}}

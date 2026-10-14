@@ -24,7 +24,7 @@ const newCell=(tag,content)=>{
   return el;
 };
 function transformRegister(html,ops){
-  if(!Array.isArray(ops)||!ops.length||typeof html!=='string')return html;
+  if(!Array.isArray(ops)||typeof html!=='string')return html;
   const fragment=document.createElement('template');
   fragment.innerHTML=html;
   const table=fragment.content.querySelector('table.analytics-table');
@@ -43,6 +43,7 @@ function transformRegister(html,ops){
   heading.cells[1].textContent='Hora entrada';
   heading.cells[3].remove();
   heading.cells[1].after(newCell('th','Fecha salida'),newCell('th','Hora salida'));
+  trColumnRefresh(ops);
   [...rows].forEach((row,i)=>{
     const [date,time]=displayExit(ops[i]);
     row.cells[3].remove();
@@ -51,6 +52,27 @@ function transformRegister(html,ops){
     day.className='tr-ops-exit-date'+(date==='—'?' tr-ops-exit-empty':'');
     hour.className='tr-ops-exit-hour'+(time==='—'?' tr-ops-exit-empty':'');
     row.cells[1].after(day,hour);
+  });
+  // Presentation only: show execution snapshots, never the planned TP as a result.
+  const newColumns=TR_COL_KEYS.slice(18,-1);
+  heading.lastElementChild.before(...newColumns.map(key=>newCell('th',trColLabel[key])));
+  [...rows].forEach((row,i)=>{
+    const op=ops[i]||{},lotData=Array.isArray(op.executionLots)?op.executionLots:[];
+    const summary=lotData.length
+      ?lotData.map((lot,j)=>'L'+(j+1)+' '+trLotDisplay(lot)).join(' · ')
+      :(op.executionMode==='aggregated'||op.resultTicks!==undefined?'Agregado':'—');
+    const cells=newColumns.map(key=>{
+      const match=/^lot([1-9][0-9]*)$/.exec(key);
+      const lot=match?lotData[Number(match[1])-1]:null;
+      const value=key==='contracts'?trContractsDisplay(op):
+        key==='lots'?summary:match?(lot?trLotDisplay(lot):'—'):'—';
+      const cell=newCell('td',value);
+      cell.className='tr-ops-'+(key==='contracts'?'contracts':key==='lots'?'lot-summary':'lot-detail');
+      if(key==='lots'&&lotData.length)cell.title='Resultado real por lote (ticks/contrato, no TP previsto)';
+      if(match&&lot)cell.title='Lote '+match[1]+' · '+(lot.quantity||'—')+' contrato(s) · resultado real en ticks/contrato';
+      return cell;
+    });
+    row.lastElementChild.before(...cells);
   });
   table.classList.add('tr-ops-entry-exit');
   return fragment.innerHTML;
@@ -65,20 +87,46 @@ window.opsTable=function(...args){
  * The pre-existing register table is the single source of cell contents and
  * actions. Only reorders/hides existing DOM cells; no domain or filter edits.
  * Browser-local preferences scoped per Trading Plan and screen (not sent to cloud). */
-const TR_COLUMNS=[
+const TR_BASE_COLUMNS=[
  ['entryDate','Fecha entrada'],['entryTime','Hora entrada'],
  ['exitDate','Fecha salida'],['exitTime','Hora salida'],
  ['weekday','Día'],['symbol','Símbolo'],['direction','Dirección'],
  ['setup','Setup'],['vd','VD'],['nr','NR'],['hypothesis','Hipótesis'],
  ['regime','Régimen'],['source','Origen'],['result','Resultado'],
  ['metric','Resultado en unidad'],['ticks','Ticks'],['netPnl','P&L neto'],
- ['commission','Comisión'],['actions','Acciones']
+ ['commission','Comisión'],['contracts','Contratos'],['lots','Desglose lotes'],['actions','Acciones']
 ];
 const TR_COL_STORE='tradingResearchOperationColumnsV1';
-const TR_COL_KEYS=TR_COLUMNS.map(x=>x[0]),TR_FIXED='actions';
-const TR_COL_EDITABLE=TR_COL_KEYS.filter(x=>x!==TR_FIXED);
-const trColLabel=Object.fromEntries(TR_COLUMNS);
+const TR_FIXED='actions';
+let TR_COLUMNS=TR_BASE_COLUMNS,TR_COL_KEYS=TR_COLUMNS.map(x=>x[0]);
+let TR_COL_EDITABLE=TR_COL_KEYS.filter(x=>x!==TR_FIXED);
+let trColLabel=Object.fromEntries(TR_COLUMNS);
 let trDraggedColumn='';
+function trColumnRefresh(ops=[]){
+ const plan=globalThis.TradingResearchPlanReadContract?.current?.();
+ const all=globalThis.TradingResearchOperationsReadContract?.current?.();
+ const saved=Array.isArray(all)?all.filter(o=>String(o.tradingPlanId||'')===String(plan?.id||'')):[];
+ const risks=Array.isArray(plan?.riskStrategies)?plan.riskStrategies:[];
+ const count=Math.max(0,...risks.map(r=>Array.isArray(r.lots)?r.lots.length:0),
+   ...[...ops,...saved].map(o=>Array.isArray(o?.executionLots)?o.executionLots.length:0));
+ TR_COLUMNS=[...TR_BASE_COLUMNS.slice(0,-1),
+   ...Array.from({length:count},(_,i)=>['lot'+(i+1),'Lote '+(i+1)+' (ticks/ct)']),
+   TR_BASE_COLUMNS.at(-1)];
+ TR_COL_KEYS=TR_COLUMNS.map(x=>x[0]);
+ TR_COL_EDITABLE=TR_COL_KEYS.filter(x=>x!==TR_FIXED);
+ trColLabel=Object.fromEntries(TR_COLUMNS);
+}
+function trLotDisplay(lot){
+ if(!lot||lot.resultTicks===null||lot.resultTicks===undefined||lot.status==='open')return 'Pend.';
+ const n=Number(lot.resultTicks),qty=Number(lot.quantity);
+ if(!Number.isFinite(n))return '—';
+ return (n>0?'+':'')+String(Number(n.toFixed(5)))+'t/ct'+(Number.isInteger(qty)&&qty>0?' ×'+qty:'');
+}
+function trContractsDisplay(op){
+ const lots=Array.isArray(op?.executionLots)?op.executionLots:[];
+ const qty=lots.length?lots.reduce((sum,l)=>sum+Number(l.quantity||0),0):Number(op?.contracts);
+ return Number.isSafeInteger(qty)&&qty>0?String(qty):'—';
+}
 function trColumnPlanId(){
  const plan=globalThis.TradingResearchPlanReadContract?.current?.();
  const view=globalThis.TradingResearchCurrentViewReadContract?.current?.();
@@ -92,9 +140,24 @@ function trColumnReadStore(){
  }catch{return {};}
 }
 function trColumnNormalize(config){
- const order=Array.isArray(config?.order)?config.order.filter(x=>TR_COL_EDITABLE.includes(x)):[];
+ const explicitOrder=Array.isArray(config?.order)?config.order.filter(x=>TR_COL_EDITABLE.includes(x)):[];
+ const order=explicitOrder;
  const unique=[...new Set(order),...TR_COL_EDITABLE.filter(x=>!order.includes(x))];
+ // Place the two immediately useful fields beside identity and results on old
+ // and fresh layouts; never move columns the user has deliberately arranged.
+ const after=(key,anchor)=>{
+  if(explicitOrder.includes(key)||!unique.includes(key)||!unique.includes(anchor))return;
+  unique.splice(unique.indexOf(key),1);
+  unique.splice(unique.indexOf(anchor)+1,0,key);
+ };
+ after('contracts','symbol');
+ after('lots','ticks');
+ for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)).reverse())after(key,'lots');
  const hidden=Array.isArray(config?.hidden)?[...new Set(config.hidden.filter(x=>TR_COL_EDITABLE.includes(x)))]:[];
+ // Per-lot columns are opt-in; old saved layouts keep their original visibility.
+ for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))){
+  if(!explicitOrder.includes(key)&&!hidden.includes(key))hidden.push(key);
+ }
  if(hidden.length===TR_COL_EDITABLE.length)hidden.pop();
  return {order:unique,hidden};
 }
@@ -199,7 +262,7 @@ document.addEventListener('click',event=>{
   return;
  }
  if(control.matches('[data-tr-cols-reset]')){
-  trColumnSave({order:TR_COL_EDITABLE,hidden:[]});
+  trColumnSave({order:[],hidden:TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))});
   trColumnUpdate(control);
   return;
  }
@@ -252,7 +315,7 @@ document.addEventListener('dragend',()=>{
  document.querySelectorAll('.tr-cols-dragging').forEach(el=>el.classList.remove('tr-cols-dragging'));
 });
 globalThis.TradingResearchOperationColumns=Object.freeze({
- read:()=>trColumnGet(),count:TR_COL_EDITABLE.length,version:'1'
+ read:()=>trColumnGet(),get count(){return TR_COL_EDITABLE.length;},version:'2'
 });
 
 })();

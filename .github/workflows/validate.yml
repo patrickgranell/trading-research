@@ -83,3 +83,15 @@ jobs:
       - name: TR-VIS PR1 · Customizable register columns
         run: node verify-tr-vis-pr1-columns-browser.mjs
 
+      - name: TR-VIS PR2 · Operational presentation Chromium
+        run: node verify-tr-vis-pr2-browser.mjs
+
+      - name: TR-VIS PR2 · Real Dashboard profile size controls
+        run: node verify-tr-vis-pr2-dashboard-sizes-browser.mjs
+
+      - name: TR-VIS PR2 · Real execution results by lot
+        run: node verify-tr-pr2-operation-lots-browser.mjs
+
+      - name: TR-VIS PR2 · Management and temporal comparisons Chromium
+        run: node verify-tr-pr2-comparisons-browser.mjs
+

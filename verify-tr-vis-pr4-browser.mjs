@@ -32,7 +32,7 @@ const probe=String.raw`(async()=>{
      maintenance:cards.every(x=>x.querySelector('.plan-actions .trvis4-details button'))};
    }
    if(name==='review')o.checks.review={filter:!!dest.querySelector('.trvis4-review-filter .review-filter'),list:!!dest.querySelector('.review-list')};
-   if(name==='journal')o.checks.journal={filter:!!dest.querySelector('.trvis4-journal-filter .filter-hub')};
+   if(name==='journal')o.checks.journal={metrics:!!dest.querySelector('.journal-kpis'),controlsPreserved:JSON.stringify(fields(src))===JSON.stringify(fields(dest))};
    if(name==='quality'){
     const a=dest.querySelector('.dq-hero'),b=dest.querySelector('.dq-anomalies'),c=dest.querySelector('.dq-repair'),d=dest.querySelector('.dq-coverage');
     const before=(x,y)=>!!x&&!!y&&!!(x.compareDocumentPosition(y)&Node.DOCUMENT_POSITION_FOLLOWING);
@@ -47,6 +47,8 @@ const probe=String.raw`(async()=>{
      config:!!dest.querySelector('.trvis4-reports-config'),presets:!!dest.querySelector('.trvis4-reports-presets'),
      print:!!dest.querySelector('.trvis4-print-action')};
   }
+  const journalRecord=parse(adapter.decorate('journalops',original.journal));
+  o.checks.journalops={filter:!!journalRecord.querySelector('.trvis4-journal-filter .filter-hub')};
   const reflectionFixture='<div class="reflection-kpis"><button type="button" data-tr-action-click="noop">Indicadores</button></div>'+
    '<section class="reflection-history"><div class="reflection-feed"><article class="reflection-card">'+
    '<header>14 octubre 2026</header><div class="reflection-body"><p>Texto completo de una reflexión de prueba.</p></div>'+

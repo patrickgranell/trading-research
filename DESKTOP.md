@@ -87,3 +87,44 @@ Referenced image blobs are native, content-addressed by SHA-256 and catalogued i
 ## Desktop 0.7 portable recovery — Batch 79 DRAFT
 
 One complete Backup V2 is the portability boundary. A native source copy and rollback are fsync-confirmed before mutation; a SQLite journal blocks writes and records monotonic phases `prepared -> restored -> images-native -> market-native -> verified`. Restart resumes from the physical source backup. Final closure requires exact rebuilt Backup V2 domain hashes plus deep workspace/image/Market Data verification. See `DESKTOP-PORTABLE-RECOVERY.md`.
+
+## Desktop 0.8.0 — UI/UX 0–8 parity upgrade candidate
+
+This Windows release candidate incorporates the Web Lotes 0–8 after merge of PR #116, including:
+- full theme light/dark and contextual navigation;
+- task-based Lab, comparators and Research Grid keyboard access;
+- contextual Backtesting/Live/SIM/Market Replay visibility;
+- compact contextual-help icons and grouped weekday multi-select controls.
+
+The Windows product identifier stays `app.tradingresearch.desktop`; the NSIS
+installer upgrades the prior 0.7.0 installation in place. The app's existing
+AppLocalData path is **not renamed, cleared or migrated** by this batch.
+Web release `31.29.0` and Desktop release `0.8.0` are independent version tracks.
+
+### Non-regression gates
+
+`npm run desktop:prepare` builds the latest Web frontend, overlays all
+previously certified native adapters, then runs native authority, backup,
+portable recovery and Web UI parity gates. Windows Actions also run Rust
+SQLite/native recovery tests and compile/upload an NSIS installer.
+
+The previous backup-restore freeze is a critical regression. Keep the native
+storage panel's idempotent observer, durable restore write-lock/journal,
+rollback backup, and release-of-lock-only-after-verification unchanged.
+Do not replace any recovered workspace with default or stale IndexedDB data.
+
+### Short manual acceptance (user data preserved)
+
+1. Before installing, **create and keep a complete Backup V2** and do not delete
+   or rename the existing AppLocalData. Install 0.8.0 over 0.7.0.
+2. Verify existing TP / operations / images / native Market Data and the Lote 8
+   UI, then close the whole app and reopen **without Internet**. Confirm data
+   and current state are unchanged.
+3. In Configuración → Datos y seguridad, verify SQLite authority and the
+   existing backup/recovery point. For restoration regression use **an isolated
+   throwaway profile or a disposable test dataset with its own rollback**, never
+   restore destructively against the sole original user dataset. Confirm that
+   the app does not freeze and survives a full close/reopen.
+
+The merge/release requires explicit user acceptance. This document does not
+claim Windows installation or real-data restore has been manually certified.

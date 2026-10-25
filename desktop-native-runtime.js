@@ -5,7 +5,7 @@
  */
 (()=>{
 'use strict';
-const VERSION='0.7.0';
+const VERSION='0.8.0';
 const invoke=globalThis.__TAURI__?.core?.invoke;
 if(typeof invoke!=='function')return;
 
@@ -191,7 +191,7 @@ function panelHtml(){
   const stateLabel=status.lastError?'ERROR':status.busy?'TRABAJANDO':s?'OK':'SIN COPIA';
   return '<section id="trDesktopNativeStorage" class="card panel config-wide">'+
     '<div class="panel-title"><div><h3>Desktop · almacenamiento local</h3>'+
-    '<div class="help">Desktop 0.7: SQLite es la autoridad del workspace. '+(globalThis.TradingResearchDesktopImageAuthority?.active?'Imágenes: almacenamiento nativo verificado.':'Imágenes: IndexedDB pendiente de promoción.')+' '+(globalThis.TradingResearchDesktopMarketAuthority?.active?'Market Data: almacenamiento nativo verificado.':'Market Data: IndexedDB pendiente de promoción.')+' Backup V2 cubre recuperación portable completa.</div></div>'+
+    '<div class="help">Desktop 0.8: SQLite es la autoridad del workspace. '+(globalThis.TradingResearchDesktopImageAuthority?.active?'Imágenes: almacenamiento nativo verificado.':'Imágenes: IndexedDB pendiente de promoción.')+' '+(globalThis.TradingResearchDesktopMarketAuthority?.active?'Market Data: almacenamiento nativo verificado.':'Market Data: IndexedDB pendiente de promoción.')+' Backup V2 cubre recuperación portable completa.</div></div>'+
     '<span class="stable-pill">'+escDesktop(stateLabel)+'</span></div>'+
     '<div class="security-actions">'+
     '<button class="btn primary" type="button" data-desktop-native-action="parity">Verificar autoridad SQLite</button>'+

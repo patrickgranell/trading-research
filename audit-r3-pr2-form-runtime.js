@@ -2,13 +2,24 @@
 (()=>{
 'use strict';
 if(typeof document==='undefined'||globalThis.TradingResearchAuditR3Pr2Form)return;
-const section=(form,name)=>[...form.querySelectorAll(':scope > .form-section')]
- .find(node=>node.querySelector(':scope > h4')?.textContent.includes(name));
+const section=(form,kind)=>{
+ const known={plan:'tr-r3-plan',session:'tr-r3-secondary-context',
+   execution:'tr-r3-primary-operation',opportunity:'tr-r3-secondary-classification'};
+ const installed=form.querySelector(':scope > .'+known[kind]);
+ if(installed)return installed;
+ return [...form.querySelectorAll(':scope > .form-section')].find(node=>{
+  const label=node.querySelector(':scope > h4')?.textContent.toLocaleLowerCase('es')||'';
+  return kind==='plan'?label.includes('trading plan'):
+   kind==='session'?label.includes('sesión y régimen'):
+   kind==='execution'?label.includes('ejecución y resultado'):
+   /oportunidad|clasificaci[oó]n/.test(label);
+ });
+};
 const field=(form,id)=>form.querySelector('#f-'+id)?.closest('.field')||null;
 function reflow(){
  for(const form of document.querySelectorAll('.modal-backdrop #operationForm')){
-  const plan=section(form,'Trading Plan'),session=section(form,'Sesión y régimen');
-  const execution=section(form,'Ejecución y resultado'),opportunity=section(form,'Oportunidad');
+  const plan=section(form,'plan'),session=section(form,'session');
+  const execution=section(form,'execution'),opportunity=section(form,'opportunity');
   if(!session||!execution||!opportunity)continue;
   const target=plan||form.firstElementChild;
   if(target?.nextElementSibling!==execution)target.after(execution);
@@ -31,6 +42,7 @@ function reflow(){
     [session,'2 · Contexto y gestión'],[opportunity,'3 · Clasificación técnica y notas']]){
    const h=node.querySelector(':scope > h4');if(h&&h.textContent!==label)h.textContent=label;
   }
+  if(plan)plan.classList.add('tr-r3-plan');
   execution.classList.add('tr-r3-primary-operation');
   session.classList.add('tr-r3-secondary-context');
   opportunity.classList.add('tr-r3-secondary-classification');

@@ -14,3 +14,7 @@ Primera implementación:
 Estado: cambios de primera fase en rama, NO certificados ni validados por usuario. Falta CI, prueba E2E de fixture y edición/reimportación, comprobar pendientes/lotes y terminar CP-05/06. No presentar lote hasta completar revisión técnica conjunta, y NO fusionar sin autorización.
 
 Próximo paso: verificar CI y comportamiento en navegador; completar columnas Cumplimiento/catálogo; preparar una sola preview web para revisión del usuario.
+
+## Corrección de compatibilidad / CI inicial
+- La ficha real utiliza «2 · Clasificación de la oportunidad» (taxonomía canónica). El adaptador ahora la detecta sin sensibilidad a mayúsculas y reconoce sus secciones ya reorganizadas.
+- Primer CI de web: build completo PASS; Chromium Lote 8 falló una vez a 500px durante hidratación de dos operaciones sintéticas; rerun superó Lote 8 y encontró que la prueba UX104 exigía exactamente 21 columnas, incompatible con las ocho columnas nuevas. Se actualizó esta aserción para verificar las 29 cabeceras, sin reducir la cobertura de columnas existentes. Esperar nueva ejecución verde.

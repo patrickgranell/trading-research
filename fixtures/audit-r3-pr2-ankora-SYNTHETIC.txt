@@ -1,0 +1,3 @@
+EntryDateTime|ExitDateTime|BuySell|Contract|EntryPrice|TotQuantity|Setup|VD|NR|Hypothesis|StopLossTicks|Lot1Quantity|Lot1Ticks|Lot1Type|Lot1TargetTicks|Lot1ExitDateTime|Lot2Quantity|Lot2Ticks|Lot2Type|Lot2TargetTicks|Lot2ExitDateTime|Notes|Custom1|Custom2
+01/10/2026 19:05:00|01/10/2026 19:40:00|BUY|MYM|46850|2|Setup A|VD A|NR A|1|40|1|20|TARGET|20|01/10/2026 19:20:00|1|40|TARGET|40|01/10/2026 19:40:00|SINTETICO dos cierres|Tendencia|Rápida
+02/10/2026 19:12:00|02/10/2026 19:25:00|SELL|MYM|46910|1|Setup B|VD B|NR B|2|40|1|0|TARGET|20|02/10/2026 19:25:00|0|||||SINTETICO cero medido||Otra

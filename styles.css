@@ -2317,3 +2317,12 @@ html[data-theme=light] #gf-panel{background:#fff;color:#17253c;border-color:#d6d
 .gf-analysis-controls{margin:0 0 12px;font-size:12px;color:var(--muted,#b6c4da)}.gf-analysis-controls>summary{cursor:pointer;padding:5px 0}.gf-analysis-controls>div{display:flex;gap:6px;flex-wrap:wrap;padding:6px 0}.gf-week>div{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
 #view[data-tr-view=operations]>.topbar .actions{flex-wrap:nowrap;flex-shrink:0}
 @media(max-width:850px){#view[data-tr-view=operations]>.topbar .actions{flex-wrap:wrap}}
+
+/* Auditoría R3 · PR 2 */
+.tr2-operation-modal #operationForm .tr-r3-primary-operation{padding-top:16px}
+.tr2-operation-modal #operationForm .tr-r3-primary-operation>h4{font-weight:750}
+.tr2-operation-modal #operationForm .tr-r3-primary-operation .tr-lot-editor{margin-top:12px}
+.tr2-operation-modal #operationForm .tr-r3-secondary-context,
+.tr2-operation-modal #operationForm .tr-r3-secondary-classification{background:var(--panel2)}
+#view .tr-colprefs-family{grid-column:1/-1;margin:6px 0 1px;padding:6px 2px 3px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:750}
+#view .tr-colprefs-family:first-child{margin-top:0}

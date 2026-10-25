@@ -23,6 +23,29 @@ const newCell=(tag,content)=>{
   el.textContent=content;
   return el;
 };
+function trExtraCell(op,key){
+ const raw=x=>x===null||x===undefined||String(x).trim()===''?'—':String(x);
+ const num=(x,suffix='',dec=2)=>{
+  if(x===null||x===undefined||String(x).trim()===''||!Number.isFinite(Number(x)))return '—';
+  const n=Number(x);return (n>0?'+':'')+n.toLocaleString('es-ES',{maximumFractionDigits:dec})+suffix;
+ };
+ if(key==='context')return raw(op.h4Context);
+ if(key==='h4Phase')return raw(op.h4Phase);
+ if(key==='tradeType')return raw(op.tradeType);
+ if(key==='entryPrice')return raw(op.entryPrice);
+ if(key==='mfeTicks'||key==='maeTicks'){
+  const metric=key==='mfeTicks'?'mfe':'mae';
+  const status=typeof dqMetricStatus==='function'?dqMetricStatus(op,metric):
+    op[key]===null||op[key]===undefined?'missing':'measured';
+  return status==='na'?'N/A':status==='measured'?num(op[key],' t',3):'—';
+ }
+ if(key==='rNet'){
+  if(op.result==='pending')return '—';
+  return num(typeof opMetricValue==='function'?opMetricValue(op,'r','net'):op.rMultiple,' R',3);
+ }
+ if(key==='pnlGross')return op.result==='pending'?'—':num(op.pnlGross,' '+(op.instrumentSnapshot?.currency||'USD'));
+ return '—';
+}
 function transformRegister(html,ops){
   if(!Array.isArray(ops)||typeof html!=='string')return html;
   const fragment=document.createElement('template');
@@ -65,7 +88,7 @@ function transformRegister(html,ops){
       const match=/^lot([1-9][0-9]*)$/.exec(key);
       const lot=match?lotData[Number(match[1])-1]:null;
       const value=key==='contracts'?trContractsDisplay(op):
-        key==='lots'?summary:match?(lot?trLotDisplay(lot):'—'):'—';
+        key==='lots'?summary:match?(lot?trLotDisplay(lot):'—'):trExtraCell(op,key);
       const cell=newCell('td',value);
       cell.className='tr-ops-'+(key==='contracts'?'contracts':key==='lots'?'lot-summary':'lot-detail');
       if(key==='lots'&&lotData.length)cell.title='Resultado real por lote (ticks/contrato, no TP previsto)';
@@ -94,9 +117,13 @@ const TR_BASE_COLUMNS=[
  ['setup','Setup'],['vd','VD'],['nr','NR'],['hypothesis','Hipótesis'],
  ['regime','Régimen'],['source','Origen'],['result','Resultado'],
  ['metric','Resultado en unidad'],['ticks','Ticks'],['netPnl','P&L neto'],
- ['commission','Comisión'],['contracts','Contratos'],['lots','Desglose lotes'],['actions','Acciones']
+ ['commission','Comisión'],['contracts','Contratos'],['lots','Desglose lotes'],
+ ['context','Contexto H4'],['h4Phase','Fase H4'],['tradeType','Tipo de operación'],
+ ['entryPrice','Precio de entrada'],['mfeTicks','MFE (ticks)'],['maeTicks','MAE (ticks)'],
+ ['rNet','R neta'],['pnlGross','P&L bruto'],['actions','Acciones']
 ];
 const TR_COL_STORE='tradingResearchOperationColumnsV1';
+const TR_OPTIONAL_COLUMNS=new Set(['context','h4Phase','tradeType','entryPrice','mfeTicks','maeTicks','rNet','pnlGross']);
 const TR_FIXED='actions';
 let TR_COLUMNS=TR_BASE_COLUMNS,TR_COL_KEYS=TR_COLUMNS.map(x=>x[0]);
 let TR_COL_EDITABLE=TR_COL_KEYS.filter(x=>x!==TR_FIXED);
@@ -155,7 +182,7 @@ function trColumnNormalize(config){
  for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)).reverse())after(key,'lots');
  const hidden=Array.isArray(config?.hidden)?[...new Set(config.hidden.filter(x=>TR_COL_EDITABLE.includes(x)))]:[];
  // Per-lot columns are opt-in; old saved layouts keep their original visibility.
- for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))){
+ for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)||TR_OPTIONAL_COLUMNS.has(x))){
   if(!explicitOrder.includes(key)&&!hidden.includes(key))hidden.push(key);
  }
  if(hidden.length===TR_COL_EDITABLE.length)hidden.pop();
@@ -173,12 +200,22 @@ function trColumnSave(config){
  }catch(e){console.warn('[Trading Research · columnas] No se han podido guardar las preferencias locales.',e);}
  return fresh;
 }
+function trColFamily(key){
+ if(['entryDate','entryTime','exitDate','exitTime','weekday','symbol','contracts','direction'].includes(key))return 'Identificación';
+ if(['setup','vd','nr','hypothesis','context','h4Phase','tradeType'].includes(key))return 'Oportunidad y clasificación';
+ if(['regime','entryPrice'].includes(key))return 'Entrada y riesgo previsto';
+ if(['lots','mfeTicks','maeTicks'].includes(key)||/^lot[1-9][0-9]*$/.test(key))return 'Salida, lotes y excursiones';
+ if(['result','metric','ticks','rNet','netPnl','pnlGross','commission'].includes(key))return 'Resultado y costes';
+ return 'Revisión y origen';
+}
 function trColumnChooser(pref){
  return '<div class="tr-colprefs-list" role="group" aria-label="Columnas disponibles">'+
  pref.order.map((key,index)=>{
   const checked=!pref.hidden.includes(key);
-  const name=trColLabel[key];
-  return '<div class="tr-colprefs-item" data-tr-cols-item="'+key+'">'+
+  const name=trColLabel[key],family=trColFamily(key);
+  const previous=index?trColFamily(pref.order[index-1]):'';
+  return (family!==previous?'<div class="tr-colprefs-family">'+family+'</div>':'')+
+   '<div class="tr-colprefs-item" data-tr-cols-item="'+key+'">'+
    '<label><input type="checkbox" data-tr-cols-visible="'+key+'" '+(checked?'checked':'')+'><span>'+name+'</span></label>'+
    '<div class="tr-colprefs-order">'+
     '<button type="button" class="btn tiny ghost" data-tr-cols-move="'+key+'" data-tr-cols-delta="-1" aria-label="Mover '+name+' arriba" '+(index===0?'disabled':'')+'>↑</button>'+

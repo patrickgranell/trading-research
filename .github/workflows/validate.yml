@@ -77,6 +77,9 @@ jobs:
       - name: UX-104 operations register Chromium smoke
         run: node verify-ux104-operations-register-browser.mjs
 
+      - name: Audit R3 · Shared filters, views, frozen OOS and real reload
+        run: node verify-shared-filters-browser.mjs
+
       - name: TR-VIS PR1 · Dashboard/Register same-plan count parity
         run: node verify-tr-vis-pr1-counts-browser.mjs
 

@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const ctx=vm.createContext({});vm.runInContext(fs.readFileSync('shared-filters-model.js','utf8'),ctx);
+const m=ctx.TradingResearchSharedFiltersModel;
+assert.equal(m.count({riskPolicy:'raw'}),0);
+assert.equal(m.count({riskPolicy:'plan'}),0,'A risk policy is identified separately from sample filters');
+assert.equal(m.count({direction:'LONG',days:[1,2],taxonomyFilters:{setup:'a',custom:'b'}}),4);
+assert.equal(m.signature({days:[2,1,2],taxonomyFilters:{z:'1',a:'2'}}),m.signature({days:[1,2],taxonomyFilters:{a:'2',z:'1'}}),'Equivalent selections have stable signatures');
+assert.notEqual(m.signature({result:'flat'}),m.signature({}),'A measured zero is a criterion');
+for(const changed of [{id:'b',version:'v1',planEnvironment:'live'},{id:'a',version:'v2',planEnvironment:'live'},{id:'a',version:'v1',planEnvironment:'sim'}])assert.notEqual(m.context({id:'a',version:'v1',planEnvironment:'live'}),m.context(changed));
+const frozen={direction:'LONG',days:[1],taxonomyFilters:{t:'v'}};const editable=m.normalize(frozen);editable.days.push(2);editable.taxonomyFilters.t='other';assert.equal(frozen.taxonomyFilters.t,'v');assert.deepEqual(frozen.days,[1]);
+console.log('Shared selection model PASS: policy count, semantic signatures, TP/version/environment isolation, independent snapshots.');

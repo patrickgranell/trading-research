@@ -116,7 +116,8 @@ function tr2ResizeEquityChart(){
     typeof calcMetricStats!=='function'||typeof currentOps!=='function'||
     typeof v3194EquityFromZero!=='function')return;
  try{
-  const stats=calcMetricStats(currentOps(),unit,'gross');
+  const shared=globalThis.TradingResearchSharedFilters;
+  const stats=calcMetricStats(shared?.sample?.()||currentOps(),unit,shared?.snapshot?.().basis||'gross');
   const values=v3194EquityFromZero(stats.equity);
   if(!values.length)return;
   const template=document.createElement('template');

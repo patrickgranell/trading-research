@@ -23,18 +23,19 @@ const check=String.raw`(async()=>{
   if(typeof persist==='function')persist();
   await sleep(160);
   TradingResearchActions.navigate('tpbuilder');await sleep(220);
+  const shared=!!globalThis.TradingResearchSharedFilters;if(shared)TradingResearchActions.gfToggle();
   const root=()=>document.querySelector('#tp-builder-view');
-  const group=()=>root()?.querySelector('.tr8-week-selector');
-  const buttons=()=>[...(group()?.querySelectorAll('button[data-day]')||[])];
+  const group=()=>shared?document.querySelector('#gf-panel .gf-week>div'):root()?.querySelector('.tr8-week-selector');
+  const buttons=()=>[...(group()?.querySelectorAll('button[data-gf-day],button[data-day]')||[])];
   out.week=!!group()&&buttons().length===7;
-  out.order=buttons().map(x=>x.dataset.day).join(',')==='0,1,2,3,4,5,6';
-  out.names=buttons().every((b,i)=>b.getAttribute('aria-label')===['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][i]);
+  out.order=buttons().map(x=>shared?x.dataset.gfDay:x.dataset.day).join(',')===(shared?'1,2,3,4,5,6,0':'0,1,2,3,4,5,6');
+  out.names=buttons().every((b,i)=>shared?b.textContent.trim()===['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'][i]:b.getAttribute('aria-label')===['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][i]);
   out.unselected=buttons().every(b=>b.getAttribute('aria-pressed')==='false');
-  out.originalAction=buttons().every(b=>b.dataset.trActionClick==='tpBuilderToggleDay');
+  out.originalAction=buttons().every(b=>shared?b.hasAttribute('data-gf-day'):b.dataset.trActionClick==='tpBuilderToggleDay');
   out.equalSizes=buttons().every(b=>Math.abs(b.getBoundingClientRect().width-buttons()[0].getBoundingClientRect().width)<2);
   out.minimumDayWidth=buttons().every(b=>b.getBoundingClientRect().width>=32);
   out.responsiveColumns=getComputedStyle(group()).gridTemplateColumns.split(' ').length;
-  const buttonDay=d=>root().querySelector('.tr8-week-day[data-day="'+d+'"]');
+  const buttonDay=d=>shared?document.querySelector('#gf-panel [data-gf-day="'+d+'"]'):root().querySelector('.tr8-week-day[data-day="'+d+'"]');
   const resultCount=()=>{const s=root()?.querySelector('[data-tr-action-click="tpBuilderOpenCreate"]')?.textContent||'';const m=s.match(/([0-9]+) trades/);return m?Number(m[1]):-1;};
   out.before=resultCount();
   buttonDay(1)?.click();await sleep(110);
@@ -53,6 +54,7 @@ const check=String.raw`(async()=>{
   out.weekMeasurements={groupScroll:group().scrollWidth,groupClient:group().clientWidth,rowScroll:group().parentElement.scrollWidth,rowClient:group().parentElement.clientWidth};
   out.weekOverflow=group().scrollWidth<=group().clientWidth+2&&group().parentElement.scrollWidth<=group().parentElement.clientWidth+2;
   out.dayDataUntouched=state.operations.length===opsBefore+2;
+  if(shared)TradingResearchActions.gfClose();
   const fixture=document.createElement('section');
   fixture.innerHTML='<div class="page-title"><h2>Curva de Equity</h2></div><div class="panel-title"><h3>Confianza estadística</h3></div><div class="block-core-grid"><span>MFE medio</span></div><table class="table"><thead><tr><th>MAE medio</th></tr></thead></table>';
   document.body.append(fixture);
@@ -69,6 +71,7 @@ const check=String.raw`(async()=>{
   help.click();await sleep(45);
   out.tooltipContent=!!document.querySelector('.context-help-modal');
   const modal=document.querySelector('.modal-backdrop');if(modal)modal.remove();
+  if(shared)TradingResearchActions.gfToggle();
   out.themeWidth={};
   for(const t of ['dark','light']){
    document.documentElement.dataset.theme=t;
@@ -76,16 +79,19 @@ const check=String.raw`(async()=>{
    out.themeWidth[t]={active:getComputedStyle(active).backgroundColor,inactive:getComputedStyle(inactive).backgroundColor,focus:getComputedStyle(active).outlineColor};
   }
   out.themesDiffer=Object.values(out.themeWidth).every(x=>x.active!==x.inactive);
-  fixture.remove();
+  if(shared)TradingResearchActions.gfClose();fixture.remove();
   TradingResearchActions.navigate('operations');await sleep(150);
-  const opsWeek=document.querySelector('#view .day-filter-row .tr8-week-selector');
-  out.operationsWeek=!!opsWeek&&opsWeek.querySelectorAll('button[data-day-chip]').length===7;
-  out.operationsOrder=[...(opsWeek?.querySelectorAll('button[data-day-chip]')||[])].map(b=>b.dataset.dayChip).join(',')==='1,2,3,4,5,6,0';
-  const opsMonday=opsWeek?.querySelector('button[data-day-chip="1"]');
-  out.operationsOriginalAction=!!opsMonday&&(!!opsMonday.dataset.trActionClick||!!opsMonday.dataset.trOnclick);
+  if(shared)TradingResearchActions.gfToggle();
+  const opsWeek=shared?document.querySelector('#gf-panel .gf-week>div'):document.querySelector('#view .day-filter-row .tr8-week-selector');
+  out.operationsWeek=!!opsWeek&&opsWeek.querySelectorAll(shared?'button[data-gf-day]':'button[data-day-chip]').length===7;
+  out.operationsOrder=[...(opsWeek?.querySelectorAll(shared?'button[data-gf-day]':'button[data-day-chip]')||[])].map(b=>shared?b.dataset.gfDay:b.dataset.dayChip).join(',')==='1,2,3,4,5,6,0';
+  let opsMonday=opsWeek?.querySelector(shared?'button[data-gf-day="1"]':'button[data-day-chip="1"]');
+  out.operationsOriginalAction=!!opsMonday&&(!!opsMonday.dataset.gfDay||!!opsMonday.dataset.trActionClick||!!opsMonday.dataset.trOnclick);
   opsMonday?.click();await sleep(80);
+  if(shared)opsMonday=document.querySelector('#gf-panel [data-gf-day="1"]');
   out.operationsPressed=opsMonday?.getAttribute('aria-pressed')==='true'&&opsMonday?.classList.contains('active');
   opsMonday?.click();await sleep(80);
+  if(shared)opsMonday=document.querySelector('#gf-panel [data-gf-day="1"]');
   out.operationsDeselected=opsMonday?.getAttribute('aria-pressed')==='false'&&!opsMonday?.classList.contains('active');
 
  }catch(e){out.error=String(e?.stack||e);}

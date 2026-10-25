@@ -57,7 +57,7 @@ try{
  assert.equal(out.widgetLabel,'Operaciones');
  assert.equal(out.widgetCount,10,'Dashboard count must equal all operations in current Trading Plan');
  assert.equal(out.winRate,'30.0%','Tick win rate must use its 10 eligible operations, not 3 with R');
- assert(out.widgetSub.includes('total del')&&out.winSub.includes('10/10'), 'Sample coverage must be visible');
+ assert((out.widgetSub.includes('total del')||out.widgetSub.includes('10/10 evaluables'))&&out.winSub.includes('10/10'), 'Sample coverage must be visible');
  assert.equal(out.filtered,10,'Unfiltered Register must share Dashboard source');
  assert.equal(out.tableRows,10,'Visible Register must contain the same 10 rows');
  console.log('TR-VIS PR1 count parity PASS: 10 Replay source trades, only 3 R-eligible, Dashboard total 10, tick win rate 30%, Register 10.');

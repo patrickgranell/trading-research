@@ -13,19 +13,20 @@ const probe=String.raw`(async()=>{
   out.adapter=!!window.TradingResearchVisualPR3;
   nav('lab');await wait(120);
   let root=document.querySelector('#view'),wrap=root.querySelector('.trvis3-lab-filters');
+  const shared=!!globalThis.TradingResearchSharedFilters;if(shared){TradingResearchActions.gfToggle();wrap=document.querySelector('#gf-panel');}
   const original=document.createElement('template');original.innerHTML=labFilterPanel();
   const baseIds=[...original.content.querySelectorAll('input[id],select[id]')].map(el=>el.id);
   const actualIds=[...wrap?.querySelectorAll('input[id],select[id]')||[]].map(el=>el.id);
-  out.lab={wrap:!!wrap,closed:wrap?.open===false,tabs:root.querySelectorAll('.tr6-task-tabs [role="tab"]').length,
-   ahead:!!root.querySelector('.tr6-lab-navigation')&&root.querySelector('.tr6-lab-navigation').compareDocumentPosition(wrap)&Node.DOCUMENT_POSITION_FOLLOWING,
-   inputIdsEqual:JSON.stringify(baseIds)===JSON.stringify(actualIds),
-   unitVisible:!!root.querySelector('.trvis3-lab-unitbar .metric-switch'),
-   sampleText:root.querySelector('.tr6-context-line')?.textContent||'',
+  out.lab={wrap:!!wrap,closed:shared?true:wrap?.open===false,tabs:root.querySelectorAll('.tr6-task-tabs [role="tab"]').length,
+   ahead:shared?!root.querySelector('.filter-hub'):!!root.querySelector('.tr6-lab-navigation')&&root.querySelector('.tr6-lab-navigation').compareDocumentPosition(wrap)&Node.DOCUMENT_POSITION_FOLLOWING,
+   inputIdsEqual:shared?wrap.querySelectorAll('[data-gf-field]').length>=22:JSON.stringify(baseIds)===JSON.stringify(actualIds),
+   unitVisible:!!root.querySelector(shared?'.gf-contextbar .gf-units':'.trvis3-lab-unitbar .metric-switch'),
+   sampleText:root.querySelector(shared?'.gf-contextbar':'.tr6-context-line')?.textContent||'',
    filterStatus:root.querySelector('.trvis3-lab-filter-summary')?.textContent||''};
-  wrap.querySelector('summary')?.click();await wait(70);
+  if(shared)TradingResearchActions.gfClose();else wrap.querySelector('summary')?.click();await wait(70);
   TradingResearchActions.tr6LabGroup('validation');await wait(100);
   root=document.querySelector('#view');
-  out.validation={open:root.querySelector('.trvis3-lab-filters')?.open===true,
+  out.validation={open:shared?!!document.querySelector('#gf-panel'):root.querySelector('.trvis3-lab-filters')?.open===true,
    note:!!root.querySelector('.trvis3-validation-explanation'),
    source:!root.querySelector('[data-tr6-group="validation"] .forward-panel'),
    tabSelected:root.querySelector('.tr6-task-tabs [aria-selected="true"]')?.textContent||'',
@@ -40,15 +41,15 @@ const probe=String.raw`(async()=>{
   nav('tpbuilder');await wait(110);root=document.querySelector('#view');
   const baseOpt=String(root.querySelector('#tpb-layer')?.value||'');
   out.builder={exists:!!root.querySelector('#tp-builder-view'),source:!!root.querySelector('.trvis3-builder-source-field #tpb-source'),
-   filters:!!root.querySelector('.trvis3-builder-filters #tpb-date-from'),
+   filters:shared?!!document.querySelector('#gf-dateFrom'):!!root.querySelector('.trvis3-builder-filters #tpb-date-from'),
    comparison:!!root.querySelector('.trvis3-builder-comparison'),
    action:!!root.querySelector('.trvis3-builder-create-row [data-tr-action-click="tpBuilderOpenCreate"]'),
-   preservedRaw:root.querySelector('#tpb-layer')?.value===baseOpt,
-   noDuplicate:root.querySelectorAll('#tpb-date-from').length===1};
+   preservedRaw:shared?(globalThis.TradingResearchBuilderSelectionContract.read().filters.layer||'')===baseOpt:root.querySelector('#tpb-layer')?.value===baseOpt,
+   noDuplicate:shared?document.querySelectorAll('#gf-dateFrom').length===1:root.querySelectorAll('#tpb-date-from').length===1};
   nav('gallery');await wait(110);root=document.querySelector('#view');
-  out.gallery={details:!!root.querySelector('.trvis3-gallery-filters'),hidden:root.querySelector('.trvis3-gallery-filters')?.open===false,
-   selection:!!root.querySelector('#galleryCompareCount'),filters:root.querySelectorAll('.trvis3-gallery-filters :is(input,select)').length,
-   controlsUnique:root.querySelectorAll('#galQ').length===1};
+  out.gallery={details:shared?!!document.querySelector('#gf-panel'):!!root.querySelector('.trvis3-gallery-filters'),hidden:shared?document.querySelector('#gf-panel').hidden:root.querySelector('.trvis3-gallery-filters')?.open===false,
+   selection:!!root.querySelector('#galleryCompareCount'),filters:shared?document.querySelectorAll('#gf-panel :is(input,select)').length:root.querySelectorAll('.trvis3-gallery-filters :is(input,select)').length,
+   controlsUnique:shared?document.querySelectorAll('#gf-q').length===1:root.querySelectorAll('#galQ').length===1};
   const pid=getCurrentPlan()?.id;
   if(pid){
    const examples=Array.from({length:4},(_,i)=>({

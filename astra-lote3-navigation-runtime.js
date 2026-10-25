@@ -130,7 +130,7 @@ function decorate(view,html){
  // Constrain to the Dashboard's SVG; no change to its points, values or range.
  if(view==='dashboard'){
   // TR-VIS-PR1-02: distinguish all plan records from the metric-eligible sample.
-  const all=globalThis.TradingResearchOperationsReadContract?.current?.();
+  const all=globalThis.TradingResearchSharedFilters?.sample?.()||globalThis.TradingResearchOperationsReadContract?.current?.();
   if(Array.isArray(all)){
    const cards=[...template.content.querySelectorAll('.dashboard-kpis-custom .kpi')];
    const cardFor=name=>cards.find(card=>card.querySelector('.label')?.textContent?.trim().startsWith(name));
@@ -145,7 +145,7 @@ function decorate(view,html){
    const unit=active==='Ticks'?'ticks':active.startsWith('US')?'usd':'r';
    const unitName=unit==='ticks'?'ticks':unit==='usd'?'dólares':'R';
    let stats=null;
-   try{if(typeof calcMetricStats==='function')stats=calcMetricStats(all,unit,'gross');}catch(_){}
+   try{if(typeof calcMetricStats==='function')stats=calcMetricStats(all,unit,globalThis.TradingResearchSharedFilters?.snapshot?.().basis||'gross');}catch(_){}
    if(stats&&Number.isFinite(stats.n)){
     if(countCard&&stats.n!==total){
      const sub=countCard.querySelector('.sub');

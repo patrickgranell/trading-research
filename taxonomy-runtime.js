@@ -308,6 +308,19 @@ if(!globalThis.TradingResearchTaxonomyFilterReadContract){
 
 const trTaxReadOpsFiltersBase=typeof readOpsFilters==='function'?readOpsFilters:null;if(trTaxReadOpsFiltersBase)readOpsFilters=function(){trTaxReadOpsFiltersBase();opsViewState.taxonomyFilters=trTaxCollectFilterMap('[data-tax-filter-ops]');};
 const trTaxBaseFilteredOpsBase=typeof baseFilteredOps==='function'?baseFilteredOps:null;if(trTaxBaseFilteredOpsBase)baseFilteredOps=function(f=opsViewState,ops=currentOps(),blockMap=opBlockMap()){const base=trTaxBaseFilteredOpsBase(f,ops,blockMap),filters=f?.taxonomyFilters||{};return base.filter(o=>api.matchesFilters(o,typeof getPlan==='function'?getPlan(o.tradingPlanId):trTaxCurrentPlan(),filters));};
+// Normalized domain projections must not normalize or rewrite the TP while reading.
+Object.defineProperty(globalThis,'TradingResearchTaxonomySelectionReadContract',{value:Object.freeze({
+ filter:(filters,rows,blockMap)=>trTaxBaseFilteredOpsBase(filters,rows,blockMap).filter(op=>{
+  const p=typeof getPlan==='function'?getPlan(op.tradingPlanId):trTaxCurrentPlan();
+  for(const [id,expected] of Object.entries(filters.taxonomyFilters||{})){
+   if(expected===''||expected==null)continue;
+   const tax=(p?.taxonomyRegistry||[]).find(t=>t.id===id);
+   if(!tax||String(resolveOperationValueId(op,tax))!==String(expected))return false;
+  }
+  return true;
+ }),
+ options:tax=>trTaxSortValues((tax?.values||[]).filter(v=>v.status!=='archived').map(v=>({...v})))
+})});
 const trTaxOperationsFilterPanelBase=typeof operationsFilterPanel==='function'?operationsFilterPanel:null;if(trTaxOperationsFilterPanelBase)operationsFilterPanel=function(){const p=trTaxCurrentPlan(),ops=currentOps();let html=trTaxOperationsFilterPanelBase();html=trTaxStripLegacyFilters(html,['filterSetup','filterVD','filterNR','filterHypothesis']);const dynamic=trTaxFilterFields(p,ops,opsViewState.taxonomyFilters,'ops');return html.replace('</div><div class="day-filter-row">',`${dynamic}</div><div class="day-filter-row">`);};
 const trTaxResetOpsBase=typeof resetOpsFilters==='function'?resetOpsFilters:null;if(trTaxResetOpsBase)resetOpsFilters=function(){opsViewState.taxonomyFilters={};return trTaxResetOpsBase();};
 const trTaxLabStudyDefaultBase=typeof labStudyDefaultState==='function'?labStudyDefaultState:null;if(trTaxLabStudyDefaultBase)labStudyDefaultState=function(){return {...trTaxLabStudyDefaultBase(),taxonomyFilters:{}};};

@@ -1,8 +1,11 @@
 # Auditoría revisión 3 · PR 1 · Filtros comunes, vistas y OOS
 
 Fecha: 25/10/2026 · Europe/Madrid
+PR: https://github.com/patrickgranell/trading-research/pull/123
 Base: main `141aec5` (merge PR #121), paquete web 31.29.0.
 Rama: `audit-r3/pr1-global-filters`.
+Commit de implementación verificado: `22176874b7a5221756057e58955b6613a2410008`.
+CI web PASS: https://github.com/patrickgranell/trading-research/actions/runs/40235681075
 
 ## Alcance y decisiones
 
@@ -29,10 +32,12 @@ Corrección descubierta al validar OOS: una prueba cerrada con cero IDs finales 
 
 ## Evidencia reproducible
 
-- `npm run build`: prebuild, contratos, CSP y guardas de ocho regiones financieras.
-- `node verify-shared-filters-model.mjs`: conteos, firmas equivalentes, aislamiento TP/versión/entorno e independencia de snapshots.
-- `CHROME_BIN=<Chromium> node verify-shared-filters-browser.mjs`: app compilada, perfil desechable; ocho registros (incluye pendiente), guardado/recuperación, nueva operación OOS con filtro de trabajo contrario, cierre vacío, receta, cambio de TP, imagen contextual, unidades/base, foco, temas oscuro/claro, 1366×900 y 1920×1080 y reapertura real del mismo perfil.
-- Pruebas de navegador anteriores siguen cubriendo registro, columnas, lotes, derivación independiente, teclado, presentación, Market Data, comparación de imágenes e informes. Las expectativas de ubicación del filtro se actualizan al panel común.
+- `npm run build`: PASS, incluido prebuild, contratos, CSP y guardas de ocho regiones financieras.
+- `node verify-shared-filters-model.mjs`: PASS, conteos, firmas equivalentes, aislamiento TP/versión/entorno e independencia de snapshots.
+- `CHROME_BIN=<Chromium> node verify-shared-filters-browser.mjs`: PASS, app compilada y perfil desechable; ocho registros (incluye pendiente), taxonomía personalizada/renombrada/archivada, guardado/recuperación, nueva operación OOS con filtro de trabajo contrario, cierre vacío, receta, cambio de TP, imagen contextual, unidades/base, foco, temas oscuro/claro, 1366×900 y 1920×1080 y reapertura real del mismo perfil.
+- 22 pruebas de navegador anteriores PASS: registro, columnas, lotes, derivación independiente, teclado, presentación, Market Data, comparación de imágenes e informes. Las expectativas de ubicación del filtro se actualizan al panel común.
+- CI web completo PASS para el commit de implementación: todas sus etapas verdes.
+- `npm run desktop:prepare` PASS; controles offline/SQLite/imágenes/Market Data/recuperación PASS. No equivale a certificación de instalación Windows. La compilación Windows automática queda en su workflow separado.
 
 Los datos se generan solo en perfiles de prueba. No se han restaurado datos del usuario ni manipulado producción. El Excel de Edgewonk no se presenta como prueba del importador Ankora. La prueba de importación y enriquecimiento sigue en PR 2 (AR-24).
 
@@ -40,7 +45,8 @@ Los datos se generan solo en perfiles de prueba. No se han restaurado datos del 
 
 CP-01: repositorio y base actuales identificados; muestra reproducible pertinente al PR 1 preparada. La certificación de otros recorridos/datasets continúa en sus lotes.
 CP-02: contrato de filtros documentado arriba.
-CP-03/04: implementados y comprobados. Build completo PASS; 22 regresiones anteriores de navegador PASS y prueba nueva del panel PASS en ambos temas y resoluciones, incluida reapertura real. Preparación Desktop 0.7.0 y controles nativos PASS; no equivale a certificación de instalación Windows.
-Validación del usuario, merge y despliegue de producción: pendientes.
+CP-03/04: implementados y comprobados.
+PR #123: Draft; revisión conjunta del usuario, merge y producción pendientes.
+La ruta de trabajo principal registra el enlace de preview cuando esté disponible y el último commit de entrega.
 
-Siguiente acción: publicar esta rama y presentar un único PR de revisión con su versión de prueba. Guardar enlace y commit de entrega en la ruta de trabajo principal. Tras validación y merge, seguir con PR 2 (CP-05/06).
+Siguiente acción: presentar la versión de prueba del PR #123 para una sola revisión agrupada. Resolver observaciones en este PR. Tras validación y merge, seguir con PR 2 (CP-05/06).

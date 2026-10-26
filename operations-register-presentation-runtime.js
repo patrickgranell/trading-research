@@ -24,6 +24,13 @@ const newCell=(tag,content)=>{
   return el;
 };
 function trExtraCell(op,key){
+ if(key.startsWith('tax:')){
+  const plan=globalThis.TradingResearchPlanReadContract?.current?.();
+  const id=key.slice(4),tax=(plan?.taxonomyRegistry||[]).find(t=>String(t.id)===id);
+  if(!tax)return '—';
+  const selected=op.taxonomyValues?.[id],match=(tax.values||[]).find(x=>String(x.id)===String(selected));
+  return match?.name||match?.legacyValue||(tax.legacyKey?String(op[tax.legacyKey]||'—'):'—');
+ }
  const raw=x=>x===null||x===undefined||String(x).trim()===''?'—':String(x);
  const num=(x,suffix='',dec=2)=>{
   if(x===null||x===undefined||String(x).trim()===''||!Number.isFinite(Number(x)))return '—';
@@ -136,8 +143,12 @@ function trColumnRefresh(ops=[]){
  const risks=Array.isArray(plan?.riskStrategies)?plan.riskStrategies:[];
  const count=Math.max(0,...risks.map(r=>Array.isArray(r.lots)?r.lots.length:0),
    ...[...ops,...saved].map(o=>Array.isArray(o?.executionLots)?o.executionLots.length:0));
+ const taxonomyCols=(plan?.taxonomyRegistry||[]).filter(t=>t.kind==='custom'&&
+   (t.status!=='archived'||saved.some(o=>o.taxonomyValues?.[t.id]))).map(t=>
+   ['tax:'+t.id,t.name+(t.status==='archived'?' (archivada)':'')]);
  TR_COLUMNS=[...TR_BASE_COLUMNS.slice(0,-1),
    ...Array.from({length:count},(_,i)=>['lot'+(i+1),'Lote '+(i+1)+' (ticks/ct)']),
+   ...taxonomyCols,
    TR_BASE_COLUMNS.at(-1)];
  TR_COL_KEYS=TR_COLUMNS.map(x=>x[0]);
  TR_COL_EDITABLE=TR_COL_KEYS.filter(x=>x!==TR_FIXED);
@@ -182,7 +193,7 @@ function trColumnNormalize(config){
  for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)).reverse())after(key,'lots');
  const hidden=Array.isArray(config?.hidden)?[...new Set(config.hidden.filter(x=>TR_COL_EDITABLE.includes(x)))]:[];
  // Per-lot columns are opt-in; old saved layouts keep their original visibility.
- for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)||TR_OPTIONAL_COLUMNS.has(x))){
+ for(const key of TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x)||TR_OPTIONAL_COLUMNS.has(x)||x.startsWith('tax:'))){
   if(!explicitOrder.includes(key)&&!hidden.includes(key))hidden.push(key);
  }
  if(hidden.length===TR_COL_EDITABLE.length)hidden.pop();
@@ -200,7 +211,9 @@ function trColumnSave(config){
  }catch(e){console.warn('[Trading Research · columnas] No se han podido guardar las preferencias locales.',e);}
  return fresh;
 }
+const trColEscape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function trColFamily(key){
+ if(key.startsWith('tax:'))return 'Taxonomías personalizadas';
  if(['entryDate','entryTime','exitDate','exitTime','weekday','symbol','contracts','direction'].includes(key))return 'Identificación';
  if(['setup','vd','nr','hypothesis','context','h4Phase','tradeType'].includes(key))return 'Oportunidad y clasificación';
  if(['regime','entryPrice'].includes(key))return 'Entrada y riesgo previsto';
@@ -212,7 +225,7 @@ function trColumnChooser(pref){
  return '<div class="tr-colprefs-list" role="group" aria-label="Columnas disponibles">'+
  pref.order.map((key,index)=>{
   const checked=!pref.hidden.includes(key);
-  const name=trColLabel[key],family=trColFamily(key);
+  const name=trColEscape(trColLabel[key]),family=trColFamily(key);
   const previous=index?trColFamily(pref.order[index-1]):'';
   return (family!==previous?'<div class="tr-colprefs-family">'+family+'</div>':'')+
    '<div class="tr-colprefs-item" data-tr-cols-item="'+key+'">'+

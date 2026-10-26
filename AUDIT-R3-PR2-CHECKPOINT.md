@@ -18,3 +18,6 @@ Próximo paso: verificar CI y comportamiento en navegador; completar columnas Cu
 ## Corrección de compatibilidad / CI inicial
 - La ficha real utiliza «2 · Clasificación de la oportunidad» (taxonomía canónica). El adaptador ahora la detecta sin sensibilidad a mayúsculas y reconoce sus secciones ya reorganizadas.
 - Primer CI de web: build completo PASS; Chromium Lote 8 falló una vez a 500px durante hidratación de dos operaciones sintéticas; rerun superó Lote 8 y encontró que la prueba UX104 exigía exactamente 21 columnas, incompatible con las ocho columnas nuevas. Se actualizó esta aserción para verificar las 29 cabeceras, sin reducir la cobertura de columnas existentes. Esperar nueva ejecución verde.
+
+## CP-06.1 · Taxonomías en columnas
+Registro y Laboratorio exponen como opt-in taxonomías personalizadas presentes en el TP, usando IDs estables, conservando valores históricos si se archivan. Etiquetas escapadas para nombres editables. La lectura del registro no escribe en el TP. Pendiente validación automática y visual.

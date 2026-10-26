@@ -71,7 +71,8 @@ try{
  const v=JSON.parse(decodeURIComponent(attr));
  assert.deepEqual(v.headings.slice(0,5),['Fecha entrada','Hora entrada','Fecha salida','Hora salida','Día']);
  assert(!v.headings.includes('Bloque'),'Obsolete block column must be absent');
- assert.equal(v.headings.length,21,'Expected the normalized register plus Contracts and lot summary');
+ assert.equal(v.headings.length,29,'Expected previous 21 columns plus eight opt-in source fields');
+ assert(['Contexto H4','Fase H4','Tipo de operación','Precio de entrada','MFE (ticks)','MAE (ticks)','R neta','P&L bruto'].every(k=>v.headings.includes(k)), 'All source fields must remain selectable');
  assert.equal(v.records[0][2],'15/8/2026','Overnight exit date incorrect');
  assert.equal(v.records[0][3],'01:22','Overnight exit time incorrect');
  assert.equal(v.records[1][2],'—');

@@ -26,6 +26,7 @@ const mount=()=>{root.innerHTML=window.opsTable(ops);};
 const keys=()=>[...root.querySelectorAll('.analytics-table thead th')].map(th=>th.dataset.trColsKey);
 const hidden=()=>[...root.querySelectorAll('.analytics-table thead th.tr-cols-hidden')].map(th=>th.dataset.trColsKey);
 const result={};
+ const added=['context','h4Phase','tradeType','entryPrice','mfeTicks','maeTicks','rNet','pnlGross'];
 mount();
 result.total=keys().length;
 result.initial=keys();
@@ -52,14 +53,14 @@ result.rowCounts=[...root.querySelectorAll('tbody tr')].map(row=>row.cells.lengt
 const original=keys().join(',');
 plan={id:'different-plan'};
 mount();
-result.otherPlanDefault=!hidden().length&&keys().indexOf('symbol')===5;
+result.otherPlanDefault=added.every(k=>hidden().includes(k))&&keys().indexOf('symbol')===5&&!hidden().includes('entryTime');
 plan={id:'replay-plan'};
 mount();
 result.samePlanRestored=keys().join(',')===original&&hidden().includes('entryTime');
 // Laboratorio shares exactly the same capabilities but not Operaciones' saved layout.
 route='lab';mount();
 result.labHasConfigurator=!!root.querySelector('[data-tr-cols-toggle]')&&root.querySelector('table.tr-ops-entry-exit')!==null;
-result.labIndependentDefault=!hidden().length&&keys().indexOf('symbol')===5;
+result.labIndependentDefault=added.every(k=>hidden().includes(k))&&keys().indexOf('symbol')===5&&!hidden().includes('entryTime');
 result.labActionsFixed=keys().at(-1)==='actions'&&[...root.querySelectorAll('tbody tr')].every(row=>row.cells[row.cells.length-1].textContent.includes('Ver Editar'));
 root.querySelector('[data-tr-cols-toggle]').click();
 const labHide=root.querySelector('[data-tr-cols-visible="entryDate"]');
@@ -72,7 +73,7 @@ result.opsUnchangedByLab=!hidden().includes('entryDate')&&hidden().includes('ent
 route='lab';mount();
 result.labPersisted=hidden().includes('entryDate')&&keys().join(',')===labOrder;
 plan={id:'other-tp'};mount();
-result.labOtherPlanDefault=!hidden().length&&keys().indexOf('setup')===8;
+result.labOtherPlanDefault=added.every(k=>hidden().includes(k))&&keys().indexOf('setup')===8&&!hidden().includes('entryDate');
 plan={id:'replay-plan'};
 route='operations';mount();
 result.lightDark={};
@@ -82,7 +83,7 @@ for(const theme of ['dark','light']){
 }
 root.querySelector('[data-tr-cols-toggle]').click();
 root.querySelector('[data-tr-cols-reset]').click();
-result.reset=!hidden().length&&keys().indexOf('symbol')===5;
+result.reset=added.every(k=>hidden().includes(k))&&keys().indexOf('symbol')===5&&!hidden().includes('entryDate')&&!hidden().includes('entryTime');
 result.actionsIntact=[...root.querySelectorAll('tbody tr')].every(row=>row.lastElementChild.dataset.trColsKey==='actions'&&row.lastElementChild.textContent.includes('Ver Editar'));
 // PR2: contracts are shown; executed lot results are exposed as independent opt-in columns.
 // No separate operations, no invented lot history for aggregated records.
@@ -100,7 +101,7 @@ result.lotsDefaultHidden=hidden().includes('lot1')&&hidden().includes('lot2')&&!
 result.contractAmounts=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="contracts"]')?.textContent);
 result.lotSummary=[...root.querySelectorAll('tbody tr')].map(r=>r.querySelector('[data-tr-cols-key="lots"]')?.textContent);
 result.lotCount=keys().length;
-result.lotActionFixed=[...root.querySelectorAll('tbody tr')].every(r=>r.cells.length===23&&r.lastElementChild.dataset.trColsKey==='actions');
+result.lotActionFixed=[...root.querySelectorAll('tbody tr')].every(r=>r.cells.length===31&&r.lastElementChild.dataset.trColsKey==='actions');
 root.querySelector('[data-tr-cols-toggle]').click();
 for(const name of ['lot1','lot2']){
  const control=root.querySelector('[data-tr-cols-visible="'+name+'"]');
@@ -129,14 +130,15 @@ try{
  const encoded=run.stdout.match(/data-tr-columns-results="([^"]+)"/)?.[1];assert(encoded,'No column fixture result: '+run.stderr?.slice(-1300));
  const result=JSON.parse(decodeURIComponent(encoded));
  console.log('Columns Chromium',JSON.stringify(result));
- assert.equal(result.total,21);
+ assert.equal(result.total,29);
+ assert(['context','h4Phase','tradeType','entryPrice','mfeTicks','maeTicks','rNet','pnlGross'].every(k=>result.initial.includes(k)));
  for(const key of ['actionsPinnned','fixedOriginalActions','panelOpen','hiddenTime','moved','dragReordered','persisted','reopenedPreserved','otherPlanDefault','samePlanRestored','labHasConfigurator','labIndependentDefault','labActionsFixed','labEdited','opsUnchangedByLab','labPersisted','labOtherPlanDefault','reset','actionsIntact']){
   assert.equal(result[key],true,key+' failed');
  }
- assert.deepEqual(result.rowCounts,[21,21]);
+ assert.deepEqual(result.rowCounts,[29,29]);
  assert.notEqual(result.lightDark.dark,result.lightDark.light);
  assert.deepEqual(result.dynamicKeys,['contracts','lots','lot1','lot2']);
- assert.equal(result.lotCount,23);
+ assert.equal(result.lotCount,31);
  assert.equal(result.lotsDefaultHidden,true);
  assert.deepEqual(result.contractAmounts,['2','3','1']);
  assert.deepEqual(result.lotSummary,['L1 +20t/ct ×1 · L2 +40t/ct ×1','L1 -10t/ct ×2 · L2 Pend.','Agregado']);
@@ -145,5 +147,5 @@ try{
  assert.deepEqual(result.lot1,['+20t/ct ×1','-10t/ct ×2','—']);
  assert.deepEqual(result.lot2,['+40t/ct ×1','Pend.','—']);
  assert.equal(result.lotsPersisted,true);
- console.log('TR-FEAT-OPS-01 / TR-VIS PR2 PASS: 21 base columns + dynamically configured executed lots, contracts, pending and aggregated, persisted preferences, fixed actions.');
+ console.log('TR-FEAT-OPS-01 / Auditoría R3 PASS: 21 legacy + 8 opt-in columns, dynamic lots, persisted scoped preferences, fixed actions.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

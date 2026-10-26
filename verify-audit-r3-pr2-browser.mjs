@@ -6,6 +6,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 
 const html=fs.readFileSync('dist/index.html','utf8');
+const ankoraFixture=fs.readFileSync('fixtures/audit-r3-pr2-ankora-SYNTHETIC.txt','utf8');
 const probe=String.raw`(async()=>{
  const out={};const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  try{
@@ -64,12 +65,33 @@ const probe=String.raw`(async()=>{
   out.saved=!!prefs&&!prefs.hidden.includes('direction')&&!prefs.hidden.includes('tax:audit_r3_feature');
   out.unchanged=JSON.stringify(operation)===originalValue;
   out.count=state.operations.length-existing;
+  const parsed=buildPreviewFromText(ankoraFixture,{name:'R3-SYNTHETIC.txt'},p);
+  out.ankoraParsed=parsed.drafts.length===2&&parsed.drafts.every(d=>d.importDisposition==='insert');
+  const baseline=operationFromDraft(parsed.drafts[0],p,'R3-IMPORT',null);
+  baseline.notes='Nota enriquecida manualmente';baseline.h4Context='Contexto local';
+  baseline.taxonomyValues={audit_r3_feature:'quality_A'};
+  state.operations.push(baseline);
+  const repeat=buildPreviewFromText(ankoraFixture,{name:'R3-SYNTHETIC.txt'},p);
+  out.ankoraSkip=repeat.drafts[0].importDisposition==='skip';
+  const lines=ankoraFixture.trimEnd().split('\n'),names=lines[0].split('|'),row=lines[1].split('|');
+  row[names.indexOf('Lot1Ticks')]='25';lines[1]=row.join('|');
+  const changed=buildPreviewFromText(lines.join('\n')+'\n',{name:'R3-SYNTHETIC-v2.txt'},p);
+  out.ankoraReclassified=changed.drafts[0].importDisposition==='update'&&
+     changed.drafts[0].existingOperationId===baseline.id;
+  const updated=operationFromDraft(changed.drafts[0],p,'R3-V2',baseline);
+  out.ankoraEnrichment=updated.id===baseline.id&&updated.resultTicks===65&&
+    updated.notes==='Nota enriquecida manualmente'&&updated.h4Context==='Contexto local'&&
+    updated.taxonomyValues?.audit_r3_feature==='quality_A'&&
+    updated.raw.sourceFingerprint!==baseline.raw.sourceFingerprint;
+  out.ankoraZeroMeasured=operationFromDraft(parsed.drafts[1],p,'R3-ZERO',null).result==='flat';
+  state.operations.pop();
+
  }catch(error){out.error=String(error?.stack||error);}
  document.body.setAttribute('data-r3pr2-check',encodeURIComponent(JSON.stringify(out)));
 })();`;
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'audit-r3-pr2-'));
 try{
- const file=path.join(dir,'index.html');fs.writeFileSync(file,html.replace('</body>','<script>'+probe+'</script></body>'));
+ const file=path.join(dir,'index.html');fs.writeFileSync(file,html.replace('</body>','<script>const ankoraFixture='+JSON.stringify(ankoraFixture)+';\n'+probe+'</script></body>'));
  const chrome=[process.env.CHROME_BIN,'google-chrome','chromium','chromium-browser'].filter(Boolean)
   .find(bin=>spawnSync(bin,['--version'],{encoding:'utf8'}).status===0);
  assert(chrome,'Chromium requerido');
@@ -84,7 +106,7 @@ try{
  assert(!o.error,o.error);
  for(const key of ['formLoaded','order','fieldFirst','lotsNested','noDuplicateFields',
    'complianceLoaded','originalButtons','opened','addedDirection','addedTaxonomy',
-   'saved','unchanged','taxColumn'])assert.equal(o[key],true,key+' regresión');
+   'saved','unchanged','taxColumn','ankoraParsed','ankoraSkip','ankoraReclassified','ankoraEnrichment','ankoraZeroMeasured'])assert.equal(o[key],true,key+' regresión');
  assert(o.complianceHeaderCount>=19,'Falta catálogo de columnas en Cumplimiento');
  assert(o.complianceRows>=1,'Sin fila evaluada');
  assert.equal(o.count,1,'La visualización no debe crear operaciones adicionales');

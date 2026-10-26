@@ -36,3 +36,6 @@ La prueba real de Chromium pasó orden de ficha, nodos originales, lotes, catál
 
 ## CP-05.3 · Política explícita de enriquecimiento Ankora
 Para actualizaciones RAW con misma identidad: los datos de ejecución siguen siendo fuente, mientras que notas, Setup, VD, NR, hipótesis, Contexto y Tipo editados localmente prevalecen sobre los nuevos valores RAW. Los campos normalizados que nunca fueron editados sí pueden actualizarse desde el fichero. La versión RAW/fingerprint conserva los valores originales. Un cierre declarado con 0 ticks se clasifica como neutro; 0 sin fecha de salida permanece pendiente. Añadidos casos a verify-ankora-idempotency.mjs. Esto aún requiere CI y ensayo del fixture sintético con el flujo de importación visual.
+
+## Resolución de guardas arquitectónicas · integración Ankora
+Intento inicial de cambiar app.js rechazado por hash del source anterior a contratos. Se restaura su blob canónico inalterado y la suite estructural intacta. El comportamiento de enriquecimiento/local RAW y cero medido se implementa en audit-r3-pr2-ankora-runtime.js sobre el contrato de importación y queda cubierto en el Chromium integrado con el fixture sintético. No se han modificado datos existentes.

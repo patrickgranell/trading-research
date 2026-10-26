@@ -2326,3 +2326,18 @@ html[data-theme=light] #gf-panel{background:#fff;color:#17253c;border-color:#d6d
 .tr2-operation-modal #operationForm .tr-r3-secondary-classification{background:var(--panel2)}
 #view .tr-colprefs-family{grid-column:1/-1;margin:6px 0 1px;padding:6px 2px 3px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:750}
 #view .tr-colprefs-family:first-child{margin-top:0}
+
+/* Auditoría R3 PR2 · espacio útil de Análisis por regla y selector Cumplimiento. */
+#view .compliance-grid{grid-template-columns:minmax(0,1fr)}
+#view .tr-r3-compliance-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:5px 0 12px}
+#view .tr-r3-compliance-tools>small{font-size:11px;color:var(--muted)}
+#view .tr-r3-compliance-panel{width:100%;max-width:670px;padding:10px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;max-height:55vh;overflow:auto}
+#view .tr-r3-compliance-panel[hidden]{display:none!important}
+#view .tr-r3-compliance-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+#view .tr-r3-compliance-family{grid-column:1/-1;padding:7px 2px 3px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+#view .tr-r3-compliance-choice{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px;border:1px solid var(--border);border-radius:7px;min-width:0}
+#view .tr-r3-compliance-choice label{display:flex;gap:6px;align-items:center;min-width:0;font-size:12px}
+#view .tr-r3-compliance-choice label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view .tr-r3-compliance-choice>div{display:flex;gap:2px;flex-shrink:0}
+#view .compliance-ops-panel th[data-r3c-col]:not([data-r3c-col="actions"]){cursor:grab}
+@media(max-width:640px){#view .tr-r3-compliance-choices{grid-template-columns:minmax(0,1fr)}}

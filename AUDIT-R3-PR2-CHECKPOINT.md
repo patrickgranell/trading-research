@@ -21,3 +21,7 @@ Próximo paso: verificar CI y comportamiento en navegador; completar columnas Cu
 
 ## CP-06.1 · Taxonomías en columnas
 Registro y Laboratorio exponen como opt-in taxonomías personalizadas presentes en el TP, usando IDs estables, conservando valores históricos si se archivan. Etiquetas escapadas para nombres editables. La lectura del registro no escribe en el TP. Pendiente validación automática y visual.
+
+## CP-06.2 · Cumplimiento (implementación pendiente de certificación)
+- «Operaciones evaluadas» conserva sus ocho celdas originales y sus acciones, pero añade catálogo dinámico de otros campos y taxonomías personalizadas. Preferencias de columnas por TP con ocultación, reordenación (flechas/arrastre) y restauración. «Análisis por regla» gana ancho útil.
+- El adaptador no cambia criterios de evaluación, importaciones, métricas ni filtros. Comprobar en CI: cabeceras, filas vacías, valores, persistencia y acciones. No darlo por cerrado hasta navegador.

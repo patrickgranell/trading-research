@@ -8,6 +8,7 @@ import {spawnSync} from 'node:child_process';
 const html=fs.readFileSync('dist/index.html','utf8');
 const source=fs.readFileSync('fixtures/audit-r3-pr2-ankora-SYNTHETIC.txt','utf8');
 const browserProbe=String.raw`(async()=>{
+ const alerts=[];window.alert=message=>{alerts.push(String(message));};
  const x={},sleep=ms=>new Promise(r=>setTimeout(r,ms));
  try{
   await sleep(1800);
@@ -47,6 +48,8 @@ const browserProbe=String.raw`(async()=>{
   researchGridState.rowDim='tax:'+id;
   researchGridState.colDim='direction';
   const gridHtml=researchGridModule([trade]);
+  x.gridMarkup=gridHtml.slice(0,1900);
+  x.gridContract=!!globalThis.TradingResearchAuditR3Grid;
   x.gridData=gridHtml.includes('Calidad A')&&gridHtml.includes('1 de 1 operaciones clasificadas');
   const beforeFilters=JSON.stringify(labState.taxonomyFilters||{});
   researchApplyCell('tax:'+id,valueId,'direction','SHORT');await sleep(130);
@@ -62,13 +65,16 @@ const browserProbe=String.raw`(async()=>{
   // Complete RAW import cycle using the real FileReader + inspector + saved editor.
   const before=state.operations.length;
   const file=(data,name)=>new File([data],name,{type:'text/plain'});
-  handleImport(file(syntheticAnkora,'R3-SYNTHETIC.txt'));await sleep(250);
+  x.planForImport={current:state.currentPlanId,p:p.id,pending:typeof pendingImportPlanId==='undefined'?'UNDEF':pendingImportPlanId};
+  handleImport(file(syntheticAnkora,'R3-SYNTHETIC.txt'));await sleep(440);
+  x.importDiagnostic={preview:typeof pendingImportPreview==='undefined'?'UNDEF':pendingImportPreview?.drafts?.length,modalTitles:[...document.querySelectorAll('.modal-head h3')].map(e=>e.textContent),alerts:[...alerts]};
   x.inspector=!!document.querySelector('.modal-backdrop')?.textContent.includes('Inspector de importación Ankora');
   const confirm=[...document.querySelectorAll('.modal-backdrop button')]
     .find(b=>b.textContent.includes('Confirmar importación'));
   confirm?.click();await sleep(250);
   let imported=state.operations.filter(o=>o.tradingPlanId===p.id&&o.raw?.source==='ankora');
   x.imported=imported.length===2&&state.operations.length===before+2;
+  x.importAfterDiagnostic={imported:imported.length,operations:state.operations.length,before,alerts:[...alerts]};
   const first=imported.find(o=>o.raw.columns.EntryDateTime==='01/10/2026 19:05:00');
   x.rawFirst=!!first&&first.raw?.columns.Lot1Ticks==='20';
   closeModal();

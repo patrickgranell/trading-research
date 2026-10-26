@@ -84,9 +84,9 @@ researchSetLabDim=function(dim,val){
 const originalGrid=researchGridModule;
 researchGridModule=function(ops){
  const html=originalGrid(ops),node=document.createElement('template');node.innerHTML=html;
- const axes=[...node.content.querySelectorAll('.research-grid-controls select')]
-  .filter(s=>s.getAttribute('data-tr-onchange')?.includes('setResearchGridDim')||
-   s.getAttribute('data-tr-action-change')?.includes('setResearchGridDim'));
+ // The canonical event binder can replace data-tr-onchange with an opaque ID.
+ // Row and column are the first two controls; later selects are metric/sample.
+ const axes=[...node.content.querySelectorAll('.research-grid-controls select')].slice(0,2);
  const tax=taxonomies().filter(t=>t.kind==='custom');
  const opts=tax.map(t=>['tax:'+t.id,human(t)]);
  for(const [i,select] of axes.entries()){

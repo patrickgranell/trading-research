@@ -48,3 +48,6 @@ Intento inicial de cambiar app.js rechazado por hash del source anterior a contr
 
 ## Gate de integración agrupada (en curso)
 Nueva prueba verify-audit-r3-pr2-integration-browser.mjs: comprueba taxonomía → columna → filtro/desglose → eje Research Grid → selección de celda y restauración → renombrado/archivo → importación con FileReader/preview → edición normalizada/guardar → reimportación idéntica y versión RAW modificada, preservando ID y notas. Solo fixture inventado; no certifica archivos reales. Aún pendiente resultado CI.
+
+## Aclaración sobre prueba del selector de archivos
+La pasada Chromium headless con reloj virtual no ejecuta el callback asíncrono de FileReader antes de cerrar el dump, aun cuando parser y UI funcionan. El nuevo gate alimenta **la salida real de `buildPreviewFromText`** al mismo inspector que invoca FileReader y continúa los botones Guardar/Confirmar del UI; esto prueba inspector+edición+reimportación, **no el picker nativo de archivos**. Ese último tramo queda pendiente de prueba manual o navegador interactivo, sin afirmar cobertura inexistente.

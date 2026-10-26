@@ -64,9 +64,15 @@ const browserProbe=String.raw`(async()=>{
   x.archivedRegister=!!document.querySelector('[data-tr-cols-visible="tax:'+id+'"]');
   // Complete RAW import cycle using the real FileReader + inspector + saved editor.
   const before=state.operations.length;
-  const file=(data,name)=>new File([data],name,{type:'text/plain'});
+  // Verify the real inspector/editor pipeline. Chromium virtual-time can starve
+  // asynchronous FileReader callbacks under --dump-dom, so feed the completed
+  // parser result directly (the same object handleImport supplies on load).
+  const showImport=(data,name)=>{
+   pendingImportPreview=buildPreviewFromText(data,{name},p);
+   openImportPreviewModal();
+  };
   x.planForImport={current:state.currentPlanId,p:p.id,pending:typeof pendingImportPlanId==='undefined'?'UNDEF':pendingImportPlanId};
-  handleImport(file(syntheticAnkora,'R3-SYNTHETIC.txt'));await sleep(440);
+  showImport(syntheticAnkora,'R3-SYNTHETIC.txt');await sleep(120);
   x.importDiagnostic={preview:typeof pendingImportPreview==='undefined'?'UNDEF':pendingImportPreview?.drafts?.length,modalTitles:[...document.querySelectorAll('.modal-head h3')].map(e=>e.textContent),alerts:[...alerts]};
   x.inspector=!!document.querySelector('.modal-backdrop')?.textContent.includes('Inspector de importación Ankora');
   const confirm=[...document.querySelectorAll('.modal-backdrop button')]
@@ -90,13 +96,13 @@ const browserProbe=String.raw`(async()=>{
   saveBtn?.click();await sleep(230);
   x.savedEdit=state.operations.find(o=>o.id===first.id)?.notes==='Nota enriquecida después de importar';
   closeModal();
-  handleImport(file(syntheticAnkora,'R3-SYNTHETIC.txt'));await sleep(230);
+  showImport(syntheticAnkora,'R3-SYNTHETIC.txt');await sleep(120);
   x.repeatSkipped=!!document.querySelector('.modal-backdrop')?.textContent.includes('Ya importada · omitir');
   cancelImportPreview();await sleep(80);
   const lines=syntheticAnkora.trimEnd().split('\n'),head=lines[0].split('|'),fields=lines[1].split('|');
   fields[head.indexOf('Lot1Ticks')]='25';lines[1]=fields.join('|');
   const changed=lines.join('\n')+'\n';
-  handleImport(file(changed,'R3-SYNTHETIC-v2.txt'));await sleep(230);
+  showImport(changed,'R3-SYNTHETIC-v2.txt');await sleep(120);
   x.updateOffered=!!document.querySelector('.modal-backdrop')?.textContent.includes('Actualiza');
   const updateBtn=[...document.querySelectorAll('.modal-backdrop button')]
    .find(b=>b.textContent.includes('Confirmar importación'));
@@ -132,5 +138,5 @@ try{
   'updateOffered','updatePreserved','originalTradeUnchanged']){
   assert.equal(result[name],true,name+' regression');
  }
- console.log('Audit R3 PR2 integrated PASS: taxonomy → columns → breakdown → Grid → filter/revert, archive, synthetic FileReader import → enrich → reimport/update.');
+ console.log('Audit R3 PR2 integrated PASS: taxonomy → columns → breakdown → Grid → filter/revert, archive, synthetic import inspector → enrich → reimport/update.');
 }finally{fs.rmSync(folder,{recursive:true,force:true});}

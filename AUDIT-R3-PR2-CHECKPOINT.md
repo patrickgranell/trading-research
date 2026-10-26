@@ -25,3 +25,6 @@ Registro y Laboratorio exponen como opt-in taxonomías personalizadas presentes 
 ## CP-06.2 · Cumplimiento (implementación pendiente de certificación)
 - «Operaciones evaluadas» conserva sus ocho celdas originales y sus acciones, pero añade catálogo dinámico de otros campos y taxonomías personalizadas. Preferencias de columnas por TP con ocultación, reordenación (flechas/arrastre) y restauración. «Análisis por regla» gana ancho útil.
 - El adaptador no cambia criterios de evaluación, importaciones, métricas ni filtros. Comprobar en CI: cabeceras, filas vacías, valores, persistencia y acciones. No darlo por cerrado hasta navegador.
+
+## Prueba de columnas adaptada sin perder regresiones
+La regresión anterior exigía 21 columnas y que el nuevo TP no ocultara ninguna; ahora la configuración conserva las 21 columnas previas visibles y añade ocho campos nuevos ocultos por defecto. La prueba exige 29 columnas, verifica los ocho nuevos IDs, aislamiento de preferencias y 31 columnas con dos lotes, sin relajar comprobación de Acciones ni orden.

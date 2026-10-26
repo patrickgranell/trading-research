@@ -45,3 +45,6 @@ Intento inicial de cambiar app.js rechazado por hash del source anterior a contr
 - El Research Grid original no presenta ejes de taxonomías personalizadas. El adaptador los añade con valor canónico por ID, etiqueta renombrable y la misma selección/filtro de Laboratorio. Las no clasificadas se omiten de ejes de taxonomía y se informa cobertura n/N. Se respeta restauración de filtros y no se alteran resultados OOS.
 - Selectores de columnas de Registro/Laboratorio/Cumplimiento incorporan botón por familia, sin quitar reordenación libre ni permitir ocultar todas las columnas.
 - Validación pendiente: eje → celda → filtro → reapertura, renombrado/archivo, contexto de TP y filtro OOS.
+
+## Gate de integración agrupada (en curso)
+Nueva prueba verify-audit-r3-pr2-integration-browser.mjs: comprueba taxonomía → columna → filtro/desglose → eje Research Grid → selección de celda y restauración → renombrado/archivo → importación con FileReader/preview → edición normalizada/guardar → reimportación idéntica y versión RAW modificada, preservando ID y notas. Solo fixture inventado; no certifica archivos reales. Aún pendiente resultado CI.

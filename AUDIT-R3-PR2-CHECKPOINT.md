@@ -28,3 +28,6 @@ Registro y Laboratorio exponen como opt-in taxonomías personalizadas presentes 
 
 ## Prueba de columnas adaptada sin perder regresiones
 La regresión anterior exigía 21 columnas y que el nuevo TP no ocultara ninguna; ahora la configuración conserva las 21 columnas previas visibles y añade ocho campos nuevos ocultos por defecto. La prueba exige 29 columnas, verifica los ocho nuevos IDs, aislamiento de preferencias y 31 columnas con dos lotes, sin relajar comprobación de Acciones ni orden.
+
+## Puerta de navegador añadida
+verify-audit-r3-pr2-browser.mjs: usa únicamente fixture aislado y comprueba orden de ficha, conservación de IDs/campos/lotes, taxonomía propia como columna, Cumplimiento y preferencias. Incluido en workflow CI tras pruebas de columnas; resultado pendiente al subir cambios.

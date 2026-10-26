@@ -2341,3 +2341,5 @@ html[data-theme=light] #gf-panel{background:#fff;color:#17253c;border-color:#d6d
 #view .tr-r3-compliance-choice>div{display:flex;gap:2px;flex-shrink:0}
 #view .compliance-ops-panel th[data-r3c-col]:not([data-r3c-col="actions"]){cursor:grab}
 @media(max-width:640px){#view .tr-r3-compliance-choices{grid-template-columns:minmax(0,1fr)}}
+
+#view .compliance-ops-panel [data-r3c-col][hidden]{display:none!important}

@@ -86,6 +86,9 @@ jobs:
       - name: TR-VIS PR1 · Customizable register columns
         run: node verify-tr-vis-pr1-columns-browser.mjs
 
+      - name: Auditoría R3 · PR2 ficha, taxonomías y Cumplimiento
+        run: node verify-audit-r3-pr2-browser.mjs
+
       - name: TR-VIS PR2 · Operational presentation Chromium
         run: node verify-tr-vis-pr2-browser.mjs
 

@@ -31,3 +31,5 @@ La regresión anterior exigía 21 columnas y que el nuevo TP no ocultara ninguna
 
 ## Puerta de navegador añadida
 verify-audit-r3-pr2-browser.mjs: usa únicamente fixture aislado y comprueba orden de ficha, conservación de IDs/campos/lotes, taxonomía propia como columna, Cumplimiento y preferencias. Incluido en workflow CI tras pruebas de columnas; resultado pendiente al subir cambios.
+
+La prueba real de Chromium pasó orden de ficha, nodos originales, lotes, catálogo de 20 columnas, taxonomía, persistencia y datos sin mutación; falló por buscar el atributo heredado `data-tr-onclick` tras normalización del motor de acciones. Se cambió la aserción para comprobar el botón visible «Ver» en la celda Acciones, sin alterar la implementación.

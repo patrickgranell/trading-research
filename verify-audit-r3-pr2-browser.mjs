@@ -46,7 +46,7 @@ const probe=String.raw`(async()=>{
   out.complianceLoaded=!!globalThis.TradingResearchAuditR3Compliance&&!!root();
   out.complianceRows=root()?.querySelectorAll('tbody tr').length||0;
   out.complianceHeaderCount=root()?.querySelectorAll('thead th').length||0;
-  out.originalButtons=!!root()?.querySelector('tbody button[data-tr-onclick*="viewOperation"]');
+  out.originalButtons=!![...root()?.querySelectorAll('tbody tr td:last-child button')||[]].find(b=>b.textContent.trim()==='Ver');
   const originalValue=JSON.stringify(operation);
   root()?.querySelector('[data-r3c-toggle]')?.click();
   out.opened=!!root()?.querySelector('.tr-r3-compliance-panel:not([hidden])');

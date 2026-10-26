@@ -70,7 +70,8 @@ const chooser=p=>{
  const labels=Object.fromEntries(catalog());
  return '<div class="tr-r3-compliance-choices">'+p.order.map((id,i)=>{
   const title=escape(labels[id]||id),family=group(id);
-  return (i===0||family!==group(p.order[i-1])?'<strong class="tr-r3-compliance-family">'+escape(family)+'</strong>':'')+
+  return (i===0||family!==group(p.order[i-1])?'<div class="tr-r3-compliance-family"><span>'+escape(family)+'</span>'+
+  '<button type="button" class="btn tiny ghost" data-r3c-family="'+escape(family)+'">Grupo ±</button></div>':'')+
   '<div class="tr-r3-compliance-choice"><label><input data-r3c-visible="'+escape(id)+'" type="checkbox" '+(p.hidden.includes(id)?'':'checked')+'><span>'+title+'</span></label>'+
   '<div><button class="btn tiny ghost" type="button" data-r3c-move="'+escape(id)+'" data-shift="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+title+'">↑</button>'+
   '<button class="btn tiny ghost" type="button" data-r3c-move="'+escape(id)+'" data-shift="1" '+(i===p.order.length-1?'disabled':'')+' aria-label="Bajar '+title+'">↓</button></div></div>';
@@ -116,7 +117,7 @@ complianceOpsTable=function(ops,ruleRows){
  return fragment.innerHTML;
 };
 document.addEventListener('click',e=>{
- const control=e.target?.closest?.('[data-r3c-toggle],[data-r3c-move],[data-r3c-reset]');
+ const control=e.target?.closest?.('[data-r3c-toggle],[data-r3c-move],[data-r3c-reset],[data-r3c-family]');
  if(!control||!control.closest('#view .compliance-ops-panel'))return;
  if(control.matches('[data-r3c-toggle]')){
   const p=control.closest('.tr-r3-compliance-tools')?.querySelector('.tr-r3-compliance-panel');
@@ -124,6 +125,14 @@ document.addEventListener('click',e=>{
   return;
  }
  const p=pref();
+ if(control.matches('[data-r3c-family]')){
+  const groupName=control.dataset.r3cFamily,groupKeys=p.order.filter(id=>group(id)===groupName);
+  const alreadyAll=groupKeys.every(id=>!p.hidden.includes(id));
+  const hidden=new Set(p.hidden);
+  groupKeys.forEach(id=>alreadyAll?hidden.add(id):hidden.delete(id));
+  if(hidden.size===p.order.length)return;
+  p.hidden=[...hidden];save(p);render();return;
+ }
  if(control.matches('[data-r3c-reset]')){
   const keys=catalog().map(([id])=>id).filter(id=>id!=='actions');
   p.order=keys;p.hidden=keys.filter(id=>!fixed.some(([k])=>k===id));

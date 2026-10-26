@@ -39,3 +39,9 @@ Para actualizaciones RAW con misma identidad: los datos de ejecución siguen sie
 
 ## Resolución de guardas arquitectónicas · integración Ankora
 Intento inicial de cambiar app.js rechazado por hash del source anterior a contratos. Se restaura su blob canónico inalterado y la suite estructural intacta. El comportamiento de enriquecimiento/local RAW y cero medido se implementa en audit-r3-pr2-ankora-runtime.js sobre el contrato de importación y queda cubierto en el Chromium integrado con el fixture sintético. No se han modificado datos existentes.
+
+## CP-06.3 · Catálogo de ejes + familias semánticas (cambio pendiente CI)
+- El origen de AR-29 es verificable en taxonomy-runtime.js: el adaptador añade todas las taxonomías core a las opciones legacy del desglose, duplicando Setup, VD, NR e Hipótesis. Nuevo adaptador audit-r3-pr2-taxonomy-grid-runtime.js elimina únicamente representaciones duplicadas y conserva la selección histórica válida.
+- El Research Grid original no presenta ejes de taxonomías personalizadas. El adaptador los añade con valor canónico por ID, etiqueta renombrable y la misma selección/filtro de Laboratorio. Las no clasificadas se omiten de ejes de taxonomía y se informa cobertura n/N. Se respeta restauración de filtros y no se alteran resultados OOS.
+- Selectores de columnas de Registro/Laboratorio/Cumplimiento incorporan botón por familia, sin quitar reordenación libre ni permitir ocultar todas las columnas.
+- Validación pendiente: eje → celda → filtro → reapertura, renombrado/archivo, contexto de TP y filtro OOS.

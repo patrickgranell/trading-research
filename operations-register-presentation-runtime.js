@@ -227,7 +227,8 @@ function trColumnChooser(pref){
   const checked=!pref.hidden.includes(key);
   const name=trColEscape(trColLabel[key]),family=trColFamily(key);
   const previous=index?trColFamily(pref.order[index-1]):'';
-  return (family!==previous?'<div class="tr-colprefs-family">'+family+'</div>':'')+
+  return (family!==previous?'<div class="tr-colprefs-family"><span>'+trColEscape(family)+'</span>'+
+   '<button type="button" class="btn tiny ghost" data-tr-cols-family="'+trColEscape(family)+'" aria-label="Mostrar u ocultar grupo '+trColEscape(family)+'">Grupo ±</button></div>':'')+
    '<div class="tr-colprefs-item" data-tr-cols-item="'+key+'">'+
    '<label><input type="checkbox" data-tr-cols-visible="'+key+'" '+(checked?'checked':'')+'><span>'+name+'</span></label>'+
    '<div class="tr-colprefs-order">'+
@@ -304,12 +305,20 @@ window.opsTable=function(...args){
 // Only our namespaced controls are handled here; existing native table
 // "Ver/Editar" action delegation remains untouched.
 document.addEventListener('click',event=>{
- const control=event.target?.closest?.('[data-tr-cols-toggle],[data-tr-cols-move],[data-tr-cols-reset]');
+ const control=event.target?.closest?.('[data-tr-cols-toggle],[data-tr-cols-move],[data-tr-cols-reset],[data-tr-cols-family]');
  if(!control||!control.closest('#view'))return;
  if(control.matches('[data-tr-cols-toggle]')){
   const bar=control.closest('.tr-colprefs'),panel=bar?.querySelector('[data-tr-cols-panel]');
   if(panel){panel.hidden=!panel.hidden;control.setAttribute('aria-expanded',String(!panel.hidden));}
   return;
+ }
+ if(control.matches('[data-tr-cols-family]')){
+  const family=control.dataset.trColsFamily,keys=TR_COL_EDITABLE.filter(k=>trColFamily(k)===family);
+  const pref=trColumnGet(),allVisible=keys.every(k=>!pref.hidden.includes(k));
+  const hidden=new Set(pref.hidden);
+  for(const key of keys){if(allVisible)hidden.add(key);else hidden.delete(key);}
+  if(hidden.size===TR_COL_EDITABLE.length)return;
+  pref.hidden=[...hidden];trColumnSave(pref);trColumnUpdate(control);return;
  }
  if(control.matches('[data-tr-cols-reset]')){
   trColumnSave({order:[],hidden:TR_COL_EDITABLE.filter(x=>/^lot[1-9][0-9]*$/.test(x))});

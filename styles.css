@@ -2343,3 +2343,12 @@ html[data-theme=light] #gf-panel{background:#fff;color:#17253c;border-color:#d6d
 @media(max-width:640px){#view .tr-r3-compliance-choices{grid-template-columns:minmax(0,1fr)}}
 
 #view .compliance-ops-panel [data-r3c-col][hidden]{display:none!important}
+
+/* Auditoría R3 CP-06: family-wide column controls and taxonomy coverage. */
+#view .tr-colprefs-family,#view .tr-r3-compliance-family{
+ display:flex;align-items:center;justify-content:space-between;gap:8px
+}
+#view .tr-colprefs-family .btn,#view .tr-r3-compliance-family .btn{
+ font-size:10px;line-height:1.1;min-height:26px;padding:4px 7px;font-weight:600
+}
+#view .tr-r3-grid-coverage{display:block;padding:4px 10px 9px;color:var(--muted);font-size:11px}

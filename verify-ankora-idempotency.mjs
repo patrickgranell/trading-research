@@ -98,6 +98,34 @@ if(api){
   need(updated.raw?.sourceFingerprint===api.fp(changed)&&updated.raw?.sourceIdentity===api.id(changed),
     'D10 update no persistió fingerprint/identity de fuente.');
 
+  // R3 PR2: user-edited normalized fields take priority over newer source versions.
+  const originalRich=source({
+    Setup:'A',VD:'V',NR:'N',Hypothesis:'1',Custom1:'Contexto RAW',Custom2:'Tipo RAW',Notes:'Nota RAW'
+  });
+  const richExisting=existingFrom(originalRich,'imp-enriched',{
+    setup:'Setup editado',vd:'V',nr:'N',hypothesis:'H1',
+    h4Context:'Contexto editado',tradeType:'Tipo RAW',notes:'Nota del usuario'
+  });
+  const richChanged=source({
+    Setup:'B',VD:'V2',NR:'N2',Hypothesis:'2',Custom1:'Contexto nuevo',
+    Custom2:'Tipo nuevo',Notes:'Nota RAW nueva',Lot1Ticks:'12'
+  });
+  const newDraft=draft(richChanged);
+  Object.assign(newDraft,{setup:'B',vd:'V2',nr:'N2',hypothesis:'H2',
+    h4Context:'Contexto nuevo',tradeType:'Tipo nuevo',notes:'Nota RAW nueva'});
+  const enriched=api.make(newDraft,plan,'B-R3',richExisting);
+  need(enriched.setup==='Setup editado'&&enriched.h4Context==='Contexto editado'&&
+    enriched.notes==='Nota del usuario','R3: reimportación destruyó enriquecimiento local.');
+  need(enriched.vd==='V2'&&enriched.nr==='N2'&&enriched.hypothesis==='H2'&&
+    enriched.tradeType==='Tipo nuevo','R3: reimportación no actualizó campos no editados.');
+  need(enriched.raw.columns.Notes==='Nota RAW nueva'&&enriched.raw.columns.Setup==='B',
+    'R3: RAW actualizado incorrectamente.');
+  const zero=api.make(draft(source({Lot1Ticks:'0'})),plan,'B-ZERO',null);
+  need(zero.result==='flat'&&zero.resultTicks===0,'R3: cierre con 0 ticks debe ser neutro, no pendiente.');
+  const zeroPending=draft(source({Lot1Ticks:'0',ExitDateTime:''}));zeroPending.exitDate='';
+  need(api.make(zeroPending,plan,'B-PENDING',null).result==='pending',
+    'R3: sin salida ni ticks distintos de cero sigue pendiente.');
+
   // 4) Multiple persisted candidates for same identity => conflict.
   context.state.operations=[existingFrom(same,'imp-a'),existingFrom(same,'imp-b',{raw:{source:'ankora',columns:changed,sourceIdentity:api.id(changed),sourceFingerprint:api.fp(changed)}})];
   const d4=draft(source({Lot1Ticks:'7'}));

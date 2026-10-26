@@ -33,3 +33,6 @@ La regresión anterior exigía 21 columnas y que el nuevo TP no ocultara ninguna
 verify-audit-r3-pr2-browser.mjs: usa únicamente fixture aislado y comprueba orden de ficha, conservación de IDs/campos/lotes, taxonomía propia como columna, Cumplimiento y preferencias. Incluido en workflow CI tras pruebas de columnas; resultado pendiente al subir cambios.
 
 La prueba real de Chromium pasó orden de ficha, nodos originales, lotes, catálogo de 20 columnas, taxonomía, persistencia y datos sin mutación; falló por buscar el atributo heredado `data-tr-onclick` tras normalización del motor de acciones. Se cambió la aserción para comprobar el botón visible «Ver» en la celda Acciones, sin alterar la implementación.
+
+## CP-05.3 · Política explícita de enriquecimiento Ankora
+Para actualizaciones RAW con misma identidad: los datos de ejecución siguen siendo fuente, mientras que notas, Setup, VD, NR, hipótesis, Contexto y Tipo editados localmente prevalecen sobre los nuevos valores RAW. Los campos normalizados que nunca fueron editados sí pueden actualizarse desde el fichero. La versión RAW/fingerprint conserva los valores originales. Un cierre declarado con 0 ticks se clasifica como neutro; 0 sin fecha de salida permanece pendiente. Añadidos casos a verify-ankora-idempotency.mjs. Esto aún requiere CI y ensayo del fixture sintético con el flujo de importación visual.
